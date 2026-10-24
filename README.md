@@ -12,7 +12,7 @@ The launcher finds Python 3, starts the local server, opens the browser, and kee
 
 ## Share with friends
 
-The Windows launcher is a local development preview. To open NCCE by link on friends' computers and phones, see [Private hosted deployment](docs/HOSTED_DEPLOYMENT.md). That deployment is prepared but not created; creating it requires connecting the private GitHub repo and approving Render's displayed monthly cost.
+The Windows launcher is a local development preview. To open NCCE by link on friends' computers and phones, see [Private hosted deployment](docs/HOSTED_DEPLOYMENT.md). The free preview recipe is `render.yaml`; the separate paid persistent recipe is `render.production.yaml` and requires owner approval before use.
 
 ## What the current build contains
 

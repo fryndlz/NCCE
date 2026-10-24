@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: ncce-private
+    runtime: python
+    plan: 0.5c-512mb
+    region: frankfurt
+    buildCommand: python -m compileall -q src
+    startCommand: python src/server.py
+    healthCheckPath: /healthz
+    numInstances: 1
+    disk:
+      name: ncce-campaign-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NCCE_HOST
+        value: 0.0.0.0
+      - key: NCCE_DB_PATH
+        value: /var/data/chronicle.db
+      - key: NCCE_REQUIRE_AUTH
+        value: "1"
+      - key: NCCE_SECURE_COOKIES
+        value: "1"
+      - key: NCCE_SYNC_INTERVAL_SECONDS
+        value: "900"
+      - key: NCCE_ACCESS_PASSWORD
+        generateValue: true
+      - key: NCCE_SESSION_SECRET
+        generateValue: true

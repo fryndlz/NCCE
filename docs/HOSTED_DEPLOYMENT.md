@@ -2,20 +2,20 @@
 
 ## Goal
 
-Open the campaign chronicle at one HTTPS link from a phone or computer. The host runs the existing Python engine, reads the authoritative Krakamunda Sheet without writing to it, and keeps NCCE's derived database on persistent storage. Invited readers enter a shared passphrase; no one installs Python or opens a local firewall port.
+Open the campaign chronicle at one HTTPS link from a phone or computer. The host runs the existing Python engine and reads the authoritative Krakamunda Sheet without writing to it. The free preview uses temporary storage; the later paid production option keeps NCCE's derived database on persistent storage. Invited readers enter a shared passphrase; no one installs Python or opens a local firewall port.
 
-## Prepared deployment
+## Free preview
 
-`render.yaml` describes one Render web service in Frankfurt with:
+`render.yaml` creates a free Render preview in Frankfurt with:
 
 - the private GitHub repository as the deploy source
 - HTTPS and a service health check at `/healthz`
-- one persistent 1 GB disk at `/var/data` for SQLite
+- a temporary SQLite database at `/tmp/ncce-preview.db`
 - server-side read-only Sheet refresh at startup and every 15 minutes
 - generated passphrase and session-signing secrets
-- one service instance, as required by this SQLite-on-disk design
+- one service instance
 
-If `/var/data/chronicle.db` does not exist, NCCE seeds it from the tracked baseline and canonical C-NINE source files, then starts the live Sheet sync. It never writes to the Google Sheet. The local `data/chronicle.db` remains excluded from Git and is not automatically copied to hosting; it is derived runtime state. The hosted ledger begins with the seeded baseline and records subsequent live changes.
+The preview costs $0 on Render's free service. Free services sleep after 15 minutes without visits and can take about a minute to wake. Their filesystem is temporary: after a restart or redeploy, NCCE reseeds its baseline and syncs the current Sheet. This is for trying the app, not for keeping a durable campaign event history.
 
 ## Invite access
 
@@ -23,23 +23,22 @@ Render generates an access passphrase and a separate signing secret. The server 
 
 Only the minimal `/healthz` check and the sign-in page are public. Campaign APIs and app assets require a valid session. The HTTPS proxy marks session cookies `Secure`.
 
-## Cost and limits
+## Persistent version, only if the preview is worth keeping
 
-This configuration uses Render's paid `0.5c-512mb` web plan and a 1 GB persistent disk. Render currently lists the service at $7/month and disk storage at $0.25/GB/month; expected base cost is about **$7.25/month**, before bandwidth overages or any future plan changes. The Hobby workspace includes 5 GB monthly bandwidth, then lists $0.15/GB. Confirm the dashboard's displayed total before creating the service.
+`render.production.yaml` describes the persistent version. It uses Render's paid `0.5c-512mb` web plan and a 1 GB persistent disk. Render currently lists the service at $7/month and disk storage at $0.25/GB/month; expected base cost is about **$7.25/month**, before bandwidth overages or future price changes. The Hobby workspace includes 5 GB monthly bandwidth, then lists $0.15/GB. Do not create this service until the owner chooses to keep the preview and approves the displayed price.
 
-Render's free web service has an ephemeral filesystem and spins down when idle; a persistent disk is available only with a paid web service. The paid disk is single-instance and disables zero-downtime deploys. This is acceptable for a small private campaign group but is not a high-availability setup.
+The persistent database starts from the tracked baseline and live Sheet sync; it does not import the local ignored `data/chronicle.db`. It is a single-instance design, suitable for a small campaign group but not high availability.
 
 Pricing: https://render.com/pricing
 Persistent disk behavior: https://render.com/docs/disks
 Web service and HTTPS behavior: https://render.com/docs/web-services
 Blueprint configuration: https://render.com/docs/blueprint-spec
 
-## Deployment steps (not yet performed)
+## Preview steps (not yet performed)
 
-1. Connect the existing private `fryndlz/NCCE` GitHub repository to a Render account.
-2. Create a new Blueprint from the repository's `render.yaml` and review the paid resource total.
-3. Create the service only after the owner approves the displayed charge and GitHub repository access.
-4. Copy the generated passphrase from Render's service environment settings and share it with invited readers.
-5. Open the generated `onrender.com` HTTPS URL on desktop and phone; verify login, campaign display, `/healthz`, and live Sheet refresh.
+1. Connect the existing private `fryndlz/NCCE` GitHub repository to a Render account. Render needs access to build and deploy that private repo.
+2. Create a Blueprint from the default `render.yaml`; this is the free preview. Review the resource selection before creation.
+3. Copy the generated passphrase from Render's service environment settings and share it only with invited readers.
+4. Open the generated `onrender.com` HTTPS URL on desktop and phone; verify login, campaign display, `/healthz`, and live Sheet refresh.
 
-The service has not been created and no account or payment credentials are stored in this repository.
+The free preview has not been created. No Render account, service, GitHub integration, payment method, or credential is stored in this repository.
