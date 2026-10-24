@@ -1,7 +1,7 @@
 # Runtime database is derived from the tracked seed/source files.
-data/chronicle.db
-data/chronicle.db-shm
-data/chronicle.db-wal
+data/chronicle*.db
+data/chronicle*.db-shm
+data/chronicle*.db-wal
 
 # Python tooling
 __pycache__/

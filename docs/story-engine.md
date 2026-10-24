@@ -27,12 +27,15 @@ Personality is slow-changing disposition inferred/seeded from role, authored bac
 
 ### Narrative truth classes
 
-- AUTHOR: explicitly supplied by player/canonical lore.
-- FACT: directly derived from authoritative mechanical state.
-- INFERENCE: interpretation strongly suggested by facts.
-- FICTION: connective diegetic detail generated to make the history readable.
+- `player_authored`: explicitly supplied by a player.
+- `canon_authored`: established campaign canon.
+- `mechanical_fact`: directly recorded or deterministically derived from authoritative mechanical state.
+- `inference`: interpretation strongly suggested by facts and context.
+- `connective_fiction`: diegetic detail used to make a record readable.
 
 No lower truth class may overwrite a higher one.
+
+The SQLite provenance registry retains source authority and locators. Campaign events have stable IDs and idempotency keys, are immutable, and link to affected entities by role. Narrative artifacts cite source events and/or authored sources. When the baseline cannot establish when an old change occurred, the event date remains unknown; the observed time only says when the application first recorded it.
 
 ## Scopes
 

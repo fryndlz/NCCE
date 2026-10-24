@@ -8,7 +8,7 @@ The product goal is a persistent story engine driven by read-only mechanical evi
 
 ## Verified baseline
 
-The checked-in SQLite database contains 6 gangs, 92 fighters, 24 territory rows, 25 battles, 198 fighter events, 388 memories, 7 narrative threads, 6 downtime reports, and 1 snapshot. These counts match the handoff's approximate baseline. This review did not edit the database, seed files, or authoritative campaign sources.
+The local SQLite database is at schema version 1 and contains 6 gangs, 92 fighters, 24 territory rows, 25 battles, 198 legacy fighter events, 388 memories, 7 narrative threads, 6 downtime reports, 1 snapshot, 223 durable campaign events, 118 stable entities, 512 event/entity links, and 2 provenance sources. All foreign-key checks pass. A pre-migration SQLite backup is retained locally at `data/chronicle.v0.3-pre-schema-v1.db`; runtime databases and backups are ignored by Git. The migration did not edit seed files or authoritative campaign sources.
 
 ## Milestones
 
@@ -16,7 +16,7 @@ The checked-in SQLite database contains 6 gangs, 92 fighters, 24 territory rows,
 | --- | --- | --- |
 | Inspect and run app/tests; record actual state | Source and seeded DB reviewed. Target server prints its startup banner on an available port, but health requests from this environment time out. Existing test file is pytest-style but pytest is not installed; direct invocation exposed a SQLite connection cleanup issue on Windows, fixed with `Store.close()` and `finally`. | Done for this review; runtime access limitation documented below |
 | Chronicle primary; demote raw bookkeeping views | Chronicle is the homepage and navigation leads with Chronicle, gangs, people, and places. Gang list cards displayed reputation, territories, and rating; those summary metrics are now removed from the cards and retained in a gang detail evidence panel. Fighter pages still present raw state as evidence. | In progress, core direction implemented |
-| Robust entity/event/provenance schema | SQLite has snapshots, entities, fighter events, memories, moodlets, narrative threads, and source/confidence fields. It lacks a general event ledger, unified provenance classes, stable cross-entity source links, and migration/version handling. | Partial |
+| Robust entity/event/provenance schema | Schema migration 1 adds version tracking, source registry, stable entities, immutable campaign events, event-to-entity roles, and narrative evidence links. Existing baseline fighter events and battles are backfilled without assigning unknown event dates. Snapshot saves are content-deduplicated and provenance is explicit on narrative rows. | Completed foundation |
 | Read-only live Google Sheet sync and snapshot persistence | Parser builds a normalized snapshot from supplied tab values; no Google adapter or live sync exists. One seed snapshot is present. | Not implemented |
 | Deterministic snapshot diff to factual event ledger | `diff.py` compares fields and fighter sets as pure helpers. No durable event creation or territory/battle diff pipeline is connected. | Partial |
 | Future fighter change tracker | Baseline observations exist; no live snapshot loop exists to append exact future changes. | Not implemented |
@@ -30,9 +30,9 @@ The checked-in SQLite database contains 6 gangs, 92 fighters, 24 territory rows,
 - The workspace's `python` command points to the Windows Store stub. The bundled Python runtime at `C:\Users\Blazej\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe` runs the project.
 - `python -m unittest discover -s tests -v` reports zero tests because `test_core.py` uses pytest-style test functions and has no `unittest.TestCase` classes.
 - `python -m pytest -q` cannot run because pytest is not installed.
-- The test module's direct-run path is the current dependency-free test entry point. Windows requires explicitly closing the SQLite connection before its temporary directory can be removed; that was repaired in this review.
+- The test module's direct-run path is the current dependency-free test entry point. It passes the storage/parser checks, snapshot deduplication, idempotent immutable event insertion, and a non-empty legacy database provenance migration check.
 - Port 8765 was already serving the older standings-first `necromunda-chronicle` app. The v0.3 server started on 8766; the in-app browser could not reach that port in this environment, so browser verification of that separate instance was unavailable.
 
 ## Next engineering priority
 
-Continue the UI pivot with focused evidence panels, then add schema migrations and a durable factual event ledger before connecting any narrative generation to future snapshots. Keep Sheet access read-only; never infer historical chronology from baseline values alone.
+Connect a read-only Google Sheet adapter and persist normalized snapshots through the new idempotent snapshot API. Then diff consecutive snapshots into immutable factual events. Keep Sheet access read-only; never infer historical chronology from baseline values alone.

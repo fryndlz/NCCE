@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-title Krakaumunda Story Engine
+title NCCE - Necromunda Campaign Chronicle Engine
 
 set "PYTHON_CMD="
 where py >nul 2>nul
@@ -14,7 +14,7 @@ if not defined PYTHON_CMD (
 if not defined PYTHON_CMD (
   echo.
   echo ============================================================
-  echo  KRAKAUMUNDA STORY ENGINE - STARTUP ERROR
+  echo  NCCE - CAMPAIGN CHRONICLE ENGINE - STARTUP ERROR
   echo ============================================================
   echo.
   echo Python 3 was not found on this PC.
@@ -39,7 +39,7 @@ if not exist "data\chronicle.db" (
 
 echo.
 echo ============================================================
-echo  KRAKAUMUNDA STORY ENGINE
+echo  NCCE - CAMPAIGN CHRONICLE ENGINE
  echo ============================================================
 echo.
 echo Starting at http://127.0.0.1:8765

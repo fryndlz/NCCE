@@ -25,7 +25,8 @@ def c9_gang_story(text):
 
 def main(path):
     p=Path(path)
-    if p.exists(): p.unlink()
+    if p.exists():
+        raise FileExistsError(f"Refusing to replace existing campaign database: {p}. Use the existing app database or choose a new path.")
     s=Store(p)
     # Current individual-tab values override stale baseline where known.
     for g in GANGS:
@@ -86,7 +87,7 @@ def main(path):
     for (a,d),n in sorted(pairs.items(),key=lambda x:-x[1]):
         if n>=2:
             s.db.execute('INSERT INTO narrative_threads(scope_type,scope_key,title,status,summary,evidence_json,updated_at) VALUES(?,?,?,?,?,?,?)',('relationship',f'{a}|{d}',f'{short(a)} / {short(d)} recurring conflict','active',f'{short(a)} and {short(d)} have met in {n} recorded engagements. Repetition has turned contact into history, whether the participants call it rivalry or not.',json.dumps({'encounters':n}),now))
-    s.set_state('campaign_name','Dominion Krakaumunda'); s.set_state('campaign_status','Active'); s.set_state('baseline','Snapshot 0001 + narrative seed'); s.set_state('source_mode','authoritative mechanical baseline + canonical C-NINE story + generated narrative layer'); s.set_state('last_sync',now); s.set_state('engine_version','0.3 Story Engine Prototype')
+    s.set_state('campaign_name','Dominion Krakaumunda'); s.set_state('campaign_status','Active'); s.set_state('baseline','Snapshot 0001 + narrative seed'); s.set_state('source_mode','authoritative mechanical baseline + canonical C-NINE story + generated narrative layer'); s.set_state('last_sync',now); s.set_state('engine_version','NCCE v0.3 Prototype')
     s.db.execute('INSERT INTO snapshots(captured_at,source_hash,payload_json) VALUES(?,?,?)',(now,None,json.dumps({'baseline':'Snapshot 0001','gangs':len(GANGS),'territories':len(territories),'battles':len(battles),'fighters':sum(len(x) for x in fighter_data.values())})))
     s.db.commit(); print('Seeded story engine',p)
 if __name__=='__main__':

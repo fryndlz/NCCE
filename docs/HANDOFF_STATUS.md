@@ -25,10 +25,10 @@ Current state cannot reliably reconstruct exact chronology of all pre-baseline f
 The canonical C-NINE source is in `data/lore/C-NINE Story - canonical export.txt`. It contains both CAMPAIGN LOG and PERSONNEL FILES. Prefer authored biographies and events from it over generated replacements. Preserve its contradictions/redactions intentionally.
 
 ## Highest-priority next milestones
-1. Inspect and run current app/tests. Document what v0.3 actually implements versus what was claimed.
-2. Make Chronicle the primary UI and demote raw Munda Manager-like views.
-3. Implement robust entity/event/provenance schema in SQLite.
-4. Implement live read-only Google Sheet synchronization and snapshot persistence.
+1. Inspect and run current app/tests. Document what v0.3 actually implements versus what was claimed. **Completed in `docs/IMPLEMENTATION_AUDIT.md`.**
+2. Make Chronicle the primary UI and demote raw Munda Manager-like views. **Core direction implemented; mechanical gang summary metrics are relegated to evidence detail.**
+3. Implement robust entity/event/provenance schema in SQLite. **Completed as schema migration 1; baseline rows are backfilled without inventing historical dates.**
+4. Implement live read-only Google Sheet synchronization and snapshot persistence. **Next. Snapshot persistence primitives now exist; Google read adapter is not connected.**
 5. Implement deterministic snapshot diff -> factual event ledger.
 6. Implement character change tracker for all future changes.
 7. Implement stim/mood/memory/reflection pipeline with source pointers.

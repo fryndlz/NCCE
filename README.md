@@ -1,4 +1,6 @@
-# Krakaumunda Story Engine v0.3
+# NCCE — Necromunda Campaign Chronicle Engine
+
+Current seeded application build: v0.3 prototype.
 
 This build pivots the project away from being a second Munda Manager. Mechanical data is evidence. The product is the persistent story generated from that evidence.
 
@@ -23,6 +25,7 @@ The launcher finds Python 3, starts the local server, opens the browser, and kee
 - **Downtime reports**: one current report per gang, driven by latest battle and roster state.
 - **C-NINE archive**: complete exported `CAMPAIGN LOG` + `PERSONNEL FILES` from the canonical Google Doc embedded locally.
 - **Battle chronicle**: all 25 baseline battles expressed as factual narrative anchors.
+- **Provenance ledger**: schema migration 1 records source authority, stable entities, immutable campaign events and links from story artifacts to their evidence.
 
 ## Story-engine model
 
@@ -41,4 +44,4 @@ Snapshot 0001 tells us each fighter's **current** XP, kills, injuries, advanceme
 
 ## Next engineering layer
 
-Live read-only Google Sheet synchronization and snapshot comparison. A new battle/state change will emit structured events into the story engine, update affected memories/moodlets/relationships, generate downtime, and advance gang/place/campaign chronicles.
+Live read-only Google Sheet synchronization and snapshot comparison. A new battle/state change will emit structured events into the story engine, update affected memories/moodlets/relationships, generate downtime, and advance gang/place/campaign chronicles. Existing databases migrate in place; the seed command refuses to replace an existing database.
