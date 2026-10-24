@@ -1,6 +1,6 @@
 Read AGENTS.md and all documents it marks as required reading. Inspect the existing repository and run the current application and tests.
 
-This repository is the persistent MCCE workspace. Do not rebuild it from scratch and do not create another versioned ZIP. Continue development in place.
+This repository is the persistent NCCE workspace. Do not rebuild it from scratch and do not create another versioned ZIP. Continue development in place.
 
 First verify that your understanding of the product matches docs/PRODUCT_VISION.md and docs/STORY_ENGINE_ARCHITECTURE.md. Then inspect the current implementation against docs/HANDOFF_STATUS.md and continue from the highest-priority unfinished milestone.
 

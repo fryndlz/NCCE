@@ -1,12 +1,12 @@
-# MCCE - Codex Operating Brief
+# NCCE - Codex Operating Brief
 
 ## Product
-MCCE is the Necromunda Campaign Chronicle Engine. It is NOT a replacement for Munda Manager and must not drift into being a second roster/campaign spreadsheet viewer.
+NCCE is the Necromunda Campaign Chronicle Engine. It is NOT a replacement for Munda Manager and must not drift into being a second roster/campaign spreadsheet viewer.
 
 The value proposition is a persistent story engine in the spirit of Dwarf Fortress / RimWorld / X-COM: authoritative tabletop mechanical state produces fictional consequences, memories, relationships, mood, histories, downtime events and an overarching campaign chronicle.
 
 ## Permanent workspace
-This repository is intended to live at `C:\Codex\MCCE`. Develop in place. Do not create versioned ZIPs as the normal workflow. Use Git for history once initialized.
+This repository is intended to live at `C:\Codex\NCCE`. Develop in place. Do not create versioned ZIPs as the normal workflow. Use Git for history once initialized.
 
 ## Authority hierarchy
 1. Mechanical campaign truth: Google Sheet
