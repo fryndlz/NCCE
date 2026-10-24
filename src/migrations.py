@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -529,4 +529,38 @@ def migrate(db: sqlite3.Connection) -> int:
         except Exception:
             db.rollback()
             raise
-    return current if current >= 1 else SCHEMA_VERSION
+    version = db.execute("PRAGMA user_version").fetchone()[0]
+    if version < 2:
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            _add_column(db, "territories", "source_territory_id", "TEXT")
+            _add_column(db, "territories", "active", "INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))")
+            _add_column(db, "fighters", "listed_in_source", "INTEGER NOT NULL DEFAULT 1 CHECK(listed_in_source IN (0,1))")
+            _add_column(db, "battles", "active", "INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))")
+            db.execute("CREATE UNIQUE INDEX IF NOT EXISTS territories_source_id_idx ON territories(source_territory_id) WHERE source_territory_id IS NOT NULL")
+            db.execute("CREATE INDEX IF NOT EXISTS territories_active_idx ON territories(active,gang_id)")
+            db.execute(
+                "INSERT INTO schema_migrations(version,name,applied_at) VALUES(2,?,?)",
+                ("live Sheet current-state projection", _now()),
+            )
+            db.execute("PRAGMA user_version=2")
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    version = db.execute("PRAGMA user_version").fetchone()[0]
+    if version < 3:
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            _add_column(db, "gangs", "active", "INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))")
+            db.execute("CREATE INDEX IF NOT EXISTS gangs_active_idx ON gangs(active,name)")
+            db.execute(
+                "INSERT INTO schema_migrations(version,name,applied_at) VALUES(3,?,?)",
+                ("current campaign membership projection", _now()),
+            )
+            db.execute("PRAGMA user_version=3")
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    return SCHEMA_VERSION

@@ -48,7 +48,7 @@ class Store:
   with self._lock, self.db:
    self.db.execute('''INSERT OR IGNORE INTO entities(entity_id,entity_type,entity_key,display_name,provenance_class,source_id,created_at) VALUES(?,?,?,?,?,?,?)''',(entity_id,entity_type,entity_key,display_name,provenance_class,source_id,datetime.now(timezone.utc).isoformat()))
    row=self.db.execute('SELECT entity_id,display_name,provenance_class,source_id FROM entities WHERE entity_type=? AND entity_key=?',(entity_type,entity_key)).fetchone()
-   if (row['provenance_class'],row['source_id'])!=(provenance_class,source_id): raise ValueError(f'Entity identity collision: {entity_type}:{entity_key}')
+   if row['provenance_class']!=provenance_class: raise ValueError(f'Entity provenance collision: {entity_type}:{entity_key}')
    entity_id=row['entity_id']
   return entity_id
  def save_snapshot(self,payload):
@@ -86,6 +86,63 @@ class Store:
  def latest_event_by_source_locator(self,source_locator):
   row=self.db.execute('SELECT event_id FROM campaign_events WHERE source_locator=? ORDER BY observed_at DESC,created_at DESC LIMIT 1',(source_locator,)).fetchone()
   return row['event_id'] if row else None
+ def project_snapshot(self,payload):
+  """Refresh the app's current-state tables while preserving narrative/history fields."""
+  gangs=payload.get('gangs') or {}; gang_index=payload.get('gang_index') or {}
+  with self._lock, self.db:
+   self.db.execute('UPDATE gangs SET active=0')
+   for tab_name,gang in gangs.items():
+    gang_id=str(gang.get('gang_id') or '')
+    if not gang_id: continue
+    index=gang_index.get(gang_id,{})
+    name=gang.get('name') or tab_name
+    self.db.execute('''INSERT INTO gangs(gang_id,name,gang_type,player,rating,wealth,credits,reputation,territories,alignment,colour,updated_at,active)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(gang_id) DO UPDATE SET name=excluded.name,gang_type=excluded.gang_type,player=excluded.player,rating=excluded.rating,wealth=excluded.wealth,credits=excluded.credits,reputation=excluded.reputation,territories=excluded.territories,alignment=excluded.alignment,colour=excluded.colour,updated_at=excluded.updated_at,active=1''',
+      (gang_id,name,gang.get('gang_type') or index.get('Type'),index.get('Player'),index.get('Rating',gang.get('rating')),index.get('Wealth'),gang.get('credits'),gang.get('reputation'),index.get('Territories'),gang.get('alignment'),gang.get('colour'),gang.get('last_updated')))
+    self.db.execute('UPDATE fighters SET listed_in_source=0 WHERE gang_id=?',(gang_id,))
+    fighter_rows=self.db.execute('SELECT id,name FROM fighters WHERE gang_id=?',(gang_id,)).fetchall()
+    existing={unicodedata.normalize('NFKC',str(row['name'] or '')).strip().casefold():row['id'] for row in fighter_rows}
+    for source_name,record in (gang.get('fighters') or {}).items():
+     normalized=unicodedata.normalize('NFKC',str(source_name or '')).strip().casefold()
+     normalized=re.sub(r'\s+',' ',normalized)
+     fighter_id=existing.get(normalized)
+     values=(name,record.get('Type'),record.get('Class'),record.get('Cost'),record.get('XP'),record.get('Kills'),record.get('Advancements'),record.get('Effects'),record.get('Status'))
+     if fighter_id:
+      self.db.execute('''UPDATE fighters SET gang_name=?,name=?,type=?,class=?,cost=?,xp=?,kills=?,advancements=?,effects=?,status=?,listed_in_source=1 WHERE id=?''',(name,source_name,*values[1:],fighter_id))
+     else:
+      self.db.execute('''INSERT INTO fighters(gang_id,gang_name,name,type,class,cost,xp,kills,advancements,effects,status,backstory,backstory_source,listed_in_source)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,'','not-yet-written',1)''',(gang_id,name,source_name,*values[1:]))
+
+   self.db.execute('UPDATE territories SET active=0')
+   for territory in payload.get('territories') or []:
+    territory_name=territory.get('Territory') or territory.get('territory') or territory.get('Name') or territory.get('name')
+    if not territory_name: continue
+    gang_id=territory.get('Gang ID') or territory.get('gang_id')
+    gang_name=territory.get('Gang') or territory.get('gang') or territory.get('Gang Name') or territory.get('gang_name')
+    source_territory_id=territory.get('source_territory_key') or territory.get('territory_id')
+    card=territory.get('Card') or territory.get('card')
+    default=territory.get('Default',territory.get('is_default',False))
+    ruined=territory.get('Ruined',territory.get('ruined',False))
+    if source_territory_id:
+     prior=self.db.execute('SELECT id FROM territories WHERE source_territory_id=?',(str(source_territory_id),)).fetchone()
+     if not prior:
+      prior=self.db.execute('SELECT id FROM territories WHERE ifnull(gang_id,\'\')=ifnull(?,\'\') AND territory=? AND ifnull(card,\'\')=ifnull(?,\'\') AND is_default=? AND ruined=? ORDER BY id DESC LIMIT 1',(gang_id,territory_name,card,int(bool(default)),int(bool(ruined)))).fetchone()
+    else:
+      prior=self.db.execute('SELECT id FROM territories WHERE ifnull(gang_id,\'\')=ifnull(?,\'\') AND territory=? AND ifnull(card,\'\')=ifnull(?,\'\') AND is_default=? AND ruined=? ORDER BY id DESC LIMIT 1',(gang_id,territory_name,card,int(bool(default)),int(bool(ruined)))).fetchone()
+    if prior:
+     self.db.execute('''UPDATE territories SET gang_id=?,gang_name=?,territory=?,card=?,is_default=?,ruined=?,active=1,source_territory_id=coalesce(?,source_territory_id) WHERE id=?''',(gang_id,gang_name,territory_name,card,int(bool(default)),int(bool(ruined)),str(source_territory_id) if source_territory_id else None,prior['id']))
+    else:
+     self.db.execute('''INSERT INTO territories(gang_id,gang_name,territory,card,is_default,ruined,active,source_territory_id) VALUES(?,?,?,?,?,?,1,?)''',(gang_id,gang_name,territory_name,card,int(bool(default)),int(bool(ruined)),str(source_territory_id) if source_territory_id else None))
+
+   self.db.execute('UPDATE battles SET active=0')
+   for battle in payload.get('battles') or []:
+    source_row=battle.get('source_row')
+    if source_row is None: continue
+    self.db.execute('''INSERT INTO battles(source_row,date,scenario,attacker,defender,winner,territory,territory_claimer,notes,active)
+      VALUES(?,?,?,?,?,?,?,?,?,1) ON CONFLICT(source_row) DO UPDATE SET date=excluded.date,scenario=excluded.scenario,attacker=excluded.attacker,defender=excluded.defender,winner=excluded.winner,territory=excluded.territory,territory_claimer=excluded.territory_claimer,notes=excluded.notes,active=1''',
+      (source_row,battle.get('date'),battle.get('scenario'),battle.get('attacker'),battle.get('defender'),battle.get('winner'),battle.get('territory'),battle.get('territory_claimer'),battle.get('notes')))
+
+  return {'gangs':len(gangs),'fighters_listed':sum(len(g.get('fighters') or {}) for g in gangs.values()),'territories':len(payload.get('territories') or []),'battles':len(payload.get('battles') or [])}
  def record_event(self,event_key,event_type,payload,provenance_class,source_id=None,source_locator=None,occurred_at=None,observed_at=None,confidence=1.0,from_snapshot_id=None,to_snapshot_id=None,subjects=None,supersedes_event_id=None,correction_reason=None):
   if provenance_class not in PROVENANCE_CLASSES: raise ValueError(f'Unknown provenance class: {provenance_class}')
   if not event_key or not event_type: raise ValueError('event_key and event_type are required')
@@ -127,12 +184,13 @@ class Store:
   return out
  def dashboard(self):
   q=lambda sql,args=():[dict(r) for r in self.db.execute(sql,args)]
-  return {'gangs':q('SELECT * FROM gangs ORDER BY reputation DESC,rating DESC'),'battles':q('SELECT * FROM battles ORDER BY date DESC,source_row DESC'),'territories':q('SELECT * FROM territories ORDER BY gang_name,territory'),'regions':q('SELECT * FROM regions'),'downtime':q('SELECT * FROM downtime_reports ORDER BY id DESC'),'state':{r['key']:r['value'] for r in self.db.execute('SELECT * FROM system_state')}}
+  battle_sql='''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE ce.source_locator=\'Battles!row \'||b.source_row AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 ORDER BY b.date DESC,b.source_row DESC'''
+  return {'gangs':q('SELECT * FROM gangs WHERE active=1 ORDER BY reputation DESC,rating DESC'),'battles':q(battle_sql),'territories':q('SELECT * FROM territories WHERE active=1 ORDER BY gang_name,territory'),'regions':q('SELECT * FROM regions'),'downtime':q('SELECT * FROM downtime_reports ORDER BY id DESC'),'state':{r['key']:r['value'] for r in self.db.execute('SELECT * FROM system_state')}}
  def gang(self,gid):
   r=self.db.execute('SELECT * FROM gangs WHERE gang_id=?',(gid,)).fetchone()
   if not r:return None
   g=dict(r); name=g['name']; q=lambda sql,args=():[dict(x) for x in self.db.execute(sql,args)]
-  g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY status,name',(gid,)); g['battles']=q('SELECT * FROM battles WHERE attacker=? OR defender=? OR winner=? OR territory_claimer=? ORDER BY date DESC',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,)); return g
+  g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['battles']=q('''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE ce.source_locator=\'Battles!row \'||b.source_row AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 AND (b.attacker=? OR b.defender=? OR b.winner=? OR b.territory_claimer=?) ORDER BY b.date DESC''',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,)); return g
  def fighter(self,fid):
   r=self.db.execute('SELECT * FROM fighters WHERE id=?',(fid,)).fetchone()
   if not r:return None

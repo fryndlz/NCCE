@@ -28,10 +28,10 @@ The canonical C-NINE source is in `data/lore/C-NINE Story - canonical export.txt
 1. Inspect and run current app/tests. Document what v0.3 actually implements versus what was claimed. **Completed in `docs/IMPLEMENTATION_AUDIT.md`.**
 2. Make Chronicle the primary UI and demote raw Munda Manager-like views. **Core direction implemented; mechanical gang summary metrics are relegated to evidence detail.**
 3. Implement robust entity/event/provenance schema in SQLite. **Completed as schema migration 1; baseline rows are backfilled without inventing historical dates.**
-4. Implement live read-only Google Sheet synchronization and snapshot persistence. **Snapshot persistence is implemented; live read access is waiting on an authorized Google Sheets/Drive connection. The available Drive connector is disabled by administrator policy, and there is no connected Sheets session.**
-5. Implement deterministic snapshot diff -> factual event ledger. **Completed offline: normalized snapshots produce idempotent factual events for fighter/gang changes, battles/corrections, and unambiguous territory transfers. No occurrence date is invented for undated changes.**
-6. Implement character change tracker for all future changes. **Campaign events are now included in fighter API responses and the fighter change-tracker view; live accumulation depends on milestone 4 access.**
-7. Implement stim/mood/memory/reflection pipeline with source pointers.
+4. Implement live read-only Google Sheet synchronization and snapshot persistence. **Implemented. Startup and 15-minute background refreshes use the public XLSX export with Python's standard library; the UI also has a manual refresh button. Local current-state projection updates from the Sheet. No credentials are stored and the Sheet is never written.**
+5. Implement deterministic snapshot diff -> factual event ledger. **Completed. Idempotent factual events cover fighter/gang changes, battle additions/corrections/removals, and territory changes when source identity is unambiguous. No occurrence date is invented for undated changes.**
+6. Implement character change tracker for all future changes. **Campaign events are included in fighter API responses and detail views; live snapshots feed this ledger automatically.**
+7. Implement stim/mood/memory/reflection pipeline with source pointers. **Next. New facts appear in the tracker; runtime observations and narrative reactions are not generated yet.**
 8. Generate initial non-C-NINE gang/character/place histories with explicit inference provenance.
 9. Implement downtime event generation and campaign-level chronicle updates.
 10. Only after the story loop is convincing, improve graphics/presentation and consider Unity.

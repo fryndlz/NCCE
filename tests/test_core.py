@@ -1,8 +1,10 @@
 import json, sqlite3, sys, tempfile
+from io import BytesIO
 from pathlib import Path
+from zipfile import ZipFile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from store import Store, SCHEMA
-from snapshot import parse_gang_tab
+from snapshot import build_snapshot_from_sheets, parse_battles, parse_gang_tab, read_xlsx_sheets
 from sync import ingest_snapshot
 
 def test_store():
@@ -17,12 +19,40 @@ def test_gang_parser():
     rows=[['Gang'],[],['Gang ID','1'],['Gang Type','House Orlock'],['Credits','5'],['Reputation','2'],['Rating','100'],['Alignment','Law Abiding'],[],['FIGHTERS'],['Name','Type','Class'],['A','Gunner','Ganger']]
     g=parse_gang_tab(rows); assert g['gang_id']=='1' and g['fighters']['A']['Class']=='Ganger'
 
+def test_live_sheet_snapshot_shape():
+    tabs={
+        'Campaign':[['Field','Value'],['Name','Krakaumunda']],
+        'Gangs':[['Gang ID','Gang','Type','Player'],['g1','Iron Dogs','Orlock','Player']],
+        'Territories':[['Gang ID','Gang','Territory','Card','Default','Ruined'],['g1','Iron Dogs','Old Pump','8♠',False,False]],
+        'Battles':[['Date','Scenario','Attacker','Defender','Winner','Territory','Territory Claimer','Notes'],['2026-01-01','Skirmish','Iron Dogs','Ash Walkers','Iron Dogs','Old Pump','Iron Dogs','context']],
+        'MAIN':[['Connection Status',200],['Data Dump',json.dumps({'campaign':{'id':'c1'},'members':[{'gangs':[{'id':'g1','territories':[{'id':'t1','name':'Old Pump'}]}]}]})]],
+        'Iron Dogs':[['Iron Dogs'],[],['Gang ID','g1'],['Gang Type','Orlock'],['Credits',5],['Reputation',1],['Rating',100],['Alignment','Law Abiding'],[],[],[],[],[],['FIGHTERS'],['Name','Type','Class'],['Rook','Gunner','Ganger']],
+    }
+    snapshot=build_snapshot_from_sheets(tabs,captured_at='2026-01-02T00:00:00+00:00')
+    assert snapshot['gangs']['Iron Dogs']['fighters']['Rook']['Class']=='Ganger'
+    assert snapshot['territories'][0]['territory_id']=='t1'
+    assert snapshot['battles'][0]['winner']=='Iron Dogs'
+    assert snapshot['battles'][0]['source_row']==2
+    assert snapshot['source_metadata']['campaign_id']=='c1'
+    assert parse_battles(tabs['Battles'])[0]['date']=='2026-01-01'
+
+def test_stdlib_xlsx_reader():
+    buffer=BytesIO()
+    with ZipFile(buffer,'w') as archive:
+        archive.writestr('xl/workbook.xml','''<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Campaign" sheetId="1" r:id="rId1"/></sheets></workbook>''')
+        archive.writestr('xl/_rels/workbook.xml.rels','''<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/></Relationships>''')
+        archive.writestr('xl/worksheets/sheet1.xml','''<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Field</t></is></c><c r="B1" t="inlineStr"><is><t>Value</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Name</t></is></c><c r="B2" t="inlineStr"><is><t>Krakaumunda</t></is></c></row></sheetData></worksheet>''')
+    sheets=read_xlsx_sheets(buffer.getvalue())
+    assert sheets['Campaign']==[['Field','Value'],['Name','Krakaumunda']]
+
 def test_durable_ledger_and_snapshot_deduplication():
     with tempfile.TemporaryDirectory() as d:
         s=Store(Path(d)/'ledger.db')
         try:
             source=s.record_source('test:sheet','campaign_sheet','mechanical_fact','Test Sheet')
             fighter=s.register_entity('fighter','g1/subject alpha','Subject Alpha','mechanical_fact',source)
+            live_source=s.record_source('test:live-sheet','campaign_sheet','mechanical_fact','Live Test Sheet')
+            assert s.register_entity('fighter','g1/subject alpha','Subject Alpha','mechanical_fact',live_source)==fighter
             first_snapshot,created=s.save_snapshot({'captured_at':'2026-01-01T00:00:00+00:00','source_id':source,'gangs':[]})
             assert created
             same_snapshot,created=s.save_snapshot({'captured_at':'2026-01-02T00:00:00+00:00','source_id':source,'gangs':[]})
@@ -42,7 +72,7 @@ def test_durable_ledger_and_snapshot_deduplication():
                 raise AssertionError('Snapshot update should be rejected')
             except sqlite3.IntegrityError:
                 pass
-            assert s.db.execute('PRAGMA user_version').fetchone()[0]==1
+            assert s.db.execute('PRAGMA user_version').fetchone()[0]==3
         finally:
             s.close()
 
@@ -62,7 +92,7 @@ def test_legacy_database_provenance_migration():
         db.commit(); db.close()
         s=Store(path)
         try:
-            assert s.schema_version==1
+            assert s.schema_version==3
             assert s.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==2
             assert s.db.execute("SELECT provenance_class FROM memories").fetchone()[0]=='mechanical_fact'
             assert s.db.execute("SELECT count(*) FROM event_subjects").fetchone()[0]>=5
@@ -93,7 +123,7 @@ def test_snapshot_ingest_diff_and_retry():
             'battles': battles,
         }
 
-    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'.tmp-test') as d:
+    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as d:
         s=Store(Path(d)/'sync.db')
         try:
             initial=snapshot('2026-01-01T00:00:00+00:00', 0, 'g1', [
@@ -116,7 +146,20 @@ def test_snapshot_ingest_diff_and_retry():
             assert not repeated['events_created'] and repeated['events_considered']==result['events_considered']
             assert s.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==result['events_considered']
             assert s.db.execute('PRAGMA foreign_key_check').fetchall()==[]
+            removed=snapshot('2026-01-03T00:00:00+00:00', 2, 'g2', [changed['battles'][0]])
+            removal=ingest_snapshot(s,removed)
+            assert s.db.execute("SELECT count(*) FROM campaign_events WHERE event_type='battle_record_removed'").fetchone()[0]==1
+            superseded=s.db.execute("SELECT supersedes_event_id FROM campaign_events WHERE event_type='battle_record_removed'").fetchone()[0]
+            assert superseded is not None
+            projection=s.project_snapshot(removed)
+            assert projection['battles']==1 and s.db.execute('SELECT count(*) FROM battles WHERE active=1').fetchone()[0]==1
+            assert s.dashboard()['battles'][0]['chronicle_stale']==1
+            departed=dict(removed); departed['captured_at']='2026-01-04T00:00:00+00:00'; departed['gangs']=dict(removed['gangs']); departed['gangs'].pop('Ash Walkers')
+            ingest_snapshot(s,departed)
+            assert s.db.execute("SELECT count(*) FROM campaign_events WHERE event_type='gang_unlisted'").fetchone()[0]==1
+            s.project_snapshot(departed)
+            assert len(s.dashboard()['gangs'])==1
         finally:
             s.close()
 
-if __name__=='__main__': test_store(); test_gang_parser(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')
+if __name__=='__main__': test_store(); test_gang_parser(); test_live_sheet_snapshot_shape(); test_stdlib_xlsx_reader(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')

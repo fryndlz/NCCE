@@ -1,6 +1,6 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current seeded application build: v0.3 prototype.
+Current application build: NCCE v0.4 live-sync preview.
 
 This build pivots the project away from being a second Munda Manager. Mechanical data is evidence. The product is the persistent story generated from that evidence.
 
@@ -12,20 +12,21 @@ This build pivots the project away from being a second Munda Manager. Mechanical
 
 The launcher finds Python 3, starts the local server, opens the browser, and keeps errors visible. There are no third-party Python packages.
 
-## What v0.3 contains
+## What the current build contains
 
 - **Chronicle** homepage: campaign-level narrative, recent events, downtime.
 - **Gang histories**: authored where available, otherwise inferred from faction + campaign record + holdings.
 - **Persistent people**: 92 fighters imported from the current source roster.
 - **Ganger backstories**: all 21 C-NINE roster entries use matching authored C-NINE material where available; missing gang material is mechanically inferred and labelled as such.
-- **Ganger tracker**: baseline observations for XP, kills, advancements, injuries/effects and status. Future snapshots are designed to append exact deltas.
+- **Ganger tracker**: baseline observations for XP, kills, advancements, injuries/effects and status. Live snapshots append exact deltas to the campaign ledger.
 - **Mind**: moodlets and current reflections derived from status, injury, kills, class and canonical context.
 - **Memory stream**: observations and reflections carry source/confidence metadata.
 - **Places**: region and territory histories generated from ownership and battle context.
 - **Downtime reports**: one current report per gang, driven by latest battle and roster state.
 - **C-NINE archive**: complete exported `CAMPAIGN LOG` + `PERSONNEL FILES` from the canonical Google Doc embedded locally.
 - **Battle chronicle**: all 25 baseline battles expressed as factual narrative anchors.
-- **Provenance ledger**: schema migration 1 records source authority, stable entities, immutable campaign events and links from story artifacts to their evidence.
+- **Provenance ledger**: schema migrations 1–3 record source authority, stable entities, immutable campaign events, current roster membership and links from story artifacts to their evidence.
+- **Live Sheet refresh**: reads the link-shared Krakamunda workbook on startup and every 15 minutes while the app is running, records factual changes and refreshes the local roster, holdings and battles. A manual refresh button is also available.
 
 ## Story-engine model
 
@@ -40,8 +41,8 @@ Generated content stores provenance and confidence so authored lore, mechanical 
 
 ## Important baseline limitation
 
-Snapshot 0001 tells us each fighter's **current** XP, kills, injuries, advancements and status. It cannot reconstruct the exact date/order of every pre-baseline change unless that history exists in authored material. v0.3 therefore labels these as baseline observations. Once live snapshot sync is connected, every new change can be recorded exactly.
+The original baseline tells us each fighter's **current** XP, kills, injuries, advancements and status. It cannot reconstruct the exact date/order of pre-baseline changes unless that history exists in authored material. Those remain baseline observations. The live-sync preview records changes from its first successful Sheet snapshot onward.
 
 ## Snapshot ingest and next engineering layer
 
-Normalized snapshots can be persisted with deduplication and compared deterministically. The event ledger records fighter/gang changes, battle additions/corrections, and unambiguous territory transfers with source and snapshot provenance; it does not invent dates for undated changes. Fighter pages expose those campaign events in the change tracker. Live read-only Google Sheet access is the next step and requires an authorized Sheets/Drive connection. A new battle/state change can then feed observations, memories, moodlets/relationships, downtime, and evolving chronicles. Existing databases migrate in place; the seed command refuses to replace an existing database.
+Normalized snapshots can be persisted with deduplication and compared deterministically. The event ledger records fighter/gang changes, battle additions/corrections/removals, and unambiguous territory transfers with source and snapshot provenance; it does not invent dates for undated changes. Fighter pages and the Chronicle expose those campaign events. While running, the app reads the link-shared Sheet through its XLSX export using Python's standard library; requests are read-only and need no stored credentials. Story-generation reactions, memories, downtime, and evolving chronicles remain the next engine layer. Existing databases migrate in place; the seed command refuses to replace an existing database.

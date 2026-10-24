@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from diff import snapshot_event_drafts
+from google_sheets import fetch_snapshot as fetch_live_snapshot
 
 SHEET_SOURCE_ID = "live:campaign-sheet"
 SHEET_ID = "1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00"
@@ -75,13 +76,17 @@ def ingest_snapshot(store, snapshot: dict, source_id: str = SHEET_SOURCE_ID) -> 
         prior = store.event_by_key(draft["event_key"])
         supersedes_event_id = None
         correction_reason = None
-        if draft["event_type"] == "battle_record_corrected":
+        if draft["event_type"] in {"battle_record_corrected", "battle_record_removed"}:
             if prior:
                 supersedes_event_id = prior["supersedes_event_id"]
                 correction_reason = prior["correction_reason"]
             else:
                 supersedes_event_id = store.latest_event_by_source_locator(draft["source_locator"])
-                correction_reason = "Authoritative Sheet battle row changed in a later snapshot"
+                correction_reason = (
+                    "Authoritative Sheet battle row was removed in a later snapshot"
+                    if draft["event_type"] == "battle_record_removed"
+                    else "Authoritative Sheet battle row changed in a later snapshot"
+                )
         event_id, created = store.record_event(
             draft["event_key"],
             draft["event_type"],
@@ -107,3 +112,11 @@ def ingest_snapshot(store, snapshot: dict, source_id: str = SHEET_SOURCE_ID) -> 
         "events_created": created_events,
         "events_considered": len(drafts),
     }
+
+
+def sync_live_sheet(store) -> dict:
+    """Fetch, ledger, and project one read-only snapshot of the live campaign Sheet."""
+    snapshot = fetch_live_snapshot()
+    ingested = ingest_snapshot(store, snapshot)
+    projection = store.project_snapshot(snapshot)
+    return {**ingested, "projection": projection, "source_metadata": snapshot.get("source_metadata", {})}

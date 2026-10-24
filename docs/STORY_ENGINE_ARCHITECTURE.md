@@ -3,10 +3,10 @@
 ## Layers
 
 ### 1. Authoritative mechanical state
-Read-only campaign Sheet. Snapshot it after processed matches.
+Read-only campaign Sheet. NCCE fetches its link-readable workbook export on startup and every 15 minutes, with a manual refresh action. The local SQLite projection refreshes current gangs, fighters, territories and battles; it never writes to the Sheet. Snapshot payloads are content-deduplicated.
 
 ### 2. Factual event ledger
-Diff consecutive snapshots and combine with the Battles ledger. Store atomic events such as fighter XP change, injury, death, recruitment, purchase, status change, territory transfer and battle result.
+Diff consecutive snapshots and combine with the Battles ledger. Store atomic events such as fighter XP change, injury, death, recruitment, purchase, status change, territory transfer and battle result/correction/removal. Source row and snapshot pointers are retained; changes without a source date keep only an observation time.
 
 ### 3. Observation / stim layer
 Translate factual events into observations for affected entities. A death may stimulate comrades, rivals, the gang and a territory. Propagation must be bounded and relevant.

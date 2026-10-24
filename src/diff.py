@@ -115,6 +115,43 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
     drafts = []
     before_gangs, after_gangs = _gangs(before), _gangs(after)
 
+    for gang_id in sorted(set(after_gangs) - set(before_gangs)):
+        gang = after_gangs[gang_id]
+        gang_subject = _gang_subject(gang_id, gang)
+        drafts.append(_event(
+            f"snapshot:{target_snapshot_id}:gang:{gang_id}:joined", "gang_joined_campaign",
+            f"gang:{gang_id}",
+            {field: gang.get(field) for field in GANG_FIELDS} | {"fighter_count": len(gang.get("fighters") or {})},
+            [{**gang_subject, "role": "affected"}],
+        ))
+        for name, record in sorted((gang.get("fighters") or {}).items(), key=lambda item: _key(item[0])):
+            name_key = _key(name)
+            mechanical = {field: record.get(field) for field in FIGHTER_FIELDS if field in record}
+            fighter = _fighter_subject(gang_id, name, gang)
+            drafts.append(_event(
+                f"snapshot:{target_snapshot_id}:fighter:{gang_id}:{name_key}:recruited", "fighter_recruited",
+                f"gang:{gang_id}:fighter:{name}", {"present_before": False, "present_after": True, "state": mechanical},
+                [{**fighter, "role": "affected"}, {**gang_subject, "role": "gang_context"}],
+            ))
+    for gang_id in sorted(set(before_gangs) - set(after_gangs)):
+        gang = before_gangs[gang_id]
+        gang_subject = _gang_subject(gang_id, gang)
+        drafts.append(_event(
+            f"snapshot:{target_snapshot_id}:gang:{gang_id}:unlisted", "gang_unlisted",
+            f"gang:{gang_id}",
+            {field: gang.get(field) for field in GANG_FIELDS},
+            [{**gang_subject, "role": "affected"}],
+        ))
+        for name, record in sorted((gang.get("fighters") or {}).items(), key=lambda item: _key(item[0])):
+            name_key = _key(name)
+            mechanical = {field: record.get(field) for field in FIGHTER_FIELDS if field in record}
+            fighter = _fighter_subject(gang_id, name, gang)
+            drafts.append(_event(
+                f"snapshot:{target_snapshot_id}:fighter:{gang_id}:{name_key}:unlisted", "fighter_unlisted",
+                f"gang:{gang_id}:fighter:{name}", {"present_before": True, "present_after": False, "last_recorded_state": mechanical},
+                [{**fighter, "role": "affected"}, {**gang_subject, "role": "gang_context"}],
+            ))
+
     for gang_id in sorted(set(before_gangs) & set(after_gangs)):
         old, new = before_gangs[gang_id], after_gangs[gang_id]
         gang = new
@@ -207,6 +244,22 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
             f"Battles!row {row_number}", {"source_row": row_number, "changes": changes},
             # The battle date is not the date the source row was corrected.
             list(unique_subjects.values()), occurred_at=None,
+        ))
+    for row_number in sorted(set(old_battles) - set(new_battles)):
+        battle = old_battles[row_number]
+        subjects = []
+        for field, role in (("attacker", "participant"), ("defender", "participant"), ("winner", "winner"), ("territory_claimer", "claimer")):
+            name = battle.get(field)
+            found = gang_by_name.get(_key(name)) if name else None
+            if found:
+                subjects.append({**_gang_subject(found[0], found[1]), "role": role})
+        if battle.get("territory"):
+            territory = battle["territory"]
+            subjects.append({"entity_type": "territory", "entity_key": _key(territory), "display_name": territory, "role": "location"})
+        drafts.append(_event(
+            f"snapshot:{target_snapshot_id}:battle-removed:{row_number}", "battle_record_removed",
+            f"Battles!row {row_number}", {"source_row": row_number, "last_recorded": {field: battle.get(field) for field in BATTLE_FIELDS}},
+            subjects, occurred_at=None,
         ))
 
     old_territories, old_ambiguous = _territories(before)
