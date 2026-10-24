@@ -3,22 +3,26 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 title NCCE - Necromunda Campaign Chronicle Engine
 
-set "PYTHON_CMD="
+set "PYTHON_EXE="
+set "PYTHON_ARGS="
 where py >nul 2>nul
 if not errorlevel 1 (
   py -3 --version >nul 2>nul
-  if not errorlevel 1 set "PYTHON_CMD=py -3"
+  if not errorlevel 1 (
+    set "PYTHON_EXE=py"
+    set "PYTHON_ARGS=-3"
+  )
 )
-if not defined PYTHON_CMD (
+if not defined PYTHON_EXE (
   where python >nul 2>nul
   if not errorlevel 1 (
     python --version >nul 2>nul
-    if not errorlevel 1 set "PYTHON_CMD=python"
+    if not errorlevel 1 set "PYTHON_EXE=python"
   )
 )
-if not defined PYTHON_CMD if exist "%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" set "PYTHON_CMD="%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe""
+if not defined PYTHON_EXE if exist "%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" set "PYTHON_EXE=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
 
-if not defined PYTHON_CMD (
+if not defined PYTHON_EXE (
   echo.
   echo ============================================================
   echo  NCCE - CAMPAIGN CHRONICLE ENGINE - STARTUP ERROR
@@ -34,13 +38,13 @@ if not defined PYTHON_CMD (
   exit /b 1
 )
 
-%PYTHON_CMD% --version >nul 2>nul
+"%PYTHON_EXE%" %PYTHON_ARGS% --version >nul 2>nul
 if errorlevel 1 goto :python_error
 
 if not exist "data" mkdir "data"
 if not exist "data\chronicle.db" (
   echo Creating the campaign database for the first run...
-  %PYTHON_CMD% src\seed.py data\chronicle.db
+  "%PYTHON_EXE%" %PYTHON_ARGS% src\seed.py data\chronicle.db
   if errorlevel 1 goto :seed_error
 )
 
@@ -54,15 +58,15 @@ echo Keep this window open while using the app.
 echo Press Ctrl+C here to stop it.
 echo.
 
-start "" /b powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 2; Start-Process 'http://127.0.0.1:8765'"
-%PYTHON_CMD% src\server.py
+set "NCCE_OPEN_BROWSER=1"
+"%PYTHON_EXE%" %PYTHON_ARGS% src\server.py
 if errorlevel 1 goto :server_error
 exit /b 0
 
 :python_error
 echo.
 echo Python was found, but Python 3 could not be started.
-echo Command attempted: %PYTHON_CMD%
+echo Python executable: %PYTHON_EXE%
 echo.
 pause
 exit /b 1
