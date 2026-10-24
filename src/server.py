@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, mimetypes, os, threading, webbrowser
+import json, mimetypes, os, sys, threading, webbrowser
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -95,7 +95,7 @@ class H(BaseHTTPRequestHandler):
 def main(host='127.0.0.1',port=8765):
  server=ThreadingHTTPServer((host,port),H)
  url=f'http://{host}:{port}'
- print(f'NCCE Campaign Chronicle running at {url}; refreshing Krakamunda every {SYNC_INTERVAL_SECONDS//60} minutes',flush=True)
+ print(f'NCCE Campaign Chronicle running at {url}; Python {sys.executable}; refreshing Krakamunda every {SYNC_INTERVAL_SECONDS//60} minutes',flush=True)
  if os.environ.get('NCCE_OPEN_BROWSER')=='1':
   threading.Timer(0.25,webbrowser.open_new_tab,args=(url,)).start()
  threading.Thread(target=_sync_scheduler,name='ncce-sheet-scheduler',daemon=True).start()
