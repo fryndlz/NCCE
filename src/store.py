@@ -1,5 +1,5 @@
 from __future__ import annotations
-import hashlib, json, sqlite3, threading
+import hashlib, json, re, sqlite3, threading, unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from migrations import PROVENANCE_CLASSES, migrate
@@ -48,7 +48,7 @@ class Store:
   with self._lock, self.db:
    self.db.execute('''INSERT OR IGNORE INTO entities(entity_id,entity_type,entity_key,display_name,provenance_class,source_id,created_at) VALUES(?,?,?,?,?,?,?)''',(entity_id,entity_type,entity_key,display_name,provenance_class,source_id,datetime.now(timezone.utc).isoformat()))
    row=self.db.execute('SELECT entity_id,display_name,provenance_class,source_id FROM entities WHERE entity_type=? AND entity_key=?',(entity_type,entity_key)).fetchone()
-   if (row['display_name'],row['provenance_class'],row['source_id'])!=(display_name,provenance_class,source_id): raise ValueError(f'Entity identity collision: {entity_type}:{entity_key}')
+   if (row['provenance_class'],row['source_id'])!=(provenance_class,source_id): raise ValueError(f'Entity identity collision: {entity_type}:{entity_key}')
    entity_id=row['entity_id']
   return entity_id
  def save_snapshot(self,payload):
@@ -68,6 +68,24 @@ class Store:
    if row: return row['id'],False
    cur=self.db.execute('INSERT INTO snapshots(captured_at,source_hash,payload_json,payload_hash,source_id,provenance_class) VALUES(?,?,?,?,?,?)',(captured_at,digest,payload_json,digest,source_id,provenance_class))
    return cur.lastrowid,True
+ def latest_snapshot(self):
+  row=self.db.execute('SELECT * FROM snapshots ORDER BY id DESC LIMIT 1').fetchone()
+  if not row: return None
+  result=dict(row); result['payload']=json.loads(result.pop('payload_json')); return result
+ def snapshot(self,snapshot_id):
+  row=self.db.execute('SELECT * FROM snapshots WHERE id=?',(snapshot_id,)).fetchone()
+  if not row: return None
+  result=dict(row); result['payload']=json.loads(result.pop('payload_json')); return result
+ def snapshot_before(self,snapshot_id):
+  row=self.db.execute('SELECT * FROM snapshots WHERE id<? ORDER BY id DESC LIMIT 1',(snapshot_id,)).fetchone()
+  if not row: return None
+  result=dict(row); result['payload']=json.loads(result.pop('payload_json')); return result
+ def event_by_key(self,event_key):
+  row=self.db.execute('SELECT * FROM campaign_events WHERE event_key=?',(event_key,)).fetchone()
+  return dict(row) if row else None
+ def latest_event_by_source_locator(self,source_locator):
+  row=self.db.execute('SELECT event_id FROM campaign_events WHERE source_locator=? ORDER BY observed_at DESC,created_at DESC LIMIT 1',(source_locator,)).fetchone()
+  return row['event_id'] if row else None
  def record_event(self,event_key,event_type,payload,provenance_class,source_id=None,source_locator=None,occurred_at=None,observed_at=None,confidence=1.0,from_snapshot_id=None,to_snapshot_id=None,subjects=None,supersedes_event_id=None,correction_reason=None):
   if provenance_class not in PROVENANCE_CLASSES: raise ValueError(f'Unknown provenance class: {provenance_class}')
   if not event_key or not event_type: raise ValueError('event_key and event_type are required')
@@ -119,7 +137,12 @@ class Store:
   r=self.db.execute('SELECT * FROM fighters WHERE id=?',(fid,)).fetchone()
   if not r:return None
   f=dict(r); q=lambda sql,args=():[dict(x) for x in self.db.execute(sql,args)]
-  f['events']=q('SELECT * FROM fighter_events WHERE fighter_id=? ORDER BY id DESC',(fid,)); f['memories']=q('SELECT * FROM memories WHERE fighter_id=? ORDER BY importance DESC,id DESC',(fid,)); f['moodlets']=q('SELECT * FROM moodlets WHERE fighter_id=? ORDER BY intensity DESC',(fid,)); return f
+  f['events']=q('SELECT * FROM fighter_events WHERE fighter_id=? ORDER BY id DESC',(fid,)); f['memories']=q('SELECT * FROM memories WHERE fighter_id=? ORDER BY importance DESC,id DESC',(fid,)); f['moodlets']=q('SELECT * FROM moodlets WHERE fighter_id=? ORDER BY intensity DESC',(fid,))
+  fighter_name=unicodedata.normalize('NFKC',str(f['name'] or '')).strip().casefold(); fighter_name=re.sub(r'\s+',' ',fighter_name)
+  entity_key=f"{f['gang_id']}/{fighter_name}"
+  entity=self.db.execute('SELECT entity_id FROM entities WHERE entity_type=\'fighter\' AND entity_key=?',(entity_key,)).fetchone()
+  f['campaign_events']=self.events(limit=500,entity_id=entity['entity_id']) if entity else []
+  return f
  def territory(self,tid):
   r=self.db.execute('SELECT * FROM territories WHERE id=?',(tid,)).fetchone(); return dict(r) if r else None
  def lore(self): return [dict(r) for r in self.db.execute('SELECT id,title,source_type,source_url,length(content) AS chars FROM lore_sources')]

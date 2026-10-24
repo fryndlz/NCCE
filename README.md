@@ -42,6 +42,6 @@ Generated content stores provenance and confidence so authored lore, mechanical 
 
 Snapshot 0001 tells us each fighter's **current** XP, kills, injuries, advancements and status. It cannot reconstruct the exact date/order of every pre-baseline change unless that history exists in authored material. v0.3 therefore labels these as baseline observations. Once live snapshot sync is connected, every new change can be recorded exactly.
 
-## Next engineering layer
+## Snapshot ingest and next engineering layer
 
-Live read-only Google Sheet synchronization and snapshot comparison. A new battle/state change will emit structured events into the story engine, update affected memories/moodlets/relationships, generate downtime, and advance gang/place/campaign chronicles. Existing databases migrate in place; the seed command refuses to replace an existing database.
+Normalized snapshots can be persisted with deduplication and compared deterministically. The event ledger records fighter/gang changes, battle additions/corrections, and unambiguous territory transfers with source and snapshot provenance; it does not invent dates for undated changes. Fighter pages expose those campaign events in the change tracker. Live read-only Google Sheet access is the next step and requires an authorized Sheets/Drive connection. A new battle/state change can then feed observations, memories, moodlets/relationships, downtime, and evolving chronicles. Existing databases migrate in place; the seed command refuses to replace an existing database.

@@ -3,6 +3,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from store import Store, SCHEMA
 from snapshot import parse_gang_tab
+from sync import ingest_snapshot
 
 def test_store():
     with tempfile.TemporaryDirectory() as d:
@@ -70,4 +71,52 @@ def test_legacy_database_provenance_migration():
         finally:
             s.close()
 
-if __name__=='__main__': test_store(); test_gang_parser(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); print('ok')
+def test_snapshot_ingest_diff_and_retry():
+    def snapshot(captured_at, xp, territory_owner, battles):
+        return {
+            'snapshot_version': 1,
+            'captured_at': captured_at,
+            'gangs': {
+                'Iron Dogs': {
+                    'gang_id': 'g1', 'name': 'Iron Dogs', 'gang_type': 'Orlock',
+                    'credits': 10, 'reputation': 2, 'rating': 100,
+                    'fighters': {
+                        'Rook': {'Name': 'Rook', 'XP': xp, 'Status': 'Active'},
+                        **({'Ash': {'Name': 'Ash', 'XP': 0}} if xp > 0 else {}),
+                    },
+                },
+                'Ash Walkers': {
+                    'gang_id': 'g2', 'name': 'Ash Walkers', 'fighters': {},
+                },
+            },
+            'territories': [{'Territory ID': 't1', 'Territory': 'Old Pump', 'Gang ID': territory_owner}],
+            'battles': battles,
+        }
+
+    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'.tmp-test') as d:
+        s=Store(Path(d)/'sync.db')
+        try:
+            initial=snapshot('2026-01-01T00:00:00+00:00', 0, 'g1', [
+                {'source_row': 2, 'date': '2026-01-01', 'scenario': 'Skirmish', 'attacker': 'Iron Dogs', 'defender': 'Ash Walkers', 'winner': 'Iron Dogs', 'territory': 'Old Pump'}
+            ])
+            baseline=ingest_snapshot(s,initial)
+            assert baseline['snapshot_created'] and baseline['events_considered']==0
+            changed=snapshot('2026-01-02T00:00:00+00:00', 2, 'g2', [
+                {'source_row': 2, 'date': '2026-01-01', 'scenario': 'Skirmish', 'attacker': 'Iron Dogs', 'defender': 'Ash Walkers', 'winner': 'Ash Walkers', 'territory': 'Old Pump'},
+                {'source_row': 3, 'date': '2026-01-02', 'scenario': 'Ambush', 'attacker': 'Ash Walkers', 'defender': 'Iron Dogs', 'winner': 'Ash Walkers', 'territory': 'Old Pump'},
+            ])
+            result=ingest_snapshot(s,changed)
+            types={row['event_type'] for row in s.events(limit=100)}
+            assert {'fighter_xp_changed','fighter_recruited','territory_holder_changed','battle_result','battle_record_corrected'} <= types
+            correction=s.db.execute("SELECT supersedes_event_id,occurred_at,observed_at FROM campaign_events WHERE event_type='battle_record_corrected'").fetchone()
+            assert correction['occurred_at'] is None and correction['observed_at']=='2026-01-02T00:00:00+00:00'
+            assert correction['supersedes_event_id'] is None  # first observed by this ledger; no invented prior event
+            repeated=ingest_snapshot(s,changed)
+            assert repeated['snapshot_id']==result['snapshot_id'] and not repeated['snapshot_created']
+            assert not repeated['events_created'] and repeated['events_considered']==result['events_considered']
+            assert s.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==result['events_considered']
+            assert s.db.execute('PRAGMA foreign_key_check').fetchall()==[]
+        finally:
+            s.close()
+
+if __name__=='__main__': test_store(); test_gang_parser(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')
