@@ -4,6 +4,7 @@ from pathlib import Path
 from zipfile import ZipFile
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from store import Store, SCHEMA
+from access import SESSION_MAX_AGE, configured_bool, effective_session_key, make_session_token, valid_session_token
 from snapshot import build_snapshot_from_sheets, parse_battles, parse_gang_tab, read_xlsx_sheets
 from sync import ingest_snapshot
 
@@ -14,6 +15,16 @@ def test_store():
             s.set_state('a','b'); assert s.get_state('a')=='b'
         finally:
             s.close()
+
+def test_invite_sessions():
+    key=effective_session_key('invited-friends-passphrase','a'*48)
+    token=make_session_token(key,now=1000)
+    assert valid_session_token(token,key,now=1001)
+    assert not valid_session_token(token,key,now=1000+SESSION_MAX_AGE)
+    assert not valid_session_token(token,key+b'wrong',now=1001)
+    assert not valid_session_token(token[:-1]+'0',key,now=1001)
+    assert effective_session_key('rotated-passphrase','a'*48)!=key
+    assert configured_bool('true') and configured_bool('1') and not configured_bool('false')
 
 def test_gang_parser():
     rows=[['Gang'],[],['Gang ID','1'],['Gang Type','House Orlock'],['Credits','5'],['Reputation','2'],['Rating','100'],['Alignment','Law Abiding'],[],['FIGHTERS'],['Name','Type','Class'],['A','Gunner','Ganger']]
@@ -162,4 +173,4 @@ def test_snapshot_ingest_diff_and_retry():
         finally:
             s.close()
 
-if __name__=='__main__': test_store(); test_gang_parser(); test_live_sheet_snapshot_shape(); test_stdlib_xlsx_reader(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')
+if __name__=='__main__': test_store(); test_invite_sessions(); test_gang_parser(); test_live_sheet_snapshot_shape(); test_stdlib_xlsx_reader(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')

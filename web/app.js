@@ -1,4 +1,4 @@
-const app=document.querySelector('#app'),health=document.querySelector('#health'),syncNow=document.querySelector('#syncNow');let data=null,activeView='chronicle',lastSnapshotId=null,currentDetail=null;
+const app=document.querySelector('#app'),health=document.querySelector('#health'),syncNow=document.querySelector('#syncNow'),logout=document.querySelector('#logout');let data=null,activeView='chronicle',lastSnapshotId=null,currentDetail=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const short=n=>n?.replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]','C-NINE')||'Unknown';
 const date=d=>d?new Date(d).toLocaleDateString():'';
@@ -25,4 +25,7 @@ async function showFighter(id){let f=await(await fetch('/api/fighters/'+id)).jso
 async function showTerritory(id){let t=await(await fetch('/api/territories/'+id)).json();currentDetail={type:'territory',id};app.innerHTML=`<button class="back" id="back">← Places</button><div class="source">Territory · held by ${esc(short(t.gang_name))}</div><h2>${esc(t.territory)}</h2><p class="lede">${esc(t.backstory)}</p><section class="card"><div class="row"><span>Card</span><span>${esc(t.card||'—')}</span></div><div class="row"><span>Default holding</span><span>${t.is_default?'Yes':'No'}</span></div></section>`;document.querySelector('#back').onclick=()=>render('places')}
 async function showLore(id){let x=await(await fetch('/api/lore/'+id)).json();currentDetail={type:'lore',id};app.innerHTML=`<button class="back" id="back">← Archive</button><div class="source">${esc(x.source_type)}</div><h2>${esc(x.title)}</h2><section class="card story">${esc(x.content)}</section>`;document.querySelector('#back').onclick=()=>render('archive')}
 function bind(){document.querySelectorAll('[data-gang]').forEach(x=>x.onclick=()=>showGang(x.dataset.gang));document.querySelectorAll('[data-fighter]').forEach(x=>x.onclick=()=>showFighter(x.dataset.fighter));document.querySelectorAll('[data-territory]').forEach(x=>x.onclick=()=>showTerritory(x.dataset.territory));document.querySelectorAll('[data-lore]').forEach(x=>x.onclick=()=>showLore(x.dataset.lore))}
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>render(b.dataset.view));load().catch(e=>{health.textContent='Engine error';app.innerHTML='<p>Could not load story database.</p>';console.error(e)})
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>render(b.dataset.view));
+if(logout)logout.onclick=async()=>{await fetch('/api/logout',{method:'POST'});location.replace('/login')};
+async function startApp(){let session=await(await fetch('/api/session',{cache:'no-store'})).json();if(session.auth_required&&!session.authenticated){location.replace('/login');return}if(logout)logout.hidden=!session.auth_required;await load()}
+startApp().catch(e=>{health.textContent='Engine error';app.innerHTML='<p>Could not load story database.</p>';console.error(e)})

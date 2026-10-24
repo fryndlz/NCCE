@@ -32,5 +32,8 @@ Start with local JSON snapshots and event files because they are transparent and
 Move to SQLite when the UI/history queries justify it. SQLite remains a single local file.
 
 ### Deployment
-Phase 1: Windows local application on the campaign owner's PC.
-Later, if multiple players need access, the same backend can be hosted and the UI can become a normal private web app without changing the factual/narrative architecture.
+Development: Windows local preview on the campaign owner's PC.
+
+Shared use: private hosted web app over HTTPS, protected by an invite passphrase and backed by persistent SQLite storage. The host reads the authoritative Google Sheet and syncs on startup and every 15 minutes. Friends use the same link on computer or phone; they do not run the server locally.
+
+The local web server remains a development aid. It is not the distribution model for invited players. Current hosted implementation and deployment approval gates are documented in `docs/HOSTED_DEPLOYMENT.md`.

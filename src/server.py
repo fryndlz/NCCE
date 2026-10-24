@@ -1,15 +1,29 @@
 from __future__ import annotations
-import json, mimetypes, os, sys, threading, webbrowser
+import json, mimetypes, os, sys, threading, webbrowser, hmac
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, unquote, parse_qs
 from store import Store
 from sync import sync_live_sheet
+from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
-ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'; DB=ROOT/'data'/'chronicle.db'
+ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
+DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
+AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
+ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
+SESSION_SECRET=os.environ.get('NCCE_SESSION_SECRET','')
+if AUTH_REQUIRED and len(ACCESS_PASSWORD)<12:
+ raise RuntimeError('NCCE_ACCESS_PASSWORD must be set to at least 12 characters when NCCE_REQUIRE_AUTH is enabled')
+if AUTH_REQUIRED and len(SESSION_SECRET)<32:
+ raise RuntimeError('NCCE_SESSION_SECRET must be set to at least 32 characters when NCCE_REQUIRE_AUTH is enabled')
+SESSION_KEY=effective_session_key(ACCESS_PASSWORD,SESSION_SECRET) if AUTH_REQUIRED else b''
+COOKIE_SECURE=configured_bool(os.environ.get('NCCE_SECURE_COOKIES'))
+if not DB.exists():
+ from seed import main as seed_database
+ seed_database(str(DB))
 store=Store(DB)
-store.set_state('engine_version','NCCE v0.4 Live Sync Preview')
+store.set_state('engine_version','NCCE v0.5 Hosted Access Preview')
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
@@ -49,9 +63,25 @@ def _sync_scheduler():
 
 class H(BaseHTTPRequestHandler):
  def js(self,o,status=200):
-  b=json.dumps(o,ensure_ascii=False).encode(); self.send_response(status); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
+  b=json.dumps(o,ensure_ascii=False).encode(); self.send_response(status); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
+ def _authenticated(self):
+  if not AUTH_REQUIRED:return True
+  for item in self.headers.get('Cookie','').split(';'):
+   if '=' in item:
+    key,value=item.strip().split('=',1)
+    if key=='ncce_session':return valid_session_token(value,SESSION_KEY)
+  return False
+ def _serve_login(self):
+  page=(WEB/'login.html').read_bytes(); self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(page))); self.end_headers(); self.wfile.write(page)
  def do_GET(self):
   parsed=urlparse(self.path); p=parsed.path
+  if p=='/healthz':return self.js({'ok':True})
+  if p=='/api/session':return self.js({'auth_required':AUTH_REQUIRED,'authenticated':self._authenticated()})
+  if p in ('/login','/login.html'):return self._serve_login()
+  if AUTH_REQUIRED and not self._authenticated():
+   if p=='/':return self._serve_login()
+   if p.startswith('/api/'):return self.js({'error':'authentication required'},401)
+   return self.send_error(404)
   if p=='/api/dashboard':
    with store._lock: return self.js(store.dashboard())
   if p=='/api/health':
@@ -85,14 +115,39 @@ class H(BaseHTTPRequestHandler):
   rel='index.html' if p=='/' else p.lstrip('/'); f=(WEB/rel).resolve()
   if WEB.resolve() not in f.parents and f!=WEB.resolve():return self.send_error(403)
   if not f.is_file():return self.send_error(404)
-  b=f.read_bytes(); self.send_response(200); self.send_header('Content-Type',mimetypes.guess_type(f.name)[0] or 'application/octet-stream'); self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
+  b=f.read_bytes(); self.send_response(200); self.send_header('Content-Type',mimetypes.guess_type(f.name)[0] or 'application/octet-stream'); self.send_header('X-Content-Type-Options','nosniff'); self.send_header('Referrer-Policy','no-referrer');
+  if f.suffix.lower()=='.html':self.send_header('Cache-Control','no-store')
+  self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
  def do_POST(self):
-  if urlparse(self.path).path!='/api/sync': return self.send_error(404)
+  p=urlparse(self.path).path
+  if p=='/api/login':
+   if not AUTH_REQUIRED:return self.js({'ok':True,'auth_required':False})
+   try:
+    length=int(self.headers.get('Content-Length','0'))
+    if length<0 or length>4096:return self.js({'error':'invalid request'},413)
+    body=json.loads(self.rfile.read(length).decode('utf-8'))
+   except (ValueError,UnicodeDecodeError):return self.js({'error':'invalid request'},400)
+   supplied=body.get('password','') if isinstance(body,dict) else ''
+   if not isinstance(supplied,str) or not hmac.compare_digest(supplied.encode('utf-8'),ACCESS_PASSWORD.encode('utf-8')):return self.js({'error':'That passphrase is not correct.'},401)
+   token=make_session_token(SESSION_KEY)
+   secure=COOKIE_SECURE or self.headers.get('X-Forwarded-Proto','').split(',')[0].strip().lower()=='https'
+   cookie=f'ncce_session={token}; Path=/; Max-Age=604800; HttpOnly; SameSite=Strict'+('; Secure' if secure else '')
+   payload=b'{"ok":true}'; self.send_response(200); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Set-Cookie',cookie); self.send_header('Content-Length',str(len(payload))); self.end_headers(); self.wfile.write(payload)
+   return
+  if p=='/api/logout':
+   secure=COOKIE_SECURE or self.headers.get('X-Forwarded-Proto','').split(',')[0].strip().lower()=='https'
+   cookie='ncce_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict'+('; Secure' if secure else '')
+   payload=b'{"ok":true}'; self.send_response(200); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Set-Cookie',cookie); self.send_header('Content-Length',str(len(payload))); self.end_headers(); self.wfile.write(payload)
+   return
+  if AUTH_REQUIRED and not self._authenticated():return self.js({'error':'authentication required'},401)
+  if p!='/api/sync': return self.send_error(404)
   queued=_schedule_sync()
   return self.js({'queued':queued,'sync_status':'syncing' if queued else 'already_running'},202)
  def log_message(self,*a):pass
 
-def main(host='127.0.0.1',port=8765):
+def main(host=None,port=None):
+ if host is None:host=os.environ.get('NCCE_HOST','0.0.0.0' if os.environ.get('PORT') else '127.0.0.1')
+ if port is None:port=int(os.environ.get('PORT','8765'))
  server=ThreadingHTTPServer((host,port),H)
  url=f'http://{host}:{port}'
  print(f'NCCE Campaign Chronicle running at {url}; Python {sys.executable}; refreshing Krakamunda every {SYNC_INTERVAL_SECONDS//60} minutes',flush=True)

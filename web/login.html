@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Private access · NCCE</title>
+  <style>
+    :root{color-scheme:dark;font-family:system-ui,Segoe UI,sans-serif;background:#11110f;color:#e8e1d2}
+    *{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:20px}
+    main{width:min(100%,420px);padding:30px;background:#1a1916;border:1px solid #39362f;border-radius:8px}
+    .mark{font-size:12px;letter-spacing:.14em;color:#b9a77a}h1{margin:.35em 0;font-size:2rem}p{color:#aaa395;line-height:1.5}
+    label{display:block;margin:24px 0 8px}input{width:100%;padding:12px;border:1px solid #625b4c;border-radius:4px;background:#10100e;color:#fff;font:inherit}
+    button{width:100%;margin-top:14px;padding:12px;border:0;border-radius:4px;background:#d8c9a2;color:#171611;font:inherit;font-weight:600;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}.error{min-height:1.5em;color:#e8a49b;font-size:.9rem}small{color:#817c70}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mark">NCCE · DOMINION KRAKAMUNDA</div>
+    <h1>Campaign Chronicle</h1>
+    <p>This chronicle is shared by invitation. Enter the passphrase you were given.</p>
+    <form id="login">
+      <label for="password">Invite passphrase</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+      <button id="submit" type="submit">Enter the chronicle</button>
+      <div id="error" class="error" role="alert" aria-live="polite"></div>
+    </form>
+    <small>Your access stays on this device for seven days.</small>
+  </main>
+  <script>
+    const form=document.querySelector('#login'),password=document.querySelector('#password'),button=document.querySelector('#submit'),error=document.querySelector('#error');
+    form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;button.textContent='Checking…';error.textContent='';try{const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:password.value})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not sign in.');location.replace('/')}catch(problem){error.textContent=problem.message;button.disabled=false;button.textContent='Enter the chronicle';password.focus()}});
+  </script>
+</body>
+</html>

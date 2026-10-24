@@ -1,16 +1,18 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current application build: NCCE v0.4 live-sync preview.
+Current application build: NCCE v0.5 hosted-access preview.
 
 This build pivots the project away from being a second Munda Manager. Mechanical data is evidence. The product is the persistent story generated from that evidence.
 
-## Start on Windows
+## Local Windows preview
 
-1. Extract the ZIP somewhere normal, e.g. `C:\Games\Krakaumunda Story Engine`.
-2. Double-click **START NECROMUNDA.bat**.
-3. Leave the black launcher window open while using the app.
+From this repository checkout, double-click **START NECROMUNDA.bat** and leave the black launcher window open while using the app.
 
 The launcher finds Python 3, starts the local server, opens the browser, and keeps errors visible. There are no third-party Python packages.
+
+## Share with friends
+
+The Windows launcher is a local development preview. To open NCCE by link on friends' computers and phones, see [Private hosted deployment](docs/HOSTED_DEPLOYMENT.md). That deployment is prepared but not created; creating it requires connecting the private GitHub repo and approving Render's displayed monthly cost.
 
 ## What the current build contains
 

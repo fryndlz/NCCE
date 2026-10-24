@@ -25,6 +25,7 @@ Current state cannot reliably reconstruct exact chronology of all pre-baseline f
 The canonical C-NINE source is in `data/lore/C-NINE Story - canonical export.txt`. It contains both CAMPAIGN LOG and PERSONNEL FILES. Prefer authored biographies and events from it over generated replacements. Preserve its contradictions/redactions intentionally.
 
 ## Highest-priority next milestones
+0. **Private hosted access (new product requirement).** The user wants a link that works on friends' computers and phones, with invited-only access. `docs/HOSTED_DEPLOYMENT.md` and `render.yaml` prepare the hosted design. Local development remains supported. Service creation is pending owner approval because it connects a private repository and starts paid hosting.
 1. Inspect and run current app/tests. Document what v0.3 actually implements versus what was claimed. **Completed in `docs/IMPLEMENTATION_AUDIT.md`.**
 2. Make Chronicle the primary UI and demote raw Munda Manager-like views. **Core direction implemented; mechanical gang summary metrics are relegated to evidence detail.**
 3. Implement robust entity/event/provenance schema in SQLite. **Completed as schema migration 1; baseline rows are backfilled without inventing historical dates.**
