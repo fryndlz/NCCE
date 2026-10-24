@@ -1,0 +1,18 @@
+# Runtime database is derived from the tracked seed/source files.
+data/chronicle.db
+data/chronicle.db-shm
+data/chronicle.db-wal
+
+# Python tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local credentials and editor/OS files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+{
+  "spreadsheet_id": "1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00",
+  "source_is_read_only": true,
+  "battle_sheet": "Battles",
+  "gang_index_sheet": "Gangs",
+  "territory_sheet": "Territories",
+  "campaign_sheet": "Campaign",
+  "fighter_columns": ["Name","Type","Class","Cost","XP","Kills","M","WS","BS","S","T","W","I","A","Ld","Cl","Wil","Int","Weapons","Wargear","Skills","Advancements","Effects","Status","Fighter Notes","Backstory"]
+}
