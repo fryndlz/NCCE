@@ -49,6 +49,6 @@ No paid service or persistent disk was created in this iteration. `render.produc
 
 ## Release verification record
 
-At 2026-10-25 18:29:11 CET, deployment `dep-dbf3oeom7kps73flj2hg` was live on commit `e63b8ef`; public `/healthz` returned `0.6.0`, and `/api/dashboard` returned 401 without a session. All 29 deterministic checks and the disposable authenticated HTTP/live-sync smoke check passed locally. Hosted authenticated campaign content and mobile rendering were not inspected in this rollout.
+At 2026-10-25 18:29:11 CET, deployment `dep-dbf3oeom7kps73flj2hg` was live on commit `e63b8ef`; public `/healthz` returned `0.6.0`, and `/api/dashboard` returned 401 without a session. All 29 deterministic checks and the disposable authenticated HTTP/live-sync smoke check passed locally. The hosted startup seeded schema 4, but no Sheet-sync completion appeared in the captured logs, so hosted sync completion and authenticated campaign content were not verified in this rollout. Mobile rendering was not inspected.
 
 Responsive CSS is included. A full mobile visual check was blocked by the browser extension's URL-confidence access restriction; do not report mobile as verified until an actual phone or permitted mobile-browser check is completed.
