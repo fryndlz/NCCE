@@ -1,12 +1,12 @@
-# Story Engine Architecture — implemented in NCCE 0.8
+# Story Engine Architecture — implemented in NCCE 0.9
 
-**Schema:** 7. **Current source generation:** `story-0.8.1`. **Hosted generation:** `story-0.6.0` until source is separately deployed.
+**Schema:** 8. **Current app release:** `0.9.0`, with story generation still `story-0.8.1`. **Hosted generation:** `story-0.6.0` until source is separately deployed.
 
 The detailed current implementation, constants, and complete catalogs are specified in `CURRENT_DESIGN.md`. This document describes the runtime boundaries and data flow.
 
 ## 1. Source boundary
 
-`google_sheets.py` fetches the authoritative campaign workbook as read-only XLSX. `snapshot.py` normalizes current gang, fighter, territory and battle state, including equipment/stat fields and authored Backstory/Notes. Source-ID joins from the MAIN Data Dump are used only when unambiguous; visible workbook values remain authoritative.
+`google_sheets.py` fetches the authoritative campaign workbook as read-only XLSX. `snapshot.py` normalizes current gang, fighter, territory and battle state, including equipment/stat fields and authored Backstory/Notes. Source-ID joins from the MAIN Data Dump are used only when unambiguous; visible workbook values remain authoritative. `campaign_history.py` independently parses the three Munda Manager raw archive tabs; archive evidence never changes the current roster or Sheet.
 
 The app never writes the Sheet. C-NINE authored canon comes from the frozen local export; automatic synchronization of the live Google Doc is outside this release.
 
@@ -62,7 +62,13 @@ Battle reports can use recent roster deltas as accompanying returns only under b
 
 Downtime is event/state-driven fiction between games. There is no simulation of meaningless continuous daily life. Repeated opponents can form a sourced gang relationship chronicle; the system does not yet model individualized social bonds.
 
-## 8. Presentation and service
+## 8. Campaign chronology and presentation
+
+Schema 8 retains Munda Manager activity, documented battles and sessions as raw/versioned archive records. Sessions join battles only by `campaign_battle_id`; unresolved sessions, missing session windows, archive conflicts and parsing issues remain visible. `Created At` and `Updated At` are candidate time-window proxies, not confirmed game start/end facts. Activity classification is per gang and has explicit confidence/ambiguity states. Positive fighter XP increases inside an involved gang's candidate session window may support an inferred participation. XP loss, ally attendance and unsupported deployments remain unknown. `/api/history` serves the derived registry/timeline, and fighter details attach matching fighter-specific entries.
+
+The Chronicle renders a Gantt-style timeline with one lane per gang, separate session spans, campaign activity markers, a battle registry, filters, and expandable original source records. This archive does not currently feed the model writer or change the generated battle reports.
+
+## 9. Presentation and service
 
 The existing HTTP/JSON API separates engine from browser. The browser renders narrative and mechanical evidence distinctly, supports structured/limited rich text, and provides Fighters/Gangs/Places/Battles searching and filtering. The browser is the current client; another client can consume the same factual/narrative API.
 

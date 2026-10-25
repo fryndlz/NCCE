@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from campaign_history import parse_archive_tabs
 from snapshot import build_snapshot_from_sheets, read_xlsx_sheets
 
 SHEET_ID = "1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00"
@@ -37,6 +38,7 @@ def fetch_snapshot(timeout: int = 30) -> dict:
         raise RuntimeError("Google Sheets export exceeds the 20 MB safety limit")
     sheets = read_xlsx_sheets(data)
     snapshot = build_snapshot_from_sheets(sheets, captured_at=datetime.now(timezone.utc).isoformat())
+    snapshot["history_archives"] = parse_archive_tabs(sheets)
     snapshot["source_metadata"] = {
         **snapshot.get("source_metadata", {}),
         "source_title": SHEET_TITLE,

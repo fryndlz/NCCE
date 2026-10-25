@@ -1,16 +1,20 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current source: **v0.8.1 — Model-backed Writing Director**, SQLite schema 7. Hosted version remains **v0.6.1** until separately deployed. The Render service now uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
+Current source: **v0.9.0 — Campaign History Timeline**, SQLite schema 8. The model-backed Writing Director remains at story generation `0.8.1`; the new archive timeline does not regenerate story prose. Hosted version remains **v0.6.1** until separately deployed. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
 
 Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default model is `gpt-6.1-sol`; override it with `NCCE_WRITER_MODEL`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Relevant campaign facts, identity context, authored context and earlier generated entries are sent to OpenAI for drafting. Without the key, generated prose is marked pending and no template prose is presented as finished writing. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
 
 Open the [hosted preview](https://ncce-private-preview.onrender.com/) and use your existing invitation passphrase. See [hosting details](docs/HOSTED_DEPLOYMENT.md) for storage, cost, and backup limitations.
 
 See [Writing Director](docs/WRITING_DIRECTOR.md) for the integrated writing contracts, source documents, identity tags, place/gang streams, ambient fiction, date conversion and implementation limits.
+See [Current technical design](docs/CURRENT_DESIGN.md) for the app's modules, data flow, archive chronology rules and known boundaries.
 
 ## What this version does
 
 - Reads the authoritative Krakamunda Sheet on startup, every 15 minutes, or on manual refresh.
+- Imports the three read-only Munda Manager archive tabs into a versioned local history ledger and displays a campaign battle registry with a gang-by-gang battle/downtime timeline.
+- Joins battle sessions only by their explicit campaign-battle ID. Session created/updated times are candidate windows, not verified gameplay boundaries; missing, overlapping, and orphaned records remain visible with uncertainty.
+- Shows timestamped activity with its source UUID and original JSON. Positive fighter XP gains inside an involved gang's candidate window may support an explicitly inferred participation; XP loss, allies, and unsupported attendance remain unknown/not inferred.
 - Records factual changes and stable battle identities without writing to the Sheet.
 - Turns meaningful fighter changes and shared gang events into voiced memories with a separate mechanical evidence block.
 - Selects two to four supported current thoughts using importance, recency, relevance and fighter-specific biases.
@@ -39,7 +43,10 @@ python tests/test_battle_identity.py
 python tests/test_story_engine.py
 python tests/test_voice_prose.py
 python tests/test_writing_director.py
+python tests/test_llm_writer.py
+python tests/test_campaign_history.py
 node tests/test_writing_ui.cjs
+node tests/test_campaign_history_ui.cjs
 node --check web/app.js
 ```
 
@@ -49,4 +56,4 @@ An additional HTTP check starts a disposable authenticated server and reads the 
 python tests/smoke_server.py
 ```
 
-Mechanical facts remain authoritative. Authored C-NINE lore remains canon. Generated narrative remains inference. Earlier baseline fields do not establish the date or order of older events, and gang participation does not establish individual fighter attendance.
+Mechanical facts remain authoritative. Authored C-NINE lore remains canon. Generated narrative remains inference. Earlier baseline fields do not establish the date or order of older events. Session timestamps are only candidate battle-window proxies, and XP evidence supports an inference rather than proof of a fighter's attendance.

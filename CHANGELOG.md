@@ -2,6 +2,20 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.0 — Munda Manager campaign history timeline (source only, not deployed)
+
+**Implementation checkpoint:** 2026-10-26 00:18:12+01:00 (Europe/Warsaw)
+
+- Added read-only import for `MUNDA_ACTIVITY_RAW`, `MUNDA_BATTLES_RAW`, and `MUNDA_SESSIONS_RAW` through the existing workbook fetch. The authoritative campaign Sheet and Apps Script were not modified.
+- Added schema 8 for append-only activity records, versioned battle/session records, raw source rows, import runs, and conflicting-payload reports. Repeat reads are idempotent; earlier versions and original JSON/timestamp strings remain inspectable.
+- Built the battle registry using only `battle_sessions.campaign_battle_id` exact joins. Missing sessions, orphan sessions, invalid timestamps, same-battle session gaps, and overlapping gang windows are retained and marked for review.
+- Session `created_at`/`updated_at` values are labeled candidate timing proxies; activity `created_at` is treated as the time Munda Manager recorded the change. Neither establishes literal play time.
+- Added gang-scoped event classification and separate XP-based participation inference. Positive fighter XP changes inside an involved gang's candidate session window may infer attendance; non-positive XP, explicitly marked allies, ambiguous windows, and absent evidence do not establish attendance.
+- Added a Chronicle SVG timeline with separate linked-session spans, a battle registry, event/battle detail panels, source JSON, and filters for gang, fighter, place, battle, event type, phase and date. Fighter dossiers now show matching historical activity.
+- Story-writing behavior and lore were not changed; archive chronology is not yet included in model-writer packets or generated battle prose.
+- **2026-10-26 00:18:12+01:00 — validation passed:** all 49 Python checks across core, battle identity, story engine, voice, Writing Director, model writer, and campaign history; Node renderer/date and campaign timeline drilldown contracts; `node --check web/app.js`; Python compile checks; and `git diff --check`.
+- The disposable application initialized its schema and started listening at `127.0.0.1:8765`. Requests from the current sandbox were denied by Windows loopback socket permissions, so HTTP/API and authenticated live-sync smoke verification could not be completed. The hosted app was not deployed or modified.
+
 ## 0.8.1 — Semantic red-status formatting (source only, not deployed)
 
 - Updated writer output from plain paragraph strings to structured inline runs with constrained semantic marks.

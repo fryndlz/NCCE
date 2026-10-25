@@ -102,7 +102,7 @@ def test_durable_ledger_and_snapshot_deduplication():
                 raise AssertionError('Snapshot update should be rejected')
             except sqlite3.IntegrityError:
                 pass
-            assert s.db.execute('PRAGMA user_version').fetchone()[0]==7
+            assert s.db.execute('PRAGMA user_version').fetchone()[0]==8
         finally:
             s.close()
 
@@ -122,7 +122,7 @@ def test_legacy_database_provenance_migration():
         db.commit(); db.close()
         s=Store(path)
         try:
-            assert s.schema_version==7
+            assert s.schema_version==8
             assert s.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==2
             assert s.db.execute("SELECT provenance_class FROM memories").fetchone()[0]=='mechanical_fact'
             assert s.db.execute("SELECT count(*) FROM event_subjects").fetchone()[0]>=5
@@ -192,4 +192,4 @@ def test_snapshot_ingest_diff_and_retry():
         finally:
             s.close()
 
-if __name__=='__main__': test_store(); test_invite_sessions(); test_gang_parser(); test_live_sheet_snapshot_shape(); test_stdlib_xlsx_reader(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')
+if __name__=='__main__': test_store(); test_read_only_snapshot_remains_available_during_writer_transaction(); test_invite_sessions(); test_gang_parser(); test_live_sheet_snapshot_shape(); test_stdlib_xlsx_reader(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')

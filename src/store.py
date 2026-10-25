@@ -96,6 +96,119 @@ class Store:
  def latest_event_by_source_locator(self,source_locator):
   row=self.db.execute('SELECT event_id FROM campaign_events WHERE source_locator=? ORDER BY observed_at DESC,created_at DESC LIMIT 1',(source_locator,)).fetchone()
   return row['event_id'] if row else None
+ def import_history_archives(self,bundle,observed_at=None):
+  """Idempotently retain read-only archive rows and flag key collisions."""
+  from campaign_history import ARCHIVE_TABS
+  if not isinstance(bundle,dict):
+   return {'available':False,'inserted':0,'conflicts':0,'missing_tabs':list(ARCHIVE_TABS)}
+  observed_at=observed_at or datetime.now(timezone.utc).isoformat()
+  parsed_observed=datetime.fromisoformat(observed_at.replace('Z','+00:00'))
+  if parsed_observed.tzinfo is None: parsed_observed=parsed_observed.replace(tzinfo=timezone.utc)
+  observed_utc=parsed_observed.astimezone(timezone.utc).isoformat()
+  source_id='live:munda-manager-archives'
+  self.record_source(source_id,'campaign_archive','mechanical_fact','Munda Manager historical archive tabs',source_uri='https://docs.google.com/spreadsheets/d/1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00/edit')
+  inserted=0; conflicts=0; seen=0
+  records=bundle.get('records') or []
+  if not isinstance(records,list): raise ValueError('Campaign archive records must be a list')
+  with self._lock,self.db:
+   for item in records:
+    if not isinstance(item,dict) or not item.get('source_table') or not item.get('record_id'):
+     continue
+    source_table=str(item['source_table']); record_id=str(item['record_id'])
+    version_hash=str(item.get('version_hash') or 'append-only')
+    payload_hash=str(item.get('payload_hash') or hashlib.sha256(json.dumps(item.get('record') or {},ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest())
+    if source_table not in {'gang_logs','campaign_battles','battle_sessions'}:
+     continue
+    seen+=1
+    existing=self.db.execute('SELECT payload_hash FROM campaign_archive_records WHERE source_table=? AND record_id=? AND version_hash=?',(source_table,record_id,version_hash)).fetchone()
+    row_json=item.get('source_row_json') or json.dumps({},ensure_ascii=False)
+    raw_json=item.get('raw_record_json') or json.dumps(item.get('record') or {},ensure_ascii=False,sort_keys=True)
+    if existing:
+     if existing['payload_hash']!=payload_hash:
+      self.db.execute('''INSERT OR IGNORE INTO campaign_archive_conflicts(
+       source_table,record_id,version_hash,existing_payload_hash,conflicting_payload_hash,observed_at_utc,source_tab,source_row,source_row_json,raw_record_json)
+       VALUES(?,?,?,?,?,?,?,?,?,?)''',(source_table,record_id,version_hash,existing['payload_hash'],payload_hash,observed_utc,item.get('source_tab') or '',item.get('source_row'),row_json,raw_json))
+      if self.db.execute('SELECT changes()').fetchone()[0]: conflicts+=1
+     continue
+    self.db.execute('''INSERT INTO campaign_archive_records(
+      source_table,record_id,version_hash,payload_hash,created_at_raw,created_at_utc,updated_at_raw,updated_at_utc,
+      archived_at_raw,archived_at_utc,imported_at_utc,source_tab,source_row,source_row_json,raw_record_json,normalized_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',(
+       source_table,record_id,version_hash,payload_hash,item.get('created_at_raw'),item.get('created_at_utc'),
+       item.get('updated_at_raw'),item.get('updated_at_utc'),item.get('archived_at_raw'),item.get('archived_at_utc'),
+       observed_utc,item.get('source_tab') or '',item.get('source_row'),row_json,raw_json,
+       json.dumps(item,ensure_ascii=False,sort_keys=True,separators=(',',':'))))
+    inserted+=1
+   missing_tabs=bundle.get('missing_tabs') or []
+   result={'available':len(missing_tabs)<len(ARCHIVE_TABS),'records_seen':seen,'inserted':inserted,'conflicts':conflicts,
+           'missing_tabs':missing_tabs,'tab_counts':bundle.get('tab_counts') or {},
+           'row_errors':bundle.get('row_errors') or []}
+   self.db.execute('INSERT INTO campaign_archive_import_runs(imported_at_utc,result_json) VALUES(?,?)',(observed_utc,json.dumps(result,ensure_ascii=False,sort_keys=True)))
+   self.db.execute("INSERT INTO system_state(key,value) VALUES('campaign_history_last_import',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(observed_utc,))
+   self.db.execute("INSERT INTO system_state(key,value) VALUES('campaign_history_import_result',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(json.dumps(result,ensure_ascii=False,sort_keys=True),))
+  return result
+ def history_timeline(self):
+  """Return the reconstructed campaign timeline with its source/conflict warnings."""
+  from campaign_history import build_timeline
+  records=[]
+  for row in self.db.execute('SELECT normalized_json FROM campaign_archive_records ORDER BY source_table,record_id,archived_at_utc,version_hash'):
+   try: records.append(json.loads(row['normalized_json']))
+   except (TypeError,ValueError): continue
+  gang_names={str(row['gang_id']):row['name'] for row in self.db.execute('SELECT gang_id,name FROM gangs')}
+  fighter_names={}
+  roster={}
+  for row in self.db.execute('SELECT gang_id,name FROM fighters'):
+   key=(str(row['gang_id'] or ''),re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(row['name'] or '')).strip().casefold()))
+   roster.setdefault(key,[]).append(row['name'])
+  for record in records:
+   gang_id=record.get('gang_id'); fighter_id=record.get('fighter_id'); name=record.get('fighter_name_hint')
+   if gang_id and fighter_id and name:
+    normalized=re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(name)).strip().casefold())
+    matches=roster.get((str(gang_id),normalized),[])
+    fighter_names[(str(gang_id),str(fighter_id))]=matches[0] if len(matches)==1 else name
+  territories={}
+  for row in self.db.execute('SELECT mechanics_json,territory FROM territories'):
+   try: mechanics=json.loads(row['mechanics_json'] or '{}')
+   except (TypeError,ValueError): mechanics={}
+   territory_id=mechanics.get('territory_id') or mechanics.get('territoryId')
+   if territory_id: territories[str(territory_id)]=row['territory']
+  timeline=build_timeline(records,gang_names,fighter_names,territories)
+  fighter_rows={}
+  for row in self.db.execute('SELECT id,gang_id,name FROM fighters'):
+   name_key=re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(row['name'] or '')).strip().casefold())
+   fighter_rows.setdefault((str(row['gang_id'] or ''),name_key),[]).append(row['id'])
+  for event in timeline['events']:
+   if event.get('fighter_name') and event.get('gang_id'):
+    name_key=re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(event['fighter_name'])).strip().casefold())
+    matches=fighter_rows.get((str(event['gang_id']),name_key),[])
+    event['local_fighter_id']=matches[0] if len(matches)==1 else None
+  conflict_count=self.db.execute('SELECT count(*) FROM campaign_archive_conflicts').fetchone()[0]
+  conflicts=[dict(row) for row in self.db.execute('''SELECT source_table,record_id,version_hash,existing_payload_hash,conflicting_payload_hash,observed_at_utc,source_tab,source_row FROM campaign_archive_conflicts ORDER BY conflict_id DESC LIMIT 100''')]
+  run=self.db.execute('SELECT imported_at_utc,result_json FROM campaign_archive_import_runs ORDER BY run_id DESC LIMIT 1').fetchone()
+  import_result=json.loads(run['result_json']) if run else {'available':False,'missing_tabs':['MUNDA_ACTIVITY_RAW','MUNDA_BATTLES_RAW','MUNDA_SESSIONS_RAW']}
+  timeline['warnings'].extend({'kind':'conflicting_archive_version',**item} for item in conflicts)
+  for issue in import_result.get('row_errors',[]):
+   timeline['warnings'].append({'kind':'archive_row_issue',**issue})
+  for missing in import_result.get('missing_tabs',[]):
+   timeline['warnings'].append({'kind':'missing_archive_tab','source_tab':missing,'message':'archive sheet tab was unavailable during the latest import'})
+  timeline['import']={**import_result,'last_imported_at':run['imported_at_utc'] if run else None}
+  timeline['stats']['conflicts']=conflict_count
+  if conflict_count>len(conflicts):
+   timeline['warnings'].append({'kind':'conflict_warning_limit','message':f'{conflict_count-len(conflicts)} older conflicts are not expanded in this response'})
+  return timeline
+ def fighter_history(self,fighter_id):
+  fighter=self.db.execute('SELECT id,gang_id,name FROM fighters WHERE id=?',(fighter_id,)).fetchone()
+  if not fighter:return {'events':[],'battles':[]}
+  timeline=self.history_timeline()
+  events=[event for event in timeline['events'] if event.get('local_fighter_id')==fighter_id]
+  battle_ids={event.get('battle_id') or event.get('preceding_battle_id') or event.get('next_battle_id') for event in events}
+  battles=[battle for battle in timeline['battles'] if battle['battle_id'] in battle_ids or str(fighter['gang_id']) in battle.get('gang_ids',[])]
+  return {'events':events,'battles':battles,'warnings':timeline['warnings'],'import':timeline['import']}
+ def gang_history(self,gang_id):
+  timeline=self.history_timeline()
+  return {'events':[event for event in timeline['events'] if str(event.get('gang_id') or '')==str(gang_id)],
+          'battles':[battle for battle in timeline['battles'] if str(gang_id) in battle.get('gang_ids',[])],
+          'warnings':timeline['warnings'],'import':timeline['import']}
  def project_snapshot(self,payload):
   """Refresh the app's current-state tables while preserving narrative/history fields."""
   gangs=payload.get('gangs') or {}; gang_index=payload.get('gang_index') or {}
@@ -242,6 +355,7 @@ class Store:
   g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['battles']=q('''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 AND (b.attacker=? OR b.defender=? OR b.winner=? OR b.territory_claimer=?) ORDER BY b.date DESC''',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,))
   from world_streams import read_stream
   g['history_document']=document_for(self,'gang_origin',gid) or document_for(self,'gang_history',gid)
+  g['campaign_history']=self.gang_history(gid)
   g['narrative_stream']=read_stream(self,'gang',gid)
   for b in g['battles']:
    b['report_document']=document_for(self,'battle_report',b['id'])
@@ -259,6 +373,7 @@ class Store:
   f['campaign_events']=self.events(limit=500,entity_id=entity['entity_id']) if entity else []
   from story_engine import fighter_story
   f.update(fighter_story(self,f))
+  f['campaign_history']=self.fighter_history(fid)
   f['mechanics']=json.loads(f.get('mechanics_json') or '{}')
   f['writer_identity']=json.loads(f.get('writer_identity_json') or '{}')
   return f

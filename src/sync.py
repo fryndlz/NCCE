@@ -92,6 +92,9 @@ def ingest_snapshot(store, snapshot: dict, source_id: str = SHEET_SOURCE_ID) -> 
         source_uri=SHEET_URI,
     )
     payload = dict(snapshot)
+    # Raw archives have their own immutable/versioned store; duplicating every
+    # archive row into each current-state snapshot would balloon the ledger.
+    payload.pop("history_archives", None)
     payload.update({
         "captured_at": observed_at,
         "source_id": source_id,
@@ -154,8 +157,9 @@ def sync_live_sheet(store) -> dict:
     """Fetch, ledger, and project one read-only snapshot of the live campaign Sheet."""
     snapshot = fetch_live_snapshot()
     with store._lock:
+        history = store.import_history_archives(snapshot.get("history_archives"), snapshot.get("captured_at"))
         ingested = ingest_snapshot(store, snapshot)
         projection = store.project_snapshot(snapshot)
         from story_engine import regenerate
         narrative = regenerate(store, ambient=True)
-    return {**ingested, "projection": projection, "narrative": narrative, "source_metadata": snapshot.get("source_metadata", {})}
+    return {**ingested, "history_import": history, "projection": projection, "narrative": narrative, "source_metadata": snapshot.get("source_metadata", {})}

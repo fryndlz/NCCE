@@ -9,6 +9,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
+APP_VERSION='0.9.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -43,6 +44,7 @@ def _run_sync():
    store.set_state('sync_last_error',''); store.set_state('sync_last_snapshot_id',result['snapshot_id'])
    store.set_state('sync_last_events_created',len(result['events_created']))
    store.set_state('sync_current_counts',json.dumps(result['projection'],sort_keys=True))
+   store.set_state('campaign_history_sync_result',json.dumps(result['history_import'],ensure_ascii=False,sort_keys=True))
   print(f"Krakamunda Sheet sync succeeded: snapshot {result['snapshot_id']}, {len(result['events_created'])} new events")
  except Exception as exc:
   message=str(exc)[:500]
@@ -78,7 +80,7 @@ class H(BaseHTTPRequestHandler):
   page=(WEB/'login.html').read_bytes(); self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(page))); self.end_headers(); self.wfile.write(page)
  def do_GET(self):
   parsed=urlparse(self.path); p=parsed.path
-  if p=='/healthz':return self.js({'ok':True,'version':'0.8.1'})
+  if p=='/healthz':return self.js({'ok':True,'version':APP_VERSION})
   if p=='/api/session':return self.js({'auth_required':AUTH_REQUIRED,'authenticated':self._authenticated()})
   if p in ('/login','/login.html'):return self._serve_login()
   if AUTH_REQUIRED and not self._authenticated():
@@ -90,12 +92,14 @@ class H(BaseHTTPRequestHandler):
   if p=='/api/health':
    with store.reader() as reader:
     import llm_writer
-    return self.js({'ok':True,'database':str(DB),'baseline':reader.get_state('baseline'),'last_sync':reader.get_state('last_sync'),'source_mode':reader.get_state('source_mode'),'version':reader.get_state('engine_version'),'schema_version':reader.schema_version,'sync_status':reader.get_state('sync_status','starting'),'sync_last_attempt':reader.get_state('sync_last_attempt'),'sync_last_success':reader.get_state('sync_last_success'),'sync_last_error':reader.get_state('sync_last_error'),'sync_interval_seconds':SYNC_INTERVAL_SECONDS,'sync_source':'Krakamunda Fetch-a-Munda LIVE','sync_last_snapshot_id':reader.get_state('sync_last_snapshot_id'),'story_revision':reader.get_state('story_revision'),'story_generated_at':reader.get_state('story_generated_at'),'writer':llm_writer.availability()})
+    return self.js({'ok':True,'database':str(DB),'baseline':reader.get_state('baseline'),'last_sync':reader.get_state('last_sync'),'source_mode':reader.get_state('source_mode'),'version':reader.get_state('engine_version'),'app_version':APP_VERSION,'schema_version':reader.schema_version,'sync_status':reader.get_state('sync_status','starting'),'sync_last_attempt':reader.get_state('sync_last_attempt'),'sync_last_success':reader.get_state('sync_last_success'),'sync_last_error':reader.get_state('sync_last_error'),'sync_interval_seconds':SYNC_INTERVAL_SECONDS,'sync_source':'Krakamunda Fetch-a-Munda LIVE','sync_last_snapshot_id':reader.get_state('sync_last_snapshot_id'),'campaign_history_sync_result':reader.get_state('campaign_history_sync_result'),'story_revision':reader.get_state('story_revision'),'story_generated_at':reader.get_state('story_generated_at'),'writer':llm_writer.availability()})
   if p=='/api/events':
    query=parse_qs(parsed.query); entity_id=query.get('entity_id',[None])[0]
    try:limit=int(query.get('limit',['100'])[0])
    except (TypeError,ValueError):return self.js({'error':'limit must be an integer'},400)
    with store.reader() as reader:return self.js({'events':reader.events(limit=limit,entity_id=entity_id)})
+  if p=='/api/history':
+   with store.reader() as reader:return self.js(reader.history_timeline())
   if p.startswith('/api/gangs/'):
    with store.reader() as reader:x=reader.gang(unquote(p.split('/api/gangs/',1)[1]))
    return self.js(x if x else {'error':'not found'},200 if x else 404)

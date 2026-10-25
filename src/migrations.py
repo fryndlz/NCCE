@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -643,6 +643,56 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(7,?,?)",
                        ('semantic inline narrative marks for red critical statuses and missing information', _now()))
             db.execute('PRAGMA user_version=7')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if db.execute('PRAGMA user_version').fetchone()[0] < 8:
+        db.execute('BEGIN IMMEDIATE')
+        try:
+            db.execute('''CREATE TABLE IF NOT EXISTS campaign_archive_records(
+                    source_table TEXT NOT NULL,
+                    record_id TEXT NOT NULL,
+                    version_hash TEXT NOT NULL,
+                    payload_hash TEXT NOT NULL,
+                    created_at_raw TEXT,
+                    created_at_utc TEXT,
+                    updated_at_raw TEXT,
+                    updated_at_utc TEXT,
+                    archived_at_raw TEXT,
+                    archived_at_utc TEXT,
+                    imported_at_utc TEXT NOT NULL,
+                    source_tab TEXT NOT NULL,
+                    source_row INTEGER,
+                    source_row_json TEXT NOT NULL,
+                    raw_record_json TEXT NOT NULL,
+                    normalized_json TEXT NOT NULL,
+                    PRIMARY KEY(source_table,record_id,version_hash)
+                )''')
+            db.execute('CREATE INDEX IF NOT EXISTS campaign_archive_record_time_idx ON campaign_archive_records(source_table,created_at_utc)')
+            db.execute('CREATE INDEX IF NOT EXISTS campaign_archive_version_idx ON campaign_archive_records(source_table,record_id,archived_at_utc)')
+            db.execute('''CREATE TABLE IF NOT EXISTS campaign_archive_conflicts(
+                    conflict_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source_table TEXT NOT NULL,
+                    record_id TEXT NOT NULL,
+                    version_hash TEXT NOT NULL,
+                    existing_payload_hash TEXT NOT NULL,
+                    conflicting_payload_hash TEXT NOT NULL,
+                    observed_at_utc TEXT NOT NULL,
+                    source_tab TEXT NOT NULL,
+                    source_row INTEGER,
+                    source_row_json TEXT NOT NULL,
+                    raw_record_json TEXT NOT NULL,
+                    UNIQUE(source_table,record_id,version_hash,conflicting_payload_hash)
+                )''')
+            db.execute('''CREATE TABLE IF NOT EXISTS campaign_archive_import_runs(
+                    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    imported_at_utc TEXT NOT NULL,
+                    result_json TEXT NOT NULL
+                )''')
+            db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(8,?,?)",
+                       ('Munda Manager raw archive import and campaign history timeline', _now()))
+            db.execute('PRAGMA user_version=8')
             db.commit()
         except Exception:
             db.rollback()

@@ -1,24 +1,24 @@
-# NCCE 0.8.1 — current technical design
+# NCCE 0.9.0 — current technical design
 
-**Source release:** 0.8.1, model-backed Writing Director (not yet deployed)
+**Source release:** 0.9.0, campaign archive timeline (not yet deployed)
 
 **Hosted release:** 0.6.1 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
-**Schema:** SQLite version 6
+**Schema:** SQLite version 8
 
-**Documentation checkpoint:** 2026-10-25 22:30 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 00:18 CET (Europe/Warsaw, UTC+01:00)
 
 **Release verification:** hosted `/healthz` returned HTTP 200 and version `0.6.1` after redeploy. The app reused its database on `/var/data` without a fresh-seed log. The 31 deterministic checks and local authenticated HTTP/live-sync smoke passed before this infrastructure-only change. See `CHANGELOG.md` for deployment evidence.
 
-This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
+This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. Campaign History adds versioned raw Munda Manager archives and a derived chronology; it does not change the Sheet, writer, campaign mechanics, or authored lore. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
 ## 0. Writing Director additions
 
 The current writing contract and implementation are described in [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md). The imported specifications are preserved in `docs/writing_sources/`; the identity taxonomy is in [WRITER_IDENTITY_TAGS.md](WRITER_IDENTITY_TAGS.md).
 
-Version 0.8 adds `llm_writer.py` (OpenAI Responses API drafts, structured outputs, caching and request bounds) to the 0.7 director. `writing_director.py` handles document forms, authored perspective packets, dates and guardrails; `world_streams.py` handles versioned gang/place entries and bounded ambient fiction; `writing.js` handles browser calendar rules; `writing.css` styles the semantic archive. Schema 7 adds a persistent model-result cache, writer status, and semantic inline marks for narrative red-status styling to the schema-5 identity revisions, narrative streams and raw territory-state retention. Original place/gang descriptions are kept separately from progressing stories. Territory diffs cover ownership, transformations, other fields and listing changes. The fighter numerical rules below remain in force.
+Version 0.8 adds `llm_writer.py` (OpenAI Responses API drafts, structured outputs, caching and request bounds) to the 0.7 director. `writing_director.py` handles document forms, authored perspective packets, dates and guardrails; `world_streams.py` handles versioned gang/place entries and bounded ambient fiction; `writing.js` handles browser calendar rules; `writing.css` styles the semantic archive. Schema 7 adds a persistent model-result cache, writer status, and semantic inline marks for narrative red-status styling to the schema-5 identity revisions, narrative streams and raw territory-state retention. Schema 8 adds immutable/versioned Munda Manager archive rows, same-version conflict records and import-run provenance. Original place/gang descriptions are kept separately from progressing stories. Territory diffs cover ownership, transformations, other fields and listing changes. The fighter numerical rules below remain in force.
 
-Current local validation: 37 Python checks, the Node date/semantic-renderer contract check, and a disposable authenticated HTTP/live-sync check pass. Hosted 0.6.1 verification below is historical deployment evidence, not a claim that this source release has been deployed.
+Current validation is recorded in §14 and `CHANGELOG.md`. The timeline feature has dedicated parser, versioning, join, confidence, participation, overlap and fighter-history tests. Hosted 0.6.1 verification below is historical deployment evidence, not a claim that this source release has been deployed.
 
 ## 1. Product and authority
 
@@ -45,33 +45,38 @@ Rules reference: https://www.necroraw.com.ru/
 | Module or area | Current responsibility |
 | --- | --- |
 | `src/access.py` | Shared-passphrase access configuration, signing key derivation, and seven-day signed session tokens. |
-| `src/google_sheets.py` | Read-only workbook download at the source boundary. No Sheet write capability. |
+| `src/google_sheets.py` | Read-only workbook download; normalizes the current Sheet snapshot and imports the three archive tabs without any Sheet write capability. |
+| `src/campaign_history.py` | Typed raw-tab parsing, immutable source normalization, exact battle/session joins, candidate-window classification, participation evidence and timing warnings. |
 | `src/snapshot.py` | Standard-library XLSX/XML parsing, normalized gang/fighter/territory/battle records, source-ID joins from the MAIN Data Dump, stable battle keys and duplicate handling. |
 | `src/models.py` | Dataclasses documenting the principal snapshot/entity shapes. The running pipeline also uses dictionaries. |
 | `src/diff.py` | Pure comparison of normalized snapshots. Produces factual event drafts, subjects, source locators, and before/after payloads. Matches battle identities without treating row insertion as a new history. |
 | `src/sync.py` | Source registry, snapshot persistence, seed-to-live bridge, immutable factual event ingestion, current-state projection, then story regeneration. |
-| `src/store.py` | SQLite access and migrations; source/entity/event APIs; current-state projection; authored biography preservation; dashboard and detail response assembly. Attaches narrative documents, memory history, and selected Mind thoughts. |
-| `src/migrations.py` | Schema versions 1–4, legacy provenance backfill, immutable-record protections, current membership flags, and versioned story tables. |
+| `src/store.py` | SQLite access and migrations; source/entity/event APIs; current-state projection; authored biography preservation; dashboard and detail response assembly. Attaches narrative documents, memory history, selected Mind thoughts, and derived archive timelines. |
+| `src/migrations.py` | Schema versions 1–8, legacy provenance backfill, immutable-record protections, current membership flags, versioned story tables, and Munda Manager archive import tables. |
 | `src/story_engine.py` | Event classification/importance, memory creation, bounded shared gang events, reflection batches, narrative revisioning, source links, and current Mind retrieval. Owns the numerical rules listed below. |
-| `src/story_prose.py` | Deterministic local writer. Builds voice profiles, first-person event interpretations, thematic reflections, generated biographies/histories, battle documents, and downtime documents. Owns phrase and style rules. |
+| `src/story_prose.py` | Identity/fact extraction and compatibility helpers. Its legacy phrase helpers are not presented as finished production prose. |
+| `src/llm_writer.py` | Production OpenAI Responses API drafts, structured outputs, provider bounds, status, and cache. The key remains server-side. |
+| `src/writing_director.py`, `src/world_streams.py` | Form-specific writing packets, provenance/format constraints, dates, continuity, and versioned Gang/Place narratives. |
 | `src/narrative.py` | Legacy deterministic templates retained for initial seed compatibility. The active v0.6 story layer supersedes the old seeded moodlets and narrative text. |
 | `src/seed.py` | Creates a missing database from tracked baseline data and the C-NINE export. Refuses to overwrite an existing database. |
 | `src/baseline_data.py`, `data/fighters.json` | Historical seed data. They do not override a subsequent live Sheet read. |
 | `data/lore/` | Frozen C-NINE authored source files. |
-| `src/server.py` | HTTP/static assets, authenticated JSON API, startup story generation, serialized background refresh, health/status, and manual refresh. |
-| `web/app.js` | Narrative/evidence rendering; navigation; fighter history/Mind; search/filtering; refresh of the visible view when source/story state changes. |
+| `src/server.py` | HTTP/static assets, authenticated JSON API (`/api/history`), startup story generation, serialized background refresh, health/status, and manual refresh. |
+| `web/app.js` | Narrative/evidence rendering; Chronicle campaign timeline and battle registry; event/battle detail panels; fighter history/Mind; search/filtering; refresh of the visible view when source/story state changes. |
 | `web/index.html`, `web/style.css`, `web/login.html` | App shell, responsive dossier presentation, and passphrase page. |
 | Windows launcher and `scripts/` | Existing local startup and initialization entry points. |
 | `tests/test_core.py` | Persistence, sessions, parsers, immutable ledger, snapshots, migration, and sync coverage. |
 | `tests/test_battle_identity.py` | Stable source/fallback battle identities, row insertion/reordering, corrections, duplicate ambiguity, and raw-dump source-ID joining. |
+| `tests/test_campaign_history.py` | Raw-tab parser and provenance, timestamp conversion, exact joins, versioned idempotent imports, conflicts, candidate-window phase classification, overlap/gap ambiguity, XP/ally participation limits. |
+| `tests/test_campaign_history_ui.cjs` | Chronicle timeline rendering, battle drilldown, filter controls, session-window caveat, and fighter activity detail. |
 | `tests/test_story_engine.py` | Event-to-memory/Mind behavior, first-live bridge, source links, idempotency, regeneration, canon preservation, and corrected/removed battle behavior. |
 | `tests/smoke_server.py` | Opt-in authenticated HTTP integration check using a disposable fresh database and a read-only live Sheet refresh. |
 
-There is no external language-model dependency, embedding service, API key, generation charge, or continuous off-table life simulation in v0.6. The writer and selection rules run locally on the host. The prose is constrained and can repeat between fighters with similar profiles; it is not equivalent to open-ended model composition.
+The writing integration uses the OpenAI Responses API when the server-side key is configured; the writer and selection rules run on the host. The campaign archive parser and timeline are deterministic and do not invoke the model. There is no continuous off-table life simulation.
 
 ## 3. Runtime sequence
 
-1. Open or seed the existing database and apply migrations to schema 4.
+1. Open or seed the existing database and apply migrations through schema 8.
 2. Generate any missing or stale derived story revision from the database already available. This allows the app to work before its first live refresh succeeds.
 3. Fetch the live workbook and normalize it into a snapshot. Retain the source capture time and deduplicate unchanged content.
 4. When a legacy seed snapshot lacks the current snapshot shape, build a one-time comparison bridge from fields the seed really knew. Newly available statistics are treated as baseline values, rather than reported as improvements from missing data.
@@ -156,7 +161,7 @@ Current personal events affect their named fighter. A recorded gang battle outco
 
 A battle outcome is resolved against the current active battle record and its correction chain. Superseded/removed outcomes are not replayed as current true victory memories. Their generated versions remain available as inactive history. Where a later roll contradicts an earlier captured/dead status, the shared social memory is marked `history_only`, retains the amended evidence, and is excluded from Mind.
 
-Munda Manager/Sheet battle data identifies participating gangs. The current input does not provide a complete fighter deployment list. A fighter's XP delta does not explain whether it came from participation, objectives, rallying, assistance, or combat. A named injury does not identify its attacker. These details are not invented as mechanics.
+The current Sheet battle data plus Munda Manager archive identifies documented campaign battles, participating gangs, and some individual activity. It still does not provide a complete fighter deployment list. A positive XP delta inside a candidate session window may support inferred participation; it does not identify whether XP came from combat, objectives, rallying, assistance, or another rule. XP decreases do not imply participation. Explicit ally markers suppress XP-only participation inference. A named injury does not identify its attacker. These details are not invented as mechanics.
 
 ## 7. Fighter voice rules
 
@@ -309,8 +314,22 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 14. Validation and deployment checkpoint
 
-The current deterministic test suite has **31 passing checks**: 8 core, 6 battle identity, 15 story tests, and 2 voice-register checks, verified at 2026-10-25 19:19:33 CET. Checks cover Mara's Critical Injury reaching memory and Mind, Maex's voiced Cool advancement with separate evidence, recovery closure, equipment/promotion events, dead-fighter Mind exclusion, repeat-sync/generation idempotency, authored/mechanical preservation, first-live comparison, battle reorder/correction/removal behavior, social-memory evidence, and keeping Palanite precinct vocabulary separate from C-NINE's register.
+The source implementation is 0.9.0 and is not deployed. The automated suites passed: 49 Python checks across core, battle identity, story engine, voice, Writing Director, model writer, and campaign history; Node renderer/date and timeline drilldown contracts; JavaScript syntax; Python compile checks; and `git diff --check`. `tests/smoke_server.py` could not reach its local socket in the current sandbox. A local app process initialized and bound successfully, but loopback client access was denied by Windows permissions in this execution environment. This is not a result about the user's machine or hosted Render service.
 
-The opt-in `tests/smoke_server.py` integration check also passed with a disposable authenticated fresh server and a read-only live Sheet sync: startup, login/logout, HttpOnly cookie, protected-route 401 responses, schema 4, semantic report blocks, Mara's critical Mind, and Maex's voiced memory. Hosted verification for `0.6.1` confirmed public health version and that startup initialized SQLite under `/var/data`. The successful live Sheet sync has not yet been independently confirmed in hosted logs.
+Hosted release `0.6.1` (`4816751`) remains live at https://ncce-private-preview.onrender.com/. Render's public health route historically returned version `0.6.1` after the storage change. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
 
-Release `0.6.1` (`4816751`) is live at https://ncce-private-preview.onrender.com/. Render's public health route returned version `0.6.1` after the storage change. Deployment details and remaining backup limitation are in `CHANGELOG.md`.
+## 15. Campaign history archive and timeline
+
+The source workbook contains three separate raw archive tabs: `MUNDA_ACTIVITY_RAW` (`gang_logs`), `MUNDA_BATTLES_RAW` (`campaign_battles`), and `MUNDA_SESSIONS_RAW` (`battle_sessions`). They are fetched through the existing read-only XLSX integration. No Apps Script or Sheet write was added. Current state remains sourced from the existing campaign/gang tabs; archives are historical evidence.
+
+`campaign_history.py` retains typed values, original timestamp text, UTC instants when an explicit timezone exists, complete Raw JSON, spreadsheet row/tab locators, payload/version hashes, and parse issues. Blank trailing rows are ignored. Activity IDs are append-only. Mutable battle/session records retain each `(source table, record ID, version hash)`; the latest version is selected by valid `Archived At`. Reimports are idempotent. Same-key/different-payload collisions are stored separately and shown as warnings. Archive time is never used as event time.
+
+The battle registry starts with documented `campaign_battles` records. A session links only through exact `battle_sessions.campaign_battle_id = campaign_battles.id`; there is no date/scenario fuzzy join. Orphan sessions and battles without sessions stay visible. Multiple sessions remain individually inspectable. Current source data is not rewritten.
+
+`gang_logs.created_at` is the activity's recorded time. For a completed linked session, `created_at` and `updated_at` form a **candidate session-time proxy**, not a confirmed gameplay start/end. The chart and detail view label this caveat. Session statuses that are scheduled, pre-battle, in progress, cancelled, or abandoned do not get a completed end. Missing or timezone-naive timestamps remain unavailable. Activity is classified per gang: inside one candidate session, between candidate battle windows, after the latest window, before the first window, in an unresolved gap between sessions of one battle, ambiguous across overlapping sessions, unassigned when no gang window exists, or unavailable when time is missing. No campaign-wide serial order is imposed.
+
+The fighter activity endpoint uses stable source UUIDs and resolves a display name from the current roster when possible; deleted/renamed fighters remain in the archive with source identity and description-derived name hints. A positive XP increase recorded inside a candidate window for a participating gang is presented as **inferred** participation, not a factual deployment record. Explicit participation reasons improve the inference label. An XP decrease is not evidence of participation. Explicitly marked ally participants are excluded from XP-only inference. No XP evidence means participation remains unknown; other activity may corroborate but does not prove presence.
+
+The Chronicle timeline has per-gang lanes, separate linked session bars, change markers, candidate downtime gaps, a searchable/filterable battle registry, and source detail panels. Filters cover gang, fighter, place, battle, event type, phase and time range. Hover/focus reveals event or session metadata; clicking a battle or event opens its detail and original JSON. Fighter dossiers include matched archive activity with phase, confidence and source. The display keeps documented source facts, time-based inference, ambiguity and missing data distinct.
+
+This feature changes neither generated report prose nor current-state mechanics. It gives later writers a structured chronology source but does not yet incorporate archive records into the model writer's narrative packets.
