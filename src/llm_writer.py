@@ -139,6 +139,8 @@ def write(store,form,packet):
  except ValueError as exc: return [],{'status':'error','message':str(exc)}
  row=store.db.execute('SELECT result_json FROM writer_result_cache WHERE prompt_hash=?',(signature,)).fetchone()
  if row: return normalize_paragraphs(json.loads(row[0])),{'status':'ready','cached':True}
+ if _calls>=MAX_CALLS:
+  return [],{'status':'pending','message':'Narrative pending: writing budget reached; it will resume on the next refresh.'}
  try: paragraphs=normalize_paragraphs(_call(form,packet))
  except Exception as exc:
   message=str(exc) if isinstance(exc,RuntimeError) else 'Writing provider request failed'

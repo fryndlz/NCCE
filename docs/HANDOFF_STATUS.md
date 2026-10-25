@@ -1,10 +1,10 @@
 # Handoff status
 
-**Current source implementation:** NCCE 0.9.0 — Munda Manager Campaign History Timeline, SQLite schema 8 (not deployed)
+**Current source implementation:** NCCE 0.9.1 — Munda Manager Campaign History Timeline and Writer Integration Fix, SQLite schema 8
 
-**Hosted implementation:** 0.6.1 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
+**Hosted implementation:** 0.9.0 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. The 0.9.1 writer fix is pending deployment.
 
-**Checkpoint:** 2026-10-26 00:18 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 00:44 CET (Europe/Warsaw)
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
@@ -18,7 +18,7 @@ Local validation: 43 Python checks, Node renderer/date contracts, and the authen
 
 Continue in the existing repository. Use Git for history; do not rebuild the project or produce another versioned ZIP. Source/data authority remains in `AGENTS.md`. The Sheet is read-only, authored lore is canon, and generated narrative is inference with evidence.
 
-The app now implements the principal story loop rather than only refreshing a roster. New campaign facts generate fighter memories, reflections, selected Mind thoughts, and regenerated reports. Narrative generation requires `NCCE_OPENAI_API_KEY`; `NCCE_WRITER_MODEL` defaults to `gpt-6.1-sol`. Relevant campaign facts, fighter identity tags, authored context and prior generated prose are sent to OpenAI for drafting, as authorized by the user. Successful outputs are cached locally; the writer has a configurable per-refresh call budget.
+The app now implements the principal story loop rather than only refreshing a roster. New campaign facts generate fighter memories, reflections, selected Mind thoughts, and regenerated reports. Narrative generation requires `NCCE_OPENAI_API_KEY`; `NCCE_WRITER_MODEL` defaults to `gpt-6.1-sol`. Relevant campaign facts, fighter identity tags, authored context and prior generated prose are sent to OpenAI for drafting, as authorized by the user. Successful outputs are cached locally; the writer has a configurable per-refresh call budget. A 0.9.1 fix removes the schema keyword that caused HTTP 400 and keeps quota-limited narratives pending for later refreshes.
 
 The exact current technical design, module responsibilities, current labels, trigger/importance rules, voice thresholds, reflection algorithm, Mind formula and limits are in `docs/CURRENT_DESIGN.md`. The earlier design critique is archived as `docs/archive/DESIGN_REVIEW_2026-10-25.md`; `docs/IMPLEMENTATION_AUDIT.md` describes an earlier build.
 
@@ -28,7 +28,7 @@ NCCE 0.9.0 reads `MUNDA_ACTIVITY_RAW`, `MUNDA_BATTLES_RAW`, and `MUNDA_SESSIONS_
 
 The Chronicle now has a per-gang timeline, clickable campaign battle registry, source JSON details, and gang/fighter/place/battle/event-type/phase/date filters. Fighter dossiers show archive activity that can be matched to them. Session created/updated times are explicitly candidate proxies rather than verified gameplay boundaries. Activity timestamps say when changes were recorded. Positive XP gains can support a sourced, marked participation inference; they do not prove attendance. XP loss, ally participation, session gaps, overlaps, incomplete data and absent evidence remain unknown or flagged.
 
-This feature does not alter the Sheet, Apps Script, current roster, authored lore, or model-writing rules. The writer does not yet consume the archive timeline. The source release is not deployed; hosted service remains 0.6.1 pending a separately authorized deployment.
+This feature does not alter the Sheet, Apps Script, current roster, authored lore, or model-writing rules. The writer does not yet consume the archive timeline. Hosted app release 0.9.0 is live; release 0.9.1 is pending.
 
 ## Implemented milestones
 
@@ -44,7 +44,7 @@ This feature does not alter the Sheet, Apps Script, current roster, authored lor
 | Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
 | Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
 | Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |
-| Validation | The 0.9.0 source passed the Python/Node and syntax checks listed in `CHANGELOG.md`. A local server process initialized and bound; this sandbox denied loopback HTTP clients, so the authenticated HTTP/live-sync smoke was not completed. Hosted health remains 0.6.1; the 0.9.0 source is not deployed. See `CHANGELOG.md`. |
+| Validation | The 0.9.0 source passed the Python/Node and syntax checks listed in `CHANGELOG.md`. On 0.9.1, all focused writer checks and Python compilation passed. The hosted writer completed 80 model calls after removing the unsupported schema constraint; further pending narratives continue on subsequent refreshes. |
 
 ## Historical limits
 
@@ -58,7 +58,7 @@ Use `data/lore/C-NINE Story - canonical export.txt` and its existing biography m
 
 ## Highest-priority follow-up work
 
-1. Deploy 0.9.0 separately after reviewing this source change; the campaign app still runs hosted 0.6.1. Then verify archive import counts and a few battle/session links against the live workbook. The new timeline is currently local source only.
+1. Deploy 0.9.1 and verify its pending writer output and campaign history display against the live workbook.
 2. Complete a real phone/mobile visual and interaction check; responsive CSS alone is not evidence of that check.
 3. Add a safe SQLite export/backup workflow. The database now survives service restarts and deploys on a persistent disk, but the app does not yet offer an application-consistent backup download or offsite retention.
 4. Expand structured campaign inputs where needed: individual battle attendance, XP reasons, named rescue/medical actions, and explicit relationship evidence. Current XP-based attendance remains inferred; the writer does not yet consume raw archive chronology.

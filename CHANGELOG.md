@@ -2,6 +2,18 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.1 — Writer integration repair
+
+**Implementation checkpoint:** 2026-10-26 00:44+01:00 (Europe/Warsaw)
+
+- Fixed the OpenAI Responses structured-output schema rejection by removing unsupported `uniqueItems`; returned marks continue to be deduplicated and validated by NCCE.
+- Provider HTTP errors now expose bounded structured details to help distinguish invalid requests from missing credentials, while redacting the configured API key.
+- Call-budget exhaustion now leaves remaining narratives explicitly pending for the next refresh instead of labeling them as provider errors.
+- Confirmed the hosted writer is configured for `gpt-6.1-sol`; its first successful post-fix refresh completed 80 requests and committed the result. Further pending narratives continue on subsequent refreshes using the successful result cache.
+- Validation: all six focused writer tests passed; Python compilation and `git diff --check` passed. Full baseline suites passed on the preceding 0.9.0 source.
+- No campaign Sheet, Apps Script, authored lore, or mechanical source data was changed.
+- Hosted rollout and exact verification time: pending.
+
 ## 0.9.0 — Munda Manager campaign history timeline (source only, not deployed)
 
 **Implementation checkpoint:** 2026-10-26 00:18:12+01:00 (Europe/Warsaw)

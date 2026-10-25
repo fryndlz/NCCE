@@ -1,6 +1,6 @@
 # Story Engine Architecture — implemented in NCCE 0.9
 
-**Schema:** 8. **Current app release:** `0.9.0`, with story generation still `story-0.8.1`. **Hosted generation:** `story-0.6.0` until source is separately deployed.
+**Schema:** 8. **Current app release:** `0.9.1`, with story generation still `story-0.8.1`. The writer uses OpenAI Responses structured output, rejects malformed prose locally, preserves successful outputs in a persistent cache, and marks quota-limited remaining outputs pending for the next refresh. Hosted generation remains `story-0.8.1`.
 
 The detailed current implementation, constants, and complete catalogs are specified in `CURRENT_DESIGN.md`. This document describes the runtime boundaries and data flow.
 

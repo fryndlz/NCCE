@@ -94,6 +94,22 @@ def test_provider_http_error_surfaces_safe_actionable_reason():
         llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
 
 
+def test_writer_budget_exhaustion_is_pending_and_does_not_call_provider():
+    old_key,old_calls,old_failure,old_call=llm_writer.API_KEY,llm_writer._calls,llm_writer._failure,llm_writer._call
+    llm_writer.API_KEY='mock-token'; llm_writer._calls=llm_writer.MAX_CALLS; llm_writer._failure=''
+    llm_writer._call=lambda *args: (_ for _ in ()).throw(AssertionError('provider must not be called'))
+    try:
+        with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+            store=Store(Path(folder)/'writer-budget.db')
+            try:
+                paragraphs,status=llm_writer.write(store,'fighter_memory',{'event_title':'Critical injury'})
+                assert paragraphs==[] and status['status']=='pending'
+                assert 'next refresh' in status['message'] and not llm_writer._failure
+            finally: store.close()
+    finally:
+        llm_writer.API_KEY=old_key; llm_writer._calls=old_calls; llm_writer._failure=old_failure; llm_writer._call=old_call
+
+
 def test_story_engine_uses_model_output_across_memories_artifacts_and_streams():
     old_key,old_call=llm_writer.API_KEY,llm_writer._call
     llm_writer.API_KEY='mock-token'; llm_writer.reset_budget()
