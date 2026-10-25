@@ -6,9 +6,9 @@
 
 **Schema:** SQLite version 4
 
-**Documentation checkpoint:** 2026-10-25 21:11:10 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-25 21:13:27 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** hosted `/healthz` returned version `0.6.1`; startup logs confirm SQLite initialized at the mounted disk path. The 31 deterministic checks and local authenticated HTTP/live-sync smoke passed before this infrastructure-only change. See `CHANGELOG.md` for deployment evidence.
+**Release verification:** hosted `/healthz` returned HTTP 200 and version `0.6.1` after redeploy. The app reused its database on `/var/data` without a fresh-seed log. The 31 deterministic checks and local authenticated HTTP/live-sync smoke passed before this infrastructure-only change. See `CHANGELOG.md` for deployment evidence.
 
 This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 

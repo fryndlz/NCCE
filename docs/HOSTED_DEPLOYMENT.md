@@ -6,9 +6,9 @@
 
 **Deploy branch:** `main`
 
-**Documentation checkpoint:** 2026-10-25 21:11 CET (Europe/Warsaw)
+**Documentation checkpoint:** 2026-10-25 21:13 CET (Europe/Warsaw)
 
-**0.6.1 rollout:** commit `4816751` is live on the existing service. The service was upgraded to Starter, attached to a 1 GB disk, and configured to store SQLite at `/var/data/ncce-preview.db`. Public health returned version `0.6.1`; startup logs confirm the mounted path. Full release record: `CHANGELOG.md`.
+**0.6.1 rollout:** commit `4816751` is live on the existing service. The service was upgraded to Starter, attached to a 1 GB disk, and configured to store SQLite at `/var/data/ncce-preview.db`. Follow-up commit `0768221` was redeployed to confirm persistence: the app started without seeding a new story database, and public health returned HTTP 200/version `0.6.1`. Full release record: `CHANGELOG.md`.
 
 ## Existing deployment
 
@@ -50,6 +50,6 @@ Current estimated recurring cost is about $7.25/month on the Hobby workspace: $7
 
 ## Release verification record
 
-At 2026-10-25 21:08:51 CET, deployment `dep-dbf62uebs3rs73chu30g` was live on commit `4816751`; public `/healthz` returned `0.6.1`. Render startup logs recorded `Seeded story engine /var/data/ncce-preview.db`, confirming the configured database path is on the mounted disk. The host launched its 15-minute sync scheduler, but a successful hosted Sheet sync was not independently confirmed in captured logs. Local validation remains 31 deterministic checks plus the authenticated HTTP/live-sync smoke check. Authenticated hosted data and phone rendering were not inspected.
+At 2026-10-25 21:08:51 CET, deployment `dep-dbf62uebs3rs73chu30g` was live on commit `4816751`; startup logs recorded `Seeded story engine /var/data/ncce-preview.db`, confirming the configured database path is on the mounted disk. At 21:13:27, a follow-up deploy of `0768221` completed without a fresh-seed log, confirming the mounted database survived redeployment; public `/healthz` returned HTTP 200 and `0.6.1`. The host launched its 15-minute sync scheduler, but a successful hosted Sheet sync was not independently confirmed in captured logs. Local validation remains 31 deterministic checks plus the authenticated HTTP/live-sync smoke check. Authenticated hosted data and phone rendering were not inspected.
 
 Responsive CSS is included. A full mobile visual check was blocked by the browser extension's URL-confidence access restriction; do not report mobile as verified until an actual phone or permitted mobile-browser check is completed.

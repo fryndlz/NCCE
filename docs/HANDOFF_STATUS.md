@@ -4,7 +4,7 @@
 
 **Hosted implementation:** 0.6.1 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-25 21:08:51 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-25 21:13:27 CET (Europe/Warsaw)
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
