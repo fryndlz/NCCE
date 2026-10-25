@@ -1,41 +1,52 @@
-# Handoff Status
+# Handoff status
 
-## Existing build
-This repository is based on the functional v0.3 prototype produced in the prior ChatGPT project.
+**Current implementation:** NCCE 0.6.0 — Campaign Minds, SQLite schema 4
 
-Present files include:
-- local Python HTTP server and browser UI
-- SQLite persistence
-- baseline campaign data
-- fighter dataset
-- story/narrative prototype code
-- C-NINE lore export
-- Windows launcher
-- tests
+**Checkpoint:** 2026-10-25 17:32:54 CET (Europe/Warsaw)
 
-The previous prototype reported a baseline of roughly 6 gangs, 92 persistent fighters, 24 territory records and 25 historical battles. Verify these counts from the current database/code rather than trusting this note.
+**Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
-## Known weakness
-The application originally drifted toward being a worse Munda Manager: standings, gang stats and battle rows. The product pivot is explicit: story is primary, mechanics are evidence.
+## Workspace and product
 
-## Historical reconstruction limitation
-Current state cannot reliably reconstruct exact chronology of all pre-baseline fighter changes. Existing injuries/XP/advancements should be treated as baseline observations unless independently supported by authored historical records. From live synchronization onward, every detected change must be timestamped and retained.
+Continue in the existing repository. Use Git for history; do not rebuild the project or produce another versioned ZIP. Source/data authority remains in `AGENTS.md`. The Sheet is read-only, authored lore is canon, and generated narrative is inference with evidence.
 
-## C-NINE
-The canonical C-NINE source is in `data/lore/C-NINE Story - canonical export.txt`. It contains both CAMPAIGN LOG and PERSONNEL FILES. Prefer authored biographies and events from it over generated replacements. Preserve its contradictions/redactions intentionally.
+The app now implements the principal story loop rather than only refreshing a roster. New campaign facts generate fighter memories, reflections, selected Mind thoughts, and regenerated reports. The runtime is local deterministic code with no external language-model dependency or generation fee. Bounded phrasing and explicit topic matching remain visible limits.
 
-## Highest-priority next milestones
-0. **Private hosted access (new product requirement).** The user wants a link that works on friends' computers and phones, with invited-only access. `docs/HOSTED_DEPLOYMENT.md` and `render.yaml` prepare a no-cost preview; `render.production.yaml` describes a paid persistent version for later, only if approved. Local development remains supported. Neither service has been created.
-1. Inspect and run current app/tests. Document what v0.3 actually implements versus what was claimed. **Completed in `docs/IMPLEMENTATION_AUDIT.md`.**
-2. Make Chronicle the primary UI and demote raw Munda Manager-like views. **Core direction implemented; mechanical gang summary metrics are relegated to evidence detail.**
-3. Implement robust entity/event/provenance schema in SQLite. **Completed as schema migration 1; baseline rows are backfilled without inventing historical dates.**
-4. Implement live read-only Google Sheet synchronization and snapshot persistence. **Implemented. Startup and 15-minute background refreshes use the public XLSX export with Python's standard library; the UI also has a manual refresh button. Local current-state projection updates from the Sheet. No credentials are stored and the Sheet is never written.**
-5. Implement deterministic snapshot diff -> factual event ledger. **Completed. Idempotent factual events cover fighter/gang changes, battle additions/corrections/removals, and territory changes when source identity is unambiguous. No occurrence date is invented for undated changes.**
-6. Implement character change tracker for all future changes. **Campaign events are included in fighter API responses and detail views; live snapshots feed this ledger automatically.**
-7. Implement stim/mood/memory/reflection pipeline with source pointers. **Next. New facts appear in the tracker; runtime observations and narrative reactions are not generated yet.**
-8. Generate initial non-C-NINE gang/character/place histories with explicit inference provenance.
-9. Implement downtime event generation and campaign-level chronicle updates.
-10. Only after the story loop is convincing, improve graphics/presentation and consider Unity.
+The exact current technical design, all module responsibilities, current label catalog, trigger/importance rules, voice thresholds, reflection algorithm, Mind formula, and data limitations are in `docs/CURRENT_DESIGN.md`. The earlier design critique is archived as `docs/archive/DESIGN_REVIEW_2026-10-25.md`; `docs/IMPLEMENTATION_AUDIT.md` describes the earlier build and should not be mistaken for the v0.6 implementation state.
+
+## Implemented milestones
+
+| Area | Current status |
+| --- | --- |
+| Hosted link and invite access | Existing free Render preview at https://ncce-private-preview.onrender.com/. Public GitHub source; campaign app protected by a shared passphrase. Deployed release evidence is recorded in `CHANGELOG.md`. |
+| Chronicle-first navigation | Implemented. Story/history leads; raw mechanical state is inspectable evidence. People is now Fighters. |
+| Durable factual/event/provenance schema | Implemented. Sources, entities, immutable snapshots/events, subjects/roles, evidence links, and correction chains. Schema 4 adds versioned story memories/artifacts. |
+| Read-only Sheet sync | Implemented. Startup, 15-minute schedule, and manual refresh; source-state projection and narrative refresh follow successful reads. |
+| Snapshot comparison and change tracker | Implemented. Known baseline fields can bridge to the first live read without fabricating new-stat deltas. Unknown occurrence dates stay unknown. |
+| Event-to-memory/reflection/Mind | Implemented. Voiced observations and sourced reflections; documented salience/thresholds; current thoughts selected by importance, recency, relevance, and character biases. |
+| Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
+| Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
+| Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |
+| Validation | All 29 deterministic checks passed (8 core, 6 identity, 15 story), plus disposable authenticated HTTP/live-sync smoke verification. Hosted release `0.6.0` was verified live at 2026-10-25 18:29 CET; see `CHANGELOG.md`. |
+
+## Historical limits
+
+Pre-baseline XP, kills, injuries and advancements are known states, not a dated sequence of events. A later snapshot capture time says when NCCE observed a change, not when the tabletop event occurred. A fighter disappearing from a roster is not automatically dead or retired.
+
+Battle records identify gangs and outcomes. Individual attendance, exact reasons for XP, named injury-causing enemies, rescue participants, and detailed in-battle actions are not consistently recorded. Same-update context may support an explicitly marked inference but must not be promoted to mechanical truth. Removed/corrected outcomes are excluded from active current narratives while prior generated versions remain retained.
+
+## C-NINE and authored lore
+
+Use `data/lore/C-NINE Story - canonical export.txt` and its existing biography matches. Preserve names, contradictions, redactions, and deliberate ambiguity. The runtime uses a frozen export; live Google Doc synchronization is not implemented. Sheet Backstory text is preserved for other fighters and used as voice context; it does not silently replace existing C-NINE canon.
+
+## Highest-priority follow-up work
+
+1. Review the deployed 0.6 story loop with campaign members and refine voice variety, label lifecycles, and salience choices using actual examples. The writer currently uses bounded deterministic variants.
+2. Complete a real phone/mobile visual and interaction check; responsive CSS alone is not evidence of that check.
+3. Preserve campaign history beyond free-host restarts. The current free preview's filesystem is ephemeral. Any paid storage or service remains an explicit owner cost decision; no paid resource was created here.
+4. Expand structured campaign inputs where needed: individual battle attendance, XP reasons, named rescue/medical actions, and explicit relationship evidence. Infer only what the sources support.
+5. Consider longer-term reflection across several batches and richer relationships only after the current model's behavior is reviewed. The present system has explicit rule/topic retrieval, not embeddings or a learned personality model.
 
 ## Development behavior
-Do not ask the user for routine reversible implementation decisions. Make sensible decisions and continue. Ask only when a choice materially affects desired behavior, canon, permissions/credentials, cost, or irreversible data changes.
+
+Read current documents and inspect the existing implementation before continuing. Keep source records/canon intact, version derived changes, run relevant tests, and document material limits. Ask for owner input only when a decision affects desired behavior, canon, credentials/permissions, cost, or irreversible state.

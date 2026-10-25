@@ -1,44 +1,54 @@
-# Private hosted NCCE
+# Hosted NCCE preview
 
-## Goal
+**Current hosted service:** https://ncce-private-preview.onrender.com/
 
-Open the campaign chronicle at one HTTPS link from a phone or computer. The host runs the existing Python engine and reads the authoritative Krakamunda Sheet without writing to it. The free preview uses temporary storage; the later paid production option keeps NCCE's derived database on persistent storage. Invited readers enter a shared passphrase; no one installs Python or opens a local firewall port.
+**Source repository:** https://github.com/fryndlz/NCCE (public)
 
-## Free preview
+**Deploy branch:** `main`
 
-`render.yaml` creates a free Render preview in Frankfurt with:
+**Documentation checkpoint:** 2026-10-25 18:29:11 CET (Europe/Warsaw)
 
-- the private GitHub repository as the deploy source
-- HTTPS and a service health check at `/healthz`
-- a temporary SQLite database at `/tmp/ncce-preview.db`
-- server-side read-only Sheet refresh at startup and every 15 minutes
-- generated passphrase and session-signing secrets
-- one service instance
+**0.6.0 rollout:** commit `e63b8ef` is live on the existing service. Render deployment `dep-dbf3oeom7kps73flj2hg` completed at 2026-10-25 18:29:06+01:00; public health returned version `0.6.0` and the protected dashboard returned 401 at 18:29:11+01:00. Full release record: `CHANGELOG.md`.
 
-The preview costs $0 on Render's free service. Free services sleep after 15 minutes without visits and can take about a minute to wake. Their filesystem is temporary: after a restart or redeploy, NCCE reseeds its baseline and syncs the current Sheet. This is for trying the app, not for keeping a durable campaign event history.
+## Existing deployment
 
-## Invite access
+The free Render preview already exists. The owner made the GitHub repository public and authorized this hosting direction; the old instructions saying the repository is private and no service has been created are obsolete. Public source code and invite-access campaign reading are separate settings: the app still requires its shared passphrase.
 
-Render generates an access passphrase and a separate signing secret. The server stores neither in the repository or SQLite. Give the passphrase only to invited people. Their browser keeps a signed, HTTP-only session cookie for seven days. Rotating the passphrase invalidates every existing session; the first version uses one shared passphrase rather than individual accounts.
+The existing Python engine runs on the host and reads Krakamunda without writing the Sheet. Friends open the HTTPS link on a phone or computer. They do not install Python, create firewall rules, or run the local launcher.
 
-Only the minimal `/healthz` check and the sign-in page are public. Campaign APIs and app assets require a valid session. The HTTPS proxy marks session cookies `Secure`.
+`render.yaml` describes the current preview configuration:
 
-## Persistent version, only if the preview is worth keeping
+| Setting | Value |
+| --- | --- |
+| Render service | `ncce-private-preview` |
+| Runtime/region | Python / Frankfurt |
+| Plan | free |
+| Instances | 1 |
+| Build | `python -m compileall -q src` |
+| Start | `python src/server.py` |
+| Health route | `/healthz` (the Blueprint specifies it; the inspected existing service currently uses the default TCP check) |
+| Database | `/tmp/ncce-preview.db` |
+| Sheet refresh | startup, every 900 seconds while running, and manual request |
+| Campaign access | shared passphrase; signed session; secure cookies behind HTTPS |
 
-`render.production.yaml` describes the persistent version. It uses Render's paid `0.5c-512mb` web plan and a 1 GB persistent disk. Render currently lists the service at $7/month and disk storage at $0.25/GB/month; expected base cost is about **$7.25/month**, before bandwidth overages or future price changes. The Hobby workspace includes 5 GB monthly bandwidth, then lists $0.15/GB. Do not create this service until the owner chooses to keep the preview and approves the displayed price.
+The existing service displays `On Commit`, but its source is configured as a public Git repository URL rather than a linked Git provider; Render requires manual deploys for this source type. After pushing an app change, deploy the latest commit from the existing NCCE Render service, then check `/healthz` for the intended version and verify a protected campaign API returns 401 without a session. Do not create another site/service or ZIP for an iteration.
 
-The persistent database starts from the tracked baseline and live Sheet sync; it does not import the local ignored `data/chronicle.db`. It is a single-instance design, suitable for a small campaign group but not high availability.
+## Invite access and secrets
 
-Pricing: https://render.com/pricing
-Persistent disk behavior: https://render.com/docs/disks
-Web service and HTTPS behavior: https://render.com/docs/web-services
-Blueprint configuration: https://render.com/docs/blueprint-spec
+`NCCE_REQUIRE_AUTH=1` enables the shared passphrase gate. `NCCE_ACCESS_PASSWORD` and `NCCE_SESSION_SECRET` are host environment secrets, not repository files or campaign database content. The server rejects inadequate configured lengths. The signed HttpOnly/SameSite browser session lasts seven days; Secure is used for HTTPS. Rotating the passphrase invalidates existing sessions.
 
-## Preview steps (not yet performed)
+This is a shared campaign passphrase, not per-person login accounts, invitation tracking, or differentiated reader roles. Share it only with intended readers. The minimal health route and sign-in entry point are public; campaign APIs require a valid session when authentication is enabled.
 
-1. Connect the existing private `fryndlz/NCCE` GitHub repository to a Render account. Render needs access to build and deploy that private repo.
-2. Create a Blueprint from the default `render.yaml`; this is the free preview. Review the resource selection before creation.
-3. Copy the generated passphrase from Render's service environment settings and share it only with invited readers.
-4. Open the generated `onrender.com` HTTPS URL on desktop and phone; verify login, campaign display, `/healthz`, and live Sheet refresh.
+## Ephemeral history limitation
 
-The free preview has not been created. No Render account, service, GitHub integration, payment method, or credential is stored in this repository.
+The current free preview database is temporary. Render can stop/restart the instance or replace its filesystem during deployment. A missing database is reseeded from tracked baseline data, then synced to the current Sheet and regenerated. The first-live bridge can recover changes to fields already known at the seed baseline; it cannot recover every prior snapshot or every intermediate campaign event lost with the old filesystem.
+
+The SQLite schema retains prior derived versions and factual history while that database exists. That schema property does not make `/tmp` storage durable. The hosted preview is suitable for trying the app, but its historical retention is not a production persistence guarantee. Sleeping free instances also pause the app's own background refresh; the next running startup/read refreshes state.
+
+No paid service or persistent disk was created in this iteration. `render.production.yaml` remains an optional configuration for a later explicitly approved persistent deployment. It uses a paid single-instance web service and a 1 GB disk mounted at `/var/data`; its displayed plan and current price must be reviewed with the owner before creation. This document intentionally does not treat a historical price estimate as a current quote.
+
+## Release verification record
+
+At 2026-10-25 18:29:11 CET, deployment `dep-dbf3oeom7kps73flj2hg` was live on commit `e63b8ef`; public `/healthz` returned `0.6.0`, and `/api/dashboard` returned 401 without a session. All 29 deterministic checks and the disposable authenticated HTTP/live-sync smoke check passed locally. Hosted authenticated campaign content and mobile rendering were not inspected in this rollout.
+
+Responsive CSS is included. A full mobile visual check was blocked by the browser extension's URL-confidence access restriction; do not report mobile as verified until an actual phone or permitted mobile-browser check is completed.

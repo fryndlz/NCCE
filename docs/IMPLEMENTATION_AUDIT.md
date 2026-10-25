@@ -1,5 +1,7 @@
 # NCCE Implementation Audit
 
+> Historical audit of the pre-0.6 implementation, preserved for context. The current implemented version, rules and limitations are documented in `docs/CURRENT_DESIGN.md`; the 0.6.0 validation and release record is in `CHANGELOG.md`.
+
 Reviewed 2026-10-25 against `PRODUCT_VISION.md`, `STORY_ENGINE_ARCHITECTURE.md`, and `HANDOFF_STATUS.md`.
 
 ## Product and architecture fit
