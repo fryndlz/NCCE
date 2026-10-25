@@ -61,7 +61,7 @@ def _call(form,packet):
  if not API_KEY: return None
  if _calls>=MAX_CALLS: raise RuntimeError('Writing budget reached; remaining entries are pending')
  _calls+=1
- schema={'type':'object','properties':{'paragraphs':{'type':'array','items':{'type':'object','properties':{'runs':{'type':'array','items':{'type':'object','properties':{'text':{'type':'string'},'marks':{'type':'array','items':{'type':'string','enum':['critical_status','error_or_missing','machine_error']},'uniqueItems':True}},'required':['text','marks'],'additionalProperties':False},'minItems':1,'maxItems':40}},'required':['runs'],'additionalProperties':False},'minItems':1,'maxItems':3}},'required':['paragraphs'],'additionalProperties':False}
+ schema={'type':'object','properties':{'paragraphs':{'type':'array','items':{'type':'object','properties':{'runs':{'type':'array','items':{'type':'object','properties':{'text':{'type':'string'},'marks':{'type':'array','items':{'type':'string','enum':['critical_status','error_or_missing','machine_error']}}},'required':['text','marks'],'additionalProperties':False},'minItems':1,'maxItems':40}},'required':['runs'],'additionalProperties':False},'minItems':1,'maxItems':3}},'required':['paragraphs'],'additionalProperties':False}
  brief=BRIEFS.get(form,'Write clear, concise prose from supplied facts.')
  if 'C-NINE' in _json(packet).upper():
   brief+=' For C-NINE, preserve its established Imperial administrative/industrial record voice: precise classifications, cross-references, contradictions, redaction and implication. Keep sentences readable; do not imitate generic faux-archaic prose.'

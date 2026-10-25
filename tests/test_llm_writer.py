@@ -70,6 +70,7 @@ def test_openai_request_uses_server_key_and_structured_prose_schema():
         assert captured['body']['text']['format']['type']=='json_schema'
         assert 'critical_status' in str(captured['body']['text']['format']['schema'])
         assert 'error_or_missing' in str(captured['body']['text']['format']['schema'])
+        assert 'uniqueItems' not in str(captured['body']['text']['format']['schema'])
         assert 'identity' in captured['body']['input'] and 'mechanical_evidence' in captured['body']['input']
     finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
 
