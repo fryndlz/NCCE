@@ -20,8 +20,8 @@ import writing_director as director
 import world_streams
 import llm_writer
 
-VERSION = "0.8.0"
-GENERATION = "story-0.8.0"
+VERSION = "0.8.1"
+GENERATION = "story-0.8.1"
 REFLECTION_THRESHOLD = 12.0
 RECENCY_HALF_LIFE_DAYS = 14.0
 
@@ -182,18 +182,19 @@ def _memory(store, fighter, gang, key, et, payload, event=None, context=None, ba
         title = "Gang victory recorded" if victory else "Gang defeat recorded" if payload.get("winner") else "Gang engagement recorded"
     packet=director.identity_context(fighter,gang,prose.voice_profile(fighter,gang))
     written,writer_status=llm_writer.write_memory(store,fighter,gang,title,evidence or event_evidence({'event_type':et,'payload':payload}),packet,prior)
-    content='\n\n'.join(written)
+    content='\n\n'.join(llm_writer.paragraph_text(p) for p in written)
+    content_runs=[llm_writer.paragraph_runs(p) for p in written]
     return {"memory_key": key, "memory_type": "observation", "title": title, "content": content,
             "importance": importance, "occurred_at": event.get("occurred_at"), "observed_at": event.get("observed_at"),
             "tags": list(dict.fromkeys(tags)), "evidence": evidence or event_evidence({"event_type": et, "payload": payload}),
             "source_event_ids": [event["event_id"]] if event.get("event_id") else [], "source_observation_ids": [],
             "source_id": event.get("source_id") or "baseline:snapshot-0001", "provenance_class": "inference",
-            "writer_context":packet,"writer_status":writer_status.get('status','pending'),
+            "writer_context":packet,"writer_content_runs":content_runs,"writer_status":writer_status.get('status','pending'),
             "confidence": 0.65, "baseline": baseline, "batch": str(event.get("to_snapshot_id") or ("baseline" if baseline else event.get("observed_at") or key))}
 
 
 def _memory_id(fighter_id, memory):
-    semantic = {k:memory.get(k) for k in ("memory_key","memory_type","title","content","importance","occurred_at","observed_at","tags","evidence","source_event_ids","source_observation_ids","source_id","baseline","writer_context")}
+    semantic = {k:memory.get(k) for k in ("memory_key","memory_type","title","content","writer_content_runs","importance","occurred_at","observed_at","tags","evidence","source_event_ids","source_observation_ids","source_id","baseline","writer_context")}
     return digest([fighter_id, GENERATION, semantic])[:32]
 
 
@@ -202,10 +203,10 @@ def _save_memory(store, fighter_id, memory, generated_at):
     memory["id"] = memory["memory_id"] = memory_id
     values = (memory_id, fighter_id, memory["memory_key"], memory["memory_type"], memory["title"], memory["content"], memory["importance"],
               memory.get("occurred_at"), memory.get("observed_at"), generated_at, encode(memory["tags"]), encode(memory["evidence"]),
-              encode(memory["source_event_ids"]), encode(memory["source_observation_ids"]), memory["source_id"], "inference", memory["confidence"], int(memory["baseline"]), GENERATION, encode(memory.get('writer_context',{})),memory.get('writer_status','pending'))
+              encode(memory["source_event_ids"]), encode(memory["source_observation_ids"]), memory["source_id"], "inference", memory["confidence"], int(memory["baseline"]), GENERATION, encode(memory.get('writer_context',{})),memory.get('writer_status','pending'),encode(memory.get('writer_content_runs',[])))
     store.db.execute("""INSERT INTO story_memories(memory_id,fighter_id,memory_key,memory_type,title,content,importance,occurred_at,observed_at,created_at,
-        tags_json,evidence_json,source_event_ids_json,source_observation_ids_json,source_id,provenance_class,confidence,baseline,generation_version,writer_context_json,writer_status,active)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(memory_id) DO UPDATE SET active=1,writer_status=excluded.writer_status""", values)
+        tags_json,evidence_json,source_event_ids_json,source_observation_ids_json,source_id,provenance_class,confidence,baseline,generation_version,writer_context_json,writer_status,content_runs_json,active)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(memory_id) DO UPDATE SET active=1,writer_status=excluded.writer_status,content_runs_json=excluded.content_runs_json""", values)
     for event_id in memory["source_event_ids"]:
         _link(store, "story_memory", memory_id, event_id=event_id)
     _link(store, "story_memory", memory_id, source_id=memory["source_id"])
@@ -455,7 +456,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True):
                            list(dict.fromkeys(x for m in cited for x in m['evidence'])),voice['writer_context'],
                            prior=[m['content'] for m in cited],form='fighter_reflection')
                     ref = {"memory_key":f"reflection:{batch}", "memory_type":"reflection", "title":"What stays with me",
-                           "content":"\n\n".join(ref_text),"writer_status":ref_status.get('status','pending'),
+                           "content":"\n\n".join(llm_writer.paragraph_text(p) for p in ref_text),
+                           "writer_content_runs":[llm_writer.paragraph_runs(p) for p in ref_text],"writer_status":ref_status.get('status','pending'),
                            "importance":min(10,round(sum(m["importance"] for m in cited)/len(cited)+0.5,1)),
                            "occurred_at":None, "observed_at":max((m.get("observed_at") or "" for m in cited),default="") or None,
                            "tags":list(dict.fromkeys(["reflection"]+[t for m in cited for t in m["tags"]])),
@@ -553,6 +555,7 @@ def read_memories(store, fighter_id):
             item[field] = json.loads(item.pop(field+"_json"))
         item['date_display']=director.record_date(item)
         item['writer_context']=json.loads(item.pop('writer_context_json') or '{}')
+        item['content_runs']=json.loads(item.pop('content_runs_json') or '[]')
         item['source_ids']=[r[0] for r in store.db.execute("SELECT DISTINCT source_id FROM narrative_evidence WHERE artifact_type='story_memory' AND artifact_key=? AND source_id IS NOT NULL",(item['memory_id'],))]
         result.append(item)
     return result

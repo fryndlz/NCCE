@@ -49,7 +49,7 @@ Represent each chronicle as a structured document tree, not a string containing 
 
 ### Inline marks
 
-Use semantic inline marks such as `admin_label`, `important_entity`, `secondary_text`, `critical_status`, `doctrine`, `redacted`, `source_anchor`, `speaker`, and `machine_error`. These map to colours and typographic treatments through the theme. Do not hardcode coloured spans into authored prose when a semantic mark can express the meaning.
+Use semantic inline marks such as `admin_label`, `important_entity`, `secondary_text`, `critical_status`, `error_or_missing`, `doctrine`, `redacted`, `source_anchor`, `speaker`, and `machine_error`. These map to colours and typographic treatments through the theme. Do not hardcode coloured spans into authored prose when a semantic mark can express the meaning.
 
 ### Minimal record schema (illustrative, not a mandatory API)
 
@@ -88,7 +88,7 @@ The default theme is an Imperial cogitator archive: dark charcoal background, Co
 | `status.critical` | Capture, death, fatal errors | `#EF4444` |
 | `watermark.subtle` | Large subdued file identifiers | `#212C21` |
 
-These values are **observed reference colours from C-NINE**, not proof that every campaign needs both greens or both ambers. A theme may map them to fewer tokens if their distinct semantic roles remain clear. Do not use colour alone to communicate critical status: include explicit status text.
+These values are **observed reference colours from C-NINE**, not proof that every campaign needs both greens or both ambers. A theme may map them to fewer tokens if their distinct semantic roles remain clear. Use `status.critical` for explicit adverse conditions, errors, and missing or unresolved information. Do not use colour alone to communicate a condition: include explicit status text.
 
 **Semantic discipline:** white = primary record; green = administration/system; amber = named focus or ceremonial authority; grey = subordinate/uncertain evidence; red = adverse critical condition. Do not highlight every occurrence of a proper noun in prose.
 
@@ -220,6 +220,15 @@ Use solid blocks (`███`) or an accessible redaction component with variabl
 - `MISSING`: absent record or subject.
 
 Do not substitute one status for another. If an LLM generates a record, it must not reveal hidden truth in a bureaucratic document without a credible source or institutional basis.
+
+### Errors, missing information, and adverse statuses
+
+- Render explicit errors and missing, invalid, unresolved, or unverified information in the theme's red `status.critical` treatment. This includes machine or source-file errors, invalid references, absent records, and fields that cannot be established from available evidence.
+- When an LLM-authored narrative lacks required information, express the gap **diegetically** in the voice and format of the record (for example, as a failed retrieval, an unlocated register entry, or an unresolved authority). Mark only the error or missing-information wording in red; keep surrounding narrative and administrative labels in their normal semantic colours. Do not invent a value to conceal the gap.
+- For a field whose value is an adverse status, keep the label and punctuation in their normal style and mark only the status value in red. For example: `Status: Deceased`, with only `Deceased` red.
+- Apply red to the smallest meaningful span. Do not colour an entire sentence, paragraph, field, or record when only a short value or error marker is exceptional.
+- Preserve the distinction between adverse but known conditions (such as `Deceased`), missing data (`MISSING`), uncertainty (`UNVERIFIED`), deliberate withholding (`REDACTED`), and corrupted data (`DATA CORRUPTED`). Red styling communicates attention or severity; it does not make these states interchangeable.
+- Pair red styling with explicit wording or a semantic status so the meaning remains clear without colour, including in copied or exported text.
 
 ## 12. Personnel dossiers: separate composition mode
 

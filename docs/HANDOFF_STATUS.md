@@ -1,6 +1,6 @@
 # Handoff status
 
-**Current source implementation:** NCCE 0.8.0 — Model-backed Writing Director, SQLite schema 6 (not deployed)
+**Current source implementation:** NCCE 0.8.1 — Model-backed Writing Director, SQLite schema 7 (not deployed)
 
 **Hosted implementation:** 0.6.1 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
@@ -35,7 +35,7 @@ The exact current technical design, module responsibilities, current labels, tri
 | Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
 | Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
 | Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |
-| Validation | Hosted 0.6.1 had 31 deterministic checks. Source 0.8.0 now passes the expanded Python and Node checks plus a disposable authenticated HTTP/live-sync smoke check. Hosted health remains 0.6.1; no deployment has been made. See `CHANGELOG.md`. |
+| Validation | Hosted 0.6.1 had 31 deterministic checks. Source 0.8.0 passed the expanded Python and Node checks plus a disposable authenticated HTTP/live-sync smoke check. Source 0.8.1 adds semantic red-status runs; validation is pending. Hosted health remains 0.6.1; the 0.8.0 commit is pushed but Render has not started its deploy. See `CHANGELOG.md`. |
 
 ## Historical limits
 
@@ -49,7 +49,7 @@ Use `data/lore/C-NINE Story - canonical export.txt` and its existing biography m
 
 ## Highest-priority follow-up work
 
-1. Configure `NCCE_OPENAI_API_KEY` on the intended runtime, deploy 0.8.0, then review live model-drafted prose with campaign members and refine voice variety, label lifecycles, and salience choices. Current local environment has no key, so output is explicitly pending and no real provider quality evaluation has occurred.
+1. Confirm the Render API key is saved, deploy 0.8.1, then review live model-drafted prose with campaign members and refine voice variety, label lifecycles, and salience choices. Current local environment has no key, so output is explicitly pending and no real provider quality evaluation has occurred.
 2. Complete a real phone/mobile visual and interaction check; responsive CSS alone is not evidence of that check.
 3. Add a safe SQLite export/backup workflow. The database now survives service restarts and deploys on a persistent disk, but the app does not yet offer an application-consistent backup download or offsite retention.
 4. Expand structured campaign inputs where needed: individual battle attendance, XP reasons, named rescue/medical actions, and explicit relationship evidence. Infer only what the sources support.

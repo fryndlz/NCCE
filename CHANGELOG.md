@@ -2,6 +2,14 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.8.1 — Semantic red-status formatting (source only, not deployed)
+
+- Updated writer output from plain paragraph strings to structured inline runs with constrained semantic marks.
+- Applied the supplied formatting standard: smallest-span red styling for evidenced adverse statuses, missing/unverified information, and explicit machine/source errors; redaction remains semantically distinct.
+- Preserved marked runs in narrative artifacts, fighter memories and Mind while retaining plain text for continuity, search and evidence.
+- Added schema 7 and renderer coverage for `critical_status`, `error_or_missing` and `machine_error`.
+- Validation: pending for this iteration. No live model call or production database change.
+
 ## 0.8.0 — Model-backed Writing Director (source only, not deployed)
 
 - Replaced visible deterministic phrase assembly with OpenAI Responses API drafting for fighter memories/reflections/biographies, gang and place origins/streams, battle reports, downtime, relationships, and campaign history.

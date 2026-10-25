@@ -78,7 +78,7 @@ class H(BaseHTTPRequestHandler):
   page=(WEB/'login.html').read_bytes(); self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(page))); self.end_headers(); self.wfile.write(page)
  def do_GET(self):
   parsed=urlparse(self.path); p=parsed.path
-  if p=='/healthz':return self.js({'ok':True,'version':'0.8.0'})
+  if p=='/healthz':return self.js({'ok':True,'version':'0.8.1'})
   if p=='/api/session':return self.js({'auth_required':AUTH_REQUIRED,'authenticated':self._authenticated()})
   if p in ('/login','/login.html'):return self._serve_login()
   if AUTH_REQUIRED and not self._authenticated():

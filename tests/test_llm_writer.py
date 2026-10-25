@@ -30,7 +30,7 @@ def test_unconfigured_writer_returns_pending_without_template_fallback():
 def test_successful_draft_is_cached_by_fact_packet():
     old_key,old_call=llm_writer.API_KEY,llm_writer._call
     llm_writer.API_KEY='mock-token'; calls=[]
-    llm_writer._call=lambda form,packet:(calls.append((form,packet)) or ['A clear sentence grounded in the recorded event.'])
+    llm_writer._call=lambda form,packet:(calls.append((form,packet)) or [{'runs':[{'text':'A clear sentence grounded in the recorded event.','marks':[]}]}])
     try:
         with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
             store=Store(Path(folder)/'writer-cache.db')
@@ -38,7 +38,8 @@ def test_successful_draft_is_cached_by_fact_packet():
                 packet={'title':'Recovery','facts':['Status: Active → Recovery'],'identity':{'being':'human','work':'prospect miner'}}
                 first=llm_writer.write(store,'fighter_memory',packet)
                 second=llm_writer.write(store,'fighter_memory',packet)
-                assert first[0]==second[0]==['A clear sentence grounded in the recorded event.']
+                expected=[{'runs':[{'text':'A clear sentence grounded in the recorded event.','marks':[]}]}]
+                assert first[0]==second[0]==expected
                 assert first[1]['status']==second[1]['status']=='ready' and second[1]['cached']
                 assert len(calls)==1 and calls[0][1]['identity']['work']=='prospect miner'
             finally: store.close()
@@ -54,7 +55,7 @@ def test_openai_request_uses_server_key_and_structured_prose_schema():
         def __enter__(self): return self
         def __exit__(self,*args): return False
         def read(self):
-            return json.dumps({'output':[{'content':[{'type':'output_text','text':json.dumps({'paragraphs':['She remembers the repair shift.']})}]}]}).encode()
+            return json.dumps({'output':[{'content':[{'type':'output_text','text':json.dumps({'paragraphs':[{'runs':[{'text':'She remembers the repair shift.','marks':[]}]}]})}]}]}).encode()
     def fake(request,timeout):
         captured['url']=request.full_url; captured['authorization']=request.get_header('Authorization')
         captured['body']=json.loads(request.data); captured['timeout']=timeout
@@ -62,10 +63,12 @@ def test_openai_request_uses_server_key_and_structured_prose_schema():
     llm_writer.urlopen=fake
     try:
         paragraphs=llm_writer._call('fighter_memory',{'identity':{'species':'human'},'mechanical_evidence':['Status: Recovery']})
-        assert paragraphs==['She remembers the repair shift.']
+        assert paragraphs==[{'runs':[{'text':'She remembers the repair shift.','marks':[]}]}]
         assert captured['url']=='https://api.openai.com/v1/responses'
         assert captured['authorization']=='Bearer mock-secret'
         assert captured['body']['text']['format']['type']=='json_schema'
+        assert 'critical_status' in str(captured['body']['text']['format']['schema'])
+        assert 'error_or_missing' in str(captured['body']['text']['format']['schema'])
         assert 'identity' in captured['body']['input'] and 'mechanical_evidence' in captured['body']['input']
     finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
 
@@ -73,7 +76,7 @@ def test_openai_request_uses_server_key_and_structured_prose_schema():
 def test_story_engine_uses_model_output_across_memories_artifacts_and_streams():
     old_key,old_call=llm_writer.API_KEY,llm_writer._call
     llm_writer.API_KEY='mock-token'; llm_writer.reset_budget()
-    llm_writer._call=lambda form,packet:[f'Model-written {form} prose grounded in its supplied account.']
+    llm_writer._call=lambda form,packet:[{'runs':[{'text':f'Model-written {form} prose grounded in its supplied account.','marks':[]}]}]
     try:
         with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
             store=Store(Path(folder)/'writer-integration.db')

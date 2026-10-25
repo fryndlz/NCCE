@@ -46,7 +46,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .section-label, .mark-admin_label, .mark-speaker { color: var(--admin-primary); }
 .mark-important_entity { color: var(--entity-highlight); }
 .mark-secondary_text { color: var(--text-secondary); }
-.mark-critical_status, .mark-machine_error { color: var(--status-critical); font-weight: bold; }
+.mark-critical_status, .mark-error_or_missing, .mark-machine_error { color: var(--status-critical); font-weight: bold; }
 .mark-redacted { user-select: all; letter-spacing: 1px; }
 .mark-doctrine { font-style: italic; }
 .processing-panel { border: 1px solid var(--admin-primary); border-left-width: 3px; padding: 16px; margin: 18px 0; background: #202720; }

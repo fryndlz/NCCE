@@ -1,6 +1,6 @@
-# NCCE 0.8.0 — current technical design
+# NCCE 0.8.1 — current technical design
 
-**Source release:** 0.8.0, model-backed Writing Director (not yet deployed)
+**Source release:** 0.8.1, model-backed Writing Director (not yet deployed)
 
 **Hosted release:** 0.6.1 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
@@ -16,7 +16,7 @@ This document describes implemented behavior. It is the technical specification 
 
 The current writing contract and implementation are described in [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md). The imported specifications are preserved in `docs/writing_sources/`; the identity taxonomy is in [WRITER_IDENTITY_TAGS.md](WRITER_IDENTITY_TAGS.md).
 
-Version 0.8 adds `llm_writer.py` (OpenAI Responses API drafts, structured outputs, caching and request bounds) to the 0.7 director. `writing_director.py` handles document forms, authored perspective packets, dates and guardrails; `world_streams.py` handles versioned gang/place entries and bounded ambient fiction; `writing.js` handles browser calendar rules; `writing.css` styles the semantic archive. Schema 6 adds a persistent model-result cache and writer status to the schema-5 identity revisions, narrative streams and raw territory-state retention. Original place/gang descriptions are kept separately from progressing stories. Territory diffs cover ownership, transformations, other fields and listing changes. The fighter numerical rules below remain in force.
+Version 0.8 adds `llm_writer.py` (OpenAI Responses API drafts, structured outputs, caching and request bounds) to the 0.7 director. `writing_director.py` handles document forms, authored perspective packets, dates and guardrails; `world_streams.py` handles versioned gang/place entries and bounded ambient fiction; `writing.js` handles browser calendar rules; `writing.css` styles the semantic archive. Schema 7 adds a persistent model-result cache, writer status, and semantic inline marks for narrative red-status styling to the schema-5 identity revisions, narrative streams and raw territory-state retention. Original place/gang descriptions are kept separately from progressing stories. Territory diffs cover ownership, transformations, other fields and listing changes. The fighter numerical rules below remain in force.
 
 Current local validation: 37 Python checks, the Node date/semantic-renderer contract check, and a disposable authenticated HTTP/live-sync check pass. Hosted 0.6.1 verification below is historical deployment evidence, not a claim that this source release has been deployed.
 

@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -632,6 +632,17 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(6,?,?)",
                        ('provider-backed narrative writer and reusable generated text', _now()))
             db.execute('PRAGMA user_version=6')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if db.execute('PRAGMA user_version').fetchone()[0] < 7:
+        db.execute('BEGIN IMMEDIATE')
+        try:
+            _add_column(db, 'story_memories', 'content_runs_json', "TEXT NOT NULL DEFAULT '[]'")
+            db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(7,?,?)",
+                       ('semantic inline narrative marks for red critical statuses and missing information', _now()))
+            db.execute('PRAGMA user_version=7')
             db.commit()
         except Exception:
             db.rollback()

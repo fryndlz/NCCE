@@ -1,6 +1,6 @@
 # NCCE Writing Director
 
-Source implementation: 0.8.0, schema 6. Hosted release remains 0.6.1 until a separate deployment.
+Source implementation: 0.8.1, schema 7. Hosted release remains 0.6.1 until a separate deployment.
 
 The director coordinates factual inputs, character perspective, document form, dates, semantic layout and narrative continuity. The `llm_writer.py` module sends a form-specific structured packet to the OpenAI Responses API and returns prose paragraphs. App logic continues to own facts, evidence, dates, source attribution, memory selection and persistence. The API key is read only from server environment `NCCE_OPENAI_API_KEY`; the fixed destination is `api.openai.com`. The default model is `gpt-6.1-sol`, configurable with `NCCE_WRITER_MODEL`.
 
@@ -90,6 +90,8 @@ Event, observation and composition dates stay distinct. A roster delta without a
 The browser renderer accepts legacy paragraphs plus semantic blocks for metadata, body paragraphs, administrative panels, internal notes, testimony, excerpts, transcripts, attachments, scene/system markers, dossiers and termination. Solid processing frames never nest. Testimony anchors use stable IDs rather than screen coordinates. Redacted marked content remains redacted in copied rendered text; all source strings are HTML-escaped.
 
 `writing.css` centralizes archive palette, monospace typography, borders and date hierarchy. Main prose stays unframed; grey excerpts and evidence are subordinate; administrative fields are green and named focus amber. Narrow layouts stack content naturally. The original style map is reference data, not a claim to reproduce Google Docs geometry.
+
+Generated prose uses structured inline runs. The model may mark the smallest supported adverse status with `critical_status`, explicit missing/unverified/unresolved wording with `error_or_missing`, and machine/source failures with `machine_error`; these map to the theme's red critical token. Ordinary danger and dramatic wording remain unmarked. Redactions keep their own semantic treatment and are never conflated with missing or corrupted information. The same runs persist in artifacts, fighter memories and Mind cards; plain text is retained beside them for search, continuity, and evidence.
 
 Authored narratives and source notes retain their wording. The model receives evidence separately from prose instructions; evidence keeps actual mechanical terminology. Generated paragraphs are stored separately from evidence, dates and source IDs. The renderer labels unconfigured/error states instead of presenting a blank or template passage as finished writing.
 

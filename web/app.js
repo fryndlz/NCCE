@@ -48,7 +48,7 @@ function blocks(document, fallback = '') {
     let text = inline(typeof run === 'string' ? run : run.text);
     for (const mark of list(run?.marks)) {
       const type = typeof mark === 'string' ? mark : mark.type;
-      if (['admin_label','important_entity','secondary_text','critical_status','doctrine','redacted','speaker','machine_error'].includes(type)) text = `<span class="mark-${type}">${type === 'redacted' ? '████' : text}</span>`;
+      if (['admin_label','important_entity','secondary_text','critical_status','error_or_missing','doctrine','redacted','speaker','machine_error'].includes(type)) text = `<span class="mark-${type}">${type === 'redacted' ? '████' : text}</span>`;
       if (type === 'source_anchor' && mark.target) text = `<a class="annotation-anchor" href="#note-${esc(mark.target)}">${text}</a>`;
     }
     return text;
@@ -76,6 +76,15 @@ function blocks(document, fallback = '') {
   const status = document?.writer_status && document.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(document.writer_message || (document.writer_status === 'unconfigured' ? 'Narrative pending · configure the server-side writing provider.' : `Narrative ${document.writer_status} · retry on the next refresh.`))}</p>` : '';
   return `${header}${status}<div class="record-body">${content.map(block => node(block)).join('')}</div>${document.termination ? node(document.termination) : ''}`;
 }
+function markedParagraphs(paragraphs) {
+  const supported = new Set(['critical_status','error_or_missing','machine_error','redacted']);
+  return list(paragraphs).map(runs => `<p>${list(runs).map(run => {
+    let text = inline(run?.text);
+    for (const mark of list(run?.marks).filter(value => supported.has(value))) text = `<span class="mark-${mark}">${mark === 'redacted' ? '████' : text}</span>`;
+    return text;
+  }).join('')}</p>`).join('');
+}
+function writtenProse(content, runs) { return markedParagraphs(runs) || prose(content); }
 function displayValue(value) {
   if (value === null || value === undefined || value === '') return 'None recorded';
   if (Array.isArray(value)) return value.map(displayValue).join('; ');
@@ -275,13 +284,13 @@ function fighterEvidence(f) {
 function memoryCard(memory) {
   const type = memory.memory_type === 'reflection' ? 'Reflection' : 'Observation';
   const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">Narrative ${esc(memory.writer_status)} · ${memory.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'retry on the next refresh.'}</p>` : '';
-  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${dateStamp(memory)}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}${status}<div class="memory-voice">${prose(memory.content)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
+  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${dateStamp(memory)}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}${status}<div class="memory-voice">${writtenProse(memory.content,memory.content_runs)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
 }
 function mindCard(thought) {
   const memoryId = thought.memory_id || thought.id;
   const label = thought.label || thought.title || thought.name || list(thought.tags)[0] || 'Current concern';
   const status = thought.writer_status && thought.writer_status !== 'ready' ? `<p class="writer-pending" role="status">Narrative ${esc(thought.writer_status)} · ${thought.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'retry on the next refresh.'}</p>` : '';
-  return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div>${status}<div class="thought">${prose(thought.content || thought.thought)}</div>${evidence(thought.evidence || [], thought, true)}${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
+  return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div>${status}<div class="thought">${writtenProse(thought.content || thought.thought,thought.content_runs)}</div>${evidence(thought.evidence || [], thought, true)}${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
 }
 function voiceDetails(profile) {
   if (!profile || !Object.keys(profile).length) return '';

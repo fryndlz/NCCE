@@ -1,6 +1,6 @@
 # Story Engine Architecture — implemented in NCCE 0.8
 
-**Schema:** 6. **Current source generation:** `story-0.8.0`. **Hosted generation:** `story-0.6.0` until source is separately deployed.
+**Schema:** 7. **Current source generation:** `story-0.8.1`. **Hosted generation:** `story-0.6.0` until source is separately deployed.
 
 The detailed current implementation, constants, and complete catalogs are specified in `CURRENT_DESIGN.md`. This document describes the runtime boundaries and data flow.
 
