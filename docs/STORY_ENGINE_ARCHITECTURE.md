@@ -1,6 +1,6 @@
 # Story Engine Architecture — implemented in NCCE 0.6
 
-**Schema:** 4. **Generation:** `story-0.6.0`. **Documentation checkpoint:** 2026-10-25 17:32:54 CET.
+**Schema:** 4. **Current source generation:** `story-0.6.1`. **Hosted generation:** `story-0.6.0` until the patch is deployed.
 
 The detailed current implementation, constants, and complete catalogs are specified in `CURRENT_DESIGN.md`. This document describes the runtime boundaries and data flow.
 

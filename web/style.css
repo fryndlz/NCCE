@@ -132,7 +132,7 @@ code, .evidence, .system-state, .mechanical-field { overflow-wrap: anywhere; }
 .memory-card.reflection { border-left: 3px solid #9d8b58; }
 .memory-kind { color: #b8c6a5; font: .63rem/1.5 var(--sans); text-transform: uppercase; letter-spacing: .12em; }
 .reflection .memory-kind { color: #c7b67b; }
-.memory-card h4 { color: #c9c4b0; margin: 13px 0 15px; font: 600 .78rem/1.5 var(--sans); }
+.memory-trigger { margin: 14px 0 0; padding: 7px 10px; border-left: 2px solid var(--evidence); background: #202923; color: var(--evidence); font: 600 .7rem/1.5 var(--sans); letter-spacing: .06em; text-transform: uppercase; }
 .memory-voice { font-size: 1.13rem; line-height: 1.65; margin-top: 19px; color: #e5e1d2; }
 .memory-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font: .61rem/1.6 var(--sans); color: #979e8b; margin-top: 15px; }
 .memory-scoring { max-width: 100%; }

@@ -8,10 +8,6 @@ let data = null, activeView = 'chronicle', currentDetail = null, fightersCache =
 let renderToken = 0, lastStatusFingerprint = null, refreshing = false;
 const defaults = {fighters: {q: '', gang: '', status: '', role: '', listing: ''}, gangs: {q: '', faction: ''}, places: {q: '', owner: ''}, battles: {q: '', gang: ''}};
 let filters = JSON.parse(JSON.stringify(defaults));
-try {
-  const stored = JSON.parse(sessionStorage.getItem('ncce.filters') || '{}');
-  for (const [view, values] of Object.entries(defaults)) for (const key of Object.keys(values)) if (typeof stored[view]?.[key] === 'string') filters[view][key] = stored[view][key];
-} catch (_) { /* Session persistence is optional. */ }
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
 const short = value => String(value || 'Unknown').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]', 'C-NINE');
@@ -207,7 +203,11 @@ function listResults(view) {
     rows = data.battles.filter(b => (!gang || [b.attacker, b.defender, b.winner, b.territory_claimer].includes(gang.name)) && textMatch([b.scenario, b.attacker, b.defender, b.winner, b.territory, b.report_document?.title, b.chronicle], state.q));
   }
   const names = {fighters: ['fighter', 'fighters'], gangs: ['gang', 'gangs'], places: ['territory', 'territories'], battles: ['battle', 'battles']};
-  document.querySelector('#resultCount').textContent = `${rows.length} ${names[view][rows.length === 1 ? 0 : 1]}`;
+  const noun = names[view][rows.length === 1 ? 0 : 1];
+  const total = view === 'fighters' ? list(fightersCache).length : rows.length;
+  document.querySelector('#resultCount').textContent = view === 'fighters' && total !== rows.length
+    ? `${rows.length} of ${total} fighters shown`
+    : `${rows.length} ${noun}`;
   const results = document.querySelector('#listResults');
   if (!rows.length) { results.innerHTML = empty('No records match these filters. Try a different name, gang, or status.'); return; }
   if (view === 'fighters') results.innerHTML = `<div class="grid">${rows.map(fighterCard).join('')}</div>`;
@@ -245,7 +245,7 @@ function fighterEvidence(f) {
 }
 function memoryCard(memory) {
   const type = memory.memory_type === 'reflection' ? 'Reflection' : 'Observation';
-  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${esc(when(memory))}</time></div>${memory.title ? `<h4>${esc(memory.title)}</h4>` : ''}<div class="memory-voice">${prose(memory.content)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}<div class="memory-footer"><span>Generated fighter voice · inference</span>${memory.importance != null ? `<details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details>` : ''}</div></article>`;
+  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${esc(when(memory))}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}<div class="memory-voice">${prose(memory.content)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
 }
 function mindCard(thought) {
   const memoryId = thought.memory_id || thought.id;
@@ -306,12 +306,10 @@ function handleError(error) {
   console.error(error);
   app.innerHTML = `<section class="empty-state error-state" role="alert"><h2>The chronicle could not be opened</h2><p>${esc(error.message || 'Please try again.')}</p><button data-retry>Try again</button></section>`;
 }
-function saveFilters() { try { sessionStorage.setItem('ncce.filters', JSON.stringify(filters)); } catch (_) { /* Optional persistence. */ } }
 function updateFilter(event) {
   const element = event.target.closest('[data-filter]');
   if (!element) return;
   filters[element.dataset.filterView][element.dataset.filter] = element.value;
-  saveFilters();
   listResults(element.dataset.filterView);
 }
 app.addEventListener('input', updateFilter);
@@ -326,8 +324,8 @@ app.addEventListener('click', event => {
   if (target.dataset.territory) task = showTerritory(target.dataset.territory);
   if (target.dataset.lore) task = showLore(target.dataset.lore);
   if (target.dataset.back) task = render(target.dataset.back);
-  if (target.dataset.clear) { filters[target.dataset.clear] = {...defaults[target.dataset.clear]}; saveFilters(); task = render(target.dataset.clear); }
-  if (target.dataset.gangFilter) { filters.fighters.gang = target.dataset.gangFilter; saveFilters(); task = render('fighters'); }
+  if (target.dataset.clear) { filters[target.dataset.clear] = {...defaults[target.dataset.clear]}; task = render(target.dataset.clear); }
+  if (target.dataset.gangFilter) { filters.fighters.gang = target.dataset.gangFilter; task = render('fighters'); }
   if (target.hasAttribute('data-retry')) task = refreshDashboard(false);
   if (task?.catch) task.catch(handleError);
 });

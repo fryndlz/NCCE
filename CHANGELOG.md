@@ -2,6 +2,22 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.6.1 — Roster visibility and voice correction
+
+**Implementation checkpoint:** 2026-10-25 19:19:33+01:00 (Europe/Warsaw; source, tests, and database comparison)
+
+- Current authoritative Sheet export contains **92 fighters**, including Mara Kel with Recovery and Critical Injury. Its active gang roster names match the tracked seed roster name-for-name; the local schema-4 database also contains Mara as listed. The evidence does not support a Sheet/parser/database deletion.
+- Removed filter restoration from browser `sessionStorage`: a stale search/gang/status filter could silently hide fighters across page reloads. Filters still work within the current page session. Fighter results now show `shown of total` when filtered, so a narrowed view is visible.
+- Separated a memory's event title into a blue mechanical-trigger label and removed the repeated “Generated fighter voice · inference” footer. Mechanical evidence remains separate from the fighter's words.
+- Corrected Palanite recovery, battle-outcome, kill and role phrases that called the precinct a “detail,” importing C-NINE-specific vocabulary. Added a regression check that confines the C-NINE register to C-NINE and rejects this phrase leakage.
+- Bumped the engine/prose version to `0.6.1` / `story-0.6.1`; the engine will regenerate derived narratives when this build starts.
+- The broader voice/format rewrite remains a design step: preserve the C-NINE form for C-NINE, derive another gang's voice from that gang's own authored material and supported campaign evidence, and keep all engine/source provenance outside the diegetic passage. The current deterministic writer cannot infer undocumented relationships or replace faction-source research.
+- Hosted visual verification was blocked by the computer-use URL-confidence restriction. This code change has not been deployed. The current free hosted database is under `/tmp`; its last deployment logged a fresh seed, so another deployment may discard hosted derived history. No new deployment is triggered without the owner's confirmation.
+
+### Validation record
+
+**2026-10-25 19:19:33+01:00 — local verification recorded:** all **31 deterministic checks passed**: 8 core, 6 battle identity, 15 story engine, and 2 voice-register checks. `tests/smoke_server.py` also passed against a disposable local server and read-only live Sheet sync. Python compile checks, JavaScript syntax check, and `git diff --check` passed. The smoke server uses a temporary database; the tracked campaign source and ignored local runtime database were not changed.
+
 ## 0.6.0 — Campaign Minds
 
 **Implementation checkpoint:** 2026-10-25 17:32:54+01:00

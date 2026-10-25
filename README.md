@@ -1,6 +1,6 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current build: **v0.6.0 — Campaign Minds**, SQLite schema 4.
+Current source: **v0.6.1 — Roster visibility and voice correction**, SQLite schema 4. The hosted service remains on v0.6.0 pending owner approval for a redeploy that may reset its ephemeral `/tmp` database.
 
 Open the [hosted preview](https://ncce-private-preview.onrender.com/) and use your existing invitation passphrase. The free host can take a minute to wake. Its storage is temporary; see [hosting details](docs/HOSTED_DEPLOYMENT.md).
 

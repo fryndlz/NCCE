@@ -1,6 +1,8 @@
 # Handoff status
 
-**Current implementation:** NCCE 0.6.0 — Campaign Minds, SQLite schema 4
+**Current source implementation:** NCCE 0.6.1 — Roster visibility and voice correction, SQLite schema 4
+
+**Hosted implementation:** 0.6.0. The 0.6.1 changes are not yet deployed; see the deployment warning in `CHANGELOG.md`.
 
 **Checkpoint:** 2026-10-25 17:32:54 CET (Europe/Warsaw)
 
@@ -27,7 +29,7 @@ The exact current technical design, all module responsibilities, current label c
 | Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
 | Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
 | Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |
-| Validation | All 29 deterministic checks passed (8 core, 6 identity, 15 story), plus disposable authenticated HTTP/live-sync smoke verification. Hosted release `0.6.0` was verified live at 2026-10-25 18:29 CET; see `CHANGELOG.md`. |
+| Validation | 0.6.0 had 29 deterministic checks and a disposable authenticated HTTP/live-sync smoke check. 0.6.1 adds targeted voice-leak tests and is revalidated locally; hosted release `0.6.0` remains live. See `CHANGELOG.md`. |
 
 ## Historical limits
 

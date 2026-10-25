@@ -16,8 +16,8 @@ from pathlib import Path
 
 import story_prose as prose
 
-VERSION = "0.6.0"
-GENERATION = "story-0.6.0"
+VERSION = "0.6.1"
+GENERATION = "story-0.6.1"
 REFLECTION_THRESHOLD = 12.0
 RECENCY_HALF_LIFE_DAYS = 14.0
 

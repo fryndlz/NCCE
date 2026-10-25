@@ -1,12 +1,14 @@
-# NCCE 0.6.0 — current technical design
+# NCCE 0.6.1 — current technical design
 
-**Release:** 0.6.0, Campaign Minds
+**Source release:** 0.6.1, Roster visibility and voice correction
+
+**Hosted release:** 0.6.0 pending approval to redeploy the free service; `/tmp` is ephemeral.
 
 **Schema:** SQLite version 4
 
 **Documentation checkpoint:** 2026-10-25 17:32:54 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** local deterministic and HTTP integration checks passed; release `0.6.0` is live. Rollout evidence is recorded in `CHANGELOG.md`.
+**Release verification:** 0.6.0 hosted health was verified. 0.6.1 local checks and roster comparison are recorded in `CHANGELOG.md`; the patch has not been deployed.
 
 This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
@@ -297,8 +299,8 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 14. Validation and deployment checkpoint
 
-The current deterministic test suite has **29 passing checks**: 8 core, 6 battle identity, and 15 story tests, verified at 2026-10-25 17:38:44 CET. Checks cover Mara's Critical Injury reaching memory and Mind, Maex's voiced Cool advancement with separate evidence, recovery closure, equipment/promotion events, dead-fighter Mind exclusion, repeat-sync/generation idempotency, authored/mechanical preservation, first-live comparison, battle reorder/correction/removal behavior, and social-memory evidence.
+The current deterministic test suite has **31 passing checks**: 8 core, 6 battle identity, 15 story tests, and 2 voice-register checks, verified at 2026-10-25 19:19:33 CET. Checks cover Mara's Critical Injury reaching memory and Mind, Maex's voiced Cool advancement with separate evidence, recovery closure, equipment/promotion events, dead-fighter Mind exclusion, repeat-sync/generation idempotency, authored/mechanical preservation, first-live comparison, battle reorder/correction/removal behavior, social-memory evidence, and keeping Palanite precinct vocabulary separate from C-NINE's register.
 
-The opt-in `tests/smoke_server.py` integration check also passed with a disposable authenticated fresh server and a read-only live Sheet sync: startup, login/logout, HttpOnly cookie, protected-route 401 responses, schema 4, semantic report blocks, Mara's critical Mind, and Maex's voiced memory. Hosted verification independently confirmed public health version `0.6.0` and a protected dashboard response of 401 without a session.
+The opt-in `tests/smoke_server.py` integration check also passed with a disposable authenticated fresh server and a read-only live Sheet sync: startup, login/logout, HttpOnly cookie, protected-route 401 responses, schema 4, semantic report blocks, Mara's critical Mind, and Maex's voiced memory. Hosted verification independently confirmed public health version `0.6.0` and a protected dashboard response of 401 without a session. Version `0.6.1` has not been deployed.
 
 Release `0.6.0` (`e63b8ef`) is live at https://ncce-private-preview.onrender.com/. Render's public health route returned version `0.6.0` at 2026-10-25 18:29:11 CET, while the protected dashboard returned 401 without a session. Deployment details are in `CHANGELOG.md`.
