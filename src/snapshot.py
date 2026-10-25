@@ -11,8 +11,75 @@ from datetime import datetime, timezone
 from zipfile import BadZipFile, ZipFile
 from xml.etree import ElementTree as ET
 from typing import Any
+import hashlib
+import json
 
 FIGHTER_HEADER = ["Name","Type","Class","Cost","XP","Kills","M","WS","BS","S","T","W","I","A","Ld","Cl","Wil","Int","Weapons","Wargear","Skills","Advancements","Effects","Status","Fighter Notes","Backstory"]
+
+_BATTLE_CONTENT_FIELDS = ("date", "scenario", "attacker", "defender", "winner", "territory", "territory_claimer", "notes")
+
+
+def _battle_date(value: Any) -> str:
+    text = str(value or "").strip()
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if "T" not in text and " " not in text:
+            return parsed.date().isoformat()
+        return parsed.astimezone(timezone.utc).isoformat() if parsed.tzinfo else parsed.isoformat()
+    except ValueError:
+        return _normal_text(value)
+
+
+def battle_identity(battle: dict, prefer_source: bool = True) -> str:
+    """Identify an encounter independently of its mutable worksheet row.
+
+    Local SQLite ``id`` is deliberately ignored. A source ID wins when the
+    workbook exposes one; otherwise date/scenario/parties form a conservative
+    fallback. Winner, territory and notes remain correctable content.
+    ``prefer_source=False`` supplies a bridge for legacy snapshots before source
+    IDs were available. Use ``battle_records`` for a whole list so duplicates
+    are retained instead of being collapsed by a dict comprehension.
+    """
+    if prefer_source:
+        for name in ("source_battle_id", "battle_id"):
+            if battle.get(name) not in (None, ""):
+                return "id:" + str(battle[name])
+        for name in ("battle_key", "source_battle_key"):
+            if battle.get(name):
+                return str(battle[name])
+    parties = sorted(_normal_text(battle.get(field)) for field in ("attacker", "defender") if battle.get(field))
+    signature = [_battle_date(battle.get("date")), _normal_text(battle.get("scenario")), parties]
+    digest = hashlib.sha256(json.dumps(signature, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()[:24]
+    return "encounter:" + digest
+
+
+def battle_content_signature(battle: dict) -> str:
+    values = [_normal_text(battle.get(field)) for field in _BATTLE_CONTENT_FIELDS]
+    return hashlib.sha256(json.dumps(values, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()[:16]
+
+
+def battle_records(rows: list[dict]) -> list[dict]:
+    """Copy battles with stable keys; preserve ambiguous duplicate encounters.
+
+    Distinct same-date/scenario/party encounters get a content discriminator.
+    Truly identical copies get occurrence ordinals. Without source IDs an edit
+    to an ambiguous duplicate may be recorded as removal/addition rather than
+    being attributed to the wrong battle.
+    """
+    records = [dict(row) for row in rows]
+    grouped: dict[str, list[dict]] = {}
+    for record in records:
+        grouped.setdefault(battle_identity(record), []).append(record)
+    for base, group in grouped.items():
+        ordinals: dict[str, int] = {}
+        for record in sorted(group, key=lambda item: (int(item.get("source_row") or 0), battle_content_signature(item))):
+            if len(group) == 1:
+                record["battle_key"] = base
+            else:
+                content_key = battle_content_signature(record)
+                ordinals[content_key] = ordinals.get(content_key, 0) + 1
+                record["battle_key"] = f"{base}#duplicate:{content_key}:{ordinals[content_key]}"
+    return records
 
 
 def _int(value: Any) -> int | None:
@@ -53,8 +120,11 @@ def parse_battles(rows: list[list[Any]]) -> list[dict[str, Any]]:
         }
         item = {key: raw.get(label) for key, label in aliases.items()}
         item["source_row"] = source_row
+        explicit_id = next((raw.get(label) for label in ("Battle ID", "Battle Log ID", "Log ID", "ID") if raw.get(label) not in (None, "")), None)
+        if explicit_id is not None:
+            item["source_battle_id"] = str(explicit_id)
         battles.append(item)
-    return battles
+    return battle_records(battles)
 
 
 def parse_gang_tab(rows: list[list[Any]]) -> dict[str, Any]:
@@ -255,8 +325,8 @@ def build_snapshot_from_sheets(sheets: dict[str, list[list[Any]]], captured_at=N
         captured_at=captured_at,
     )
 
-    # MAIN's Data Dump contains stable territory IDs. Join only those IDs into
-    # rows whose owner/name pair is unique; ambiguous labels stay unlinked.
+    # MAIN's Data Dump can expose stable source IDs. Join only unambiguous
+    # records; the visible workbook remains the mechanical authority.
     main_rows = sheets.get("MAIN", [])
     dump = None
     for row in main_rows:
@@ -301,10 +371,13 @@ def build_snapshot_from_sheets(sheets: dict[str, list[list[Any]]], captured_at=N
                     signature = "|".join(str(territory.get(key) or "") for key in ("Gang ID", "Territory", "Card", "Default", "Ruined"))
                     duplicate_ordinals[signature] = duplicate_ordinals.get(signature, 0) + 1
                     territory["source_territory_key"] = f"{source_id}#row:{_normal_text(signature)}:{duplicate_ordinals[signature]}"
+        _join_battle_source_ids(snapshot["battles"], dump)
+        snapshot["battles"] = battle_records(snapshot["battles"])
         snapshot["source_metadata"] = {
             "campaign_id": (dump.get("campaign") or {}).get("id"),
             "campaign_updated_at": (dump.get("campaign") or {}).get("updated_at"),
             "territory_ids_available": sum("territory_id" in row for row in snapshot["territories"]),
+            "battle_ids_available": sum("source_battle_id" in row for row in snapshot["battles"]),
         }
     return snapshot
 
@@ -313,3 +386,67 @@ def _normal_text(value: Any) -> str:
     import re
     import unicodedata
     return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", str(value or "")).strip().casefold())
+
+
+def _calendar_date(value: Any):
+    text = str(value or "").strip()
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+    except ValueError:
+        for pattern in ("%d.%m.%Y", "%Y/%m/%d"):
+            try:
+                return datetime.strptime(text, pattern).date()
+            except ValueError:
+                pass
+    return None
+
+
+def _source_name(value: Any) -> str:
+    return str(value.get("name") or "") if isinstance(value, dict) else str(value or "")
+
+
+def _join_battle_source_ids(battles: list[dict], dump: dict) -> None:
+    """Use a raw log's ID only when both directions of the match are unique.
+
+    The raw dump can be less complete than the visible Battles tab. Source IDs
+    supplement identity only; none of the visible fields are overwritten. A
+    one-day date tolerance handles midnight represented in another timezone,
+    and is permitted only with matching scenario, parties and territory.
+    """
+    raw_logs = dump.get("battle_logs")
+    if not isinstance(raw_logs, list):
+        return
+    logs = []
+    for raw in raw_logs:
+        if not isinstance(raw, dict) or raw.get("id") in (None, ""):
+            continue
+        scenario = raw.get("scenario_name") or _source_name(raw.get("scenario"))
+        parties = sorted(_normal_text(_source_name(raw.get(field))) for field in ("attacker", "defender") if _source_name(raw.get(field)))
+        if not scenario or len(parties) < 2:
+            continue
+        logs.append({"id": str(raw["id"]), "day": _calendar_date(raw.get("date") or raw.get("battle_date") or raw.get("created_at")), "scenario": _normal_text(scenario), "parties": parties, "territory": _normal_text(raw.get("territory_name"))})
+    candidates: dict[int, list[tuple[int, str]]] = {}
+    for index, battle in enumerate(battles):
+        if battle.get("source_battle_id"):
+            continue
+        day = _calendar_date(battle.get("date"))
+        parties = sorted(_normal_text(battle.get(field)) for field in ("attacker", "defender") if battle.get(field))
+        for log in logs:
+            if not day or not log["day"] or log["parties"] != parties or log["scenario"] != _normal_text(battle.get("scenario")):
+                continue
+            distance = abs((day - log["day"]).days)
+            if distance > 1 or log["territory"] != _normal_text(battle.get("territory")):
+                continue
+            candidates.setdefault(index, []).append((distance, log["id"]))
+    preferred = {}
+    for index, matches in candidates.items():
+        best_distance = min(distance for distance, _ in matches)
+        ids = {source_id for distance, source_id in matches if distance == best_distance}
+        if len(ids) == 1:
+            preferred[index] = next(iter(ids))
+    uses: dict[str, list[int]] = {}
+    for index, source_id in preferred.items():
+        uses.setdefault(source_id, []).append(index)
+    for index, source_id in preferred.items():
+        if len(uses[source_id]) == 1:
+            battles[index]["source_battle_id"] = source_id

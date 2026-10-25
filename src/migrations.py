@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -559,6 +559,39 @@ def migrate(db: sqlite3.Connection) -> int:
                 ("current campaign membership projection", _now()),
             )
             db.execute("PRAGMA user_version=3")
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    version = db.execute("PRAGMA user_version").fetchone()[0]
+    if version < 4:
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            _add_column(db, "fighters", "mechanics_json", "TEXT NOT NULL DEFAULT '{}'" )
+            _add_column(db, "fighters", "voice_profile_json", "TEXT NOT NULL DEFAULT '{}'" )
+            _add_column(db, "battles", "source_battle_key", "TEXT")
+            db.execute("""CREATE TABLE story_memories(
+                memory_id TEXT PRIMARY KEY, fighter_id INTEGER NOT NULL REFERENCES fighters(id),
+                memory_key TEXT NOT NULL, memory_type TEXT NOT NULL CHECK(memory_type IN ('observation','reflection')),
+                title TEXT NOT NULL, content TEXT NOT NULL, importance REAL NOT NULL CHECK(importance BETWEEN 0 AND 10),
+                occurred_at TEXT, observed_at TEXT, created_at TEXT NOT NULL,
+                tags_json TEXT NOT NULL, evidence_json TEXT NOT NULL,
+                source_event_ids_json TEXT NOT NULL, source_observation_ids_json TEXT NOT NULL,
+                source_id TEXT REFERENCES provenance_sources(source_id), provenance_class TEXT NOT NULL DEFAULT 'inference',
+                confidence REAL NOT NULL DEFAULT 0.65, baseline INTEGER NOT NULL DEFAULT 0,
+                generation_version TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1
+            )""")
+            db.execute("CREATE INDEX story_memories_fighter_idx ON story_memories(fighter_id,active,observed_at)")
+            db.execute("""CREATE TABLE story_artifacts(
+                artifact_id TEXT PRIMARY KEY, scope_type TEXT NOT NULL, scope_key TEXT NOT NULL,
+                document_json TEXT NOT NULL, input_hash TEXT NOT NULL, generation_version TEXT NOT NULL,
+                generated_at TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
+                UNIQUE(scope_type,scope_key,input_hash,generation_version)
+            )""")
+            db.execute("CREATE INDEX story_artifacts_scope_idx ON story_artifacts(scope_type,scope_key,active)")
+            db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(4,?,?)",
+                       ("event-driven fighter memories and versioned narrative artifacts", _now()))
+            db.execute("PRAGMA user_version=4")
             db.commit()
         except Exception:
             db.rollback()

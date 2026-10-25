@@ -1,1 +1,35 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NCCE — Campaign Chronicle</title><link rel="stylesheet" href="/style.css"></head><body><header><div><small>NCCE · DOMINION KRAKAUMUNDA</small><h1>Campaign Chronicle</h1><p>Campaign mechanics remembered as lives, places and history.</p></div><div class="sync-box"><div id="health" class="status">Connecting to Krakamunda…</div><button id="syncNow" type="button">Refresh from Sheet</button><button id="logout" type="button" hidden>Sign out</button></div></header><nav><button data-view="chronicle" class="active">Chronicle</button><button data-view="gangs">Gangs</button><button data-view="people">People</button><button data-view="places">Places</button><button data-view="battles">Battles</button><button data-view="archive">Archive</button><button data-view="system">System</button></nav><main id="app">Loading…</main><script src="/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>NCCE — Campaign Chronicle</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <div class="brand">NCCE · Dominion Krakamunda</div>
+      <h1>Campaign Chronicle</h1>
+      <p>Lives remembered. Claims contested. Consequences carried.</p>
+    </div>
+    <div class="sync-box">
+      <div id="health" class="status" role="status" aria-live="polite">Connecting to Krakamunda…</div>
+      <button id="syncNow" type="button">Refresh from Sheet</button>
+      <button id="logout" type="button" hidden>Sign out</button>
+    </div>
+  </header>
+  <nav aria-label="Campaign sections">
+    <button data-view="chronicle" class="active">Chronicle</button>
+    <button data-view="gangs">Gangs</button>
+    <button data-view="fighters">Fighters</button>
+    <button data-view="places">Places</button>
+    <button data-view="battles">Battles</button>
+    <button data-view="archive">Archive</button>
+    <button data-view="system">System</button>
+  </nav>
+  <main id="app"><div class="loading-state" role="status">Opening the campaign chronicle…</div></main>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -30,6 +30,8 @@ class BattleRecord:
     territory: str | None
     territory_claimer: str | None
     notes: str | None
+    battle_key: str | None = None
+    source_battle_id: str | None = None
 
 @dataclass
 class CampaignSnapshot:

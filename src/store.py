@@ -89,6 +89,8 @@ class Store:
  def project_snapshot(self,payload):
   """Refresh the app's current-state tables while preserving narrative/history fields."""
   gangs=payload.get('gangs') or {}; gang_index=payload.get('gang_index') or {}
+  if any(record.get('Backstory') for gang in gangs.values() for record in (gang.get('fighters') or {}).values()):
+   self.record_source('player:campaign-sheet-lore','authored_fighter_backstory','player_authored','Player-authored fighter backstories in the campaign Sheet',source_uri='https://docs.google.com/spreadsheets/d/1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00/edit')
   with self._lock, self.db:
    self.db.execute('UPDATE gangs SET active=0')
    for tab_name,gang in gangs.items():
@@ -101,7 +103,7 @@ class Store:
       (gang_id,name,gang.get('gang_type') or index.get('Type'),index.get('Player'),index.get('Rating',gang.get('rating')),index.get('Wealth'),gang.get('credits'),gang.get('reputation'),index.get('Territories'),gang.get('alignment'),gang.get('colour'),gang.get('last_updated')))
     self.db.execute('UPDATE fighters SET listed_in_source=0 WHERE gang_id=?',(gang_id,))
     fighter_rows=self.db.execute('SELECT id,name FROM fighters WHERE gang_id=?',(gang_id,)).fetchall()
-    existing={unicodedata.normalize('NFKC',str(row['name'] or '')).strip().casefold():row['id'] for row in fighter_rows}
+    existing={re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(row['name'] or '')).strip().casefold()):row['id'] for row in fighter_rows}
     for source_name,record in (gang.get('fighters') or {}).items():
      normalized=unicodedata.normalize('NFKC',str(source_name or '')).strip().casefold()
      normalized=re.sub(r'\s+',' ',normalized)
@@ -112,6 +114,11 @@ class Store:
      else:
       self.db.execute('''INSERT INTO fighters(gang_id,gang_name,name,type,class,cost,xp,kills,advancements,effects,status,backstory,backstory_source,listed_in_source)
        VALUES(?,?,?,?,?,?,?,?,?,?,?,'','not-yet-written',1)''',(gang_id,name,source_name,*values[1:]))
+     self.db.execute('UPDATE fighters SET mechanics_json=?,notes=coalesce(?,notes) WHERE gang_id=? AND name=?',
+                     (json.dumps(record,ensure_ascii=False,sort_keys=True),record.get('Fighter Notes') or record.get('Notes'),gang_id,source_name))
+     if record.get('Backstory'):
+      self.db.execute("""UPDATE fighters SET backstory=?,backstory_source='player-authored / campaign Sheet',provenance_class='player_authored'
+       WHERE gang_id=? AND name=? AND lower(coalesce(backstory_source,'')) NOT LIKE '%c-nine story%' AND lower(coalesce(backstory_source,'')) NOT LIKE '%canon%'""",(record['Backstory'],gang_id,source_name))
 
    self.db.execute('UPDATE territories SET active=0')
    for territory in payload.get('territories') or []:
@@ -134,13 +141,21 @@ class Store:
     else:
      self.db.execute('''INSERT INTO territories(gang_id,gang_name,territory,card,is_default,ruined,active,source_territory_id) VALUES(?,?,?,?,?,?,1,?)''',(gang_id,gang_name,territory_name,card,int(bool(default)),int(bool(ruined)),str(source_territory_id) if source_territory_id else None))
 
-   self.db.execute('UPDATE battles SET active=0')
-   for battle in payload.get('battles') or []:
+   from snapshot import battle_identity, battle_records
+   prior_battles={}
+   for row in self.db.execute('SELECT * FROM battles ORDER BY active DESC,id DESC'):
+    old=dict(row); key=old.get('source_battle_key') or battle_identity(old)
+    prior_battles.setdefault(key,old['id'])
+   self.db.execute('UPDATE battles SET active=0,source_row=-id')
+   for battle in battle_records(payload.get('battles') or []):
     source_row=battle.get('source_row')
     if source_row is None: continue
-    self.db.execute('''INSERT INTO battles(source_row,date,scenario,attacker,defender,winner,territory,territory_claimer,notes,active)
-      VALUES(?,?,?,?,?,?,?,?,?,1) ON CONFLICT(source_row) DO UPDATE SET date=excluded.date,scenario=excluded.scenario,attacker=excluded.attacker,defender=excluded.defender,winner=excluded.winner,territory=excluded.territory,territory_claimer=excluded.territory_claimer,notes=excluded.notes,active=1''',
-      (source_row,battle.get('date'),battle.get('scenario'),battle.get('attacker'),battle.get('defender'),battle.get('winner'),battle.get('territory'),battle.get('territory_claimer'),battle.get('notes')))
+    key=battle.get('battle_key') or battle_identity(battle)
+    values=(source_row,battle.get('date'),battle.get('scenario'),battle.get('attacker'),battle.get('defender'),battle.get('winner'),battle.get('territory'),battle.get('territory_claimer'),battle.get('notes'),key)
+    if key in prior_battles:
+     self.db.execute('''UPDATE battles SET source_row=?,date=?,scenario=?,attacker=?,defender=?,winner=?,territory=?,territory_claimer=?,notes=?,source_battle_key=?,active=1 WHERE id=?''',(*values,prior_battles[key]))
+    else:
+     self.db.execute('''INSERT INTO battles(source_row,date,scenario,attacker,defender,winner,territory,territory_claimer,notes,source_battle_key,active) VALUES(?,?,?,?,?,?,?,?,?,?,1)''',values)
 
   return {'gangs':len(gangs),'fighters_listed':sum(len(g.get('fighters') or {}) for g in gangs.values()),'territories':len(payload.get('territories') or []),'battles':len(payload.get('battles') or [])}
  def record_event(self,event_key,event_type,payload,provenance_class,source_id=None,source_locator=None,occurred_at=None,observed_at=None,confidence=1.0,from_snapshot_id=None,to_snapshot_id=None,subjects=None,supersedes_event_id=None,correction_reason=None):
@@ -183,14 +198,30 @@ class Store:
    out.append(item)
   return out
  def dashboard(self):
+  from story_engine import document_for
   q=lambda sql,args=():[dict(r) for r in self.db.execute(sql,args)]
-  battle_sql='''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE ce.source_locator=\'Battles!row \'||b.source_row AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 ORDER BY b.date DESC,b.source_row DESC'''
-  return {'gangs':q('SELECT * FROM gangs WHERE active=1 ORDER BY reputation DESC,rating DESC'),'battles':q(battle_sql),'territories':q('SELECT * FROM territories WHERE active=1 ORDER BY gang_name,territory'),'regions':q('SELECT * FROM regions'),'downtime':q('SELECT * FROM downtime_reports ORDER BY id DESC'),'state':{r['key']:r['value'] for r in self.db.execute('SELECT * FROM system_state')}}
+  battle_sql='''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 ORDER BY b.date DESC,b.source_row DESC'''
+  result={'gangs':q('SELECT * FROM gangs WHERE active=1 ORDER BY reputation DESC,rating DESC'),'battles':q(battle_sql),'territories':q('SELECT * FROM territories WHERE active=1 ORDER BY gang_name,territory'),'regions':q('SELECT * FROM regions'),'downtime':q('SELECT * FROM downtime_reports WHERE id IN (SELECT max(id) FROM downtime_reports GROUP BY gang_id) ORDER BY generated_at DESC'),'state':{r['key']:r['value'] for r in self.db.execute('SELECT * FROM system_state')}}
+  for g in result['gangs']: g['history_document']=document_for(self,'gang_history',g['gang_id'])
+  for b in result['battles']:
+   b['report_document']=document_for(self,'battle_report',b['id'])
+   if b['report_document']: b['chronicle_stale']=False
+  for t in result['territories']: t['history_document']=document_for(self,'territory_history',t['id'])
+  for r in result['regions']: r['history_document']=document_for(self,'region_history','campaign')
+  for d in result['downtime']: d['document']=document_for(self,'downtime',d['gang_id'])
+  return result
  def gang(self,gid):
+  from story_engine import document_for
   r=self.db.execute('SELECT * FROM gangs WHERE gang_id=?',(gid,)).fetchone()
   if not r:return None
   g=dict(r); name=g['name']; q=lambda sql,args=():[dict(x) for x in self.db.execute(sql,args)]
-  g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['battles']=q('''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE ce.source_locator=\'Battles!row \'||b.source_row AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 AND (b.attacker=? OR b.defender=? OR b.winner=? OR b.territory_claimer=?) ORDER BY b.date DESC''',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,)); return g
+  g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['battles']=q('''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 AND (b.attacker=? OR b.defender=? OR b.winner=? OR b.territory_claimer=?) ORDER BY b.date DESC''',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,))
+  g['history_document']=document_for(self,'gang_history',gid)
+  for b in g['battles']:
+   b['report_document']=document_for(self,'battle_report',b['id'])
+   if b['report_document']: b['chronicle_stale']=False
+  for d in g['downtime']: d['document']=document_for(self,'downtime',gid)
+  return g
  def fighter(self,fid):
   r=self.db.execute('SELECT * FROM fighters WHERE id=?',(fid,)).fetchone()
   if not r:return None
@@ -200,9 +231,15 @@ class Store:
   entity_key=f"{f['gang_id']}/{fighter_name}"
   entity=self.db.execute('SELECT entity_id FROM entities WHERE entity_type=\'fighter\' AND entity_key=?',(entity_key,)).fetchone()
   f['campaign_events']=self.events(limit=500,entity_id=entity['entity_id']) if entity else []
+  from story_engine import fighter_story
+  f.update(fighter_story(self,f))
+  f['mechanics']=json.loads(f.get('mechanics_json') or '{}')
   return f
  def territory(self,tid):
-  r=self.db.execute('SELECT * FROM territories WHERE id=?',(tid,)).fetchone(); return dict(r) if r else None
+  from story_engine import document_for
+  r=self.db.execute('SELECT * FROM territories WHERE id=?',(tid,)).fetchone()
+  if not r:return None
+  t=dict(r); t['history_document']=document_for(self,'territory_history',tid); return t
  def lore(self): return [dict(r) for r in self.db.execute('SELECT id,title,source_type,source_url,length(content) AS chars FROM lore_sources')]
  def lore_source(self,lid):
   r=self.db.execute('SELECT * FROM lore_sources WHERE id=?',(lid,)).fetchone(); return dict(r) if r else None

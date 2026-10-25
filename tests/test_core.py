@@ -9,7 +9,7 @@ from snapshot import build_snapshot_from_sheets, parse_battles, parse_gang_tab, 
 from sync import ingest_snapshot
 
 def test_store():
-    with tempfile.TemporaryDirectory() as d:
+    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'data') as d:
         s=Store(Path(d)/'x.db')
         try:
             s.set_state('a','b'); assert s.get_state('a')=='b'
@@ -57,7 +57,7 @@ def test_stdlib_xlsx_reader():
     assert sheets['Campaign']==[['Field','Value'],['Name','Krakaumunda']]
 
 def test_durable_ledger_and_snapshot_deduplication():
-    with tempfile.TemporaryDirectory() as d:
+    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'data') as d:
         s=Store(Path(d)/'ledger.db')
         try:
             source=s.record_source('test:sheet','campaign_sheet','mechanical_fact','Test Sheet')
@@ -83,12 +83,12 @@ def test_durable_ledger_and_snapshot_deduplication():
                 raise AssertionError('Snapshot update should be rejected')
             except sqlite3.IntegrityError:
                 pass
-            assert s.db.execute('PRAGMA user_version').fetchone()[0]==3
+            assert s.db.execute('PRAGMA user_version').fetchone()[0]==4
         finally:
             s.close()
 
 def test_legacy_database_provenance_migration():
-    with tempfile.TemporaryDirectory() as d:
+    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'data') as d:
         path=Path(d)/'legacy.db'
         db=sqlite3.connect(path); db.row_factory=sqlite3.Row; db.executescript(SCHEMA)
         db.execute("INSERT INTO system_state(key,value) VALUES('last_sync','2026-10-01T12:00:00+00:00')")
@@ -103,7 +103,7 @@ def test_legacy_database_provenance_migration():
         db.commit(); db.close()
         s=Store(path)
         try:
-            assert s.schema_version==3
+            assert s.schema_version==4
             assert s.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==2
             assert s.db.execute("SELECT provenance_class FROM memories").fetchone()[0]=='mechanical_fact'
             assert s.db.execute("SELECT count(*) FROM event_subjects").fetchone()[0]>=5

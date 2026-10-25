@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from snapshot import battle_content_signature, battle_identity, battle_records
 
 def changed_fields(before: dict, after: dict) -> dict:
     keys = set(before) | set(after)
@@ -31,7 +32,7 @@ FIGHTER_FIELDS = (
     "Type", "Class", "Cost", "XP", "Kills", "M", "WS", "BS", "S", "T", "W", "I", "A",
     "Ld", "Cl", "Wil", "Int", "Weapons", "Wargear", "Skills", "Advancements", "Effects", "Status",
 )
-BATTLE_FIELDS = ("date", "scenario", "attacker", "defender", "winner", "territory", "territory_claimer")
+BATTLE_FIELDS = ("date", "scenario", "attacker", "defender", "winner", "territory", "territory_claimer", "notes")
 
 
 def _key(value) -> str:
@@ -101,6 +102,67 @@ def _territories(snapshot: dict):
             ambiguous.add(identity)
         records[identity] = {"name": name, "owner": _territory_owner(row), "source_index": row_index}
     return records, ambiguous
+
+
+def _battle_source_id(battle: dict):
+    value = battle.get("source_battle_id") or battle.get("battle_id")
+    if value:
+        return str(value)
+    key = str(battle.get("battle_key") or battle.get("source_battle_key") or "")
+    return key[3:].split("#duplicate:", 1)[0] if key.startswith("id:") else None
+
+
+def _battle_ids_compatible(old: dict, new: dict) -> bool:
+    old_id, new_id = _battle_source_id(old), _battle_source_id(new)
+    return not old_id or not new_id or old_id == new_id
+
+
+def _matched_battles(old_rows: list[dict], new_rows: list[dict]):
+    """Pair encounters independently of source-row insertion or ordering.
+
+    Source IDs are strongest. Unique fallback identities bridge legacy data and
+    newly discovered IDs. Ambiguous fallback duplicates are matched only when
+    their full content agrees; edits to them stay separate removal/addition
+    events rather than being silently merged.
+    """
+    old = {battle_identity(row): row for row in battle_records(old_rows)}
+    new = {battle_identity(row): row for row in battle_records(new_rows)}
+    paired = [(old.pop(key), new.pop(key)) for key in sorted(set(old) & set(new))]
+
+    old_groups, new_groups = {}, {}
+    for key, row in old.items():
+        old_groups.setdefault(battle_identity(row, prefer_source=False), []).append(key)
+    for key, row in new.items():
+        new_groups.setdefault(battle_identity(row, prefer_source=False), []).append(key)
+    for fallback in sorted(set(old_groups) & set(new_groups)):
+        old_keys, new_keys = old_groups[fallback], new_groups[fallback]
+        if len(old_keys) == len(new_keys) == 1:
+            old_key, new_key = old_keys[0], new_keys[0]
+            if _battle_ids_compatible(old[old_key], new[new_key]):
+                paired.append((old.pop(old_key), new.pop(new_key)))
+            continue
+        for old_key in old_keys:
+            if old_key not in old:
+                continue
+            matches = [key for key in new_keys if key in new and _battle_ids_compatible(old[old_key], new[key]) and battle_content_signature(old[old_key]) == battle_content_signature(new[key])]
+            if matches:
+                new_key = sorted(matches, key=lambda key: int(new[key].get("source_row") or 0))[0]
+                paired.append((old.pop(old_key), new.pop(new_key)))
+
+    # An isolated edit to date, scenario or a party can change the fallback
+    # identity. Accept it as a correction only if two identity components and
+    # the worksheet row still agree, with no unrelated unmatched encounters.
+    if len(old) == len(new) == 1:
+        old_key, new_key = next(iter(old)), next(iter(new))
+        a, b = old[old_key], new[new_key]
+        same = sum((
+            _key(a.get("date")) == _key(b.get("date")),
+            _key(a.get("scenario")) == _key(b.get("scenario")),
+            sorted(_key(a.get(k)) for k in ("attacker", "defender")) == sorted(_key(b.get(k)) for k in ("attacker", "defender")),
+        ))
+        if a.get("source_row") == b.get("source_row") and same >= 2 and _battle_ids_compatible(a, b):
+            paired.append((old.pop(old_key), new.pop(new_key)))
+    return paired, list(old.values()), list(new.values())
 
 
 def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: int) -> list[dict]:
@@ -206,11 +268,10 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
                     [{**subject, "role": "affected"}, {**gang_subject, "role": "gang_context"}],
                 ))
 
-    old_battles = {int(b["source_row"]): b for b in before.get("battles", []) if b.get("source_row") is not None}
-    new_battles = {int(b["source_row"]): b for b in after.get("battles", []) if b.get("source_row") is not None}
+    matched_battles, removed_battles, added_battles = _matched_battles(before.get("battles", []), after.get("battles", []))
     gang_by_name = {_key(g.get("name")): (gang_id, g) for gang_id, g in after_gangs.items() if g.get("name")}
-    for row_number in sorted(set(new_battles) - set(old_battles)):
-        battle = new_battles[row_number]
+    for battle in sorted(added_battles, key=battle_identity):
+        row_number, battle_key = battle.get("source_row"), battle_identity(battle)
         subjects = []
         for field, role in (("attacker", "attacker"), ("defender", "defender"), ("winner", "winner"), ("territory_claimer", "claimer")):
             name = battle.get(field)
@@ -221,13 +282,15 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
         if territory:
             subjects.append({"entity_type": "territory", "entity_key": _key(territory), "display_name": territory, "role": "location"})
         payload = {field: battle.get(field) for field in BATTLE_FIELDS}
-        payload["source_row"] = row_number
+        payload.update(source_row=row_number, battle_key=battle_key, source_battle_key=battle_key)
+        if battle.get("source_battle_id"):
+            payload["source_battle_id"] = battle["source_battle_id"]
         drafts.append(_event(
-            f"snapshot:{target_snapshot_id}:battle:{row_number}", "battle_result", f"Battles!row {row_number}",
+            f"snapshot:{target_snapshot_id}:battle:{battle_key}", "battle_result", f"Battles!battle {battle_key}",
             payload, subjects, occurred_at=battle.get("date"),
         ))
-    for row_number in sorted(set(old_battles) & set(new_battles)):
-        old, new = old_battles[row_number], new_battles[row_number]
+    for old, new in sorted(matched_battles, key=lambda pair: battle_identity(pair[1])):
+        row_number, battle_key = new.get("source_row"), battle_identity(new)
         changes = {field: {"before": old.get(field), "after": new.get(field)} for field in BATTLE_FIELDS if old.get(field) != new.get(field)}
         if not changes:
             continue
@@ -240,13 +303,13 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
                     subjects.append({**_gang_subject(found[0], found[1]), "role": role})
         unique_subjects = {(s["entity_type"], s["entity_key"], s["role"]): s for s in subjects}
         drafts.append(_event(
-            f"snapshot:{target_snapshot_id}:battle-correction:{row_number}", "battle_record_corrected",
-            f"Battles!row {row_number}", {"source_row": row_number, "changes": changes},
+            f"snapshot:{target_snapshot_id}:battle-correction:{battle_key}", "battle_record_corrected",
+            f"Battles!battle {battle_key}", {"source_row": row_number, "previous_source_row": old.get("source_row"), "battle_key": battle_key, "source_battle_key": battle_key, "previous_source_battle_key": battle_identity(old), "changes": changes, "current": {field: new.get(field) for field in BATTLE_FIELDS}},
             # The battle date is not the date the source row was corrected.
             list(unique_subjects.values()), occurred_at=None,
         ))
-    for row_number in sorted(set(old_battles) - set(new_battles)):
-        battle = old_battles[row_number]
+    for battle in sorted(removed_battles, key=battle_identity):
+        row_number, battle_key = battle.get("source_row"), battle_identity(battle)
         subjects = []
         for field, role in (("attacker", "participant"), ("defender", "participant"), ("winner", "winner"), ("territory_claimer", "claimer")):
             name = battle.get(field)
@@ -257,8 +320,8 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
             territory = battle["territory"]
             subjects.append({"entity_type": "territory", "entity_key": _key(territory), "display_name": territory, "role": "location"})
         drafts.append(_event(
-            f"snapshot:{target_snapshot_id}:battle-removed:{row_number}", "battle_record_removed",
-            f"Battles!row {row_number}", {"source_row": row_number, "last_recorded": {field: battle.get(field) for field in BATTLE_FIELDS}},
+            f"snapshot:{target_snapshot_id}:battle-removed:{battle_key}", "battle_record_removed",
+            f"Battles!battle {battle_key}", {"source_row": row_number, "battle_key": battle_key, "source_battle_key": battle_key, "last_recorded": {field: battle.get(field) for field in BATTLE_FIELDS}},
             subjects, occurred_at=None,
         ))
 

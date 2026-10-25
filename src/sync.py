@@ -7,6 +7,7 @@ facts supported by consecutive snapshots.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from copy import deepcopy
 
 from diff import snapshot_event_drafts
 from google_sheets import fetch_snapshot as fetch_live_snapshot
@@ -40,6 +41,40 @@ def _subject_entity(store, subject: dict, source_id: str) -> dict:
     return {"entity_id": entity_id, "role": subject.get("role", "affected")}
 
 
+def _seed_baseline_snapshot(store, after):
+    """Compare known seed fields with the first live read; new stats are baseline."""
+    prior = store.latest_snapshot()
+    if not prior or prior["payload"].get("snapshot_version") == after.get("snapshot_version"):
+        return
+    if not store.db.execute("SELECT 1 FROM fighter_events LIMIT 1").fetchone():
+        return
+    current_by_id = {str(g.get("gang_id")):g for g in (after.get("gangs") or {}).values()}
+    before = {"snapshot_version":after.get("snapshot_version"), "captured_at":prior["captured_at"],
+              "campaign":{}, "gangs":{}, "territories":[], "battles":[],
+              "source_id":"baseline:snapshot-0001", "provenance_class":"mechanical_fact",
+              "source_metadata":{"seed_bridge":True,"historical_occurrence_dates":"unknown"}}
+    fields = {"Type":"type","Class":"class","Cost":"cost","XP":"xp","Kills":"kills",
+              "Advancements":"advancements","Effects":"effects","Status":"status"}
+    for row in store.db.execute("SELECT * FROM gangs WHERE active=1"):
+        gang = dict(row); source = current_by_id.get(str(gang["gang_id"]),{})
+        g = deepcopy(source)
+        g.update({k:gang.get(k) for k in ("gang_id","name","gang_type","credits","reputation","rating","alignment","colour")})
+        current_fighters = {_normal_key(name):record for name,record in (source.get("fighters") or {}).items()}
+        g["fighters"] = {}
+        for frow in store.db.execute("SELECT * FROM fighters WHERE gang_id=?",(gang["gang_id"],)):
+            fighter = dict(frow)
+            record = deepcopy(current_fighters.get(_normal_key(fighter["name"]),{}))
+            record.update({field:(fighter.get(column) or None) if field in {"Advancements","Effects"} else fighter.get(column) for field,column in fields.items()})
+            record["Name"] = fighter["name"]
+            g["fighters"][fighter["name"]] = record
+        before["gangs"][gang["name"]] = g
+    before["battles"] = [dict(row) for row in store.db.execute("SELECT * FROM battles WHERE active=1")]
+    for row in store.db.execute("SELECT * FROM territories WHERE active=1"):
+        t = dict(row)
+        before["territories"].append({"Territory":t["territory"],"Gang ID":t["gang_id"],"Gang":t["gang_name"],"Card":t["card"]})
+    store.save_snapshot(before)
+
+
 def ingest_snapshot(store, snapshot: dict, source_id: str = SHEET_SOURCE_ID) -> dict:
     """Save a normalized snapshot and its idempotent event diff.
 
@@ -62,6 +97,7 @@ def ingest_snapshot(store, snapshot: dict, source_id: str = SHEET_SOURCE_ID) -> 
         "source_id": source_id,
         "provenance_class": "mechanical_fact",
     })
+    _seed_baseline_snapshot(store, payload)
     snapshot_id, snapshot_created = store.save_snapshot(payload)
     target = store.snapshot(snapshot_id)
     if target is None:
@@ -117,6 +153,9 @@ def ingest_snapshot(store, snapshot: dict, source_id: str = SHEET_SOURCE_ID) -> 
 def sync_live_sheet(store) -> dict:
     """Fetch, ledger, and project one read-only snapshot of the live campaign Sheet."""
     snapshot = fetch_live_snapshot()
-    ingested = ingest_snapshot(store, snapshot)
-    projection = store.project_snapshot(snapshot)
-    return {**ingested, "projection": projection, "source_metadata": snapshot.get("source_metadata", {})}
+    with store._lock:
+        ingested = ingest_snapshot(store, snapshot)
+        projection = store.project_snapshot(snapshot)
+        from story_engine import regenerate
+        narrative = regenerate(store)
+    return {**ingested, "projection": projection, "narrative": narrative, "source_metadata": snapshot.get("source_metadata", {})}

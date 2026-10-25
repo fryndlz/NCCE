@@ -23,7 +23,8 @@ if not DB.exists():
  from seed import main as seed_database
  seed_database(str(DB))
 store=Store(DB)
-store.set_state('engine_version','NCCE v0.5 Hosted Access Preview')
+from story_engine import regenerate
+regenerate(store)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
@@ -75,7 +76,7 @@ class H(BaseHTTPRequestHandler):
   page=(WEB/'login.html').read_bytes(); self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(page))); self.end_headers(); self.wfile.write(page)
  def do_GET(self):
   parsed=urlparse(self.path); p=parsed.path
-  if p=='/healthz':return self.js({'ok':True})
+  if p=='/healthz':return self.js({'ok':True,'version':'0.6.0'})
   if p=='/api/session':return self.js({'auth_required':AUTH_REQUIRED,'authenticated':self._authenticated()})
   if p in ('/login','/login.html'):return self._serve_login()
   if AUTH_REQUIRED and not self._authenticated():
@@ -86,7 +87,7 @@ class H(BaseHTTPRequestHandler):
    with store._lock: return self.js(store.dashboard())
   if p=='/api/health':
    with store._lock:
-    return self.js({'ok':True,'database':str(DB),'baseline':store.get_state('baseline'),'last_sync':store.get_state('last_sync'),'source_mode':store.get_state('source_mode'),'version':store.get_state('engine_version'),'schema_version':store.schema_version,'sync_status':store.get_state('sync_status','starting'),'sync_last_attempt':store.get_state('sync_last_attempt'),'sync_last_success':store.get_state('sync_last_success'),'sync_last_error':store.get_state('sync_last_error'),'sync_interval_seconds':SYNC_INTERVAL_SECONDS,'sync_source':'Krakamunda Fetch-a-Munda LIVE'})
+    return self.js({'ok':True,'database':str(DB),'baseline':store.get_state('baseline'),'last_sync':store.get_state('last_sync'),'source_mode':store.get_state('source_mode'),'version':store.get_state('engine_version'),'schema_version':store.schema_version,'sync_status':store.get_state('sync_status','starting'),'sync_last_attempt':store.get_state('sync_last_attempt'),'sync_last_success':store.get_state('sync_last_success'),'sync_last_error':store.get_state('sync_last_error'),'sync_interval_seconds':SYNC_INTERVAL_SECONDS,'sync_source':'Krakamunda Fetch-a-Munda LIVE','sync_last_snapshot_id':store.get_state('sync_last_snapshot_id'),'story_revision':store.get_state('story_revision'),'story_generated_at':store.get_state('story_generated_at')})
   if p=='/api/events':
    query=parse_qs(parsed.query); entity_id=query.get('entity_id',[None])[0]
    try:limit=int(query.get('limit',['100'])[0])
