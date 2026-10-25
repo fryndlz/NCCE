@@ -2,13 +2,13 @@
 
 **Source release:** 0.6.1, Roster visibility and voice correction
 
-**Hosted release:** 0.6.0 pending approval to redeploy the free service; `/tmp` is ephemeral.
+**Hosted release:** 0.6.1 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
 **Schema:** SQLite version 4
 
-**Documentation checkpoint:** 2026-10-25 17:32:54 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-25 21:11:10 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** 0.6.0 hosted health was verified. 0.6.1 local checks and roster comparison are recorded in `CHANGELOG.md`; the patch has not been deployed.
+**Release verification:** hosted `/healthz` returned version `0.6.1`; startup logs confirm SQLite initialized at the mounted disk path. The 31 deterministic checks and local authenticated HTTP/live-sync smoke passed before this infrastructure-only change. See `CHANGELOG.md` for deployment evidence.
 
 This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
@@ -158,6 +158,8 @@ Register selection is C-NINE crew, Van Saar technical, Palanite/Enforcer precinc
 
 Authored role hints select workshop/practical, medical/clinical, survey/measured, or attentive/inward vocabulary. The rule uses explicit word matches such as maintenance/repair/workshop, chirurgeon/medicae, survey/prospect/drill, and psyker/listening designations. It does not infer an unwritten historical occupation as fact.
 
+Voice profiles expose normalized explicit identity tags and identity fields when supplied directly to the writer. The runtime roster projection does not yet persist these as first-class authored fields. Gender and pronouns are never guessed. The broader perspective/tag rules, including rules-derived context boundaries, 40k/Necromunda coverage, and implementation plan, are in [Writer identity and perspective rules for Minds and Memory Streams](WRITER_IDENTITY_TAGS.md). Identity tags are descriptive context; they do not affect the numerical story engine.
+
 Mechanical tendencies add the following traits:
 
 | Input | Inferred voice trait |
@@ -295,12 +297,12 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 - Equipment deltas show changed possession, not necessarily purchase, gift, theft, loss, or who transferred it. Role deltas show recorded categories, not a rules decision by NCCE.
 - The rules suggest meaningful future triggers such as rallying, assistance, scenario objectives, bottling/retreat, medical outcomes, rescue attempts, and precise captive disposition. These do not become specific memories merely because a rulebook contains them; the campaign source must expose them.
 - The C-NINE Google Doc is currently a frozen export source in the runtime, not a live document-sync integration.
-- The existing free Render preview uses ephemeral storage. Regeneration reconstructs derived views from tracked baseline and current Sheet, but it cannot recover all prior snapshots/events after host storage disappears. Durable campaign history requires an approved persistent host/storage arrangement or an export/backup path.
+- The hosted SQLite file now lives on a Render persistent disk and survives ordinary restarts and deploys. The disk is single-instance storage; deployments briefly stop the service. The application still lacks an application-consistent SQLite export/offsite backup flow. Do not treat a filesystem snapshot as a database backup. If the disk is lost, only campaign facts present in tracked baseline and current Sheet can be reconstructed; intermediate event history cannot.
 
 ## 14. Validation and deployment checkpoint
 
 The current deterministic test suite has **31 passing checks**: 8 core, 6 battle identity, 15 story tests, and 2 voice-register checks, verified at 2026-10-25 19:19:33 CET. Checks cover Mara's Critical Injury reaching memory and Mind, Maex's voiced Cool advancement with separate evidence, recovery closure, equipment/promotion events, dead-fighter Mind exclusion, repeat-sync/generation idempotency, authored/mechanical preservation, first-live comparison, battle reorder/correction/removal behavior, social-memory evidence, and keeping Palanite precinct vocabulary separate from C-NINE's register.
 
-The opt-in `tests/smoke_server.py` integration check also passed with a disposable authenticated fresh server and a read-only live Sheet sync: startup, login/logout, HttpOnly cookie, protected-route 401 responses, schema 4, semantic report blocks, Mara's critical Mind, and Maex's voiced memory. Hosted verification independently confirmed public health version `0.6.0` and a protected dashboard response of 401 without a session. Version `0.6.1` has not been deployed.
+The opt-in `tests/smoke_server.py` integration check also passed with a disposable authenticated fresh server and a read-only live Sheet sync: startup, login/logout, HttpOnly cookie, protected-route 401 responses, schema 4, semantic report blocks, Mara's critical Mind, and Maex's voiced memory. Hosted verification for `0.6.1` confirmed public health version and that startup initialized SQLite under `/var/data`. The successful live Sheet sync has not yet been independently confirmed in hosted logs.
 
-Release `0.6.0` (`e63b8ef`) is live at https://ncce-private-preview.onrender.com/. Render's public health route returned version `0.6.0` at 2026-10-25 18:29:11 CET, while the protected dashboard returned 401 without a session. Deployment details are in `CHANGELOG.md`.
+Release `0.6.1` (`4816751`) is live at https://ncce-private-preview.onrender.com/. Render's public health route returned version `0.6.1` after the storage change. Deployment details and remaining backup limitation are in `CHANGELOG.md`.

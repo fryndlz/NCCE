@@ -66,4 +66,4 @@ Downtime is event/state-driven fiction between games. There is no simulation of 
 
 The existing HTTP/JSON API separates engine from browser. The browser renders narrative and mechanical evidence distinctly, supports structured/limited rich text, and provides Fighters/Gangs/Places/Battles searching and filtering. The browser is the current client; another client can consume the same factual/narrative API.
 
-Startup, scheduled and manual Sheet refreshes run through the same pipeline. Shared-passphrase hosted access protects campaign APIs. The existing free Render preview has ephemeral storage, so durable historical retention across redeploy/restart is not guaranteed by the deployment plan even though the schema retains versions while the database exists.
+Startup, scheduled and manual Sheet refreshes run through the same pipeline. Shared-passphrase hosted access protects campaign APIs. Hosted SQLite now resides on the service's 1 GB persistent disk at `/var/data/ncce-preview.db`, so it survives normal restarts and deployments. The disk is single-instance storage, and an application-consistent SQLite export/offsite backup workflow remains unimplemented.

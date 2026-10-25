@@ -1,8 +1,8 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current source: **v0.6.1 — Roster visibility and voice correction**, SQLite schema 4. The hosted service remains on v0.6.0 pending owner approval for a redeploy that may reset its ephemeral `/tmp` database.
+Current source and hosted version: **v0.6.1 — Roster visibility and voice correction**, SQLite schema 4. The Render service now uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
 
-Open the [hosted preview](https://ncce-private-preview.onrender.com/) and use your existing invitation passphrase. The free host can take a minute to wake. Its storage is temporary; see [hosting details](docs/HOSTED_DEPLOYMENT.md).
+Open the [hosted preview](https://ncce-private-preview.onrender.com/) and use your existing invitation passphrase. See [hosting details](docs/HOSTED_DEPLOYMENT.md) for storage, cost, and backup limitations.
 
 ## What this version does
 

@@ -2,9 +2,9 @@
 
 **Current source implementation:** NCCE 0.6.1 — Roster visibility and voice correction, SQLite schema 4
 
-**Hosted implementation:** 0.6.0. The 0.6.1 changes are not yet deployed; see the deployment warning in `CHANGELOG.md`.
+**Hosted implementation:** 0.6.1 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-25 17:32:54 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-25 21:08:51 CET (Europe/Warsaw)
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
@@ -20,7 +20,7 @@ The exact current technical design, all module responsibilities, current label c
 
 | Area | Current status |
 | --- | --- |
-| Hosted link and invite access | Existing free Render preview at https://ncce-private-preview.onrender.com/. Public GitHub source; campaign app protected by a shared passphrase. Deployed release evidence is recorded in `CHANGELOG.md`. |
+| Hosted link and invite access | Existing Render preview at https://ncce-private-preview.onrender.com/. Public GitHub source; campaign app protected by a shared passphrase. Starter compute and persistent disk cost about $7.25/month. Deployed release evidence is recorded in `CHANGELOG.md`. |
 | Chronicle-first navigation | Implemented. Story/history leads; raw mechanical state is inspectable evidence. People is now Fighters. |
 | Durable factual/event/provenance schema | Implemented. Sources, entities, immutable snapshots/events, subjects/roles, evidence links, and correction chains. Schema 4 adds versioned story memories/artifacts. |
 | Read-only Sheet sync | Implemented. Startup, 15-minute schedule, and manual refresh; source-state projection and narrative refresh follow successful reads. |
@@ -29,7 +29,7 @@ The exact current technical design, all module responsibilities, current label c
 | Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
 | Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
 | Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |
-| Validation | 0.6.0 had 29 deterministic checks and a disposable authenticated HTTP/live-sync smoke check. 0.6.1 adds targeted voice-leak tests and is revalidated locally; hosted release `0.6.0` remains live. See `CHANGELOG.md`. |
+| Validation | 0.6.1 has 31 deterministic checks and a disposable authenticated HTTP/live-sync smoke check. Hosted health confirms 0.6.1; the mounted SQLite path is confirmed in startup logs. See `CHANGELOG.md`. |
 
 ## Historical limits
 
@@ -45,7 +45,7 @@ Use `data/lore/C-NINE Story - canonical export.txt` and its existing biography m
 
 1. Review the deployed 0.6 story loop with campaign members and refine voice variety, label lifecycles, and salience choices using actual examples. The writer currently uses bounded deterministic variants.
 2. Complete a real phone/mobile visual and interaction check; responsive CSS alone is not evidence of that check.
-3. Preserve campaign history beyond free-host restarts. The current free preview's filesystem is ephemeral. Any paid storage or service remains an explicit owner cost decision; no paid resource was created here.
+3. Add a safe SQLite export/backup workflow. The database now survives service restarts and deploys on a persistent disk, but the app does not yet offer an application-consistent backup download or offsite retention.
 4. Expand structured campaign inputs where needed: individual battle attendance, XP reasons, named rescue/medical actions, and explicit relationship evidence. Infer only what the sources support.
 5. Consider longer-term reflection across several batches and richer relationships only after the current model's behavior is reviewed. The present system has explicit rule/topic retrieval, not embeddings or a learned personality model.
 

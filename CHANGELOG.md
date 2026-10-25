@@ -12,7 +12,14 @@ Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October
 - Corrected Palanite recovery, battle-outcome, kill and role phrases that called the precinct a “detail,” importing C-NINE-specific vocabulary. Added a regression check that confines the C-NINE register to C-NINE and rejects this phrase leakage.
 - Bumped the engine/prose version to `0.6.1` / `story-0.6.1`; the engine will regenerate derived narratives when this build starts.
 - The broader voice/format rewrite remains a design step: preserve the C-NINE form for C-NINE, derive another gang's voice from that gang's own authored material and supported campaign evidence, and keep all engine/source provenance outside the diegetic passage. The current deterministic writer cannot infer undocumented relationships or replace faction-source research.
-- Hosted visual verification was blocked by the computer-use URL-confidence restriction. This code change has not been deployed. The current free hosted database is under `/tmp`; its last deployment logged a fresh seed, so another deployment may discard hosted derived history. No new deployment is triggered without the owner's confirmation.
+- The hosted app uses a single Starter web instance and a 1 GB persistent disk. `render.yaml` now records the plan, disk mount, and `NCCE_DB_PATH` so tracked infrastructure matches the service.
+- **2026-10-25 21:04:40+01:00 — Render upgraded the existing service from Free to Starter** (`0.5c-512mb`).
+- **2026-10-25 21:05:17+01:00 — Render attached a 1 GB persistent disk** at `/var/data`; deployment `dep-dbf61vcs728c73e82eh0` completed at 21:08:11+01:00.
+- **2026-10-25 21:08:11+01:00 — `NCCE_DB_PATH` changed to `/var/data/ncce-preview.db`.** Deployment `dep-dbf62uebs3rs73chu30g` went live at 21:08:51+01:00 on commit `4816751`. Startup logs confirm SQLite initialized at the mounted path; public `/healthz` returned `{"ok": true, "version": "0.6.1"}`.
+- The prior `/tmp` database was not exported during cutover. The mounted database was freshly seeded from the tracked baseline; the existing source data remains authoritative and is read-only. This loses any intermediate history that existed only in the volatile database. The user accepted this cutover risk.
+- Render's current listed rate implies about **$7.25/month** on the Hobby workspace ($7 Starter compute + $0.25 for 1 GB provisioned disk), before taxes or other usage.
+- Authenticated hosted content and a successful live Sheet sync were not independently verified in Render logs. The 15-minute sync scheduler launched; the live Sheet/API content was not changed by the setup.
+- Render disk snapshots are not an application-consistent SQLite backup. An authenticated SQLite online-backup/export path and offsite backup routine remain the next storage milestone.
 
 ### Validation record
 
