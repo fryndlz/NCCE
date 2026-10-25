@@ -1,6 +1,6 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current source: **v0.9.1 — Campaign History Timeline and Writer Integration Fix**, SQLite schema 8. Story generation remains `0.8.1`; campaign archives do not alter story mechanics. Hosted app version remains **0.9.0** until this fix is deployed. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
+Current source and hosted app: **v0.9.1 — Campaign History Timeline and Writer Integration Fix**, SQLite schema 8. Story generation remains `0.8.1`; campaign archives do not alter story mechanics. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
 
 Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default model is `gpt-6.1-sol`; override it with `NCCE_WRITER_MODEL`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Relevant campaign facts, identity context, authored context and earlier generated entries are sent to OpenAI for drafting. Without the key, generated prose is marked pending and no template prose is presented as finished writing. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
 

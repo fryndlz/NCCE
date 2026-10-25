@@ -12,9 +12,9 @@ Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October
 - Confirmed the hosted writer is configured for `gpt-6.1-sol`; its first successful post-fix refresh completed 80 requests and committed the result. Further pending narratives continue on subsequent refreshes using the successful result cache.
 - Validation: all six focused writer tests passed; Python compilation and `git diff --check` passed. Full baseline suites passed on the preceding 0.9.0 source.
 - No campaign Sheet, Apps Script, authored lore, or mechanical source data was changed.
-- Hosted rollout and exact verification time: pending.
+- **2026-10-26 00:46:24+01:00 — deployed:** Render reports commit `e110408` live. Health confirms app `0.9.1`, schema 8, and the OpenAI writer configured as `gpt-6.1-sol`. The first repaired refresh completed and committed 80 successful drafts; a subsequent cache-aware batch is currently processing.
 
-## 0.9.0 — Munda Manager campaign history timeline (source only, not deployed)
+## 0.9.0 — Munda Manager campaign history timeline (deployed in 0.9.1)
 
 **Implementation checkpoint:** 2026-10-26 00:18:12+01:00 (Europe/Warsaw)
 

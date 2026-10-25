@@ -2,9 +2,9 @@
 
 **Current source implementation:** NCCE 0.9.1 — Munda Manager Campaign History Timeline and Writer Integration Fix, SQLite schema 8
 
-**Hosted implementation:** 0.9.0 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. The 0.9.1 writer fix is pending deployment.
+**Hosted implementation:** 0.9.1 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-26 00:44 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 00:51 CET (Europe/Warsaw)
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
@@ -28,7 +28,7 @@ NCCE 0.9.0 reads `MUNDA_ACTIVITY_RAW`, `MUNDA_BATTLES_RAW`, and `MUNDA_SESSIONS_
 
 The Chronicle now has a per-gang timeline, clickable campaign battle registry, source JSON details, and gang/fighter/place/battle/event-type/phase/date filters. Fighter dossiers show archive activity that can be matched to them. Session created/updated times are explicitly candidate proxies rather than verified gameplay boundaries. Activity timestamps say when changes were recorded. Positive XP gains can support a sourced, marked participation inference; they do not prove attendance. XP loss, ally participation, session gaps, overlaps, incomplete data and absent evidence remain unknown or flagged.
 
-This feature does not alter the Sheet, Apps Script, current roster, authored lore, or model-writing rules. The writer does not yet consume the archive timeline. Hosted app release 0.9.0 is live; release 0.9.1 is pending.
+This feature does not alter the Sheet, Apps Script, current roster, authored lore, or model-writing rules. The writer does not yet consume the archive timeline. Hosted app release 0.9.1 is live.
 
 ## Implemented milestones
 
@@ -58,7 +58,7 @@ Use `data/lore/C-NINE Story - canonical export.txt` and its existing biography m
 
 ## Highest-priority follow-up work
 
-1. Deploy 0.9.1 and verify its pending writer output and campaign history display against the live workbook.
+1. Review generated prose against the approved style references as outputs fill through scheduled refreshes; the model writer does not yet consume Munda Manager archive chronology.
 2. Complete a real phone/mobile visual and interaction check; responsive CSS alone is not evidence of that check.
 3. Add a safe SQLite export/backup workflow. The database now survives service restarts and deploys on a persistent disk, but the app does not yet offer an application-consistent backup download or offsite retention.
 4. Expand structured campaign inputs where needed: individual battle attendance, XP reasons, named rescue/medical actions, and explicit relationship evidence. Current XP-based attendance remains inferred; the writer does not yet consume raw archive chronology.

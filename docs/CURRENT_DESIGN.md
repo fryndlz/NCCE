@@ -2,11 +2,11 @@
 
 **Source release:** 0.9.1, campaign archive timeline and writer integration repair
 
-**Hosted release:** 0.9.0 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`. The 0.9.1 writer fix is awaiting deployment.
+**Hosted release:** 0.9.1 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
 **Schema:** SQLite version 8
 
-**Documentation checkpoint:** 2026-10-26 00:44 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 00:51 CET (Europe/Warsaw, UTC+01:00)
 
 **Release verification:** hosted `/healthz` returned HTTP 200 and version `0.6.1` after redeploy. The app reused its database on `/var/data` without a fresh-seed log. The 31 deterministic checks and local authenticated HTTP/live-sync smoke passed before this infrastructure-only change. See `CHANGELOG.md` for deployment evidence.
 
@@ -316,7 +316,7 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 The source implementation is 0.9.1. The full baseline suites passed on 0.9.0; targeted writer checks and the new budget-state check passed on 0.9.1. `tests/smoke_server.py` could not reach its local socket in the current sandbox. A local app process initialized and bound successfully, but loopback client access was denied by Windows permissions in this execution environment. This is not a result about the user's machine or hosted Render service.
 
-Hosted release `0.9.0` (`2c1fd77` pending deployment) is live at https://ncce-private-preview.onrender.com/. The writer is configured on the hosted service; prior requests failed because the structured-output schema included an unsupported constraint. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
+Hosted release `0.9.1` (`e110408`) is live at https://ncce-private-preview.onrender.com/. The writer is configured and the repaired structured-output request completed a full 80-call batch; later pending writing continues on refresh. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
 
 ## 15. Campaign history archive and timeline
 
