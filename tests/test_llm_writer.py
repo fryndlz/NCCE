@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import sys
 import tempfile
+from urllib.error import HTTPError
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'src'))
@@ -71,6 +72,25 @@ def test_openai_request_uses_server_key_and_structured_prose_schema():
         assert 'error_or_missing' in str(captured['body']['text']['format']['schema'])
         assert 'identity' in captured['body']['input'] and 'mechanical_evidence' in captured['body']['input']
     finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
+
+
+def test_provider_http_error_surfaces_safe_actionable_reason():
+    old_key,old_urlopen=llm_writer.API_KEY,llm_writer.urlopen
+    llm_writer.API_KEY='mock-secret'
+    body=json.dumps({'error':{'type':'invalid_request_error','param':'text.format.schema','message':'Rejected mock-secret schema'}}).encode()
+    llm_writer.urlopen=lambda *args,**kwargs: (_ for _ in ()).throw(HTTPError('https://api.openai.com/v1/responses',400,'Bad Request',{},__import__('io').BytesIO(body)))
+    try:
+        try:
+            llm_writer._call('fighter_memory',{'event_title':'Recovery'})
+        except RuntimeError as exc:
+            message=str(exc)
+        else:
+            raise AssertionError('expected provider rejection')
+        assert message.startswith('Writing provider returned HTTP 400:')
+        assert 'invalid_request_error' in message and 'text.format.schema' in message
+        assert 'Rejected [redacted] schema' in message and 'mock-secret' not in message
+    finally:
+        llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
 
 
 def test_story_engine_uses_model_output_across_memories_artifacts_and_streams():

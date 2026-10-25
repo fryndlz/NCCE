@@ -71,7 +71,22 @@ def _call(form,packet):
  req=Request(API_URL,data=json.dumps(body,ensure_ascii=False).encode(),headers={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'},method='POST')
  try:
   with urlopen(req,timeout=TIMEOUT) as response: result=json.loads(response.read().decode())
- except HTTPError as exc: raise RuntimeError(f'Writing provider returned HTTP {exc.code}') from None
+ except HTTPError as exc:
+  # OpenAI's response body contains actionable validation details (for
+  # example, an unsupported schema constraint). Preserve only the provider's
+  # structured error fields; never include request headers or credentials.
+  try:
+   payload=json.loads(exc.read().decode('utf-8'))
+   error=payload.get('error',{}) if isinstance(payload,dict) else {}
+   if not isinstance(error,dict): error={}
+   parts=[str(error.get(key,'' )).strip() for key in ('code','type','param','message')]
+   detail='; '.join(part for part in parts if part)
+  except (OSError,UnicodeDecodeError,json.JSONDecodeError):
+   detail=''
+  detail=detail.replace(API_KEY,'[redacted]') if API_KEY else detail
+  detail=' '.join(detail.split())[:240]
+  suffix=f': {detail}' if detail else ''
+  raise RuntimeError(f'Writing provider returned HTTP {exc.code}{suffix}') from None
  except (URLError,TimeoutError,OSError): raise RuntimeError('Writing provider could not be reached') from None
  output=next((c.get('text','') for item in result.get('output',[]) for c in item.get('content',[]) if c.get('type')=='output_text'),'')
  if not output: raise RuntimeError('Writing provider returned no prose')
