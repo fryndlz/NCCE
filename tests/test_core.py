@@ -16,6 +16,25 @@ def test_store():
         finally:
             s.close()
 
+def test_read_only_snapshot_remains_available_during_writer_transaction():
+    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'data') as d:
+        s=Store(Path(d)/'reader.db')
+        try:
+            s.db.execute("INSERT INTO gangs(gang_id,name) VALUES('old','Committed gang')"); s.db.commit()
+            with s._lock,s.db:
+                s.db.execute("INSERT INTO gangs(gang_id,name) VALUES('new','Uncommitted gang')")
+                with s.reader() as reader:
+                    names=[row[0] for row in reader.db.execute('SELECT name FROM gangs ORDER BY gang_id')]
+                    assert names==['Committed gang']
+                    try:
+                        reader.db.execute("INSERT INTO gangs(gang_id,name) VALUES('bad','Forbidden')")
+                        raise AssertionError('Reader connection must remain query-only')
+                    except sqlite3.OperationalError:
+                        pass
+            with s.reader() as reader:
+                assert reader.db.execute("SELECT name FROM gangs WHERE gang_id='new'").fetchone()[0]=='Uncommitted gang'
+        finally: s.close()
+
 def test_invite_sessions():
     key=effective_session_key('invited-friends-passphrase','a'*48)
     token=make_session_token(key,now=1000)
@@ -83,7 +102,7 @@ def test_durable_ledger_and_snapshot_deduplication():
                 raise AssertionError('Snapshot update should be rejected')
             except sqlite3.IntegrityError:
                 pass
-            assert s.db.execute('PRAGMA user_version').fetchone()[0]==4
+            assert s.db.execute('PRAGMA user_version').fetchone()[0]==6
         finally:
             s.close()
 
@@ -103,7 +122,7 @@ def test_legacy_database_provenance_migration():
         db.commit(); db.close()
         s=Store(path)
         try:
-            assert s.schema_version==4
+            assert s.schema_version==6
             assert s.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==2
             assert s.db.execute("SELECT provenance_class FROM memories").fetchone()[0]=='mechanical_fact'
             assert s.db.execute("SELECT count(*) FROM event_subjects").fetchone()[0]>=5

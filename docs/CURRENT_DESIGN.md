@@ -1,16 +1,24 @@
-# NCCE 0.6.1 — current technical design
+# NCCE 0.8.0 — current technical design
 
-**Source release:** 0.6.1, Roster visibility and voice correction
+**Source release:** 0.8.0, model-backed Writing Director (not yet deployed)
 
 **Hosted release:** 0.6.1 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
-**Schema:** SQLite version 4
+**Schema:** SQLite version 6
 
-**Documentation checkpoint:** 2026-10-25 21:13:27 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-25 22:30 CET (Europe/Warsaw, UTC+01:00)
 
 **Release verification:** hosted `/healthz` returned HTTP 200 and version `0.6.1` after redeploy. The app reused its database on `/var/data` without a fresh-seed log. The 31 deterministic checks and local authenticated HTTP/live-sync smoke passed before this infrastructure-only change. See `CHANGELOG.md` for deployment evidence.
 
 This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
+
+## 0. Writing Director additions
+
+The current writing contract and implementation are described in [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md). The imported specifications are preserved in `docs/writing_sources/`; the identity taxonomy is in [WRITER_IDENTITY_TAGS.md](WRITER_IDENTITY_TAGS.md).
+
+Version 0.8 adds `llm_writer.py` (OpenAI Responses API drafts, structured outputs, caching and request bounds) to the 0.7 director. `writing_director.py` handles document forms, authored perspective packets, dates and guardrails; `world_streams.py` handles versioned gang/place entries and bounded ambient fiction; `writing.js` handles browser calendar rules; `writing.css` styles the semantic archive. Schema 6 adds a persistent model-result cache and writer status to the schema-5 identity revisions, narrative streams and raw territory-state retention. Original place/gang descriptions are kept separately from progressing stories. Territory diffs cover ownership, transformations, other fields and listing changes. The fighter numerical rules below remain in force.
+
+Current local validation: 37 Python checks, the Node date/semantic-renderer contract check, and a disposable authenticated HTTP/live-sync check pass. Hosted 0.6.1 verification below is historical deployment evidence, not a claim that this source release has been deployed.
 
 ## 1. Product and authority
 
@@ -289,7 +297,7 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 13. Known limits and next design work
 
-- The app uses local deterministic prose and topic-based relevance. It does not have a language model, embeddings, learned personality, or unrestricted prose generation.
+- Prose is drafted through the OpenAI Responses API from structured source packets, identity context and continuity. The API key is server-only. A missing key or provider error is shown as pending/error; no phrase catalogue fallback is presented as finished writing. Event classification, evidence, memory selection, dates and game facts remain local deterministic logic. Topic-based relevance remains explicit, not embedding-based.
 - The input lacks complete per-fighter battle attendance and event-by-event battle actions. XP does not identify its reason; snapshot time does not identify when an undated injury occurred.
 - Baseline cannot reconstruct exact earlier fighter chronology. The first-live bridge preserves this distinction while retaining changes to previously known seed fields.
 - Reflection is per batch. It does not yet accumulate salience across several low-event batches or use a continuously changing relationship model.

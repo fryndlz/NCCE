@@ -1,10 +1,8 @@
-"""Grounded, deterministic prose for the event-driven chronicle.
+"""Narrative fact extraction and identity profiles for the event-driven chronicle.
 
-The functions in this module write the *inference* layer. They never change a
-mechanical value and never infer a named battlefield action from an XP delta.
-There is no external model dependency: a stable voice profile chooses among
-event-specific formulations. Evidence, importance, retrieval, and persistence
-belong to the story engine, not to these prose functions.
+The production writer is llm_writer.py. This module retains event evidence,
+voice-profile and legacy phrase helpers used by offline compatibility checks;
+its phrase helpers are not used as finished production prose.
 """
 from __future__ import annotations
 
@@ -13,6 +11,7 @@ from datetime import datetime
 import hashlib
 import json
 import re
+import writing_director as director
 
 
 GENERATOR_VERSION = "ncce-prose-0.6.1"
@@ -185,8 +184,11 @@ def voice_profile(fighter, gang):
     if _number(fighter.get("kills")) >= 5:
         traits.append("blooded")
         evidence.append("At least five recorded kills")
-    key = register + ":" + profession + ":" + ":".join(traits)
-    return {"id": hashlib.sha256(key.encode()).hexdigest()[:12], "name": f"{register} / {profession}", "register": register, "profession": profession, "traits": list(dict.fromkeys(traits)), "evidence": evidence}
+    packet = director.identity_context(fighter, gang, {'register':register})
+    key = register + ':' + profession + ':' + ':'.join(traits) + json.dumps(packet, sort_keys=True)
+    return {"id": hashlib.sha256(key.encode()).hexdigest()[:12], "name": f"{register} / {profession}",
+            "register": register, "profession": profession, "traits": list(dict.fromkeys(traits)),
+            "tags":packet['tags'], "identity":packet['identity'], 'writer_context':packet, "evidence": evidence}
 
 
 def _voice(fighter, gang, topic, variants, specialized=None):
@@ -450,7 +452,12 @@ _CULTURES = {
     "van saar": "Knowledge and equipment are forms of leverage here. The enclave's confidence rests on making the district's useful systems answer to its own hands.",
     "enforcer": "The precinct carries a claim to lawful command into a district where the warrant still needs someone willing to enforce it.",
     "squat": "The charter treats ground as claim and inheritance. Resources can be exhausted; a debt or remembered slight can prove harder to finish.",
-    "cult": "Work and kinship share an old vocabulary. Outsiders see a labour detail; the people inside it inherit obligations that the public roll cannot fully describe.",
+    "goliath": "The House's mark ties a gang's standing to the furnaces and the people who keep them fed. Its fighters must make an inherited claim answer on the ground they hold.",
+    "escher": "The House's name travels with the work of its chymists as well as its blades. This gang carries that standing into arrangements made one holding at a time.",
+    "delaque": "The public account leaves gaps where a clear hierarchy might be expected. The gang's influence has to be read through the arrangements that others will acknowledge.",
+    "cawdor": "Claims made in the House's name carry professions of faith as well as demands for obedience. How each fighter lives with those demands belongs to their own account.",
+    "nomad": "The tribe's routes follow a country the hive maps describe poorly. A holding is judged through passage, shelter and the people who know how to return.",
+    "cult": "The surviving records describe ties of loyalty and shared observance. They do not settle how far each member understands the others' purposes.",
 }
 
 

@@ -24,7 +24,9 @@ if not DB.exists():
  seed_database(str(DB))
 store=Store(DB)
 from story_engine import regenerate
-regenerate(store)
+import llm_writer
+# Keep service startup/health responsive. Configured writing begins on the first scheduled/manual refresh.
+regenerate(store,writer_enabled=not bool(llm_writer.API_KEY))
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
@@ -76,7 +78,7 @@ class H(BaseHTTPRequestHandler):
   page=(WEB/'login.html').read_bytes(); self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(page))); self.end_headers(); self.wfile.write(page)
  def do_GET(self):
   parsed=urlparse(self.path); p=parsed.path
-  if p=='/healthz':return self.js({'ok':True,'version':'0.6.1'})
+  if p=='/healthz':return self.js({'ok':True,'version':'0.8.0'})
   if p=='/api/session':return self.js({'auth_required':AUTH_REQUIRED,'authenticated':self._authenticated()})
   if p in ('/login','/login.html'):return self._serve_login()
   if AUTH_REQUIRED and not self._authenticated():
@@ -84,33 +86,34 @@ class H(BaseHTTPRequestHandler):
    if p.startswith('/api/'):return self.js({'error':'authentication required'},401)
    return self.send_error(404)
   if p=='/api/dashboard':
-   with store._lock: return self.js(store.dashboard())
+   with store.reader() as reader:return self.js(reader.dashboard())
   if p=='/api/health':
-   with store._lock:
-    return self.js({'ok':True,'database':str(DB),'baseline':store.get_state('baseline'),'last_sync':store.get_state('last_sync'),'source_mode':store.get_state('source_mode'),'version':store.get_state('engine_version'),'schema_version':store.schema_version,'sync_status':store.get_state('sync_status','starting'),'sync_last_attempt':store.get_state('sync_last_attempt'),'sync_last_success':store.get_state('sync_last_success'),'sync_last_error':store.get_state('sync_last_error'),'sync_interval_seconds':SYNC_INTERVAL_SECONDS,'sync_source':'Krakamunda Fetch-a-Munda LIVE','sync_last_snapshot_id':store.get_state('sync_last_snapshot_id'),'story_revision':store.get_state('story_revision'),'story_generated_at':store.get_state('story_generated_at')})
+   with store.reader() as reader:
+    import llm_writer
+    return self.js({'ok':True,'database':str(DB),'baseline':reader.get_state('baseline'),'last_sync':reader.get_state('last_sync'),'source_mode':reader.get_state('source_mode'),'version':reader.get_state('engine_version'),'schema_version':reader.schema_version,'sync_status':reader.get_state('sync_status','starting'),'sync_last_attempt':reader.get_state('sync_last_attempt'),'sync_last_success':reader.get_state('sync_last_success'),'sync_last_error':reader.get_state('sync_last_error'),'sync_interval_seconds':SYNC_INTERVAL_SECONDS,'sync_source':'Krakamunda Fetch-a-Munda LIVE','sync_last_snapshot_id':reader.get_state('sync_last_snapshot_id'),'story_revision':reader.get_state('story_revision'),'story_generated_at':reader.get_state('story_generated_at'),'writer':llm_writer.availability()})
   if p=='/api/events':
    query=parse_qs(parsed.query); entity_id=query.get('entity_id',[None])[0]
    try:limit=int(query.get('limit',['100'])[0])
    except (TypeError,ValueError):return self.js({'error':'limit must be an integer'},400)
-   with store._lock: return self.js({'events':store.events(limit=limit,entity_id=entity_id)})
+   with store.reader() as reader:return self.js({'events':reader.events(limit=limit,entity_id=entity_id)})
   if p.startswith('/api/gangs/'):
-   with store._lock: x=store.gang(unquote(p.split('/api/gangs/',1)[1]))
+   with store.reader() as reader:x=reader.gang(unquote(p.split('/api/gangs/',1)[1]))
    return self.js(x if x else {'error':'not found'},200 if x else 404)
   if p.startswith('/api/fighters/'):
    try:
-    with store._lock: x=store.fighter(int(p.rsplit('/',1)[1]))
+    with store.reader() as reader:x=reader.fighter(int(p.rsplit('/',1)[1]))
    except (TypeError,ValueError):x=None
    return self.js(x if x else {'error':'not found'},200 if x else 404)
   if p.startswith('/api/territories/'):
    try:
-    with store._lock: x=store.territory(int(p.rsplit('/',1)[1]))
+    with store.reader() as reader:x=reader.territory(int(p.rsplit('/',1)[1]))
    except (TypeError,ValueError):x=None
    return self.js(x if x else {'error':'not found'},200 if x else 404)
   if p=='/api/lore':
-   with store._lock: return self.js(store.lore())
+   with store.reader() as reader:return self.js(reader.lore())
   if p.startswith('/api/lore/'):
    try:
-    with store._lock: x=store.lore_source(int(p.rsplit('/',1)[1]))
+    with store.reader() as reader:x=reader.lore_source(int(p.rsplit('/',1)[1]))
    except (TypeError,ValueError):x=None
    return self.js(x if x else {'error':'not found'},200 if x else 404)
   rel='index.html' if p=='/' else p.lstrip('/'); f=(WEB/rel).resolve()
@@ -141,6 +144,17 @@ class H(BaseHTTPRequestHandler):
    payload=b'{"ok":true}'; self.send_response(200); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Set-Cookie',cookie); self.send_header('Content-Length',str(len(payload))); self.end_headers(); self.wfile.write(payload)
    return
   if AUTH_REQUIRED and not self._authenticated():return self.js({'error':'authentication required'},401)
+  if p.startswith('/api/fighters/') and p.endswith('/identity'):
+   origin=self.headers.get('Origin')
+   if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)
+   try:
+    length=int(self.headers.get('Content-Length','0'))
+    if length<0 or length>16384:return self.js({'error':'Identity context is too long'},413)
+    body=json.loads(self.rfile.read(length).decode('utf-8'))
+    if not isinstance(body,dict):raise ValueError('Expected an identity object')
+    with store._lock: result=store.set_writer_identity(int(p.split('/')[3]),body.get('identity'))
+    return self.js(result)
+   except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
   if p!='/api/sync': return self.send_error(404)
   queued=_schedule_sync()
   return self.js({'queued':queued,'sync_status':'syncing' if queued else 'already_running'},202)

@@ -19,10 +19,11 @@ const authored = source => /author|canon|C-NINE story/i.test(String(source || ''
 const fighterStatus = fighter => fighter.status || 'Unknown';
 
 function date(value, includeTime = false) {
-  if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return String(value);
-  return includeTime ? parsed.toLocaleString() : parsed.toLocaleDateString();
+  return value ? NCCEWriting.formatDate(value, includeTime).realDisplay : '';
+}
+function dateStamp(record) {
+  const display = NCCEWriting.recordDate(record);
+  return `<span class="chronicle-date"><strong>${esc(display.imperialDisplay)}</strong><small>${esc(display.realDisplay)}</small></span>`;
 }
 function when(record) {
   if (record.occurred_at || record.event_date) return date(record.occurred_at || record.event_date);
@@ -31,21 +32,49 @@ function when(record) {
 }
 function inline(value) {
   // Escape source text before accepting these two deliberately limited marks.
-  return esc(value).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  const readable = String(value ?? '').replace(/\b\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?\b/g, raw => NCCEWriting.formatDate(raw).realDisplay);
+  return esc(readable).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
 }
 function prose(value) {
   return String(value || '').trim().split(/\n\s*\n/).filter(Boolean).map(paragraph => `<p>${inline(paragraph).replaceAll('\n', '<br>')}</p>`).join('');
 }
 function blocks(document, fallback = '') {
   const content = list(document?.blocks);
-  if (!content.length) return prose(fallback);
-  return content.map(block => {
+  if (!content.length) {
+    if (document?.writer_status && document.writer_status !== 'ready') return `<p class="writer-pending" role="status">${esc(document.writer_message || (document.writer_status === 'unconfigured' ? 'Narrative pending · configure the server-side writing provider.' : `Narrative ${document.writer_status} · retry on the next refresh.`))}</p>`;
+    return prose(fallback);
+  }
+  const rich = content => list(content).map(run => {
+    let text = inline(typeof run === 'string' ? run : run.text);
+    for (const mark of list(run?.marks)) {
+      const type = typeof mark === 'string' ? mark : mark.type;
+      if (['admin_label','important_entity','secondary_text','critical_status','doctrine','redacted','speaker','machine_error'].includes(type)) text = `<span class="mark-${type}">${type === 'redacted' ? '████' : text}</span>`;
+      if (type === 'source_anchor' && mark.target) text = `<a class="annotation-anchor" href="#note-${esc(mark.target)}">${text}</a>`;
+    }
+    return text;
+  }).join('');
+  const node = (block, inSolid = false) => {
+    const text = block.content ? rich(block.content) : inline(block.text);
+    const children = () => list(block.blocks).map(child => node(child, inSolid || ['disposition_panel','addendum_panel','internal_note'].includes(block.type))).join('');
+    const anchor = block.id ? ` id="block-${esc(block.id)}"` : '';
     if (block.type === 'heading') return `<h4>${inline(block.text)}</h4>`;
     if (block.type === 'quote') return `<blockquote>${prose(block.text)}</blockquote>`;
     if (block.type === 'list') return `<ul>${list(block.items).map(item => `<li>${inline(typeof item === 'object' ? item.text : item)}</li>`).join('')}</ul>`;
     if (block.type === 'record') return `<div class="record-fragment">${prose(block.text)}</div>`;
-    return prose(block.text);
-  }).join('');
+    if (block.type === 'metadata_group') return `<dl class="metadata-group">${list(block.fields).map(field => `<div><dt>${inline(field.label)}</dt><dd>${inline(field.value)}</dd></div>`).join('')}</dl>`;
+    if (['section_label','engagement_header','chronicle_section'].includes(block.type)) return `<h4 class="section-label"${anchor}>${text}</h4>${children()}`;
+    if (['disposition_panel','addendum_panel','internal_note'].includes(block.type)) return `<aside class="${inSolid ? 'nested-record' : 'processing-panel'}"${anchor}>${text ? `<div class="section-label">${text}</div>` : ''}${children()}</aside>`;
+    if (block.type === 'testimony_note') return `<aside class="testimony-note" id="note-${esc(block.id || '')}">${block.author ? `<div class="mark-speaker">${inline(block.author)}</div>` : ''}${prose(block.text)}${children()}${block.anchor ? `<a href="#block-${esc(block.anchor)}">Return to source passage</a>` : ''}</aside>`;
+    if (block.type === 'evidence_excerpt') return `<blockquote class="evidence-excerpt"${anchor}>${block.source ? `<cite>${inline(block.source)}</cite>` : ''}${prose(block.text)}${children()}</blockquote>`;
+    if (block.type === 'transcript') return `<div class="transcript"${anchor}>${list(block.turns).map(turn => `<p><strong class="mark-speaker">${inline(turn.speaker)}:</strong> ${inline(turn.text)}</p>`).join('')}</div>`;
+    if (block.type === 'attachment') return `<section class="attachment"${anchor}><div class="attachment-marker">// ATTACHMENT ${inline(block.index || '')} //</div>${text ? `<h4>${text}</h4>` : ''}${children()}</section>`;
+    if (['record_termination','scene_divider','system_output'].includes(block.type)) return `<div class="${esc(block.type)}"${anchor}>${text}</div>`;
+    if (['incident_record','personnel_dossier'].includes(block.type)) return `<section class="${esc(block.type)}"${anchor}>${text ? `<h4>${text}</h4>` : ''}${children()}</section>`;
+    return text ? `<p${anchor}>${text}</p>` : children();
+  };
+  const header = document.document_type ? `<header class="record-header"><div class="eyebrow">${esc(human(document.document_type))}</div>${document.date_display && !document.suppress_date ? dateStamp(document) : ''}<dl class="metadata-group">${list(document.metadata).map(field => `<div><dt>${inline(field.label)}</dt><dd>${inline(field.value)}</dd></div>`).join('')}</dl></header>` : '';
+  const status = document?.writer_status && document.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(document.writer_message || (document.writer_status === 'unconfigured' ? 'Narrative pending · configure the server-side writing provider.' : `Narrative ${document.writer_status} · retry on the next refresh.`))}</p>` : '';
+  return `${header}${status}<div class="record-body">${content.map(block => node(block)).join('')}</div>${document.termination ? node(document.termination) : ''}`;
 }
 function displayValue(value) {
   if (value === null || value === undefined || value === '') return 'None recorded';
@@ -64,7 +93,7 @@ function evidence(items, metadata = {}, compact = false, previewLimit = 0) {
   const entries = list(items).map(evidenceText).filter(Boolean);
   const refs = list(metadata.source_event_ids || metadata.event_ids).filter(Boolean);
   const observations = list(metadata.source_observation_ids).filter(Boolean);
-  const sourceLabel = metadata.source_label || metadata.source || metadata.source_id || list(metadata.source_ids).join(' · ');
+  const sourceLabel = metadata.source_label || metadata.source || [...new Set([metadata.source_id,...list(metadata.source_ids)].filter(Boolean))].join(' · ');
   const locator = metadata.source_locator;
   const fold = previewLimit > 0 && entries.length > 8;
   const visible = fold ? entries.slice(0, previewLimit) : entries;
@@ -86,14 +115,14 @@ function eventSummary(event) {
 }
 function campaignEvent(event) {
   const subjects = list(event.subjects).map(subject => subject.display_name).filter(Boolean);
-  return `<article class="ledger-entry"><div class="entry-top"><span class="eyebrow">${esc(event.title || human(event.event_type))}</span><time>${esc(when(event))}</time></div>${subjects.length ? `<div class="muted compact">${esc([...new Set(subjects)].map(short).join(' · '))}</div>` : ''}${evidence(eventSummary(event), {...event, source_event_ids: event.event_id ? [event.event_id] : []}, true)}</article>`;
+  return `<article class="ledger-entry"><div class="entry-top"><span class="eyebrow">${esc(event.title || human(event.event_type))}</span><time>${dateStamp(event)}</time></div>${subjects.length ? `<div class="muted compact">${esc([...new Set(subjects)].map(short).join(' · '))}</div>` : ''}${evidence(eventSummary(event), {...event, source_event_ids: event.event_id ? [event.event_id] : []}, true)}</article>`;
 }
 const storySource = source => authored(source) ? 'Authored campaign record' : 'Generated inference';
 function narrative(value, source, items = [], meta = {}) {
   const document = meta.biography_document || meta.history_document;
   const isAuthored = authored(source || document?.provenance_class || meta.provenance_class);
   const basis = document?.evidence?.length ? document.evidence : items;
-  return `<div class="narrative"><div class="eyebrow">${isAuthored ? 'Authored campaign record' : 'Generated inference'}</div>${blocks(document, value)}</div>${isAuthored ? `<div class="authored-source">${esc(source || 'Authored campaign canon')}</div>` : evidence(basis, {...meta, ...document})}`;
+  return `<div class="narrative"><div class="eyebrow">${isAuthored ? 'Authored campaign record' : 'Generated inference'}</div>${isAuthored ? prose(value) : blocks(document, value)}</div>${isAuthored ? `<div class="authored-source">${esc(source || 'Authored campaign canon')}</div>` : evidence(basis, {...meta, ...document})}`;
 }
 const empty = message => `<div class="empty-state"><p>${esc(message)}</p></div>`;
 async function api(url, options) {
@@ -154,7 +183,7 @@ function battle(b, expanded = false) {
   const document = b.report_document || b.document;
   const outcome = b.winner ? short(b.winner) + ' won' : 'Outcome not recorded';
   const notes = document?.recorded_notes;
-  return `<article class="battle-report"><div class="entry-top"><span class="eyebrow">${esc(b.scenario || 'Engagement')}</span><time>${esc(date(b.date) || 'Date unknown')}</time></div><h3>${esc(document?.title || (b.territory ? 'The struggle for ' + b.territory : short(b.attacker) + ' / ' + short(b.defender)))}</h3><div class="battle-parties">${esc(short(b.attacker))}<span>against</span>${esc(short(b.defender))}</div><div class="battle-outcome">${esc(outcome)}${b.territory ? `<span class="tag">${esc(b.territory)}</span>` : ''}</div><details class="report-fold" data-key="battle-${esc(b.id || b.source_row)}"${expanded ? ' open' : ''}><summary>Battle account</summary>${b.chronicle_stale ? '<p class="warning">This account is awaiting regeneration after a corrected source record.</p>' : ''}<div class="report-body"><div class="eyebrow">Generated inference · battle chronicle</div>${blocks(document, b.chronicle || '')}</div>${notes?.text ? `<aside class="recorded-note"><div class="eyebrow">${esc(notes.label || 'Recorded battle notes')} · authored source</div>${prose(notes.text)}${notes.source_id ? `<div class="authored-source">${esc(notes.source_id)}</div>` : ''}</aside>` : ''}${evidence(document?.evidence?.length ? document.evidence : battleEvidence(b), {...document, source_label: 'Authoritative campaign Sheet · Battles', source_locator: b.source_row ? 'Battles!row ' + b.source_row : null}, false, 6)}</details></article>`;
+  return `<article class="battle-report"><div class="entry-top"><span class="eyebrow">${esc(b.scenario || 'Engagement')}</span><time>${dateStamp({date:b.date})}</time></div><h3>${esc(document?.title || (b.territory ? 'The struggle for ' + b.territory : short(b.attacker) + ' / ' + short(b.defender)))}</h3><div class="battle-parties">${esc(short(b.attacker))}<span>against</span>${esc(short(b.defender))}</div><div class="battle-outcome">${esc(outcome)}${b.territory ? `<span class="tag">${esc(b.territory)}</span>` : ''}</div><details class="report-fold" data-key="battle-${esc(b.id || b.source_row)}"${expanded ? ' open' : ''}><summary>Battle account</summary>${b.chronicle_stale ? '<p class="warning">This account is awaiting regeneration after a corrected source record.</p>' : ''}<div class="report-body"><div class="eyebrow">Generated inference · battle chronicle</div>${blocks(document ? {...document, suppress_date:true} : document, b.chronicle || '')}</div>${notes?.text ? `<aside class="recorded-note"><div class="eyebrow">${esc(notes.label || 'Recorded battle notes')} · authored source</div>${prose(notes.text)}${notes.source_id ? `<div class="authored-source">${esc(notes.source_id)}</div>` : ''}</aside>` : ''}${evidence(document?.evidence?.length ? document.evidence : battleEvidence(b), {...document, source_label: 'Authoritative campaign Sheet · Battles', source_locator: b.source_row ? 'Battles!row ' + b.source_row : null}, false, 6)}</details></article>`;
 }
 function downtime(report) {
   const document = report.document || report.report_document;
@@ -212,7 +241,7 @@ function listResults(view) {
   if (!rows.length) { results.innerHTML = empty('No records match these filters. Try a different name, gang, or status.'); return; }
   if (view === 'fighters') results.innerHTML = `<div class="grid">${rows.map(fighterCard).join('')}</div>`;
   if (view === 'gangs') results.innerHTML = `<div class="grid">${rows.map(gangCard).join('')}</div>`;
-  if (view === 'places') results.innerHTML = `<div class="grid">${rows.map(t => `<article class="card place-card"><div class="eyebrow">Held by ${esc(short(t.gang_name))}</div><h3><button class="card-title" data-territory="${esc(t.id)}">${esc(t.territory)}</button></h3><div class="card-excerpt">${prose(t.backstory)}</div>${evidence([`Holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`], {}, true)}<div class="card-foot">Generated inference · territory record</div></article>`).join('')}</div>`;
+  if (view === 'places') results.innerHTML = `${placeAssociationNotes()}<div class="grid">${rows.map(t => `<article class="card place-card"><div class="eyebrow">Held by ${esc(short(t.gang_name))}</div><h3><button class="card-title" data-territory="${esc(t.id)}">${esc(t.territory)}</button></h3><div class="card-excerpt">${prose(t.backstory)}</div>${evidence([`Holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`], {}, true)}<div class="card-foot">Generated inference · territory record</div></article>`).join('')}</div>`;
   if (view === 'battles') results.innerHTML = rows.map((record, index) => battle(record, index === 0)).join('');
 }
 async function render(view, preserveScroll = false) {
@@ -237,7 +266,7 @@ async function render(view, preserveScroll = false) {
     listResults('battles');
   } else if (activeView === 'chronicle') app.innerHTML = chronicle();
   else if (activeView === 'archive') app.innerHTML = '<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored records remain available in their own voice.</p><article class="card"><div class="eyebrow">C-NINE · campaign log and personnel files</div><h3><button class="card-title" data-lore="1">C-NINE Story</button></h3><p>Open the canonical story export and personnel dossiers.</p></article>';
-  else if (activeView === 'system') app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2><section class="card system-state">${Object.entries(data.state).map(([key, value]) => `<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(value)}</span></div>`).join('')}</section>`;
+  else if (activeView === 'system') app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2><section class="card system-state"><div class="row"><span>Writing provider</span><span class="muted">${esc(data.writer?.status || 'unknown')}${data.writer?.model ? ' · '+esc(data.writer.model) : ''}</span></div>${data.writer?.configured ? `<div class="row"><span>Model calls this refresh</span><span class="muted">${esc(data.writer.calls_used)} / ${esc(data.writer.call_budget)}</span></div>` : ''}${Object.entries(data.state).map(([key, value]) => `<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(value)}</span></div>`).join('')}</section>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 function fighterEvidence(f) {
@@ -245,12 +274,14 @@ function fighterEvidence(f) {
 }
 function memoryCard(memory) {
   const type = memory.memory_type === 'reflection' ? 'Reflection' : 'Observation';
-  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${esc(when(memory))}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}<div class="memory-voice">${prose(memory.content)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
+  const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">Narrative ${esc(memory.writer_status)} · ${memory.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'retry on the next refresh.'}</p>` : '';
+  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${dateStamp(memory)}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}${status}<div class="memory-voice">${prose(memory.content)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
 }
 function mindCard(thought) {
   const memoryId = thought.memory_id || thought.id;
   const label = thought.label || thought.title || thought.name || list(thought.tags)[0] || 'Current concern';
-  return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div><div class="thought">${prose(thought.content || thought.thought)}</div>${evidence(thought.evidence || [], thought, true)}${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
+  const status = thought.writer_status && thought.writer_status !== 'ready' ? `<p class="writer-pending" role="status">Narrative ${esc(thought.writer_status)} · ${thought.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'retry on the next refresh.'}</p>` : '';
+  return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div>${status}<div class="thought">${prose(thought.content || thought.thought)}</div>${evidence(thought.evidence || [], thought, true)}${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
 }
 function voiceDetails(profile) {
   if (!profile || !Object.keys(profile).length) return '';
@@ -263,6 +294,20 @@ function mechanicsPanel(f) {
   const stats = ['M', 'WS', 'BS', 'S', 'T', 'W', 'I', 'A', 'Ld', 'Cl', 'Wil', 'Int'];
   return `<details class="mechanics-fold" data-key="fighter-mechanics"><summary>Current mechanical evidence</summary>${evidence(fighterEvidence(f), {source_label: 'Authoritative campaign Sheet'})}${stats.some(key => mechanics[key] != null) ? `<div class="stats-grid">${stats.filter(key => mechanics[key] != null).map(key => `<div><span>${esc(key)}</span><strong>${esc(mechanics[key])}</strong></div>`).join('')}</div>` : ''}${['Weapons', 'Wargear', 'Skills'].filter(key => mechanics[key]).map(key => `<div class="mechanical-field"><strong>${esc(key)}</strong><p>${esc(mechanics[key])}</p></div>`).join('')}${f.notes ? `<p class="source-note">${esc(f.notes)}</p>` : ''}</details>`;
 }
+function storyStream(entries, scope) {
+  const visible = new Set(list(entries).map(entry => entry.entry_id));
+  return `<section class="progressing-story"><h3 class="section-title">${scope === 'territory' ? 'Life and events here' : 'The gang’s unfolding story'}</h3><div class="scope-stream">${list(entries).map(entry => `<article class="scope-entry ${entry.provenance_class === 'connective_fiction' ? 'fiction-entry' : ''}" id="entry-${esc(entry.entry_id)}"><h4>${esc(entry.title)}</h4><div class="eyebrow">${entry.provenance_class === 'connective_fiction' ? 'Invented local report · connective fiction' : 'Generated reconstruction · sourced event'}</div>${blocks(entry.document)}${evidence(entry.document?.evidence || [], entry.document || entry)}${list(entry.continuity?.previous_entry_ids).length ? `<details class="source-details"><summary>Earlier local accounts</summary>${entry.continuity.previous_entry_ids.map(id => visible.has(id) ? `<a class="memory-link" href="#entry-${esc(id)}">Earlier record ${esc(id.slice(0,8))} ↑</a>` : `<span class="muted">Archived earlier version ${esc(id.slice(0,8))}</span>`).join('')}</details>` : ''}</article>`).join('') || empty('New campaign events will accumulate here after a source refresh.')}</div></section>`;
+}
+function placeAssociationNotes() {
+  const notes = list(data.place_association_notes);
+  return notes.length ? `<details class="evidence place-association-notes"><summary>${notes.length} battle location reference${notes.length === 1 ? '' : 's'} awaiting a unique place identity</summary>${notes.map(note => `<p><strong>${esc(note.territory)}</strong> · ${esc(date(note.date))}<br>${esc(note.text)}</p>`).join('')}</details>` : '';
+}
+function identityEditor(fighter) {
+  const identity = fighter.writer_identity || {};
+  const fields = [['being','Kind of being'],['lineage','Lineage'],['culture','Culture'],['institution','Institution'],['place','Upbringing / place'],['work','Occupation / craft'],['training','Training'],['condition','Relevant conditions'],['life_history','Personal history cues'],['voice','Individual voice cues'],['gender','Gender'],['pronouns','Pronouns'],['writer_tags','Additional tags']];
+  const mode = identity.narration_mode || '';
+  return `<details class="identity-editor"><summary>Writer identity</summary><p class="muted compact">Add known character context. Separate multiple values with semicolons. Leave unknown fields empty. These notes guide writing and preserve the campaign source.</p><form data-identity-form="${esc(fighter.id)}">${fields.map(([key,label]) => `<label>${esc(label)}<input name="${key}" value="${esc(Array.isArray(identity[key]) ? identity[key].join('; ') : identity[key] || '')}"></label>`).join('')}<label>Perspective<select name="narration_mode">${[['','From recorded identity'],['sapient','Language and personal thought'],['sensory','Sensation and learned association'],['task_log','Task and instruction log']].map(([value,label]) => `<option value="${value}"${value === mode ? ' selected' : ''}>${label}</option>`).join('')}</select></label><button type="submit">Save writing context</button><p role="status" class="identity-status"></p></form></details>`;
+}
 async function showFighter(id, preserveScroll = false) {
   const token = ++renderToken, f = await api('/api/fighters/' + encodeURIComponent(id));
   if (token !== renderToken) return;
@@ -270,7 +315,7 @@ async function showFighter(id, preserveScroll = false) {
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const mind = Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead').slice(0, 4);
   const deceased = /killed|dead/i.test(f.status || '');
-  app.innerHTML = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div><details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}${voiceDetails(f.voice_profile)}${mechanicsPanel(f)}</aside></div>`;
+  app.innerHTML = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div><details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}</aside></div>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showGang(id, preserveScroll = false) {
@@ -278,7 +323,7 @@ async function showGang(id, preserveScroll = false) {
   if (token !== renderToken) return;
   currentDetail = {type: 'gang', id};
   const holdings = list(g.territory_list);
-  app.innerHTML = `<button class="back" data-back="gangs">← Gangs</button><div class="eyebrow">${esc(g.gang_type)} · gang record</div><h2>${esc(short(g.name))}</h2><section class="region-intro">${narrative(g.backstory, g.backstory_source, g.evidence || [`Faction: ${g.gang_type}`, `${list(g.fighters).length} fighter records`, `Holdings: ${holdings.map(t => t.territory).join(', ') || 'None recorded'}`, `${list(g.battles).length} recorded battles`], g)}</section><h3 class="section-title">Current downtime</h3>${list(g.downtime).slice(0, 1).map(downtime).join('') || empty('No downtime account is available.')}<div class="sectionhead"><h3>Fighters</h3><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Find this gang’s fighters →</button></div><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available for this gang.')}</div><h3 class="section-title">Holdings</h3><div class="holdings">${holdings.map(t => `<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span>→</span></button>`).join('') || '<p class="muted">No current holdings are recorded.</p>'}</div><h3 class="section-title">Campaign record</h3>${list(g.battles).map(b => battle(b)).join('')}<details class="mechanics-fold" data-key="gang-mechanics"><summary>Current mechanical evidence</summary><div class="card system-state">${[['Reputation', g.reputation], ['Rating', g.rating], ['Credits', g.credits], ['Territories recorded', g.territories], ['Source updated', g.updated_at]].map(([label, value]) => `<div class="row"><span>${esc(label)}</span><span>${esc(value ?? 'Not recorded')}</span></div>`).join('')}</div></details>`;
+  app.innerHTML = `<button class="back" data-back="gangs">← Gangs</button><div class="eyebrow">${esc(g.gang_type)} · gang record</div><h2>${esc(short(g.name))}</h2><section class="region-intro">${narrative(g.backstory, g.backstory_source, g.evidence || [`Faction: ${g.gang_type}`, `${list(g.fighters).length} fighter records`, `Holdings: ${holdings.map(t => t.territory).join(', ') || 'None recorded'}`, `${list(g.battles).length} recorded battles`], g)}</section>${storyStream(g.narrative_stream, 'gang')}<h3 class="section-title">Between engagements</h3>${list(g.downtime).slice(0, 1).map(downtime).join('') || empty('No downtime account is available.')}<div class="sectionhead"><h3>Fighters</h3><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Find this gang’s fighters →</button></div><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available for this gang.')}</div><h3 class="section-title">Holdings</h3><div class="holdings">${holdings.map(t => `<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span>→</span></button>`).join('') || '<p class="muted">No current holdings are recorded.</p>'}</div><h3 class="section-title">Campaign record</h3>${list(g.battles).map(b => battle(b)).join('')}<details class="mechanics-fold" data-key="gang-mechanics"><summary>Current mechanical evidence</summary><div class="card system-state">${[['Reputation', g.reputation], ['Rating', g.rating], ['Credits', g.credits], ['Territories recorded', g.territories], ['Source updated', g.updated_at]].map(([label, value]) => `<div class="row"><span>${esc(label)}</span><span>${label === 'Source updated' ? esc(date(value,true) || 'Not recorded') : esc(value ?? 'Not recorded')}</span></div>`).join('')}</div></details>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showTerritory(id, preserveScroll = false) {
@@ -286,7 +331,7 @@ async function showTerritory(id, preserveScroll = false) {
   if (token !== renderToken) return;
   currentDetail = {type: 'territory', id};
   const related = data.battles.filter(b => b.territory === t.territory);
-  app.innerHTML = `<button class="back" data-back="places">← Places</button><div class="eyebrow">Territory · held by ${esc(short(t.gang_name))}</div><h2>${esc(t.territory)}</h2><section class="region-intro">${narrative(t.backstory, t.backstory_source || 'inference', t.evidence || [`Current holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`, `Default holding: ${t.is_default ? 'Yes' : 'No'}`, `${related.length} related battle records`], t)}</section><h3 class="section-title">Fighting over this ground</h3>${related.map(b => battle(b)).join('') || empty('No battle over this territory is recorded.')}`;
+  app.innerHTML = `<button class="back" data-back="places">← Places</button><div class="eyebrow">Territory · held by ${esc(short(t.gang_name))}</div><h2>${esc(t.territory)}</h2><section class="region-intro">${narrative(t.backstory, t.backstory_source || 'inference', t.evidence || [`Current holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`, `Default holding: ${t.is_default ? 'Yes' : 'No'}`, `${related.length} related battle records`], t)}</section>${storyStream(t.narrative_stream, 'territory')}<h3 class="section-title">Fighting over this ground</h3>${related.map(b => battle(b)).join('') || empty('No battle over this territory is recorded.')}`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showLore(id, preserveScroll = false) {
@@ -315,6 +360,23 @@ function updateFilter(event) {
 app.addEventListener('input', updateFilter);
 app.addEventListener('change', event => { if (event.target.matches('select[data-filter]')) updateFilter(event); });
 app.addEventListener('submit', event => { if (event.target.matches('[data-filter-form]')) event.preventDefault(); });
+app.addEventListener('submit', async event => {
+  const form = event.target;
+  if (!form.matches('[data-identity-form]')) return;
+  event.preventDefault();
+  const status = form.querySelector('.identity-status'), button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  const identity = {};
+  for (const [key,value] of new FormData(form)) {
+    const text = String(value).trim();
+    if (text) identity[key] = key === 'narration_mode' ? text : text.split(';').map(x => x.trim()).filter(Boolean);
+  }
+  try {
+    await api('/api/fighters/' + encodeURIComponent(form.dataset.identityForm) + '/identity', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({identity})});
+    fightersCache = null;
+    await showFighter(form.dataset.identityForm, true);
+  } catch (error) { status.textContent = error.message; button.disabled = false; }
+});
 app.addEventListener('click', event => {
   const target = event.target.closest('button');
   if (!target) return;

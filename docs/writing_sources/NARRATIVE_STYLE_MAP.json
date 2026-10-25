@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "source": {"document_id":"1vAajSzxjaKXjAQ571gcTeM5ocqSVccUS1pljDR_Ysk4","title":"C-NINE Story","tabs":[{"id":"t.0","title":"CAMPAIGN LOG","structural_elements_observed":690},{"id":"t.yjj9dg2qsr7y","title":"PERSONNEL FILES","structural_elements_observed":500}]},
+  "coverage": "Observed recurring paragraph and text-run style patterns from live Google Docs metadata. Not a complete per-run dump or a rendered object geometry inventory; absent properties may inherit from named styles.",
+  "palette": {"background":{"hex":"#212121","source":"observed earlier documentStyle; verify live"},"admin_bright":{"hex":"#00D16B","rgb":[0,0.81960785,0.41960785]},"identity_green":{"hex":"#22C55E","rgb":[0.13333334,0.77254903,0.36862746]},"amber_campaign":{"hex":"#F2AD1F","rgb":[0.9490196,0.6784314,0.12156863]},"amber_personnel":{"hex":"#EAB308","rgb":[0.91764706,0.7019608,0.03137255]},"white":{"hex":"#FFFFFF"},"grey":{"hex":"#999999"},"red":{"hex":"#EF4444"},"watermark":{"hex":"#212C21","rgb":[0.12941177,0.17254902,0.12941177]}},
+  "campaign_log": {"tab_id":"t.0","styles":[
+    {"id":"prospect_body","example":"Daven Holt had been Foreman","paragraph":{"namedStyleType":"NORMAL_TEXT","lineSpacing":100,"spaceAbovePt":0,"spaceBelowPt":8,"alignment":"START"},"text":{"fontFamily":"Courier New","foreground":"#FFFFFF"},"observed_count":55},
+    {"id":"campaign_report_body","example":"Geothermal Prospect Detail C-9 entered the disputed Toll Crossing","paragraph":{"namedStyleType":"NORMAL_TEXT","lineSpacing":100,"spaceAbovePt":0,"spaceBelowPt":6,"alignment":"JUSTIFIED"},"observed_count":170},
+    {"id":"campaign_report_dialogue_bold","example":"GARRICK: Same depth.","paragraph":{"lineSpacing":100,"spaceBelowPt":6,"alignment":"JUSTIFIED"},"text":{"bold":true},"observed_count":43},
+    {"id":"campaign_narrative_other","example":"The Sludge Sea concealed more depth","paragraph":{"lineSpacing":100,"spaceBelowPt":8,"alignment":"JUSTIFIED"},"observed_count":42},
+    {"id":"metadata_bright","example":"Reference: GPD-C9/SEC/01/774.M41","paragraph":{"lineSpacing":100,"spaceBelowPt":2},"text":{"fontFamily":"Courier New","fontSizePt":9,"firstRunForeground":"#00D16B"},"observed_count":14},
+    {"id":"metadata_identity_green","example":"ORIGIN: Helmaeth Expeditionary Force","paragraph":{"lineSpacing":100,"spaceBelowPt":2},"text":{"fontSizePt":9,"firstRunForeground":"#22C55E"},"observed_count":7},
+    {"id":"boxed_section_label","example":":: MATERIAL REVIEW ::","paragraph":{"lineSpacing":100,"spaceBelowPt":6,"borderLeftWidthPt":3},"text":{"firstRunForeground":"#22C55E"},"observed_count":15},
+    {"id":"boxed_secondary_text","example":"Post-engagement inventory identified evidence","paragraph":{"lineSpacing":100,"spaceBelowPt":6,"borderLeftWidthPt":3},"text":{"firstRunForeground":"#999999"},"observed_count":24},
+    {"id":"attachment_marker","example":"// ATTACHMENT I //","paragraph":{"lineSpacing":100,"spaceAbovePt":14,"spaceBelowPt":6,"alignment":"CENTER","keepWithNext":true},"text":{"fontFamily":"Courier New","firstRunForeground":"#00D16B"},"observed_count":8},
+    {"id":"record_ends","example":"// RECORD ENDS //","paragraph":{"lineSpacing":100,"spaceAbovePt":8,"spaceBelowPt":0,"alignment":"CENTER"},"text":{"fontFamily":"Courier New","firstRunForeground":"#00D16B"},"observed_count":9},
+    {"id":"diamond_divider","example":"+=+=+=+=+=[ ◈ ]=+=+=+=+=+","paragraph":{"lineSpacing":100,"spaceAbovePt":14,"spaceBelowPt":6,"alignment":"CENTER"},"text":{"fontFamily":"Courier New","firstRunForeground":"#00D16B"},"observed_count":9},
+    {"id":"skull_divider","example":"+=+=+=+=+=[ 💀 ]=+=+=+=+=+","paragraph":{"lineSpacing":100,"spaceAbovePt":18,"spaceBelowPt":24,"alignment":"CENTER","keepWithNext":true},"text":{"firstRunForeground":"#00D16B"},"observed_count":4},
+    {"id":"incident_record_heading","example":"[■] ADMINISTRATUM INCIDENT RECORD","paragraph":{"namedStyleType":"HEADING_3","lineSpacing":100,"keepWithNext":true},"observed_count":6},
+    {"id":"cycle_heading","example":"CYCLE 1","paragraph":{"namedStyleType":"HEADING_1","lineSpacing":100},"text":{"fontFamily":"Courier New","bold":true,"foreground":"#FFFFFF"},"observed_count":3},
+    {"id":"dossier_closed","example":":: ENGAGEMENT DOSSIER CLOSED ::","paragraph":{"lineSpacing":100,"spaceAbovePt":12,"spaceBelowPt":0},"text":{"fontSizePt":9,"firstRunForeground":"#00D16B"},"observed_count":5}
+  ]},
+  "personnel_files": {"tab_id":"t.yjj9dg2qsr7y","styles":[
+    {"id":"terminal_footer","example":"[SYS.██] RECORD BEGINS","paragraph":{"namedStyleType":"NORMAL_TEXT","alignment":"JUSTIFIED"},"text":{"fontSizePt":8,"firstRunForeground":"#22C55E"},"observed_count":156},
+    {"id":"personnel_prose","example":"Jarek Voss entered Guild service","paragraph":{"namedStyleType":"NORMAL_TEXT","alignment":"JUSTIFIED"},"observed_count":59},
+    {"id":"personnel_name","example":"GRIZ, Ethmet","paragraph":{"namedStyleType":"HEADING_2","alignment":"JUSTIFIED"},"text":{"firstRunForeground":"#EAB308","fontSizePt":17},"observed_count_for_explicit_17pt":2},
+    {"id":"personnel_metadata","example":"Designation: Penal Survey Labourer","paragraph":{"namedStyleType":"NORMAL_TEXT","alignment":"JUSTIFIED"},"text":{"fontSizePt":9,"firstRunForeground":"#22C55E"},"observed_count":14},
+    {"id":"personnel_metadata_bold","example":"Medical Category: UNCLASSIFIED","paragraph":{"alignment":"JUSTIFIED"},"text":{"fontSizePt":9,"bold":true,"firstRunForeground":"#22C55E"},"observed_count":15},
+    {"id":"personnel_archival_extract_green","example":"Medical Exemption","paragraph":{"lineSpacing":115,"spaceAbovePt":12,"spaceBelowPt":12,"alignment":"JUSTIFIED","borderLeftWidthPt":3},"text":{"firstRunForeground":"#22C55E"},"observed_count":23},
+    {"id":"personnel_archival_extract_grey","example":"Repeated complaints regarding unusually aggressive tunnel vermin","paragraph":{"lineSpacing":115,"spaceAbovePt":12,"spaceBelowPt":12,"alignment":"JUSTIFIED","borderLeftWidthPt":3},"text":{"firstRunForeground":"#999999"},"observed_count":17},
+    {"id":"personnel_watermark","example":"C9-MK/5369","paragraph":{"alignment":"CENTER"},"text":{"fontSizePt":60,"firstRunForeground":"#212C21"},"observed_count":10},
+    {"id":"personnel_section_heading","example":"AUXILIARY PERSONNEL","paragraph":{"namedStyleType":"HEADING_1","alignment":"JUSTIFIED"},"observed_count":3},
+    {"id":"personnel_embedded_log","example":"ATTACHED INCIDENT LOG","paragraph":{"alignment":"JUSTIFIED"},"text":{"fontSizePt":9,"firstRunForeground":"#00D16B"},"observed_count":7},
+    {"id":"personnel_critical_error","example":"[ERR:: DESIGNATION NOT RECOGNISED]","paragraph":{"alignment":"JUSTIFIED"},"text":{"bold":true,"firstRunForeground":"#EF4444"},"observed_count":1}
+  ]},
+  "unresolved_native_geometry": ["Positioned illustrations and drawings", "Green rectangular frame dimensions and background shading", "Exact page-by-page pagination", "Text runs with inherited font/size/color", "Complete per-paragraph and per-run inventory"],
+  "validation": {"requires_rendered_pdf_for_visual_claims":true,"preserve_existing_objects":true,"do_not_infer_null_as_default":true}
+}

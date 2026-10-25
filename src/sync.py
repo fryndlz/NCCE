@@ -157,5 +157,5 @@ def sync_live_sheet(store) -> dict:
         ingested = ingest_snapshot(store, snapshot)
         projection = store.project_snapshot(snapshot)
         from story_engine import regenerate
-        narrative = regenerate(store)
+        narrative = regenerate(store, ambient=True)
     return {**ingested, "projection": projection, "narrative": narrative, "source_metadata": snapshot.get("source_metadata", {})}

@@ -23,6 +23,10 @@ services:
         value: "1"
       - key: NCCE_SYNC_INTERVAL_SECONDS
         value: "900"
+      - key: NCCE_WRITER_MODEL
+        value: gpt-6.1-sol
+      - key: NCCE_OPENAI_API_KEY
+        sync: false
       - key: NCCE_ACCESS_PASSWORD
         generateValue: true
       - key: NCCE_SESSION_SECRET

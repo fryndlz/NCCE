@@ -2,6 +2,27 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.8.0 — Model-backed Writing Director (source only, not deployed)
+
+- Replaced visible deterministic phrase assembly with OpenAI Responses API drafting for fighter memories/reflections/biographies, gang and place origins/streams, battle reports, downtime, relationships, and campaign history.
+- Added form-specific briefs and structured fact/identity/knowledge/continuity packets. Mechanical evidence, dates, attribution, mind selection and source IDs remain controlled by app logic.
+- Added server-only `NCCE_OPENAI_API_KEY`, fixed OpenAI API destination, configurable `NCCE_WRITER_MODEL` (default `gpt-6.1-sol`), output/time/call bounds, circuit-breaker behavior, and persistent success cache in schema 6.
+- Missing credentials or provider failures are explicitly shown as pending/error; the old phrase catalog is not displayed as fallback prose. Provider errors retry at a later refresh.
+- Added offline mocked-provider contract checks. No live campaign data was sent during implementation; no production database was migrated and no hosted deployment was made.
+- The user explicitly authorized sending relevant factual campaign records, identity tags, authored context and continuity to OpenAI API for writing. Configure the secret in the existing Render service manually before deploying; `sync: false` does not prompt for secrets during updates to an existing Blueprint.
+
+## 0.7.0 — Writing Director (source only, not deployed)
+
+- Ingested the five supplied writing/style/date/territory specifications as preserved reference files and integrated them with the identity rules in `docs/WRITING_DIRECTOR.md`.
+- Added a shared director for document forms, attribution, character context, date conversion, semantic archive wrappers and limited generated game-term translation.
+- Added schema-5 persistent Places/Gangs streams, historical entry versions, continuity references and authored fighter-identity revisions. Added a dossier editor for identity context.
+- Extended territory diffs and projection to cover stable transformations, ownership, ruin and arbitrary recorded property changes; retain original descriptions independently of progressing events.
+- Added bounded owner-aware ambient fiction: a weekly 25% opportunity per territory, maximum two reports campaign-wide, minimum seven days between reports for a place, with no backfill or mechanical effects.
+- Added Imperial/real-world date stacks with Warsaw conversion, fixed `998.M41`, unknown-date semantics and a deterministic formula. The supplied 10:46 example computes to fraction 814; date-only noon computes to 815.
+- Added semantic block rendering, copy-safe redaction marks, archival palette, responsive layouts and date/renderer contracts. Authored biographies remain visible even if an older generated artifact exists.
+- Validation: existing 31 Python checks plus six director integration checks; Node date/render contracts; syntax/compile checks; authenticated HTTP smoke against a disposable database with read-only Sheet sync; desktop synthetic preview. No production database or Sheet writes.
+- Historical note: this release initially used local phrase assembly. Version 0.8.0 replaces visible generated prose with model drafting. Ambiguous territory names still require a stronger source identity before a battle can be assigned to one place. See the director document for limits and source interpretation.
+
 ## 0.6.1 — Roster visibility and voice correction
 
 **Implementation checkpoint:** 2026-10-25 19:19:33+01:00 (Europe/Warsaw; source, tests, and database comparison)

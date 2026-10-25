@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 import hashlib, json, re, sqlite3, threading, unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,15 @@ class Store:
    self.db.close(); raise
  def close(self):
   with self._lock: self.db.close()
+ @contextmanager
+ def reader(self):
+  """Open a read-only WAL snapshot that stays available during long writer calls."""
+  connection=sqlite3.connect(self.path,check_same_thread=False,timeout=10)
+  connection.row_factory=sqlite3.Row
+  connection.execute('PRAGMA query_only=ON')
+  view=object.__new__(Store); view.path=self.path; view.db=connection; view._lock=threading.RLock(); view.schema_version=self.schema_version
+  try: yield view
+  finally: connection.close()
  def set_state(self,k,v):
   with self._lock: self.db.execute('INSERT INTO system_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',(k,str(v))); self.db.commit()
  def get_state(self,k,d=None):
@@ -126,7 +136,7 @@ class Store:
     if not territory_name: continue
     gang_id=territory.get('Gang ID') or territory.get('gang_id')
     gang_name=territory.get('Gang') or territory.get('gang') or territory.get('Gang Name') or territory.get('gang_name')
-    source_territory_id=territory.get('source_territory_key') or territory.get('territory_id')
+    source_territory_id=territory.get('source_territory_key') or territory.get('Territory ID') or territory.get('territory_id') or territory.get('Record ID')
     card=territory.get('Card') or territory.get('card')
     default=territory.get('Default',territory.get('is_default',False))
     ruined=territory.get('Ruined',territory.get('ruined',False))
@@ -136,10 +146,18 @@ class Store:
       prior=self.db.execute('SELECT id FROM territories WHERE ifnull(gang_id,\'\')=ifnull(?,\'\') AND territory=? AND ifnull(card,\'\')=ifnull(?,\'\') AND is_default=? AND ruined=? ORDER BY id DESC LIMIT 1',(gang_id,territory_name,card,int(bool(default)),int(bool(ruined)))).fetchone()
     else:
       prior=self.db.execute('SELECT id FROM territories WHERE ifnull(gang_id,\'\')=ifnull(?,\'\') AND territory=? AND ifnull(card,\'\')=ifnull(?,\'\') AND is_default=? AND ruined=? ORDER BY id DESC LIMIT 1',(gang_id,territory_name,card,int(bool(default)),int(bool(ruined)))).fetchone()
+    if not prior and card:
+     matches=self.db.execute('SELECT id FROM territories WHERE card=?',(card,)).fetchall()
+     if len(matches)==1: prior=matches[0]
+    if not prior and not source_territory_id:
+     matches=self.db.execute('SELECT id FROM territories WHERE territory=? AND is_default=?',(territory_name,int(bool(default)))).fetchall()
+     if len(matches)==1: prior=matches[0]
     if prior:
      self.db.execute('''UPDATE territories SET gang_id=?,gang_name=?,territory=?,card=?,is_default=?,ruined=?,active=1,source_territory_id=coalesce(?,source_territory_id) WHERE id=?''',(gang_id,gang_name,territory_name,card,int(bool(default)),int(bool(ruined)),str(source_territory_id) if source_territory_id else None,prior['id']))
     else:
      self.db.execute('''INSERT INTO territories(gang_id,gang_name,territory,card,is_default,ruined,active,source_territory_id) VALUES(?,?,?,?,?,?,1,?)''',(gang_id,gang_name,territory_name,card,int(bool(default)),int(bool(ruined)),str(source_territory_id) if source_territory_id else None))
+    territory_row_id=prior['id'] if prior else self.db.execute('SELECT last_insert_rowid()').fetchone()[0]
+    self.db.execute('UPDATE territories SET mechanics_json=? WHERE id=?',(json.dumps(territory,ensure_ascii=False,sort_keys=True),territory_row_id))
 
    from snapshot import battle_identity, battle_records
    prior_battles={}
@@ -199,14 +217,20 @@ class Store:
   return out
  def dashboard(self):
   from story_engine import document_for
+  from writing_director import public_policy
   q=lambda sql,args=():[dict(r) for r in self.db.execute(sql,args)]
   battle_sql='''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 ORDER BY b.date DESC,b.source_row DESC'''
   result={'gangs':q('SELECT * FROM gangs WHERE active=1 ORDER BY reputation DESC,rating DESC'),'battles':q(battle_sql),'territories':q('SELECT * FROM territories WHERE active=1 ORDER BY gang_name,territory'),'regions':q('SELECT * FROM regions'),'downtime':q('SELECT * FROM downtime_reports WHERE id IN (SELECT max(id) FROM downtime_reports GROUP BY gang_id) ORDER BY generated_at DESC'),'state':{r['key']:r['value'] for r in self.db.execute('SELECT * FROM system_state')}}
-  for g in result['gangs']: g['history_document']=document_for(self,'gang_history',g['gang_id'])
+  result['writing_policy']=public_policy()
+  import llm_writer
+  result['writer']=llm_writer.availability()
+  from world_streams import association_notes
+  result['place_association_notes']=association_notes(self,result['battles'])
+  for g in result['gangs']: g['history_document']=document_for(self,'gang_origin',g['gang_id']) or document_for(self,'gang_history',g['gang_id'])
   for b in result['battles']:
    b['report_document']=document_for(self,'battle_report',b['id'])
    if b['report_document']: b['chronicle_stale']=False
-  for t in result['territories']: t['history_document']=document_for(self,'territory_history',t['id'])
+  for t in result['territories']: t['history_document']=document_for(self,'territory_origin',t['id']) or document_for(self,'territory_history',t['id'])
   for r in result['regions']: r['history_document']=document_for(self,'region_history','campaign')
   for d in result['downtime']: d['document']=document_for(self,'downtime',d['gang_id'])
   return result
@@ -216,7 +240,9 @@ class Store:
   if not r:return None
   g=dict(r); name=g['name']; q=lambda sql,args=():[dict(x) for x in self.db.execute(sql,args)]
   g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['battles']=q('''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 AND (b.attacker=? OR b.defender=? OR b.winner=? OR b.territory_claimer=?) ORDER BY b.date DESC''',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,))
-  g['history_document']=document_for(self,'gang_history',gid)
+  from world_streams import read_stream
+  g['history_document']=document_for(self,'gang_origin',gid) or document_for(self,'gang_history',gid)
+  g['narrative_stream']=read_stream(self,'gang',gid)
   for b in g['battles']:
    b['report_document']=document_for(self,'battle_report',b['id'])
    if b['report_document']: b['chronicle_stale']=False
@@ -234,12 +260,31 @@ class Store:
   from story_engine import fighter_story
   f.update(fighter_story(self,f))
   f['mechanics']=json.loads(f.get('mechanics_json') or '{}')
+  f['writer_identity']=json.loads(f.get('writer_identity_json') or '{}')
   return f
  def territory(self,tid):
   from story_engine import document_for
   r=self.db.execute('SELECT * FROM territories WHERE id=?',(tid,)).fetchone()
   if not r:return None
-  t=dict(r); t['history_document']=document_for(self,'territory_history',tid); return t
+  from world_streams import read_stream
+  t=dict(r); t['history_document']=document_for(self,'territory_origin',tid) or document_for(self,'territory_history',tid)
+  t['narrative_stream']=read_stream(self,'territory',tid)
+  t['mechanics']=json.loads(t.get('mechanics_json') or '{}')
+  return t
+ def set_writer_identity(self,fid,identity):
+  from writing_director import validate_identity
+  identity=validate_identity(identity)
+  self.record_source('player:writer-identities','authored_identity_context','player_authored','Character writing context entered in the app')
+  with self._lock,self.db:
+   if not self.db.execute('SELECT 1 FROM fighters WHERE id=?',(fid,)).fetchone(): raise ValueError('Fighter not found')
+   self.db.execute('UPDATE fighters SET writer_identity_json=? WHERE id=?',(json.dumps(identity,ensure_ascii=False,sort_keys=True),fid))
+   identity_text=json.dumps(identity,ensure_ascii=False,sort_keys=True)
+   written_at=datetime.now(timezone.utc).isoformat()
+   revision=hashlib.sha256(f'{fid}:{written_at}:{identity_text}'.encode()).hexdigest()[:32]
+   self.db.execute('INSERT INTO writer_identity_revisions(revision_id,fighter_id,identity_json,created_at) VALUES(?,?,?,?)',(revision,fid,identity_text,written_at))
+  from story_engine import regenerate
+  regenerate(self)
+  return self.fighter(fid)
  def lore(self): return [dict(r) for r in self.db.execute('SELECT id,title,source_type,source_url,length(content) AS chars FROM lore_sources')]
  def lore_source(self,lid):
   r=self.db.execute('SELECT * FROM lore_sources WHERE id=?',(lid,)).fetchone(); return dict(r) if r else None

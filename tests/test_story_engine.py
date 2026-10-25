@@ -124,14 +124,14 @@ def test_first_live_refresh_bridges_seed_fields_without_inventing_new_stat_chang
             store.close()
 
 
-def test_fresh_baseline_has_voiced_memories_and_source_registry():
+def test_fresh_baseline_retains_evidence_when_writer_is_unconfigured():
     def check(store):
         apply(store, campaign())
         maex = fighter(store, "Maex")
         memories = read_memories(store, maex["id"])
         advancement = next(m for m in memories if m["title"] == "Advancement recorded")
-        assert advancement["content"].strip().casefold() != "cool"
-        assert len(advancement["content"].split()) > 6
+        assert advancement["content"] == ""
+        assert advancement["writer_status"] == "unconfigured"
         assert "Advancement recorded: Cool" in advancement["evidence"]
         assert advancement["provenance_class"] == "inference"
         assert store.db.execute("SELECT 1 FROM provenance_sources WHERE source_id=?", (advancement["source_id"],)).fetchone()
@@ -151,12 +151,12 @@ def test_critical_injury_creates_sourced_history_and_current_thought():
         assert generated["changed"] and critical["source_event_ids"]
         assert set(critical["source_event_ids"]) <= set(result["events_created"])
         assert any("Critical Injury" in fact for fact in critical["evidence"])
-        assert len(critical["content"].split()) > 8
-        assert critical["content"] != critical["evidence"][0]
+        assert critical["content"] == ""
+        assert critical["writer_status"] == "unconfigured"
         assert critical["observed_at"] == "2026-10-25T10:00:00+00:00" and critical["occurred_at"] is None
         mind = select_mind(mara, memories, at=AT)
         assert 2 <= len(mind) <= 4
-        assert len({thought["content"] for thought in mind}) == len(mind)
+        assert len({thought["memory_id"] for thought in mind}) == len(mind)
         assert any("critical" in thought["tags"] for thought in mind)
         for thought in mind:
             assert thought["memory_id"] in {m["id"] for m in memories}
@@ -234,7 +234,7 @@ def test_weapon_and_promotion_changes_are_memorable():
         new = [m for m in memories if set(m["source_event_ids"]) & set(result["events_created"]) and m["memory_type"] == "observation"]
         assert any("promotion" in m["tags"] for m in new)
         assert any("equipment" in m["tags"] for m in new)
-        assert all(len(m["content"].split()) > 6 for m in new)
+        assert all(m["content"] == "" and m["writer_status"] == "unconfigured" for m in new)
         assert any("Plasma gun" in fact for m in new for fact in m["evidence"])
         assert any("Role: Juve → Specialist" in m["evidence"] for m in new)
     _with_store(check)
@@ -275,7 +275,7 @@ def test_latest_report_matches_its_current_battle_instead_of_shifted_row():
         assert "Takeover" in all_text and "Promethium Cache" in all_text
         assert "C-NINE" in all_text and KLY in all_text
         assert "The Slag Eaters" not in text
-        assert len(report["blocks"]) >= 3
+        assert report["blocks"] == [] and report["writer_status"] == "unconfigured"
         assert report["evidence"] and report["source_event_ids"]
         assert report["provenance_class"] == "inference"
     _with_store(check)

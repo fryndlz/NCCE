@@ -1,7 +1,8 @@
-"""Event-driven, deterministic story layer. Mechanical records are never rewritten.
+"""Event-driven story layer. Mechanical records are never rewritten.
 
-The writer is local and rule-driven: no API key, network model, or generation fee.
-Every displayed interpretation carries separate evidence and versioned source links.
+Evidence, salience and persistence are local deterministic logic; prose is drafted
+by llm_writer when configured. Every interpretation keeps separate evidence and
+versioned source links.
 """
 from __future__ import annotations
 
@@ -15,9 +16,12 @@ import unicodedata
 from pathlib import Path
 
 import story_prose as prose
+import writing_director as director
+import world_streams
+import llm_writer
 
-VERSION = "0.6.1"
-GENERATION = "story-0.6.1"
+VERSION = "0.8.0"
+GENERATION = "story-0.8.0"
 REFLECTION_THRESHOLD = 12.0
 RECENCY_HALF_LIFE_DAYS = 14.0
 
@@ -100,7 +104,14 @@ def event_evidence(event):
         facts.append("Gang outcome; individual attendance is not recorded.")
         return facts
     if et == "territory_holder_changed":
-        return [f"{display(p.get('territory'))}: {display(p.get('before_owner'))} → {display(p.get('after_owner'))}"]
+        before=(p.get('before_state') or {}).get('Gang') or p.get('before_owner')
+        after=(p.get('after_state') or {}).get('Gang') or p.get('after_owner')
+        return [f"{display(p.get('territory'))}: {display(before)} → {display(after)}"]
+    if et.startswith('territory_'):
+        facts=[f"Territory: {display(p.get('territory'))}"]
+        facts.extend(f"{field}: {display(delta.get('before'))} → {display(delta.get('after'))}" for field,delta in (p.get('changes') or {}).items())
+        if et=='territory_unlisted':facts.append('Absent from the new source return; destruction or abandonment is not established.')
+        return facts
     if et in ("gangmate_loss", "gangmate_captured"):
         return [f"{display(p.get('subject_name'))}: {display(p.get('after') or p.get('status'))}", "Shared gang news; personal witnessing is not recorded."]
     if p.get("detail"):
@@ -161,7 +172,7 @@ def _authored(row):
     return bool(row.get("backstory")) and ("authored" in source or "c-nine story" in source or "canon" in source) and "mechanic" not in source
 
 
-def _memory(fighter, gang, key, et, payload, event=None, context=None, baseline=False, evidence=None):
+def _memory(store, fighter, gang, key, et, payload, event=None, context=None, baseline=False, evidence=None, prior=()):
     event = event or {}
     importance, title, tags = classify(et, payload)
     context = context or {}
@@ -169,17 +180,20 @@ def _memory(fighter, gang, key, et, payload, event=None, context=None, baseline=
         victory = payload.get("winner") == gang.get("name")
         tags.insert(0, "victory" if victory else "defeat" if payload.get("winner") else "battle")
         title = "Gang victory recorded" if victory else "Gang defeat recorded" if payload.get("winner") else "Gang engagement recorded"
-    content = prose.observation_text(fighter, gang, et, payload, context)
+    packet=director.identity_context(fighter,gang,prose.voice_profile(fighter,gang))
+    written,writer_status=llm_writer.write_memory(store,fighter,gang,title,evidence or event_evidence({'event_type':et,'payload':payload}),packet,prior)
+    content='\n\n'.join(written)
     return {"memory_key": key, "memory_type": "observation", "title": title, "content": content,
             "importance": importance, "occurred_at": event.get("occurred_at"), "observed_at": event.get("observed_at"),
             "tags": list(dict.fromkeys(tags)), "evidence": evidence or event_evidence({"event_type": et, "payload": payload}),
             "source_event_ids": [event["event_id"]] if event.get("event_id") else [], "source_observation_ids": [],
             "source_id": event.get("source_id") or "baseline:snapshot-0001", "provenance_class": "inference",
+            "writer_context":packet,"writer_status":writer_status.get('status','pending'),
             "confidence": 0.65, "baseline": baseline, "batch": str(event.get("to_snapshot_id") or ("baseline" if baseline else event.get("observed_at") or key))}
 
 
 def _memory_id(fighter_id, memory):
-    semantic = {k:memory.get(k) for k in ("memory_key","memory_type","title","content","importance","occurred_at","observed_at","tags","evidence","source_event_ids","source_observation_ids","source_id","baseline")}
+    semantic = {k:memory.get(k) for k in ("memory_key","memory_type","title","content","importance","occurred_at","observed_at","tags","evidence","source_event_ids","source_observation_ids","source_id","baseline","writer_context")}
     return digest([fighter_id, GENERATION, semantic])[:32]
 
 
@@ -188,10 +202,10 @@ def _save_memory(store, fighter_id, memory, generated_at):
     memory["id"] = memory["memory_id"] = memory_id
     values = (memory_id, fighter_id, memory["memory_key"], memory["memory_type"], memory["title"], memory["content"], memory["importance"],
               memory.get("occurred_at"), memory.get("observed_at"), generated_at, encode(memory["tags"]), encode(memory["evidence"]),
-              encode(memory["source_event_ids"]), encode(memory["source_observation_ids"]), memory["source_id"], "inference", memory["confidence"], int(memory["baseline"]), GENERATION)
+              encode(memory["source_event_ids"]), encode(memory["source_observation_ids"]), memory["source_id"], "inference", memory["confidence"], int(memory["baseline"]), GENERATION, encode(memory.get('writer_context',{})),memory.get('writer_status','pending'))
     store.db.execute("""INSERT INTO story_memories(memory_id,fighter_id,memory_key,memory_type,title,content,importance,occurred_at,observed_at,created_at,
-        tags_json,evidence_json,source_event_ids_json,source_observation_ids_json,source_id,provenance_class,confidence,baseline,generation_version,active)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(memory_id) DO UPDATE SET active=1""", values)
+        tags_json,evidence_json,source_event_ids_json,source_observation_ids_json,source_id,provenance_class,confidence,baseline,generation_version,writer_context_json,writer_status,active)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(memory_id) DO UPDATE SET active=1,writer_status=excluded.writer_status""", values)
     for event_id in memory["source_event_ids"]:
         _link(store, "story_memory", memory_id, event_id=event_id)
     _link(store, "story_memory", memory_id, source_id=memory["source_id"])
@@ -212,12 +226,25 @@ def _link(store, artifact_type, key, event_id=None, source_id=None):
 def _artifact(store, scope, key, document, input_hash, generated_at):
     document = dict(document)
     document.update(provenance_class="inference", generated_at=generated_at, generation_version=GENERATION)
+    prior=store.db.execute("SELECT document_json FROM story_artifacts WHERE scope_type=? AND scope_key=? AND active=1 ORDER BY generated_at DESC LIMIT 1",(scope,str(key))).fetchone()
+    if prior:
+        old=json.loads(prior[0])
+        if old.get('writer_status')=='ready':
+            context=dict(document.get('writer_context') or {})
+            context['prior_entry']='\n\n'.join(b.get('text','') for b in old.get('blocks',[]) if b.get('text'))[:5000]
+            document['writer_context']=context
+    paragraphs,writer_status=llm_writer.write_document(store,scope,key,document)
+    document=llm_writer.apply(document,paragraphs,writer_status)
+    scope_form={'gang_origin':'gang_history','territory_origin':'territory_history'}.get(scope,scope)
+    document = director.direct_document(scope_form,key,document)
     document.setdefault("source_event_ids", [])
     snapshot = store.latest_snapshot()
     document.setdefault("source_ids", ["live:campaign-sheet" if snapshot and snapshot.get("source_id") == "live:campaign-sheet" else "baseline:snapshot-0001"])
+    if document.get('writer_context',{}).get('identity') and store.db.execute("SELECT 1 FROM provenance_sources WHERE source_id='player:writer-identities'").fetchone():
+        document['source_ids']=list(dict.fromkeys(document['source_ids']+['player:writer-identities']))
     if "C-NINE" in _text(document) and store.db.execute("SELECT 1 FROM provenance_sources WHERE source_id='canon:c-nine-story-export'").fetchone():
         document["source_ids"] = list(dict.fromkeys(document["source_ids"]+["canon:c-nine-story-export"]))
-    semantic = {k:v for k,v in document.items() if k != 'generated_at'}
+    semantic = {k:v for k,v in document.items() if k not in {'generated_at','date_display'}}
     artifact_hash = digest([input_hash,semantic])
     artifact_id = digest([scope, str(key), artifact_hash, GENERATION])[:32]
     store.db.execute("UPDATE story_artifacts SET active=0 WHERE scope_type=? AND scope_key=?", (scope,str(key)))
@@ -284,8 +311,10 @@ def _current_battle_event(battle, events):
             "occurred_at":chosen.get("occurred_at") if chosen["event_type"] == "battle_result" else None}
 
 
-def regenerate(store, force=False):
+def regenerate(store, force=False, ambient=False, writer_enabled=True):
     """Regenerate all derived views atomically and retain previous narrative versions."""
+    llm_writer.reset_budget()
+    llm_writer.set_enabled(writer_enabled)
     with store._lock:
         lore = store.db.execute("SELECT * FROM lore_sources ORDER BY id LIMIT 1").fetchone()
         if lore and not store.db.execute("SELECT 1 FROM provenance_sources WHERE source_id='canon:c-nine-story-export'").fetchone():
@@ -295,16 +324,27 @@ def regenerate(store, force=False):
         battles = [dict(r) for r in store.db.execute("SELECT * FROM battles WHERE active=1 ORDER BY date,source_row")]
         territories = [dict(r) for r in store.db.execute("SELECT * FROM territories WHERE active=1 ORDER BY id")]
         events = _all_events(store)
-        source_fields = ("id","gang_id","gang_name","name","type","class","xp","kills","advancements","effects","status","notes","mechanics_json","listed_in_source")
+        source_fields = ("id","gang_id","gang_name","name","type","class","xp","kills","advancements","effects","status","notes","mechanics_json","listed_in_source","writer_identity_json")
         source_fighters = [{**{k:f.get(k) for k in source_fields}, "authored_backstory":f.get("backstory") if _authored(f) else None} for f in fighters]
-        code_hash = digest([Path(__file__).read_text(encoding='utf-8'),Path(prose.__file__).read_text(encoding='utf-8')])
-        fingerprint = digest([GENERATION,code_hash, source_fighters,
+        code_hash = digest([Path(module.__file__).read_text(encoding='utf-8') for module in (prose,director,world_streams,llm_writer)] + [Path(__file__).read_text(encoding='utf-8'),director.policy_hash()])
+        fingerprint = digest([GENERATION,code_hash,llm_writer.availability(), source_fighters,
                               [{k:v for k,v in g.items() if k not in {"backstory","provenance_class","backstory_source"}} for g in gangs],
                               [{k:v for k,v in b.items() if k not in {"chronicle","chronicle_provenance_class"}} for b in battles],
                               [{k:v for k,v in t.items() if k not in {"backstory","provenance_class"}} for t in territories],
                               [e["event_id"] for e in events]])
-        if not force and store.get_state("story_input_hash") == fingerprint:
-            return {"changed": False, "revision": fingerprint[:16]}
+        retry_writer=False
+        if llm_writer.API_KEY:
+            retry_writer=bool(store.db.execute("SELECT 1 FROM story_memories WHERE writer_status!='ready' LIMIT 1").fetchone())
+            artifact_rows=store.db.execute("SELECT document_json FROM story_artifacts WHERE active=1").fetchall()
+            entry_rows=store.db.execute("SELECT document_json FROM narrative_entries WHERE active=1").fetchall()
+            retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status')!='ready' for r in artifact_rows)
+            retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status')!='ready' for r in entry_rows)
+        if not force and not retry_writer and store.get_state("story_input_hash") == fingerprint:
+            with store.db:
+                added=world_streams.maybe_ambient(store,gangs,territories) if ambient else 0
+                if added:
+                    store.db.execute("UPDATE system_state SET value=? WHERE key='story_revision'",(digest([fingerprint,now()])[:16],))
+            return {"changed": bool(added), "revision": store.get_state('story_revision',fingerprint[:16]), 'ambient_created':added}
         generated_at = now()
         by_gang = {str(g["gang_id"]): g for g in gangs}
         fighters_by_key = {f"{f['gang_id']}/{normal(f['name'])}":f for f in fighters}
@@ -335,25 +375,25 @@ def regenerate(store, force=False):
                             continue
                         event = event_by_id.get(item.get("campaign_event_id"), {})
                         payload = {"detail":item["detail"], "title":item["title"]}
-                        memories.append(_memory(fighter,gang,f"legacy:{item['id']}",et,payload,event,baseline=True))
+                        memories.append(_memory(store,fighter,gang,f"legacy:{item['id']}",et,payload,event,baseline=True,prior=[m['content'] for m in memories[-3:]]))
                 else:
                     # A first observed live roster is a baseline, not a fabricated recruitment history.
                     initial, snap = _first_known(store,fighter)
                     state = {k:initial.get(k) for k in ("XP","Kills","Status")}
                     evidence = [f"{k}: {display(v)}" for k,v in state.items()]
-                    m = _memory(fighter,gang,"first-known-state","baseline",state,baseline=True,evidence=evidence)
+                    m = _memory(store,fighter,gang,"first-known-state","baseline",state,baseline=True,evidence=evidence)
                     m["source_id"] = "live:campaign-sheet" if snap and snap.get("source_id") == "live:campaign-sheet" else "baseline:snapshot-0001"
                     m["observed_at"] = snap.get("captured_at") if snap else None
                     memories.append(m)
                     for field, et in (("Advancements","advancement"),("Effects","effect"),("Status","status")):
                         if initial.get(field) and (field != "Status" or normal(initial[field]) != "active"):
-                            m = _memory(fighter,gang,f"first-known-{field}",et,{"detail":initial[field]},baseline=True)
+                            m = _memory(store,fighter,gang,f"first-known-{field}",et,{"detail":initial[field]},baseline=True,prior=[m['content'] for m in memories[-3:]])
                             m["source_id"], m["observed_at"] = memories[0]["source_id"], memories[0]["observed_at"]
                             memories.append(m)
                 for event in direct_events[key]:
                     if event["event_type"] not in RULES or event["event_key"].startswith("baseline:"):
                         continue
-                    memories.append(_memory(fighter,gang,event["event_id"],event["event_type"],event["payload"],event))
+                    memories.append(_memory(store,fighter,gang,event["event_id"],event["event_type"],event["payload"],event,prior=[m['content'] for m in memories[-3:]]))
                 # The newest gang record is shared context, never proof of individual attendance.
                 if normal(fighter.get("status")) not in {"killed","dead","retired"}:
                     related = [b for b in battles if gang["name"] in (b.get("attacker"),b.get("defender"),b.get("winner"))]
@@ -361,15 +401,15 @@ def regenerate(store, force=False):
                     shared = [event for b in related if (event := _current_battle_event(b,events)) and not event["event_key"].startswith("baseline:")]
                     for event in gang_events[str(fighter["gang_id"])]:
                         if event["event_type"] == "territory_holder_changed":
-                            memories.append(_memory(fighter,gang,f"shared:{event['event_id']}","territory_holder_changed",event["payload"],event))
+                            memories.append(_memory(store,fighter,gang,f"shared:{event['event_id']}","territory_holder_changed",event["payload"],event,prior=[m['content'] for m in memories[-3:]]))
                         elif event["event_type"] in {"gang_reputation_changed","gang_alignment_changed"}:
-                            memories.append(_memory(fighter,gang,f"shared:{event['event_id']}",event["event_type"],event["payload"],event))
+                            memories.append(_memory(store,fighter,gang,f"shared:{event['event_id']}",event["event_type"],event["payload"],event,prior=[m['content'] for m in memories[-3:]]))
                         elif event["event_type"] == "fighter_status_changed" and normal(event["payload"].get("after")) in {"killed","dead","captured"}:
                             subjects = [s for s in event["subjects"] if s["entity_type"] == "fighter" and s["entity_key"] != key]
                             if subjects:
                                 et = "gangmate_loss" if normal(event["payload"].get("after")) in {"killed","dead"} else "gangmate_captured"
                                 p = {**event["payload"], "subject_name":subjects[0]["display_name"]}
-                                memory = _memory(fighter,gang,f"shared:{event['event_id']}",et,p,event,context=p)
+                                memory = _memory(store,fighter,gang,f"shared:{event['event_id']}",et,p,event,context=p,prior=[m['content'] for m in memories[-3:]])
                                 present = fighters_by_key.get(subjects[0]['entity_key'],{})
                                 condition = normal(present.get('status'))
                                 expected = {'killed','dead'} if et == 'gangmate_loss' else {'captured'}
@@ -387,10 +427,10 @@ def regenerate(store, force=False):
                         if signature in seen:
                             continue
                         seen.add(signature)
-                        memories.append(_memory(fighter,gang,f"gang:{event['event_id']}","gang_battle_outcome",p,event,context={"attendance":"unknown"}))
+                        memories.append(_memory(store,fighter,gang,f"gang:{event['event_id']}","gang_battle_outcome",p,event,context={"attendance":"unknown"},prior=[m['content'] for m in memories[-3:]]))
                     if latest and tuple(latest.get(k) for k in ("date","scenario","attacker","defender","winner")) not in seen:
                         e = _current_battle_event(latest,events) or {"occurred_at":latest.get("date")}
-                        m = _memory(fighter,gang,f"gang-record:{latest.get('source_battle_key') or latest['id']}","gang_battle_outcome",latest,e,baseline=True,context={"attendance":"unknown"})
+                        m = _memory(store,fighter,gang,f"gang-record:{latest.get('source_battle_key') or latest['id']}","gang_battle_outcome",latest,e,baseline=True,context={"attendance":"unknown"},prior=[m['content'] for m in memories[-3:]])
                         memories.append(m)
                 if "C-NINE" in gang.get("name","") or "c-nine story" in normal(fighter.get("backstory_source")):
                     for m in memories:
@@ -398,6 +438,9 @@ def regenerate(store, force=False):
                 elif "campaign sheet" in normal(fighter.get("backstory_source")):
                     for m in memories:
                         m["context_source_ids"] = ["player:campaign-sheet-lore"]
+                if fighter.get('writer_identity_json') not in (None,'','{}'):
+                    for m in memories:
+                        m.setdefault('context_source_ids',[]).append('player:writer-identities')
                 saved = [_save_memory(store,fighter["id"],m,generated_at) for m in memories]
                 groups = defaultdict(list)
                 if normal(fighter.get("status")) not in {"killed","dead"}:
@@ -408,14 +451,18 @@ def regenerate(store, force=False):
                     if len(candidates) < 2 or sum(m["importance"] for m in candidates) < REFLECTION_THRESHOLD:
                         continue
                     cited = sorted(candidates,key=lambda m:(-m["importance"],m["memory_key"]))[:4]
+                    ref_text,ref_status=llm_writer.write_memory(store,fighter,gang,'What stays with me',
+                           list(dict.fromkeys(x for m in cited for x in m['evidence'])),voice['writer_context'],
+                           prior=[m['content'] for m in cited],form='fighter_reflection')
                     ref = {"memory_key":f"reflection:{batch}", "memory_type":"reflection", "title":"What stays with me",
-                           "content":prose.reflection_text(fighter,gang,cited,{"voice_profile":voice}),
+                           "content":"\n\n".join(ref_text),"writer_status":ref_status.get('status','pending'),
                            "importance":min(10,round(sum(m["importance"] for m in cited)/len(cited)+0.5,1)),
                            "occurred_at":None, "observed_at":max((m.get("observed_at") or "" for m in cited),default="") or None,
                            "tags":list(dict.fromkeys(["reflection"]+[t for m in cited for t in m["tags"]])),
                            "evidence":list(dict.fromkeys(x for m in cited for x in m["evidence"])),
                            "source_event_ids":list(dict.fromkeys(x for m in cited for x in m["source_event_ids"])),
                            "source_observation_ids":[m["id"] for m in cited], "source_id":cited[0]["source_id"],
+                           "writer_context":voice['writer_context'],
                            "provenance_class":"inference", "confidence":0.6, "baseline":all(m["baseline"] for m in cited)}
                     saved.append(_save_memory(store,fighter["id"],ref,generated_at))
                 all_memories.extend({**m,"fighter_id":fighter["id"],"gang_id":fighter["gang_id"]} for m in saved)
@@ -425,18 +472,22 @@ def regenerate(store, force=False):
                     facts.extend(voice.get('evidence',[]))
                     document = _document(fighter["name"],text,facts)
                     document['source_locator'] = f"gang:{fighter['gang_id']}:fighter:{fighter['name']}"
+                    document['writer_context']=voice['writer_context']
                     doc = _artifact(store,"fighter_biography",fighter["id"],document,fingerprint,generated_at)
                     store.db.execute("UPDATE fighters SET backstory=?,backstory_source='mechanically-inferred',provenance_class='inference' WHERE id=?", (_text(doc),fighter["id"]))
             for gang in gangs:
                 fs = [f for f in fighters if str(f["gang_id"]) == str(gang["gang_id"])]
                 if not _authored(gang):
+                    origin = document_for(store,'gang_origin',gang['gang_id'])
+                    if not origin:
+                        origin = _artifact(store,'gang_origin',gang['gang_id'],_document(gang['name'],prose._culture(gang),[f"Faction at first description: {gang.get('gang_type')}"]),fingerprint,generated_at)
                     text = prose.gang_history(gang,fs,battles,territories)
                     related = [b for b in battles if gang['name'] in (b.get('attacker'),b.get('defender'),b.get('winner'))]
                     holders = [t['territory'] for t in territories if str(t.get('gang_id')) == str(gang['gang_id'])]
                     evidence = [f"Faction: {gang.get('gang_type')}",f"Listed fighters: {sum(f.get('listed_in_source',1) for f in fs)}",f"Recorded battles: {len(related)}",f"Recorded wins: {sum(b.get('winner') == gang['name'] for b in related)}",f"Current holdings: {', '.join(holders) or 'None recorded'}"]
                     anchors = [_current_battle_event(b,events) for b in related]
                     doc = _artifact(store,"gang_history",gang["gang_id"],_document(gang["name"],text,evidence,[e['event_id'] for e in anchors if e]),fingerprint,generated_at)
-                    store.db.execute("UPDATE gangs SET backstory=?,backstory_source='mechanically-inferred',provenance_class='inference' WHERE gang_id=?", (_text(doc),gang["gang_id"]))
+                    store.db.execute("UPDATE gangs SET backstory=?,backstory_source='mechanically-inferred',provenance_class='inference' WHERE gang_id=?", (_text(origin),gang["gang_id"]))
                 doc = prose.downtime_document(gang,fs,[m for m in all_memories if str(m["gang_id"]) == str(gang["gang_id"])],battles)
                 doc = _artifact(store,"downtime",gang["gang_id"],doc,fingerprint,generated_at)
                 existing = store.db.execute("SELECT id FROM downtime_reports WHERE gang_id=? ORDER BY id DESC LIMIT 1",(gang["gang_id"],)).fetchone()
@@ -445,14 +496,23 @@ def regenerate(store, force=False):
                 else:
                     store.db.execute("INSERT INTO downtime_reports(gang_id,gang_name,period_label,report,generated_at) VALUES(?,?,'Current campaign interval',?,?)",(gang["gang_id"],gang["name"],_text(doc),generated_at))
             for territory in territories:
+                origin = document_for(store,'territory_origin',territory['id'])
+                if not origin:
+                    opening=prose._PLACES.get(territory['territory'], f"The name {territory['territory']} marks a place where work and passage give an armed claim its value.")
+                    origin = _artifact(store,'territory_origin',territory['id'],_document(territory['territory'],opening,[f"Recorded type at first description: {territory['territory']}"]),fingerprint,generated_at)
                 text = prose.territory_history(territory,battles)
                 related = [b for b in battles if b.get('territory') == territory['territory']]
                 facts = [f"Recorded holder: {display(territory.get('gang_name'))}"] + [f"{b.get('date')}: {b.get('scenario')}; winner {display(b.get('winner'))}" for b in related]
                 anchors = [_current_battle_event(b,events) for b in related]
                 doc = _artifact(store,"territory_history",territory["id"],_document(territory["territory"],text,facts,[e['event_id'] for e in anchors if e]),fingerprint,generated_at)
-                store.db.execute("UPDATE territories SET backstory=?,provenance_class='inference' WHERE id=?",(_text(doc),territory["id"]))
+                store.db.execute("UPDATE territories SET backstory=?,provenance_class='inference' WHERE id=?",(_text(origin),territory["id"]))
+            world_streams.rebuild(store,gangs,territories,battles,events,_current_battle_event,event_evidence,generated_at)
+            if ambient:
+                world_streams.maybe_ambient(store,gangs,territories,at=generated_at)
             for battle in battles:
-                doc = _artifact(store,"battle_report",battle["id"],prose.battle_report(battle,gangs,fighters,events),fingerprint,generated_at)
+                document=prose.battle_report(battle,gangs,fighters,events)
+                document['occurred_at']=battle.get('date')
+                doc = _artifact(store,"battle_report",battle["id"],document,fingerprint,generated_at)
                 store.db.execute("UPDATE battles SET chronicle=?,chronicle_provenance_class='inference' WHERE id=?",(_text(doc),battle["id"]))
             text = prose.region_history(gangs,territories,battles) if gangs else "The district record is awaiting its first verified campaign state."
             facts = [f"Active gangs: {len(gangs)}",f"Territory records: {len(territories)}",f"Recorded battles: {len(battles)}"] + [f"{g['name']} — reputation: {display(g.get('reputation'))}" for g in gangs]
@@ -478,7 +538,7 @@ def regenerate(store, force=False):
                 else:
                     store.db.execute("INSERT INTO narrative_threads(scope_type,scope_key,title,status,summary,evidence_json,updated_at) VALUES('relationship',?,?,'active',?,?,?)",(scope_key,f'{a} / {b}',_text(doc),encode(doc['source_event_ids']),generated_at))
             for k,v in {"story_input_hash":fingerprint,"story_revision":fingerprint[:16],"story_generated_at":generated_at,"story_generation_version":GENERATION,
-                        "engine_version":f"NCCE v{VERSION} Campaign Minds","story_memory_count":len(all_memories),"story_writer":"deterministic local rules; no external language model"}.items():
+                        "engine_version":f"NCCE v{VERSION} Campaign Minds","story_memory_count":len(all_memories),"story_writer":json.dumps(llm_writer.availability(),sort_keys=True)}.items():
                 store.db.execute("INSERT INTO system_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(k,str(v)))
         return {"changed":True,"revision":fingerprint[:16],"memories":len(all_memories),"fighters":len(fighters),"generated_at":generated_at}
 
@@ -491,6 +551,9 @@ def read_memories(store, fighter_id):
         item["is_baseline"] = bool(item["baseline"])
         for field in ("tags","evidence","source_event_ids","source_observation_ids"):
             item[field] = json.loads(item.pop(field+"_json"))
+        item['date_display']=director.record_date(item)
+        item['writer_context']=json.loads(item.pop('writer_context_json') or '{}')
+        item['source_ids']=[r[0] for r in store.db.execute("SELECT DISTINCT source_id FROM narrative_evidence WHERE artifact_type='story_memory' AND artifact_key=? AND source_id IS NOT NULL",(item['memory_id'],))]
         result.append(item)
     return result
 

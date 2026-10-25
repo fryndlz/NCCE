@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 6
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -592,6 +592,46 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(4,?,?)",
                        ("event-driven fighter memories and versioned narrative artifacts", _now()))
             db.execute("PRAGMA user_version=4")
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if db.execute('PRAGMA user_version').fetchone()[0] < 5:
+        db.execute('BEGIN IMMEDIATE')
+        try:
+            _add_column(db, 'fighters', 'writer_identity_json', "TEXT NOT NULL DEFAULT '{}'")
+            _add_column(db, 'territories', 'mechanics_json', "TEXT NOT NULL DEFAULT '{}'")
+            _add_column(db, 'story_memories', 'writer_context_json', "TEXT NOT NULL DEFAULT '{}'")
+            db.execute('''CREATE TABLE narrative_entries(
+                entry_id TEXT PRIMARY KEY, scope_type TEXT NOT NULL CHECK(scope_type IN ('territory','gang')),
+                scope_key TEXT NOT NULL, entry_key TEXT NOT NULL, event_type TEXT NOT NULL,
+                title TEXT NOT NULL, document_json TEXT NOT NULL,
+                occurred_at TEXT, observed_at TEXT, created_at TEXT NOT NULL,
+                provenance_class TEXT NOT NULL CHECK(provenance_class IN ('inference','connective_fiction')),
+                source_event_ids_json TEXT NOT NULL, continuity_json TEXT NOT NULL,
+                generation_version TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1)''')
+            db.execute('CREATE INDEX narrative_entries_scope_idx ON narrative_entries(scope_type,scope_key,active,created_at)')
+            db.execute('''CREATE TABLE writer_identity_revisions(
+                revision_id TEXT PRIMARY KEY, fighter_id INTEGER NOT NULL REFERENCES fighters(id),
+                identity_json TEXT NOT NULL, provenance_class TEXT NOT NULL DEFAULT 'player_authored',
+                created_at TEXT NOT NULL)''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(5,?,?)',
+                       ('writing director, authored identities and persistent place/gang streams', _now()))
+            db.execute('PRAGMA user_version=5')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if db.execute('PRAGMA user_version').fetchone()[0] < 6:
+        db.execute('BEGIN IMMEDIATE')
+        try:
+            _add_column(db, 'story_memories', 'writer_status', "TEXT NOT NULL DEFAULT 'ready'")
+            db.execute('''CREATE TABLE writer_result_cache(
+                prompt_hash TEXT PRIMARY KEY, result_json TEXT NOT NULL,
+                model TEXT NOT NULL, created_at TEXT NOT NULL)''')
+            db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(6,?,?)",
+                       ('provider-backed narrative writer and reusable generated text', _now()))
+            db.execute('PRAGMA user_version=6')
             db.commit()
         except Exception:
             db.rollback()

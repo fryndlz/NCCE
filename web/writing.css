@@ -1,0 +1,88 @@
+/* Semantic archive theme, derived from the supplied NARRATIVE_STYLE_MAP. */
+:root {
+  --surface-base: #212121;
+  --text-primary: #fff;
+  --text-secondary: #aaa;
+  --admin-primary: #00d16b;
+  --identity-primary: #22c55e;
+  --entity-highlight: #f2ad1f;
+  --personnel-highlight: #eab308;
+  --status-critical: #ef4444;
+  --watermark-subtle: #212c21;
+  --panel: #252825;
+  --panel-soft: #202520;
+  --line: #424b44;
+  --muted: var(--text-secondary);
+  --accent: var(--admin-primary);
+  --evidence: #c1c9c3;
+  --sans: 'Courier New', Courier, monospace;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  font-family: var(--sans);
+}
+body { font-size: 15px; }
+p { line-height: 1.55; margin-bottom: 11px; }
+.region-intro .narrative { font-size: 1rem; line-height: 1.55; }
+h2, .fighter-title h2, .card-title { color: var(--entity-highlight); }
+.fighter-title h2 { color: var(--personnel-highlight); }
+.eyebrow, .source, .memory-kind, .evidence-label { color: var(--admin-primary); }
+.card-excerpt, .thought, .memory-voice { color: var(--text-primary); }
+nav button.active { background: var(--admin-primary); color: #102315; border-color: var(--admin-primary); }
+a { color: var(--identity-primary); }
+button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible { outline-color: var(--entity-highlight); }
+.chronicle-date { display: inline-flex; flex-direction: column; gap: 4px; line-height: 1.35; text-align: left; }
+.chronicle-date strong { color: var(--text-primary); font-size: .88rem; font-weight: 600; }
+.chronicle-date small { color: var(--text-secondary); font-size: .73rem; font-style: normal; }
+.entry-top { align-items: flex-start; gap: 16px; }
+.record-header { display: flex; flex-direction: column; gap: 12px; margin: 14px 0 18px; }
+.metadata-group { display: grid; gap: 2px; margin: 0; font: .76rem/1.45 var(--sans); }
+.metadata-group > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.metadata-group dt { color: var(--admin-primary); }
+.metadata-group dt::after { content: ':'; }
+.metadata-group dd { color: var(--text-primary); margin: 0; overflow-wrap: anywhere; }
+.record-body { max-width: 88ch; }
+.record_termination, .attachment-marker, .scene_divider { color: var(--admin-primary); font: .75rem/1.5 var(--sans); text-align: center; margin: 20px 0 12px; }
+.system_output { color: var(--admin-primary); white-space: pre-wrap; font: .75rem/1.5 var(--sans); }
+.section-label, .mark-admin_label, .mark-speaker { color: var(--admin-primary); }
+.mark-important_entity { color: var(--entity-highlight); }
+.mark-secondary_text { color: var(--text-secondary); }
+.mark-critical_status, .mark-machine_error { color: var(--status-critical); font-weight: bold; }
+.mark-redacted { user-select: all; letter-spacing: 1px; }
+.mark-doctrine { font-style: italic; }
+.processing-panel { border: 1px solid var(--admin-primary); border-left-width: 3px; padding: 16px; margin: 18px 0; background: #202720; }
+.nested-record { margin: 12px 0; padding: 0; border: 0; }
+.testimony-note { border: 1px dashed var(--text-secondary); color: var(--text-secondary); padding: 16px; margin: 18px 0; }
+.testimony-note .mark-speaker { margin-bottom: 8px; }
+.evidence-excerpt { border-left: 3px solid var(--text-secondary); padding-left: 15px; color: var(--text-secondary); margin: 18px 0 18px 12px; }
+.evidence-excerpt cite { display: block; color: var(--admin-primary); font-size: .75rem; margin-bottom: 8px; }
+.annotation-anchor { background: #494949; color: inherit; }
+.attachment { margin-top: 24px; }
+.scope-entry { border-bottom: 1px solid var(--line); padding: 20px 0 26px; overflow-wrap: anywhere; }
+.scope-entry h4 { color: var(--entity-highlight); }
+.scope-entry .evidence { margin-top: 18px; }
+.fiction-entry > .eyebrow { color: var(--text-secondary); }
+.memory-card { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; }
+.evidence { border-color: var(--line); color: var(--text-secondary); background: #202520; }
+.identity-editor { margin: 24px 0; font: .78rem/1.5 var(--sans); }
+.identity-editor summary { color: var(--admin-primary); cursor: pointer; }
+.identity-editor form { display: grid; gap: 10px; margin-top: 14px; }
+.identity-editor label { display: grid; gap: 4px; color: var(--text-secondary); }
+.identity-editor input, .identity-editor select { width: 100%; min-width: 0; padding: 8px; background: #181e19; border: 1px solid var(--line); color: var(--text-primary); }
+.identity-status { color: var(--status-critical); }
+.writer-pending { color: #f2ad1f; border-left: 2px solid #f2ad1f; padding: .45rem .7rem; font-size: .9rem; }
+.status-pill { color: var(--text-primary); }
+@media (min-width: 1100px) { .record-body p { text-align: justify; } }
+@media (max-width: 640px) {
+  .entry-top { flex-direction: column; }
+  .metadata-group > div { display: block; }
+  .metadata-group dt, .metadata-group dd { display: inline; }
+  .metadata-group dd { margin-left: 6px; }
+  .record-body p { text-align: left; }
+  .testimony-note, .processing-panel { width: 100%; }
+}
+@media print {
+  body { background: white; color: black; max-width: none; padding: 0; }
+  nav, .sync-box, .identity-editor { display: none; }
+  .record-header, .scope-entry h4 { break-after: avoid; }
+  .processing-panel, .testimony-note { break-inside: avoid; }
+}

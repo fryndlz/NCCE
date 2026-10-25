@@ -92,15 +92,24 @@ def _territory_owner(row: dict):
 def _territories(snapshot: dict):
     records = {}
     ambiguous = set()
-    for row_index, row in enumerate(snapshot.get("territories") or []):
+    rows = snapshot.get('territories') or []
+    ids = [next((row.get(k) for k in ('Territory ID','territory_id','Record ID','record_id','ID') if row.get(k) not in (None,'')), None) for row in rows]
+    cards = [str(row.get('Card') or row.get('card') or '') for row in rows]
+    for row_index, row in enumerate(rows):
         name = _territory_name(row)
         if not name:
             continue
-        explicit_id = next((row.get(k) for k in ("Territory ID", "territory_id", "Record ID", "record_id", "ID", "id") if row.get(k) not in (None, "")), None)
-        identity = f"id:{explicit_id}" if explicit_id is not None else f"name:{_key(name)}"
+        explicit_id = ids[row_index]
+        card = cards[row_index]
+        if explicit_id is not None and ids.count(explicit_id) == 1:
+            identity = f'id:{explicit_id}'
+        elif card and cards.count(card) == 1:
+            identity = f'card:{card}'
+        else:
+            identity = str(row.get('source_territory_key') or f'name:{_key(name)}')
         if identity in records:
             ambiguous.add(identity)
-        records[identity] = {"name": name, "owner": _territory_owner(row), "source_index": row_index}
+        records[identity] = {"name": name, "owner": _territory_owner(row), "source_index": row_index, 'state': row}
     return records, ambiguous
 
 
@@ -327,20 +336,40 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
 
     old_territories, old_ambiguous = _territories(before)
     new_territories, new_ambiguous = _territories(after)
+    # Bridge newly discovered IDs only when a name uniquely identifies the
+    # same place in both snapshots; never guess a transformation by row order.
+    for old_key in list(set(old_territories) - set(new_territories) - old_ambiguous):
+        old_record = old_territories[old_key]
+        matches = [k for k in set(new_territories)-set(old_territories)-new_ambiguous if _key(new_territories[k]['name']) == _key(old_record['name'])]
+        if len(matches) == 1 and sum(_key(t['name']) == _key(old_record['name']) for t in old_territories.values()) == 1:
+            new_key = matches[0]
+            old_territories[new_key] = old_territories.pop(old_key)
     for identity in sorted((set(old_territories) & set(new_territories)) - old_ambiguous - new_ambiguous):
         old, new = old_territories[identity], new_territories[identity]
-        if old["owner"] == new["owner"]:
-            continue
         name = new["name"]
         subjects = [{"entity_type": "territory", "entity_key": _key(name), "display_name": name, "role": "location"}]
         for owner, role in ((old["owner"], "former_holder"), (new["owner"], "new_holder")):
             found = after_gangs.get(owner) or gang_by_name.get(_key(owner), (None, None))[1]
             if found:
                 subjects.append({**_gang_subject(found.get("gang_id"), found), "role": role})
-        drafts.append(_event(
-            f"snapshot:{target_snapshot_id}:territory:{identity}:holder", "territory_holder_changed",
-            f"Territories:{identity}", {"territory": name, "before_owner": old["owner"], "after_owner": new["owner"]},
-            subjects,
-        ))
+        common = {'territory': name, 'territory_key': identity, 'previous_name': old['name'], 'before_owner': old['owner'], 'after_owner': new['owner'], 'before_state': old['state'], 'after_state': new['state']}
+        if old['owner'] != new['owner']:
+            drafts.append(_event(f'snapshot:{target_snapshot_id}:territory:{identity}:holder', 'territory_holder_changed', f'Territories:{identity}', common, subjects))
+        ignored = {'Gang ID','gang_id','Owner ID','owner_id','Gang','gang','Gang Name','gang_name','Owner','owner',
+                   'Territory ID','territory_id','Record ID','record_id','ID','id','source_territory_key','source_index','source_row'}
+        changes = changed_fields({k:v for k,v in old['state'].items() if k not in ignored}, {k:v for k,v in new['state'].items() if k not in ignored})
+        if changes:
+            kind = 'territory_type_changed' if old['name'] != new['name'] else 'territory_state_changed'
+            drafts.append(_event(f'snapshot:{target_snapshot_id}:territory:{identity}:state',kind,f'Territories:{identity}',{**common,'changes':changes},subjects))
+    for keys, records, kind in ((set(new_territories)-set(old_territories)-new_ambiguous,new_territories,'territory_listed'),
+                                (set(old_territories)-set(new_territories)-old_ambiguous,old_territories,'territory_unlisted')):
+        for identity in sorted(keys):
+            item=records[identity]
+            subjects=[{'entity_type':'territory','entity_key':_key(item['name']),'display_name':item['name'],'role':'location'}]
+            owner=after_gangs.get(item['owner']) or before_gangs.get(item['owner']) or gang_by_name.get(_key(item['owner']),(None,None))[1]
+            if owner:
+                subjects.append({**_gang_subject(owner.get('gang_id'),owner),'role':'holder'})
+            drafts.append(_event(f'snapshot:{target_snapshot_id}:territory:{identity}:{kind}',kind,f'Territories:{identity}',
+                                 {'territory':item['name'],'territory_key':identity,'state':item['state']},subjects))
 
     return sorted(drafts, key=lambda item: (item["event_type"], item["event_key"]))
