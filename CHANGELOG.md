@@ -2,6 +2,16 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.3 — persistent Mara results and request progress
+
+**Implementation checkpoint:** 2026-10-26 01:24 CET (Europe/Warsaw)
+
+- Preserved the request ledger as collapsed semantic markup after Mara's result refresh; the previous UI flattened the ledger into a wall of wrapped text.
+- Shows attempted calls from the active writer run while SQLite is still committing the generated records, instead of showing a misleading zero until completion.
+- Added an authenticated read-only endpoint and profile hydration so Mara's one-time pilot result, ledger and generated prose summary remain visible after reload or service restart.
+- Updated the one-time test contract and current design/handoff documentation. No provider calls were made by this source-only UI change.
+- **Source validation:** all seven Python suites passed (core, battle identity, campaign history, 15 story-engine checks, voice, Writing Director, and writer); Python compilation; Node writing and campaign-timeline UI contracts; `node --check web/app.js`; `git diff --check`. The hosted service remains 0.9.2 until this commit is pushed and the automatic Render deploy is verified.
+
 ## 0.9.2 — authored dossier rendering and Mara writer pilot
 
 **Implementation checkpoint:** 2026-10-26 01:15 CET (Europe/Warsaw)
@@ -11,8 +21,11 @@ Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October
 - Disabled new provider calls in routine Sheet refreshes by default during this pilot. Re-enable full-roster writing with `NCCE_AUTO_WRITE_ENABLED=1` only after the pilot is reviewed and that broader scope is approved. Existing successful prompt-cache entries can still be reused without a provider call.
 - Added schema 9 `writer_requests` ledger with provider request ID, response ID, subject, form, model, timestamps, outcome, token counts and bounded error details. The Mara result panel can expand the ledger to show exactly what each provider call wrote and its usage.
 - Corrected story fingerprint stability so per-run identifiers do not cause every sync to appear changed.
-- Validation: Python compilation, core suite, writer suite, all 15 story-engine checks, Node writing UI contracts and `git diff --check` passed. `tests/smoke_server.py` was attempted but the sandbox blocked loopback networking with Windows `WinError 10013`; hosted health/API verification has not yet been performed.
-- No authoritative Sheet data, mechanical campaign facts, authored source files or canon were modified. This checkpoint is in source only and has not yet been deployed; the hosted service remains 0.9.1 / schema 8.
+- Validation before hosted deployment: Python compilation, core suite, writer suite, all 15 story-engine checks, Node writing UI contracts and `git diff --check` passed. The local HTTP smoke was blocked by sandbox loopback networking (`WinError 10013`).
+- No authoritative Sheet data, mechanical campaign facts, authored source files or canon were modified.
+- **2026-10-26 01:21:24 CET — deployed:** Render reports commit `6863632` live as deploy `dep-dbf9pjfb9u1s73c4s5o0`. Hosted health confirms app `0.9.2`, SQLite schema 9, persistent database, and configured `gpt-6.1-sol` writer.
+- **2026-10-26 01:24 CET — Mara-only test completed:** 13 successful calls (12 `fighter_memory`, 1 `fighter_reflection`), 18,090 input tokens, 5,171 output tokens, 0 failed calls and 0 cache hits. The app generated only Mara's pending memories/reflection; her player-authored C-NINE dossier remained untouched. The output and request/response IDs were visible in her profile.
+- The usage screenshot's 96 total calls were filtered to all API sources, all projects, and all keys, so it does not identify NCCE requests. The 0.9.1 release record documents one 80-draft successful batch; the older hosted schema had no per-call request ledger, so exact historical call-to-output mapping is unavailable. New requests are traceable by API request and response ID.
 
 ## 0.9.1 — Writer integration repair
 

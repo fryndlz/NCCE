@@ -1,6 +1,6 @@
-# Story Engine Architecture — implemented in NCCE 0.9
+# Story Engine Architecture — implemented in NCCE 0.9.3
 
-**Schema:** 8. **Current app release:** `0.9.1`, with story generation still `story-0.8.1`. The writer uses OpenAI Responses structured output, rejects malformed prose locally, preserves successful outputs in a persistent cache, and marks quota-limited remaining outputs pending for the next refresh. Hosted generation remains `story-0.8.1`.
+**Schema:** 9. **Current source release:** `0.9.3`; hosted release `0.9.2`. The writer uses OpenAI Responses structured output, rejects malformed prose locally, preserves successful outputs in a persistent cache, records request/response IDs and token counts, and marks quota-limited remaining outputs pending for the next refresh. Routine hosted generation is disabled until the Mara pilot is reviewed; Mara's one-time run completed with 13 successful calls.
 
 The detailed current implementation, constants, and complete catalogs are specified in `CURRENT_DESIGN.md`. This document describes the runtime boundaries and data flow.
 

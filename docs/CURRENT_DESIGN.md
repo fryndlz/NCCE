@@ -1,16 +1,16 @@
-# NCCE 0.9.2 — current technical design
+# NCCE 0.9.3 — current technical design
 
-**Source release:** 0.9.2, authored dossier formatting and bounded Mara writer pilot
+**Source release:** 0.9.3, persistent Mara pilot results and accurate request progress
 
-**Hosted release:** 0.9.1 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`. Version 0.9.2 is prepared in source and is not yet verified on Render.
+**Hosted release:** 0.9.2 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`. Version 0.9.3 is prepared in source; deployment verification is recorded in `CHANGELOG.md`.
 
-**Schema:** SQLite version 9 in source; hosted database remains on schema 8 until deployment.
+**Schema:** SQLite version 9 in source and hosted database.
 
-**Documentation checkpoint:** 2026-10-26 01:15 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 01:24 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** this source checkpoint has not been deployed. Local Python/Node contracts pass; local HTTP smoke was blocked because this sandbox cannot open loopback sockets (`WinError 10013`). The hosted 0.9.1 deployment remains the previous version. See `CHANGELOG.md` for exact validation state.
+**Release verification:** 0.9.2 is live, and Mara's one-time 13-call hosted pilot completed successfully. The 0.9.3 changes pass the seven Python suites, Python compilation, Node writing/timeline contracts, JavaScript syntax, and `git diff --check`. The 0.9.3 interface fix is not yet deployed. See `CHANGELOG.md` for release verification.
 
-This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. Campaign History adds versioned raw Munda Manager archives and a derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. The 0.9.2 source adds semantic rendering for Mara's authored C-NINE dossier, a request/token ledger, and a one-time Mara-only writer pilot capped at 13 provider calls. Automatic writer calls during routine refresh are disabled by default until the pilot is reviewed; set `NCCE_AUTO_WRITE_ENABLED=1` only after authorizing full writer rollout. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
+This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. Campaign History adds versioned raw Munda Manager archives and a derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2 added semantic rendering for Mara's authored C-NINE dossier, a request/token ledger, and a one-time Mara-only writer pilot capped at 13 provider calls. That pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts. Her authored biography was not rewritten. Version 0.9.3 preserves the collapsed request ledger, displays in-progress calls from live run counters, and reloads the persisted pilot result on Mara's page. Automatic writer calls during routine refresh remain disabled; set `NCCE_AUTO_WRITE_ENABLED=1` only after authorizing full-roster writing. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
 ## 0. Writing Director additions
 
@@ -316,9 +316,9 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 14. Validation and deployment checkpoint
 
-The source implementation is 0.9.2. Core, writer, story-engine (15 checks), UI renderer, syntax, and whitespace validations pass. The authenticated disposable HTTP smoke could not bind/connect in the current sandbox (`WinError 10013`); this says nothing about the user's machine or hosted Render service. The live Mara-only writer pilot has not yet been run.
+The source implementation is 0.9.3. Core, writer, story-engine (15 checks), UI renderer, Python/JavaScript syntax, and whitespace validations pass. The authenticated disposable HTTP smoke could not bind/connect in the current sandbox (`WinError 10013`); this says nothing about the user's machine or hosted Render service. Mara's one-time live writer pilot completed successfully on hosted 0.9.2.
 
-Hosted release `0.9.1` (`e110408`) is live at https://ncce-private-preview.onrender.com/. The writer is configured. The 0.9.2 pilot build is not yet deployed; do not infer a completed Mara draft from this source checkpoint. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
+Hosted release `0.9.2` (`6863632`) is live at https://ncce-private-preview.onrender.com/. The writer is configured. The 0.9.3 interface update is pending deployment. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
 
 ## 15. Campaign history archive and timeline
 

@@ -39,4 +39,8 @@ assert.ok(dossier.includes('personnel-watermark') && dossier.includes('C9-MK/a4d
 assert.ok(dossier.includes('personnel-system') && dossier.includes('RECORD TERMINATED'));
 assert.ok(app.includes('Test the writer on Mara') && app.includes('at most 13 model requests'));
 assert.ok(app.includes('writer-ledger') && app.includes('r.request_id') && app.includes('r.response_id'));
-console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, formatted dossier, Mara-only writer control and usage ledger)');
+assert.ok(app.includes("/api/writer-runs/mara-latest") && app.includes('writerRunMarkup(run)'));
+assert.ok(app.includes('of 13 model requests attempted so far') && app.includes('innerHTML=writerRunMarkup(run)'));
+const server = fs.readFileSync('src/server.py','utf8');
+assert.ok(server.includes("p=='/api/writer-runs/mara-latest'") && server.includes('requests_attempted'));
+console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, formatted dossier, persistent Mara result and live usage ledger)');

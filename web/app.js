@@ -498,12 +498,17 @@ function identityEditor(fighter) {
 async function showFighter(id, preserveScroll = false) {
   const token = ++renderToken, f = await api('/api/fighters/' + encodeURIComponent(id));
   if (token !== renderToken) return;
+  const isMara = f.name === 'Mara Kel' && /C-NINE story/i.test(String(f.backstory_source || ''));
+  let maraWriterRun = null;
+  if (isMara) { try { maraWriterRun = await api('/api/writer-runs/mara-latest'); } catch (_) {} }
+  if (token !== renderToken) return;
   currentDetail = {type: 'fighter', id};
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const mind = Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead').slice(0, 4);
   const deceased = /killed|dead/i.test(f.status || '');
-  const maraWriterCheck = f.name === 'Mara Kel' && /C-NINE story/i.test(String(f.backstory_source || ''))
-    ? `<section class="writer-check"><div><strong>One-fighter writer check</strong><p class="muted compact">Only Mara’s pending memories and reflection; at most 13 model requests. No other fighter or campaign report is included.</p></div><button data-writer-check="${esc(f.id)}"${sessionStorage.getItem('ncce-mara-writer-check') ? ' disabled' : ''}>${sessionStorage.getItem('ncce-mara-writer-check') ? 'Mara check already submitted in this session' : 'Test the writer on Mara'}</button><p class="writer-check-status" role="status"></p></section>` : '';
+  const maraWriterUsed = Boolean(maraWriterRun || sessionStorage.getItem('ncce-mara-writer-check'));
+  const maraWriterCheck = isMara
+    ? `<section class="writer-check"><div><strong>One-fighter writer check</strong><p class="muted compact">Only Mara’s pending memories and reflection; at most 13 model requests. No other fighter or campaign report is included.</p></div><button data-writer-check="${esc(f.id)}"${maraWriterUsed ? ' disabled' : ''}>${maraWriterRun?.status === 'complete' ? 'Mara check complete' : maraWriterRun?.status === 'error' ? 'Mara check ended with an error' : maraWriterUsed ? 'Mara check already submitted' : 'Test the writer on Mara'}</button><div class="writer-check-status" role="status">${maraWriterRun ? writerRunMarkup(maraWriterRun) : ''}</div></section>` : '';
   app.innerHTML = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}${maraWriterCheck}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}</aside></div>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
@@ -581,6 +586,14 @@ app.addEventListener('click', event => {
   if (target.hasAttribute('data-retry')) task = refreshDashboard(false);
   if (task?.catch) task.catch(handleError);
 });
+function writerRunMarkup(run) {
+  const use=run.request_usage || {}, summary=run.writer || {};
+  const ledger=(use.records||[]).map(r=>`<li><strong>${esc(r.form)}</strong> · ${esc(r.subject_name||'Mara Kel')} · ${esc(r.status)} · ${Number(r.input_tokens)||0} in / ${Number(r.output_tokens)||0} out tokens<br><small>API request: ${esc(r.request_id||'unavailable')} · response: ${esc(r.response_id||'unavailable')}</small>${r.error_text?`<br><small>${esc(r.error_text)}</small>`:''}</li>`).join('');
+  const live=['queued','running'].includes(run.status);
+  const headline=live ? `Mara only · ${use.requests||0} of 13 model requests attempted so far.` : run.status==='error' ? `Writer check stopped: ${esc(run.error || 'see error status')}. ${use.requests||0} requests recorded.` : `Finished for Mara: ${summary.requests_succeeded ?? use.succeeded ?? 0} successful requests, ${summary.cache_hits || 0} cached entries, ${summary.requests_failed ?? use.failed ?? 0} failed requests; ${use.input_tokens||0} input and ${use.output_tokens||0} output tokens. No other records were processed.`;
+  const emptyLedger=live ? 'Request identifiers and results are saved when this run finishes.' : 'No provider requests were needed.';
+  return `<p>${headline}</p><details class="writer-ledger"><summary>Request ledger · ${use.requests||0} provider calls</summary><ol>${ledger||`<li>${emptyLedger}</li>`}</ol></details>`;
+}
 async function runMaraWriterCheck(button) {
   const id=button.dataset.writerCheck, status=button.parentElement.querySelector('.writer-check-status');
   button.disabled=true; status.textContent='Starting a Mara-only run capped at 13 model requests…';
@@ -591,14 +604,10 @@ async function runMaraWriterCheck(button) {
     while (true) {
       await new Promise(resolve=>setTimeout(resolve,2000));
       run=await api(`/api/writer-runs/${encodeURIComponent(started.run_id)}`);
+      status.innerHTML=writerRunMarkup(run);
       if (run.status==='complete' || run.status==='error') break;
-      status.textContent=`Mara only · ${run.request_usage?.requests || 0} requests recorded so far.`;
     }
-    const use=run.request_usage || {}, summary=run.writer || {};
-    const ledger=(use.records||[]).map(r=>`<li><strong>${esc(r.form)}</strong> · ${esc(r.subject_name||'Mara Kel')} · ${esc(r.status)} · ${Number(r.input_tokens)||0} in / ${Number(r.output_tokens)||0} out tokens<br><small>API request: ${esc(r.request_id||'unavailable')} · response: ${esc(r.response_id||'unavailable')}</small>${r.error_text?`<br><small>${esc(r.error_text)}</small>`:''}</li>`).join('');
-    status.innerHTML=(run.status==='error' ? `Writer check stopped: ${esc(run.error || 'see error status')}. ${use.requests || 0} requests recorded.` : `Finished for Mara: ${summary.requests_succeeded || use.succeeded || 0} successful requests, ${summary.cache_hits || 0} cached entries, ${summary.requests_failed || use.failed || 0} failed requests; ${use.input_tokens || 0} input and ${use.output_tokens || 0} output tokens. No other records were processed.`)+`<details class="writer-ledger"><summary>Request ledger · ${use.requests||0} provider calls</summary><ol>${ledger||'<li>No provider requests were needed.</li>'}</ol></details>`;
     await showFighter(id,true);
-    const refreshed=app.querySelector('.writer-check-status'); if (refreshed) refreshed.textContent=status.textContent;
   } catch (error) { status.textContent=error.message; button.disabled=false; }
 }
 document.querySelectorAll('nav button').forEach(button => button.addEventListener('click', () => render(button.dataset.view).catch(handleError)));

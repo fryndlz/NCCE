@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.9.2'
+APP_VERSION='0.9.3'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -121,6 +121,10 @@ class H(BaseHTTPRequestHandler):
    with store.reader() as reader:return self.js({'events':reader.events(limit=limit,entity_id=entity_id)})
   if p=='/api/history':
    with store.reader() as reader:return self.js(reader.history_timeline())
+  if p=='/api/writer-runs/mara-latest':
+   run_id=store.get_state('mara_writer_check_run_id')
+   if not run_id:return self.js({'error':'No Mara writer run has been recorded'},404)
+   p='/api/writer-runs/'+run_id
   if p.startswith('/api/writer-runs/'):
    run_id=p.rsplit('/',1)[1]
    item=_writer_checks.get(run_id)
@@ -130,11 +134,21 @@ class H(BaseHTTPRequestHandler):
     item={'run_id':run_id,'status':store.get_state('mara_writer_check_status','queued'),
           'fighter_id':store.get_state('mara_writer_check_fighter_id'),'writer':saved_summary}
    if item is None:return self.js({'error':'writer run not found'},404)
+   live_writer=llm_writer.run_summary()
+   if item.get('status') in {'queued','running'} and live_writer.get('run_id')==run_id:
+    item={**item,'writer':live_writer}
    with store.reader() as reader:
     rows=reader.db.execute('SELECT request_id,response_id,form,subject_name,model,requested_at,finished_at,status,input_tokens,output_tokens,error_text FROM writer_requests WHERE run_id=? ORDER BY request_row_id',(run_id,)).fetchall()
    requests=[dict(row) for row in rows]
    usage={'requests':len(requests),'succeeded':sum(r['status']=='succeeded' for r in requests),'failed':sum(r['status']=='failed' for r in requests),
           'input_tokens':sum(r['input_tokens'] for r in requests),'output_tokens':sum(r['output_tokens'] for r in requests),'records':requests}
+   if item.get('status') in {'queued','running'} and item.get('writer',{}).get('run_id')==run_id:
+    stats=item['writer']
+    usage.update({'requests':stats.get('requests_attempted',usage['requests']),
+                  'succeeded':stats.get('requests_succeeded',usage['succeeded']),
+                  'failed':stats.get('requests_failed',usage['failed']),
+                  'input_tokens':stats.get('input_tokens',usage['input_tokens']),
+                  'output_tokens':stats.get('output_tokens',usage['output_tokens'])})
    return self.js({**item,'request_usage':usage})
   if p.startswith('/api/gangs/'):
    with store.reader() as reader:x=reader.gang(unquote(p.split('/api/gangs/',1)[1]))
