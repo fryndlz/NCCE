@@ -2,6 +2,16 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.6 — scoped revised Mara writer review
+
+**Implementation checkpoint:** 2026-10-26 09:28 CET (Europe/Warsaw)
+
+- Added one server-enforced, persistent retry slot for the explicitly authorized Mara-only prose review. The endpoint permits only Mara's authored C-NINE record, allows at most 13 model requests, and disables itself after this attempt. No full-roster or campaign-report generation was enabled.
+- **2026-10-26 09:28:14 CET — deployed:** Render deploy `dep-dbfgu7e7bikc73dh1nb0` is live for commit `96fa191` (NCCE 0.9.6/schema 9). The hosted app was reloaded and Mara's profile showed the single-use review control.
+- **2026-10-26 09:30 CET — authorized review completed:** 1 provider request attempted; 0 successful, 1 failed, 0 cached; 1,551 input and 180 output tokens. The ledger reports `Writing provider returned no prose`. No usable draft was generated; existing authored and generated content was not replaced by this failed response. No other fighters, places, gangs, or campaign reports were processed. The retry slot is consumed; no further provider call was made.
+- The metered output-token count does not mean the model returned usable prose. The provider request was accepted far enough to incur token usage, but the application received no prose field. The request ledger preserves this failure. A cause beyond the recorded empty-prose result is not established from the application response.
+- Documentation reflects the live version and the failed single-fighter review. Routine writer generation remains disabled.
+
 ## 0.9.5 — inferred fighter context and event-isolated writing
 
 **Implementation checkpoint:** 2026-10-26 02:07 CET (Europe/Warsaw)

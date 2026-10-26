@@ -1,16 +1,16 @@
-# NCCE 0.9.5 — current technical design
+# NCCE 0.9.6 — current technical design
 
-**Source release:** 0.9.5, inferred fighter identity and event-isolated writer context
+**Source release:** 0.9.6, scoped revised Mara writer review
 
-**Hosted release:** 0.9.5 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
+**Hosted release:** 0.9.6 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
 **Schema:** SQLite version 9 in source and hosted database.
 
-**Documentation checkpoint:** 2026-10-26 02:07 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 09:30 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** Render deploy `dep-dbfaf5o473hc73ceckg0` is live for commit `a392079` (0.9.5/schema 9). The hosted app was reloaded; Mara's dossier shows the inferred identity facets and stimulus-attention weights. Existing prose is retained as stale pending review. No provider request or campaign narrative regeneration was made for 0.9.5. See `CHANGELOG.md` for validation and release status.
+**Release verification:** Render deploy `dep-dbfgu7e7bikc73dh1nb0` is live for commit `96fa191` (0.9.6/schema 9). One user-authorized Mara-only run was attempted: 1 request, 0 successful, 1 failed, 1,551 input and 180 output tokens. The provider result contained no prose; no draft was accepted. No other records were processed. See `CHANGELOG.md` for the full release and review record.
 
-This document describes implemented source behavior, constants, and limitations. Campaign History adds versioned raw Munda Manager archives and derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2's Mara pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts; her authored biography was not rewritten. Version 0.9.5 makes inferred identity facets and stimulus-attention weights inspectable, adds event isolation to fighter observations/reflections, loads bounded source guardrails into the actual prompt, and reduces the short-memory output cap. It does not call the provider or regenerate existing writing. Automatic writer calls during routine refresh remain disabled; do not enable full-roster writing without an explicit decision. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
+This document describes implemented source behavior, constants, and limitations. Campaign History adds versioned raw Munda Manager archives and derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2's Mara pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts; her authored biography was not rewritten. Version 0.9.5 makes inferred identity facets and stimulus-attention weights inspectable, adds event isolation to fighter observations/reflections, loads bounded source guardrails into the actual prompt, and reduces the short-memory output cap. Version 0.9.6 enabled exactly one reviewed Mara retry, which returned no usable prose and is now consumed. Automatic writer calls during routine refresh remain disabled; do not run the writer again without explicit authorization. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
 ## 0. Writing Director additions
 
@@ -324,9 +324,9 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 14. Validation and deployment checkpoint
 
-The 0.9.5 source validation includes all seven Python suites, Python compilation, Node writing/timeline contracts, JavaScript syntax, and `git diff --check`; all passed on 2026-10-26. The local server process starts with the bundled Python runtime, but loopback HTTP/TCP checks are blocked by this Windows sandbox's socket permissions. The 0.9.5 hosted deploy completed at 02:07 CET and the app loaded with the current campaign data. Mara's dossier visibly exposes the new profile. Her earlier 13-call pilot ledger remains unchanged; no new provider requests or story regeneration were made and no other fighter was written.
+The 0.9.5 source validation includes all seven Python suites, Python compilation, Node writing/timeline contracts, JavaScript syntax, and `git diff --check`; all passed on 2026-10-26. The local server process starts with the bundled Python runtime, but loopback HTTP/TCP checks are blocked by this Windows sandbox's socket permissions. The 0.9.6 hosted deploy completed at 09:28 CET and the app loaded with the current campaign data. Mara's dossier visibly exposes inferred identity/stimulus data and the one-use review control. Its authorized review ended in one failed empty-prose response; no other fighter was written.
 
-Hosted release `0.9.5` (`a392079`) is live at https://ncce-private-preview.onrender.com/. The writer is configured but routine calls remain disabled. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. Mara's earlier one-time pilot used 13 calls; 0.9.5 has not regenerated it. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
+Hosted release `0.9.6` (`96fa191`) is live at https://ncce-private-preview.onrender.com/. Routine writer calls remain disabled. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. Mara's earlier 13-call pilot used 13 calls; the later authorized review used one request and failed to return prose. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
 
 ## 15. Campaign history archive and timeline
 
