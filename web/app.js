@@ -509,8 +509,13 @@ async function showFighter(id, preserveScroll = false) {
   const token = ++renderToken, f = await api('/api/fighters/' + encodeURIComponent(id));
   if (token !== renderToken) return;
   const isMara = f.name === 'Mara Kel' && /C-NINE story/i.test(String(f.backstory_source || ''));
-  let maraWriterRun = null;
-  if (isMara) { try { maraWriterRun = await api('/api/writer-runs/mara-latest'); } catch (_) {} }
+  let maraWriterRun = null, writerDiagnostic = null;
+  if (isMara) {
+    [maraWriterRun, writerDiagnostic] = await Promise.all([
+      api('/api/writer-runs/mara-latest').catch(() => null),
+      api('/api/writer-diagnostic').catch(() => null)
+    ]);
+  }
   if (token !== renderToken) return;
   currentDetail = {type: 'fighter', id};
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
@@ -519,7 +524,7 @@ async function showFighter(id, preserveScroll = false) {
   const maraWriterPending = ['queued','running'].includes(maraWriterRun?.status) || Boolean(sessionStorage.getItem('ncce-mara-writer-check') && !maraWriterRun);
   const maraWriterCanStart = (!maraWriterRun && !maraWriterPending) || maraWriterRun?.can_retry === true;
   const maraWriterCheck = isMara
-    ? `<section class="writer-check"><div><strong>One-fighter writer check</strong><p class="muted compact">Only Mara’s memories and reflection; at most 13 model requests. This review does not process other fighters or campaign reports.</p></div><button data-writer-check="${esc(f.id)}"${maraWriterCanStart ? '' : ' disabled'}>${maraWriterRun?.can_retry ? 'Run revised Mara check' : maraWriterRun?.status === 'complete' ? 'Mara check complete' : maraWriterRun?.status === 'error' ? 'Mara check ended with an error' : maraWriterPending ? 'Mara check is running' : 'Test the writer on Mara'}</button><div class="writer-check-status" role="status">${maraWriterRun ? writerRunMarkup(maraWriterRun) : ''}</div></section>` : '';
+    ? `<section class="writer-check"><div><strong>One-fighter writer check</strong><p class="muted compact">Only Mara’s memories and reflection; at most 13 model requests. This review does not process other fighters or campaign reports.</p></div><button data-writer-check="${esc(f.id)}"${maraWriterCanStart ? '' : ' disabled'}>${maraWriterRun?.can_retry ? 'Run revised Mara check' : maraWriterRun?.status === 'complete' ? 'Mara check complete' : maraWriterRun?.status === 'error' ? 'Mara check ended with an error' : maraWriterPending ? 'Mara check is running' : 'Test the writer on Mara'}</button><div class="writer-check-status" role="status">${maraWriterRun ? writerRunMarkup(maraWriterRun) : ''}</div><hr><div><strong>One-call diagnostic</strong><p class="muted compact">Asks for one injury memory with a larger output allowance; displays the response and API completion details. Does not save prose to the campaign or change Mara’s record.</p></div><button data-writer-diagnostic="true"${writerDiagnostic?.used ? ' disabled' : ''}>${writerDiagnostic?.used ? 'Diagnostic used' : 'Ask the writer for one sample'}</button><div class="writer-diagnostic-status" role="status">${writerDiagnostic?.used ? writerDiagnosticMarkup(writerDiagnostic) : ''}</div></section>` : '';
   app.innerHTML = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}${maraWriterCheck}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}</aside></div>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
@@ -592,6 +597,7 @@ app.addEventListener('click', event => {
   if (target.dataset.lore) task = showLore(target.dataset.lore);
   if (target.dataset.back) task = render(target.dataset.back);
   if (target.dataset.writerCheck) task = runMaraWriterCheck(target);
+  if (target.dataset.writerDiagnostic) task = runWriterDiagnostic(target);
   if (target.dataset.clear) { filters[target.dataset.clear] = {...defaults[target.dataset.clear]}; task = render(target.dataset.clear); }
   if (target.dataset.gangFilter) { filters.fighters.gang = target.dataset.gangFilter; task = render('fighters'); }
   if (target.hasAttribute('data-retry')) task = refreshDashboard(false);
@@ -620,6 +626,17 @@ async function runMaraWriterCheck(button) {
     }
     await showFighter(id,true);
   } catch (error) { status.textContent=error.message; button.disabled=false; }
+}
+function writerDiagnosticMarkup(result) {
+  const details=result.response || {};
+  const metadata=`${esc(details.status || 'no response status')} · ${Number(details.input_tokens)||0} input / ${Number(details.output_tokens)||0} output tokens · ${Number(details.reasoning_tokens)||0} reasoning tokens · incomplete: ${esc(details.incomplete_reason || 'none')} · output types: ${esc((details.output_types || []).join(', ') || 'none')} · request ${esc(details.request_id || 'unavailable')} · response ${esc(details.response_id || 'unavailable')}`;
+  return `<p><strong>${result.status === 'succeeded' ? 'Writer sample' : 'Diagnostic result'}</strong></p>${result.text ? `<blockquote>${esc(result.text)}</blockquote>` : `<p>${esc(result.error || 'No prose was returned.')}</p>`}<small>${metadata}</small>`;
+}
+async function runWriterDiagnostic(button) {
+  const status=button.parentElement.querySelector('.writer-diagnostic-status');
+  button.disabled=true; status.textContent='Sending one isolated writer prompt…';
+  try { const result=await api('/api/writer-diagnostic',{method:'POST'}); status.innerHTML=writerDiagnosticMarkup(result); button.textContent='Diagnostic used'; }
+  catch (error) { status.textContent=error.message; if (!/already been used/i.test(error.message)) button.disabled=false; }
 }
 document.querySelectorAll('nav button').forEach(button => button.addEventListener('click', () => render(button.dataset.view).catch(handleError)));
 syncNow.addEventListener('click', async () => {

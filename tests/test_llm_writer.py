@@ -87,7 +87,10 @@ def test_openai_request_uses_server_key_and_structured_prose_schema():
         assert paragraphs==[{'runs':[{'text':'She remembers the repair shift.','marks':[]}]}]
         assert captured['url']=='https://api.openai.com/v1/responses'
         assert captured['authorization']=='Bearer mock-secret'
-        assert llm_writer._last_response=={'request_id':'req_test_001','response_id':'resp_test_001','input_tokens':123,'output_tokens':7}
+        assert llm_writer._last_response['request_id']=='req_test_001'
+        assert llm_writer._last_response['response_id']=='resp_test_001'
+        assert llm_writer._last_response['input_tokens']==123 and llm_writer._last_response['output_tokens']==7
+        assert llm_writer._last_response['status'] is None
         assert captured['body']['text']['format']['type']=='json_schema'
         assert 'critical_status' in str(captured['body']['text']['format']['schema'])
         assert 'error_or_missing' in str(captured['body']['text']['format']['schema'])
@@ -117,6 +120,29 @@ def test_memory_prompt_loads_guardrails_and_caps_short_output():
         assert 'Do not recap the biography' in instructions
         assert 'Do not recap the biography' in instructions
         assert captured['body']['max_output_tokens']==180
+    finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
+
+
+def test_incomplete_response_exposes_output_limit_diagnostics():
+    old_key,old_urlopen=llm_writer.API_KEY,llm_writer.urlopen
+    llm_writer.API_KEY='mock-secret'; captured={}
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self,*args): return False
+        headers={'x-request-id':'req_incomplete'}
+        def read(self):
+            return json.dumps({'id':'resp_incomplete','status':'incomplete','incomplete_details':{'reason':'max_output_tokens'},
+                'usage':{'input_tokens':1551,'output_tokens':180,'output_tokens_details':{'reasoning_tokens':180}},'output':[]}).encode()
+    def fake(request,timeout): captured['body']=json.loads(request.data); return Response()
+    llm_writer.urlopen=fake
+    try:
+        try: llm_writer._call('fighter_memory',{'event_title':'Critical injury'},output_token_limit=650,reasoning_effort='low')
+        except RuntimeError as exc: assert str(exc)=='Writing provider response incomplete: max_output_tokens'
+        else: raise AssertionError('incomplete response should not be treated as a missing prose field')
+        assert captured['body']['max_output_tokens']==650
+        assert captured['body']['reasoning']=={'effort':'low'}
+        assert llm_writer._last_response['incomplete_reason']=='max_output_tokens'
+        assert llm_writer._last_response['reasoning_tokens']==180
     finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
 
 

@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.9.6'
+APP_VERSION='0.9.7'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -150,6 +150,10 @@ class H(BaseHTTPRequestHandler):
                   'output_tokens':stats.get('output_tokens',usage['output_tokens'])})
    can_retry=_writer_check_used and not _writer_check_review_used and item.get('status') in {'complete','error'}
    return self.js({**item,'request_usage':usage,'can_retry':can_retry})
+  if p=='/api/writer-diagnostic':
+   try:result=json.loads(store.get_state('writer_diagnostic_result','{}'))
+   except (TypeError,ValueError):result={}
+   return self.js({'used':store.get_state('writer_diagnostic_used')=='1',**result})
   if p.startswith('/api/gangs/'):
    with store.reader() as reader:x=reader.gang(unquote(p.split('/api/gangs/',1)[1]))
    return self.js(x if x else {'error':'not found'},200 if x else 404)
@@ -198,6 +202,33 @@ class H(BaseHTTPRequestHandler):
    payload=b'{"ok":true}'; self.send_response(200); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Set-Cookie',cookie); self.send_header('Content-Length',str(len(payload))); self.end_headers(); self.wfile.write(payload)
    return
   if AUTH_REQUIRED and not self._authenticated():return self.js({'error':'authentication required'},401)
+  if p=='/api/writer-diagnostic':
+   origin=self.headers.get('Origin')
+   if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)
+   if not llm_writer.API_KEY:return self.js({'error':'Writing provider is not configured; no request was made.'},503)
+   with _writer_check_guard:
+    if store.get_state('writer_diagnostic_used')=='1':return self.js({'error':'The one-call writer diagnostic has already been used.'},409)
+    store.set_state('writer_diagnostic_used','1')
+   run_id='writer-diagnostic-'+uuid.uuid4().hex
+   packet={'subject':'Mara Kel','event_title':'Lasting injury: Critical Injury',
+           'mechanical_evidence':['Effects changed from none recorded to Critical Injury','Status changed from Active to Recovery'],
+           'identity':{'occupation_or_craft':'Maintenance fitter','voice_cues':['practical','composed'],
+                       'source':'player-authored C-NINE dossier and supported current profile'},
+           'event_boundary':'Write only about this recorded injury and recovery status. Do not merge other events or repeat the authored biography.',
+           'knowledge_boundary':'No unrecorded battle actions, causes, or private thoughts are known.'}
+   old_enabled=llm_writer.WRITER_ENABLED
+   llm_writer.reset_budget(1,run_id); llm_writer.set_enabled(True)
+   result={'used':True,'status':'failed','model':llm_writer.MODEL}
+   try:
+    paragraphs=llm_writer._call('fighter_memory',packet,output_token_limit=650,reasoning_effort='low')
+    result.update({'status':'succeeded','text':'\n\n'.join(''.join(run.get('text','') for run in p.get('runs',[])) for p in paragraphs)})
+   except Exception as exc:
+    result['error']=str(exc)[:240]
+   finally:
+    result['response']=dict(llm_writer._last_response)
+    llm_writer.set_enabled(old_enabled)
+   store.set_state('writer_diagnostic_result',json.dumps(result,ensure_ascii=False,sort_keys=True))
+   return self.js(result)
   if p.startswith('/api/fighters/') and p.endswith('/write-check'):
    origin=self.headers.get('Origin')
    if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)

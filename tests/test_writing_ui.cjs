@@ -42,6 +42,7 @@ assert.ok(app.includes('Test the writer on Mara') && app.includes('Run revised M
 assert.ok(app.includes('writer-ledger') && app.includes('r.request_id') && app.includes('r.response_id'));
 assert.ok(app.includes("/api/writer-runs/mara-latest") && app.includes('writerRunMarkup(run)'));
 assert.ok(app.includes('of 13 model requests attempted so far') && app.includes('innerHTML=writerRunMarkup(run)'));
+assert.ok(app.includes('/api/writer-diagnostic') && app.includes('Ask the writer for one sample') && app.includes('writerDiagnosticMarkup'));
 context.profile = {name:'crew / workshop',traits:['practical'],evidence:['Authored maintenance cues'],writer_context:{
   identity:{},inferred_identity:[{label:'Authored work or craft',value:'maintenance fitter',source:'player_authored',basis:'Named in Backstory'}],
   stim_weights:[{topic:'injury',weight:1.3,basis:['voice tendency: enduring']}]
@@ -58,5 +59,6 @@ context.staleMemory = {id:'memory',memory_type:'observation',writer_status:'stal
 assert.ok(run('memoryCard(staleMemory)').includes('Earlier draft retained'));
 const server = fs.readFileSync('src/server.py','utf8');
 assert.ok(server.includes("p=='/api/writer-runs/mara-latest'") && server.includes('requests_attempted'));
+assert.ok(server.includes("p=='/api/writer-diagnostic'") && server.includes("'writer_diagnostic_used'"));
 assert.equal((server.match(/^import llm_writer$/gm)||[]).length,1,'writer module is imported once at module scope so every API route can read its run summary');
 console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, inferred identity/stims, stale drafts, formatted dossier, persistent Mara result and live usage ledger)');
