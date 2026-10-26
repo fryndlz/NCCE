@@ -1,6 +1,6 @@
 # Handoff status
 
-**0.11.0 implementation checkpoint — 2026-10-26:** Writer Workshop source is complete with schema 11, mandatory authenticated/same-origin editing, one-call idempotent trials, immutable revisions/edits, source-backed samples, exact prompt inspection and explicit future-policy activation/rollback. Tests and disposable application smoke pass. No additional provider calls were made. Deploy and hosted UI verification are pending at this checkpoint. See `WRITER_WORKSHOP.md`.
+**0.11.0 verified checkpoint — 2026-10-26 21:58:56 CET:** Writer Workshop is live at source `9eb029d`, schema 11. Mandatory authenticated/same-origin editing, one-call idempotent trials, immutable revisions/edits, source-backed samples, exact prompt inspection and explicit future-policy activation/rollback are implemented. Tests and disposable application smoke pass. Hosted UI import/restoration of Mara A and exact original prompt inspection were verified. Provider request count remained 108 before/after rollout; no policy was activated, automatic writing remains off, and Mara's authored biography matches the pre-workshop backup. See `WRITER_WORKSHOP.md` and `../CHANGELOG.md`.
 
 The owner has now reviewed all three comparison pairs: territory neither (lean A), Mara A, gang neither (lean B, but narration mismatched an internal report). Comparison identities may be revealed; no prompt or rejected sample should be automatically promoted. Workshop feedback resolves actual identities from the private saved audit.
 
@@ -8,9 +8,9 @@ The owner has now reviewed all three comparison pairs: territory neither (lean A
 
 **0.10.0 checkpoint — 2026-10-26 20:55 CET:** shared runtime writing contract across all fourteen forms, positive examples, explicit creative permission, historical context, structured composition, retained responses and usage, and separate four-entry editorial preview. See `WRITER_PIPELINE_0_10.md`. Existing and new offline tests and authenticated live-Sheet HTTP smoke pass. Routine writing remains disabled. Source `e5b26ec` is live; four Bone Shrine previews completed with 8,809 input / 1,249 output tokens, 1,613 cached input tokens, no failures or retries. View System → Writing preview. The entries are not published campaign history. Literary approval remains pending; do not infer bulk-generation approval from this test. Full deployment, request and editorial evidence is in `../CHANGELOG.md`.
 
-**Current source implementation:** NCCE 0.10.1 — shared narrative pipeline and controlled editorial comparison, SQLite schema 10
+**Current source implementation:** NCCE 0.11.0 — direct Writer Workshop and shared narrative pipeline, SQLite schema 11
 
-**Hosted implementation:** 0.10.1 / schema 10 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. Pre-release backup: `/var/data/pre-0.10.0-20261026.db`.
+**Hosted implementation:** 0.11.0 / schema 11 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. Latest pre-release backup: `/var/data/pre-workshop-0.11.0.db` (39,137,280 bytes). Earlier pre-0.10.0 backup remains.
 
 **Checkpoint:** 2026-10-26 12:54 CET (Europe/Warsaw)
 
@@ -74,7 +74,7 @@ Use `data/lore/C-NINE Story - canonical export.txt` and its existing biography m
 
 ## Highest-priority follow-up work
 
-1. Obtain the owner's blind judgement for the three six-call comparison pairs. Do not reveal prompt assignments, promote a candidate or regenerate the campaign before that review. The older four-entry pilot was rejected. Routine writing remains disabled. The model writer does not yet consume Munda Manager archive chronology.
+1. Let the owner refine writing through the Workshop. Comparison feedback is recorded and prompt identities are revealed there. No overall winning prompt was selected; Mara A (current prompt) is imported as an editable sample with zero calls. Save/activate only deliberate owner-approved guidance/examples. The older four-entry pilot was rejected. Routine writing remains disabled. The model writer does not yet consume Munda Manager archive chronology.
 2. Complete a real phone/mobile visual and interaction check; responsive CSS alone is not evidence of that check.
 3. Add a safe SQLite export/backup workflow. The database now survives service restarts and deploys on a persistent disk, but the app does not yet offer an application-consistent backup download or offsite retention.
 4. Expand structured campaign inputs where needed: individual battle attendance, XP reasons, named rescue/medical actions, and explicit relationship evidence. Current XP-based attendance remains inferred; the writer does not yet consume raw archive chronology.

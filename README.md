@@ -1,10 +1,12 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current source: **v0.9.11 — complete writer contracts and diegetic quality gate**, SQLite schema 9. Story generation is `0.8.2`; campaign archives do not alter mechanical truth. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
+Current source: **v0.11.0 — direct Writer Workshop**, SQLite schema 11. Story generation is `0.8.2`; campaign archives do not alter mechanical truth. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
 
 Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default model is `gpt-6.1-sol`; override it with `NCCE_WRITER_MODEL`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Fighter observations use a one-event packet with compact, evidence-labelled identity and stimulus-attention context; the full biography and earlier generated memory prose are not repeated in those calls. Each uncached draft receives the shared runtime writing contract, a form-specific brief and a positive example. Evidence, authored context and generated continuity are separate. Documents include structured headings and remarks; rejected responses remain in the server-side audit. Automatic writing remains disabled on routine syncs. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
 
 Open the [hosted preview](https://ncce-private-preview.onrender.com/) and use your existing invitation passphrase. See [hosting details](docs/HOSTED_DEPLOYMENT.md) for storage, cost, and backup limitations.
+
+Open **Writer Workshop** to edit shared/form writing guidance, inspect a sourced packet, generate at most one draft per click, revise prose and save examples. Saving/importing/editing/inspection are free; only Generate can make a provider request. Activate a saved revision explicitly to use it for future drafting, or restore an earlier revision. Existing prose and authored canon are not rewritten. See [Writer Workshop](docs/WRITER_WORKSHOP.md) for exact behavior and access requirements.
 
 See [Writing Director](docs/WRITING_DIRECTOR.md) for the integrated writing contracts, source documents, identity tags, place/gang streams, ambient fiction, date conversion and implementation limits.
 See [Current technical design](docs/CURRENT_DESIGN.md) for the app's modules, data flow, archive chronology rules and known boundaries.

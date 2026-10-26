@@ -1,7 +1,7 @@
 # NCCE 0.11.0 — current technical design
 
 **Source release:** 0.11.0, shared narrative writing pipeline and direct Writer Workshop. **Schema:** 11.
-**Checkpoint:** 2026-10-26 21:27 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
+**Checkpoint:** 2026-10-26 21:58:56 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
 
 ## 0. Current writing implementation
 
