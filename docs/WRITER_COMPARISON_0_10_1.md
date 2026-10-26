@@ -38,4 +38,6 @@ python src/writer_comparison.py --territory-id 19
 python src/writer_comparison.py --territory-id 19 --execute
 ```
 
-The first command prints the plan without calls. The second executes the approved bounded experiment once with the server-side key. Provider usage, including failures, cached input and reasoning tokens, uses the existing schema-10 ledger. Hosted results will be recorded in CHANGELOG.md after verification.
+The first command prints the plan without calls. The second executes the approved bounded experiment once with the server-side key. Provider usage, including failures, cached input and reasoning tokens, uses the existing schema-10 ledger.
+
+The hosted experiment completed at 2026-10-26 21:23:56 CET with six successful calls, 13,674 input / 1,299 output tokens, 47 reasoning tokens and no cached input. The exact saved API bodies differ only in instructions within each pair. All results are displayed for blind owner review; no winning prompt has been selected. See CHANGELOG.md for run/deploy identifiers and preservation checks.

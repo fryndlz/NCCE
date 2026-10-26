@@ -5,7 +5,11 @@
 - Added a six-call experiment covering a sourced territory event, Mara Kel injury memory and gang event, with identical evidence/model/effort/schema within each pair. A/B order is shuffled independently; every result is saved under System → Writing comparison.
 - Added a general editorial candidate teaching evocative specificity, meaningful detail, proportion, subject identity and developed consequences. It is evaluated alongside the current prompt; production writing policy remains unchanged pending review.
 - Added exact prompt overrides to the existing audited/cached writer path, plus a shared fighter-packet builder. No new paid HTTP endpoint; one-use server-side execution; no campaign prose replacement or source/canon edits. See `docs/WRITER_COMPARISON_0_10_1.md`.
-- Offline checks verify paired-input equality, prompt separation, six-call accounting, blinded presentation and preserved campaign records. Hosted results pending at implementation checkpoint.
+- Offline checks verify paired-input equality, prompt separation, six-call accounting, blinded presentation and preserved campaign records. Existing writer, story and shared-pipeline checks pass, along with Node renderer/JS syntax and disposable authenticated HTTP smoke.
+- **2026-10-26 21:22:09 CET:** `1e2ccbe` deployed as 0.10.1 (`dep-dbfrce8n74is73a12un0`). No automatic deploy followed the push; a single manual deploy was triggered after checking deploys/events.
+- **2026-10-26 21:22:59–21:23:56 CET:** run `comparison-d819af9eb3c04b598e344a327991e76d` completed all six requests successfully. No retries, failures, result-cache hits or discarded versions. Model/effort: `gpt-6.1-sol` / `low`. Usage: 13,674 input tokens, 1,299 output tokens (47 reasoning), 0 provider-cached input tokens. All six outputs are visible under System → Writing comparison; old four-entry preview remains below it.
+- Server audit verified that every pair differs only in `instructions`: input, model, reasoning effort, JSON schema and output limits match exactly. Six exact requests/responses are saved in schema-10 audit. A/B mappings remain private in that audit until the owner's blind review; this release declares no literary winner.
+- `/healthz` reports 0.10.1; automatic writing remains effectively off; Mara Kel's authored backstory and source still match the pre-0.10.0 backup. Comparison prose is not published into normal campaign histories or fighter memories.
 
 ## 0.10.0 — shared narrative writer (2026-10-26 19:40 CET)
 

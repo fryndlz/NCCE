@@ -1,10 +1,12 @@
 # Handoff status
 
+**0.10.1 checkpoint — 2026-10-26 21:27 CET:** the owner approved a six-call blinded comparison after rejecting the earlier pilot for vague suggestion, inconsequential detail and loss of the shrine's identity. Source `1e2ccbe` is live. Three matched cases (Bone Shrine event, Mara Kel injury memory, Ethernetans gang event) each have A/B outputs in **System → Writing comparison**. All six calls succeeded: 13,674 input / 1,299 output tokens, 47 reasoning tokens, zero cached input, no retries. Server audit confirms only instructions differ within each pair. Await the owner's A/B/neither judgement before revealing assignment or promoting the candidate. The current production contract is still v6; automatic writing remains off. See `WRITER_COMPARISON_0_10_1.md` and `../CHANGELOG.md`.
+
 **0.10.0 checkpoint — 2026-10-26 20:55 CET:** shared runtime writing contract across all fourteen forms, positive examples, explicit creative permission, historical context, structured composition, retained responses and usage, and separate four-entry editorial preview. See `WRITER_PIPELINE_0_10.md`. Existing and new offline tests and authenticated live-Sheet HTTP smoke pass. Routine writing remains disabled. Source `e5b26ec` is live; four Bone Shrine previews completed with 8,809 input / 1,249 output tokens, 1,613 cached input tokens, no failures or retries. View System → Writing preview. The entries are not published campaign history. Literary approval remains pending; do not infer bulk-generation approval from this test. Full deployment, request and editorial evidence is in `../CHANGELOG.md`.
 
-**Current source implementation:** NCCE 0.10.0 — shared narrative pipeline, SQLite schema 10
+**Current source implementation:** NCCE 0.10.1 — shared narrative pipeline and controlled editorial comparison, SQLite schema 10
 
-**Hosted implementation:** 0.10.0 / schema 10 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. Pre-release backup: `/var/data/pre-0.10.0-20261026.db`.
+**Hosted implementation:** 0.10.1 / schema 10 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. Pre-release backup: `/var/data/pre-0.10.0-20261026.db`.
 
 **Checkpoint:** 2026-10-26 12:54 CET (Europe/Warsaw)
 
@@ -68,7 +70,7 @@ Use `data/lore/C-NINE Story - canonical export.txt` and its existing biography m
 
 ## Highest-priority follow-up work
 
-1. Review the four saved editorial previews against the approved style references. Routine writing is disabled; do not regenerate the campaign until the owner approves quality and scope. Fighters/gangs/battles need their own small editorial checks. The model writer does not yet consume Munda Manager archive chronology.
+1. Obtain the owner's blind judgement for the three six-call comparison pairs. Do not reveal prompt assignments, promote a candidate or regenerate the campaign before that review. The older four-entry pilot was rejected. Routine writing remains disabled. The model writer does not yet consume Munda Manager archive chronology.
 2. Complete a real phone/mobile visual and interaction check; responsive CSS alone is not evidence of that check.
 3. Add a safe SQLite export/backup workflow. The database now survives service restarts and deploys on a persistent disk, but the app does not yet offer an application-consistent backup download or offsite retention.
 4. Expand structured campaign inputs where needed: individual battle attendance, XP reasons, named rescue/medical actions, and explicit relationship evidence. Current XP-based attendance remains inferred; the writer does not yet consume raw archive chronology.
