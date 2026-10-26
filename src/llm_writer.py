@@ -18,7 +18,7 @@ _run_id=''
 _run_limit=MAX_CALLS
 _last_response={}
 _run_stats={}
-FORMATTING_REVISION='event-isolated-identity-stims-v3'
+FORMATTING_REVISION='event-isolated-identity-stims-reasoning-budget-v4'
 ALLOWED_MARKS={'critical_status','error_or_missing','machine_error'}
 from pathlib import Path
 GUARDRAIL_PATH=Path(__file__).resolve().parents[1] / 'docs' / 'writing_sources' / 'necromunda_chronicle_narrative_guardrails.md'
