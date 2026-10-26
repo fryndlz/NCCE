@@ -5,6 +5,7 @@
 - Diagnosed saved Palanite Precinct trial `workshop-3e0ab03ae4784d78b3c83cf644c91fd4`: 2,095 input / 1,800 output tokens; provider returned `incomplete: max_output_tokens` with truncated structured prose. This was NCCE's per-response ceiling, not an account quota or the one-call trial limit.
 - Raised the default/configured response allowance to 4,000 tokens for all forms, including reasoning and visible output. Removed the old hardcoded 650-token personal-memory sub-limit; short prose remains controlled by the form brief. Explicit diagnostic overrides remain bounded by their requested value. Model/effort remains Luna/medium, one call per trial, with no automatic retries or regeneration.
 - Added the effective response limit to writer availability. Existing failed output, owner revisions and samples remain preserved. No new provider calls are part of this fix.
+- Deployed source `1c63a60` via `dep-dbfttmifngtc7382huag`, live at **2026-10-27 00:15:28 CET**. Authenticated `/api/health` verified `gpt-6-luna`, `medium`, `response_token_limit: 4000`, zero calls in the refreshed writer run, and healthy read-only Sheet sync. The unrelated in-progress frontend changes were excluded from this commit/deploy.
 
 ## Writer configuration — Luna medium (2026-10-26)
 
