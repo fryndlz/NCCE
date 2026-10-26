@@ -2,13 +2,13 @@
 
 **Source release:** 0.9.3, persistent Mara pilot results and accurate request progress
 
-**Hosted release:** 0.9.2 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`. Version 0.9.3 is prepared in source; deployment verification is recorded in `CHANGELOG.md`.
+**Hosted release:** 0.9.3 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
 **Schema:** SQLite version 9 in source and hosted database.
 
-**Documentation checkpoint:** 2026-10-26 01:24 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 01:32 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** 0.9.2 is live, and Mara's one-time 13-call hosted pilot completed successfully. The 0.9.3 changes pass the seven Python suites, Python compilation, Node writing/timeline contracts, JavaScript syntax, and `git diff --check`. The 0.9.3 interface fix is not yet deployed. See `CHANGELOG.md` for release verification.
+**Release verification:** 0.9.3 is live as deploy `dep-dbf9u5fb9u1s73c5bbkg` (commit `4e3b428`) and hosted health reports schema 9. Mara's profile reload shows her persisted 13-entry memory stream and completed reflection; the one-time writer control is disabled. No full-roster writing was run. See `CHANGELOG.md` for the deployment and usage traceability record.
 
 This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. Campaign History adds versioned raw Munda Manager archives and a derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2 added semantic rendering for Mara's authored C-NINE dossier, a request/token ledger, and a one-time Mara-only writer pilot capped at 13 provider calls. That pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts. Her authored biography was not rewritten. Version 0.9.3 preserves the collapsed request ledger, displays in-progress calls from live run counters, and reloads the persisted pilot result on Mara's page. Automatic writer calls during routine refresh remain disabled; set `NCCE_AUTO_WRITE_ENABLED=1` only after authorizing full-roster writing. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 

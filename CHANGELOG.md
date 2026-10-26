@@ -4,13 +4,16 @@ Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October
 
 ## 0.9.3 — persistent Mara results and request progress
 
-**Implementation checkpoint:** 2026-10-26 01:24 CET (Europe/Warsaw)
+**Implementation checkpoint:** 2026-10-26 01:32 CET (Europe/Warsaw)
 
 - Preserved the request ledger as collapsed semantic markup after Mara's result refresh; the previous UI flattened the ledger into a wall of wrapped text.
 - Shows attempted calls from the active writer run while SQLite is still committing the generated records, instead of showing a misleading zero until completion.
 - Added an authenticated read-only endpoint and profile hydration so Mara's one-time pilot result, ledger and generated prose summary remain visible after reload or service restart.
 - Updated the one-time test contract and current design/handoff documentation. No provider calls were made by this source-only UI change.
-- **Source validation:** all seven Python suites passed (core, battle identity, campaign history, 15 story-engine checks, voice, Writing Director, and writer); Python compilation; Node writing and campaign-timeline UI contracts; `node --check web/app.js`; `git diff --check`. The hosted service remains 0.9.2 until this commit is pushed and the automatic Render deploy is verified.
+- **Source validation:** all seven Python suites passed (core, battle identity, campaign history, 15 story-engine checks, voice, Writing Director, and writer); Python compilation; Node writing and campaign-timeline UI contracts; `node --check web/app.js`; `git diff --check`. The local HTTP smoke was blocked by sandbox loopback restrictions (`WinError 10013`).
+- **2026-10-26 01:31:27 CET — deployed:** Render reports commit `4e3b428` live as deploy `dep-dbf9u5fb9u1s73c5bbkg`. Hosted `/api/health` confirms NCCE 0.9.3, schema 9, persistent DB `/var/data/ncce-preview.db`, and configured `gpt-6.1-sol` writer. No writer calls were triggered by deployment.
+- **2026-10-26 01:32 CET — verified after reload:** Mara Kel's profile loads the persisted 13-entry memory stream, the completed reflection, and the disabled one-time pilot control. Her authored dossier is visibly labeled `player-authored / C-NINE story` and remains separate from generated writing. No second pilot was run.
+- The hosted pilot produced 13 successful provider requests, not 96. The screenshot's 96 total calls were filtered to all API sources, projects, and keys, so it does not identify NCCE requests. The 0.9.1 record documents an earlier 80-draft NCCE batch; schema 8 had no request-level IDs, so exact historical call-to-output mapping is unavailable. The new ledger records request/response IDs, forms, outcomes, and token counts for future calls.
 
 ## 0.9.2 — authored dossier rendering and Mara writer pilot
 

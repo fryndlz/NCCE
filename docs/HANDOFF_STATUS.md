@@ -2,11 +2,11 @@
 
 **Current source implementation:** NCCE 0.9.3 — persistent Mara pilot results and accurate request progress, SQLite schema 9
 
-**Hosted implementation:** 0.9.2 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
+**Hosted implementation:** 0.9.3 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-26 01:24 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 01:32 CET (Europe/Warsaw)
 
-**Deployment:** 0.9.2 / schema 9 is live. Version 0.9.3 is pending local validation, commit, push, and auto-deploy verification.
+**Deployment:** 0.9.3 / schema 9 is live on Render. Deploy `dep-dbf9u5fb9u1s73c5bbkg` completed at 2026-10-26 01:31:27 CET for commit `4e3b428`; hosted health and Mara profile reload were verified.
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
