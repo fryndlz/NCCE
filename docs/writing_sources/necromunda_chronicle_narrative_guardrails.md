@@ -1,5 +1,8 @@
 # NECROMUNDA CAMPAIGN CHRONICLE — NARRATIVE WRITING GUARDRAILS
 
+> Runtime precedence, 0.10.0: `WRITER_RUNTIME_CONTRACT.md` is the reviewed executable writing specification. This document remains the full design reference. Compatible local fiction is permitted; restrictions on inventing facts apply to campaign mechanics, authored canon and narrator knowledge, not to all fictional everyday action. Provenance belongs in the app wrapper. See `../WRITER_PIPELINE_0_10.md` for the explicit coverage and responsibility map.
+
+
 ## Purpose
 
 These rules govern narrative text generated for a Necromunda campaign chronicle. They are **global writing rules**, not rules for any particular gang, campaign, faction, or setting-specific storyline.

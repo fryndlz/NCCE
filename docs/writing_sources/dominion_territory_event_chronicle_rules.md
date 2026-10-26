@@ -1,5 +1,8 @@
 # Dominion Territory Event Chronicle Rules
 
+> Runtime precedence, 0.10.0: `WRITER_RUNTIME_CONTRACT.md` is the reviewed executable writing specification. This document remains the full design reference. Compatible local fiction is permitted; restrictions on inventing facts apply to campaign mechanics, authored canon and narrator knowledge, not to all fictional everyday action. Provenance belongs in the app wrapper. See `../WRITER_PIPELINE_0_10.md` for the explicit coverage and responsibility map.
+
+
 ## Purpose
 
 This system documents the evolving history of territories in a

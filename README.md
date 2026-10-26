@@ -2,7 +2,7 @@
 
 Current source: **v0.9.11 — complete writer contracts and diegetic quality gate**, SQLite schema 9. Story generation is `0.8.2`; campaign archives do not alter mechanical truth. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
 
-Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default model is `gpt-6.1-sol`; override it with `NCCE_WRITER_MODEL`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Fighter observations use a one-event packet with compact, evidence-labelled identity and stimulus-attention context; the full biography and earlier generated memory prose are not repeated in those calls. Each uncached draft receives the complete narrative, identity, formatting and date contracts, plus the full territory rules for place writing. A local quality gate rejects obvious source-reporting/mechanical language in fighter memories/reflections before caching. Automatic writing remains disabled on routine syncs. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
+Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default model is `gpt-6.1-sol`; override it with `NCCE_WRITER_MODEL`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Fighter observations use a one-event packet with compact, evidence-labelled identity and stimulus-attention context; the full biography and earlier generated memory prose are not repeated in those calls. Each uncached draft receives the shared runtime writing contract, a form-specific brief and a positive example. Evidence, authored context and generated continuity are separate. Documents include structured headings and remarks; rejected responses remain in the server-side audit. Automatic writing remains disabled on routine syncs. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
 
 Open the [hosted preview](https://ncce-private-preview.onrender.com/) and use your existing invitation passphrase. See [hosting details](docs/HOSTED_DEPLOYMENT.md) for storage, cost, and backup limitations.
 
@@ -44,6 +44,7 @@ python tests/test_story_engine.py
 python tests/test_voice_prose.py
 python tests/test_writing_director.py
 python tests/test_llm_writer.py
+python tests/test_writer_pipeline.py
 python tests/test_campaign_history.py
 node tests/test_writing_ui.cjs
 node tests/test_campaign_history_ui.cjs

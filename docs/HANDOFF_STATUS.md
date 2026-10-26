@@ -1,6 +1,8 @@
 # Handoff status
 
-**Current source implementation:** NCCE 0.9.12 — one-time territory-only writing pass, SQLite schema 9
+**0.10.0 checkpoint — 2026-10-26 19:40 CET:** shared runtime writing contract across all forms, positive examples, explicit creative permission, historical context, structured composition, retained responses and usage, and separate four-entry editorial preview. See `WRITER_PIPELINE_0_10.md`. Existing and new offline tests and authenticated live-Sheet HTTP smoke pass. Routine writing remains disabled. Deployment and paid-preview results will be recorded below after verification.
+
+**Current source implementation:** NCCE 0.10.0 — shared narrative pipeline, SQLite schema 10
 
 **Hosted implementation:** 0.9.12 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 

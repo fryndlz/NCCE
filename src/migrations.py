@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -721,6 +721,20 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(9,?,?)",
                        ('scoped writer checks and per-request usage provenance', _now()))
             db.execute('PRAGMA user_version=9')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if current < 10:
+        try:
+            db.execute('''CREATE TABLE IF NOT EXISTS writer_request_details(
+                request_row_id INTEGER PRIMARY KEY REFERENCES writer_requests(request_row_id),
+                prompt_hash TEXT NOT NULL, contract_revision TEXT NOT NULL, reasoning_effort TEXT NOT NULL,
+                cached_input_tokens INTEGER NOT NULL DEFAULT 0, reasoning_tokens INTEGER NOT NULL DEFAULT 0,
+                prompt_json TEXT NOT NULL, response_json TEXT NOT NULL, draft_json TEXT NOT NULL)''')
+            db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(10,?,?)",
+                       ('retained writer responses and exact runtime contracts', _now()))
+            db.execute('PRAGMA user_version=10')
             db.commit()
         except Exception:
             db.rollback()

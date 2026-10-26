@@ -30,6 +30,7 @@ def read_stream(store, scope, key):
 
 def save_entry(store, scope, key, entry_key, kind, title, blocks, evidence, event=None,
                previous=(), provenance='inference', created_at=None, details=()):
+    import narrative_context
     event=event or {}
     old_draft=store.db.execute('''SELECT document_json FROM narrative_entries WHERE scope_type=? AND scope_key=? AND entry_key=?
         ORDER BY created_at DESC LIMIT 1''',(scope,str(key),entry_key)).fetchone()
@@ -37,21 +38,37 @@ def save_entry(store, scope, key, entry_key, kind, title, blocks, evidence, even
     created_at=created_at or datetime.now(timezone.utc).isoformat()
     source_ids=[event['event_id']] if event.get('event_id') else []
     # The citation chain is narrative continuity, never additional mechanical evidence.
-    continuity={'previous_entry_ids':list(previous)[-2:], 'invented_details':list(details)}
+    at=event.get('occurred_at') or event.get('observed_at') or (created_at if provenance=='connective_fiction' else None)
+    continuity={'previous_entry_ids':list(previous)[-4:]}
     record={'occurred_at':event.get('occurred_at'), 'observed_at':event.get('observed_at'),
             'generated_at':created_at, 'provenance_class':provenance}
+    # A neutral event label cannot pre-author the scene the model is meant to create.
+    title=kind.replace('_',' ').capitalize()
     doc=director.direct_document('place_ambient' if provenance=='connective_fiction' else 'place_event' if scope=='territory' else 'gang_event',
                                 entry_key, {'title':title,'blocks':blocks,'evidence':evidence,'source_event_ids':source_ids,
                                             'source_ids':[event['source_id']] if event.get('source_id') else [],
                                             'provenance_class':provenance},record)
     doc['writer_context']={'scope':scope,'scope_key':str(key),'event_type':event.get('event_type') or 'ambient_report',
-                           'event':event.get('payload',{}),'continuity':continuity}
-    if previous:
-        doc['writer_context']['continuity_reference']={
-            'earlier_entry_ids':list(previous)[-2:],
-            'instruction':'Earlier generated prose is not evidence; use only the event and facts in this packet.'}
+                           'occurred_at':event.get('occurred_at'),'observed_at':event.get('observed_at'),
+                           'event':event.get('payload',{}),'continuity':continuity,
+                           'subject_context':narrative_context.entity_context(store,scope,key,at,previous,entry_key)}
+    if scope=='territory':
+        territory=dict(store.db.execute('SELECT * FROM territories WHERE id=?',(key,)).fetchone())
+        state=narrative_context.territory_state_at(store,territory,at)
+        payload=event.get('payload') or {}
+        if payload.get('after_state'):
+            raw=payload['after_state']
+            state={'name':raw.get('Territory'),'holder':raw.get('Gang'),'holder_id':raw.get('Gang ID'),'basis':'this event after-state'}
+        doc['writer_context']['state_at_event']=state
+        if state.get('holder_id'):
+            doc['writer_context']['holder_context']=narrative_context.entity_context(store,'gang',state['holder_id'])
+            # A current gang origin can include later facts; historical ownership is evidence only.
+            doc['writer_context']['holder_context']['baseline']=None
     paragraphs,writer_status=llm_writer.write_document(store,'place_ambient' if provenance=='connective_fiction' else 'place_event' if scope=='territory' else 'gang_event',entry_key,doc)
     doc=llm_writer.apply(doc,paragraphs,writer_status)
+    if doc.get('composition',{}).get('subject'):
+        title=doc['composition']['subject']
+        doc['title']=title
     if old_document:
         doc=llm_writer.retain_previous(doc,old_document,writer_status)
     if event.get('source_locator'):
@@ -193,23 +210,6 @@ def gang_event_text(gang, event, battle=None):
     return ('What the amended return asks of us', 'Another return alters what can be expected of the gang. The change joins the earlier claims and obligations; the next decision must answer to both.')
 
 
-def local_reconstruction(name, kind, prior=False):
-    feature,stake,resource=local_focus(name)
-    if kind=='territory_holder_changed':
-        text=f'The old collection notice at the {feature} has been turned to the wall. Residents stop to read the fresh directions before joining the queue. Those who arrive with yesterday’s permission are being sent back to ask again.'
-    elif kind=='territory_type_changed':
-        text='Delivery tickets still carry the old name. The new one has been painted over the work gate, but the stallholders keep giving directions as they always did. For now, finding the place requires knowing both.'
-    elif kind=='territory_unlisted':
-        text=f'The copy of the district register beside the {feature} now has a gap where this place used to be. The people who work here still need {resource}; absence from a list has not settled who will answer their requests.'
-    elif kind=='territory_state_changed':
-        text=f'A fresh notice has been fastened beside the {feature}. People read it on the way to work, then compare it with what they were told on the previous shift. Whoever keeps the queue moving has begun carrying both versions.'
-    else:
-        text=f'The traders at the {feature} have started chalking usable approaches beside their prices. The argument is over {stake}: which way to go, whose directions to trust, whether to wait for another shift. Someone has put a price on a piece of chalk.'
-    if prior:
-        text+=' An older notice has been kept beneath the new one rather than thrown away; residents still point to it when the accounts differ.'
-    return text
-
-
 def places_with_aliases(store, events=None):
     all_places=[dict(r) for r in store.db.execute('SELECT * FROM territories ORDER BY active DESC,id')]
     for place in all_places:
@@ -246,17 +246,7 @@ def rebuild(store, gangs, territories, battles, events, current_battle, evidence
         # Referring to earlier returns does not invent persistent physical damage.
         if prior:
             text += ' Earlier accounts remain attached to this entry.'
-        details=[]
-        blocks=[paragraph(text)]
-        if scope=='territory':
-            place=next(t for t in all_places if str(t['id'])==str(key))
-            event_name=(event.get('payload') or {}).get('territory') or place['territory']
-            local_text=local_reconstruction(event_name,event.get('event_type',''),bool(prior))
-            details=[local_text]
-            blocks=[{**paragraph(local_text),'provenance_class':'connective_fiction'},
-                    {'type':'evidence_excerpt','source':'Register annotation · compiled from the cited return','text':text}]
-            evidence=list(evidence)+['Local notices, queues and reactions are invented connective detail. The cited event alone establishes campaign facts.']
-        entry=save_entry(store,scope,key,entry_key,event.get('event_type','record'),title,blocks,evidence,event,prior,created_at=generated_at,details=details)
+        entry=save_entry(store,scope,key,entry_key,event.get('event_type','record'),title,[],evidence,event,prior,created_at=generated_at)
         prior.append(entry)
     # Current battle projection chooses the corrected event; removed/superseded
     # accounts stay inactive rather than becoming current territorial history.
@@ -298,23 +288,8 @@ def rebuild(store, gangs, territories, battles, events, current_battle, evidence
                 add('gang',gang['gang_id'],entry_key,event,title,text,evidence)
 
 
-AMBIENT = {
-    'c-nine': ('The quiet shift', 'A notice on the work gate asks residents to attend a voluntary meal after shift. Someone has crossed out “voluntary” and written it again in a smaller hand. The kitchen says it is only trying to make the queues orderly.'),
-    'orlock': ('A complaint over the loading bell', 'The loading bell has begun sounding before the market stalls close. Traders complain that their customers are being called back to work; the notice beside the bell says the hours have not changed.'),
-    'van saar': ('A box no one will open', 'A sealed measuring box has appeared beside the public lumen switch. A paper seal forbids interference. The stallholders have moved their awnings so they can still see the display without standing beside it.'),
-    'palanite': ('The queue for inspection', 'A new inspection notice has made the morning queue longer. One resident has started selling numbered scraps of paper. The notice says nothing about scraps of paper.'),
-    'enforcer': ('The queue for inspection', 'A new inspection notice has made the morning queue longer. One resident has started selling numbered scraps of paper. The notice says nothing about scraps of paper.'),
-    'squat': ('Chalk on the bulkhead', 'Survey marks have appeared on a bulkhead the stallholders use for prices. Nobody agrees whether the chalk denotes a claim or a repair. The prices are now written carefully between the marks.'),
-    'ironhead': ('Chalk on the bulkhead', 'Survey marks have appeared on a bulkhead the stallholders use for prices. Nobody agrees whether the chalk denotes a claim or a repair. The prices are now written carefully between the marks.'),
-    'escher': ('The jars behind the counter', 'A medicine seller now keeps the empty jars instead of throwing them out. Customers have started bringing their own lids. The seller insists this is a matter of housekeeping and refuses to elaborate.'),
-    'goliath': ('A new use for the weighing scale', 'The market scale has become the subject of a lifting contest. Its owner has posted a repair charge beside the weights and begun taking the charge before anyone touches the beam.'),
-    'cawdor': ('A shrine beside the ration hatch', 'A small shrine has appeared beside the ration hatch. Someone leaves it a spoonful before every meal; by the next shift the spoon is clean. The hatch keeper denies responsibility for either part of the custom.'),
-    'delaque': ('The shutters stay closed', 'The upper shutters remain closed even during market hours. A trader says the room is empty. Another points out that the dust below its door is disturbed every morning.'),
-}
-
-
 def maybe_ambient(store, gangs, territories, at=None, chance=0.25, limit=2):
-    if not llm_writer.API_KEY:
+    if not llm_writer.API_KEY or not llm_writer.WRITER_ENABLED:
         return 0
     at=at or datetime.now(timezone.utc)
     if isinstance(at,str):
@@ -335,28 +310,13 @@ def maybe_ambient(store, gangs, territories, at=None, chance=0.25, limit=2):
         prior=store.db.execute("SELECT created_at FROM narrative_entries WHERE scope_type='territory' AND scope_key=? AND provenance_class='connective_fiction' ORDER BY created_at DESC LIMIT 1",(str(territory['id']),)).fetchone()
         if prior and (at-datetime.fromisoformat(prior['created_at'])).total_seconds()<7*86400:
             continue
-        faction=(gang.get('name','')+' '+gang.get('gang_type','')).lower()
-        title,text=next((v for k,v in AMBIENT.items() if k in faction),('The stall by the work gate','A stall has reopened beside the work gate. The owner has painted over the old prices and claims the surviving figures are introductory offers. The neighboring stallholders remember the same offers from before the shutters came down.'))
-        _,stake,resource=local_focus(territory['territory'])
-        text+=f' Here, small arrangements still turn on {stake}.'
-        previous_reports=[json.loads(row[0]) for row in store.db.execute("SELECT document_json FROM narrative_entries WHERE scope_type='territory' AND scope_key=? AND provenance_class='connective_fiction'",(str(territory['id']),))]
-        used={block.get('text') for doc in previous_reports for block in doc.get('blocks',[])}
-        if text in used:
-            alternatives=[
-                ('A queue of borrowed tokens',f'The queue for {resource} now advances by borrowed tokens. Their owner expects them back before the next shift. Several residents have begun carving copies, and nobody will admit which pattern came first.'),
-                ('The repair everyone remembers',f'A repair beside the work gate has acquired three dates and two different accounts of who paid for it. Those who depend on {stake} agree only that the old fault was more convenient for someone.'),
-                ('The name beneath the paint',f'An old painted name has shown through a fresh notice. The stallholders have started using it to give directions again. The person responsible for the notice says this was an improvement in public legibility.'),
-                ('One shift of quiet',f'The usual argument over {resource} failed to start this shift. A vendor has called the quiet suspicious and raised a shutter just far enough to keep watch. Nobody else is willing to admit they noticed it.'),
-            ]
-            unused=[item for item in alternatives if item[1] not in used]
-            if not unused:
-                continue
-            title,text=unused[int(hash_of([week,territory['id'],'variant'])[:8],16)%len(unused)]
+        title='Local occurrence'
+        text=''
         previous=[item['entry_id'] for item in read_stream(store,'territory',territory['id'])[:2]][::-1]
         save_entry(store,'territory',territory['id'],'ambient:'+week,'ambient_report',title,[paragraph(text)],
                    [f"Composition context: {territory['territory']}; recorded holder {gang['name']}",
                     'Invented local vignette. No battle, casualty, income, conversion, ownership change or game effect is asserted.'],
-                   previous=previous,provenance='connective_fiction',created_at=at.isoformat(),details=[text])
+                   previous=previous,provenance='connective_fiction',created_at=at.isoformat())
         created+=1
     store.db.execute("INSERT INTO system_state(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(state_key,str(created)))
     return created

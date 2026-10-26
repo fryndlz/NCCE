@@ -161,3 +161,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
   .record-header, .scope-entry h4 { break-after: avoid; }
   .processing-panel, .testimony-note { break-inside: avoid; }
 }
+/* Generated document composition; application dates sit outside the diegesis. */
+.record-ui-date { color: var(--muted, #a6a69b); font: .75rem/1.5 sans-serif; margin: .7rem 0; }
+.archive-heading { color: var(--accent, #c8bd79); font-weight: bold; letter-spacing: .06em; margin: 1rem 0; overflow-wrap: anywhere; }
+.composed-record .metadata-group { margin-bottom: 1.5rem; }

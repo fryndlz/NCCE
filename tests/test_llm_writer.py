@@ -60,7 +60,7 @@ def test_disabled_writer_reuses_cached_prose_without_a_provider_call():
                 first=llm_writer.write(store,'fighter_memory',packet)
                 llm_writer.set_enabled(False)
                 second=llm_writer.write(store,'fighter_memory',packet)
-                assert first[0]==second[0] and second[1]=={'status':'ready','cached':True}
+                assert first[0]==second[0] and second[1]['status']=='ready' and second[1]['cached']
                 assert calls==['fighter_memory']
             finally: store.close()
     finally:
@@ -115,14 +115,13 @@ def test_memory_prompt_loads_guardrails_and_caps_short_output():
     try:
         llm_writer._call('fighter_memory',{'event_title':'Critical injury','mechanical_evidence':['Critical Injury']})
         instructions=captured['body']['instructions']
-        assert 'Maintained source guardrails' in instructions
-        assert 'Separate information into three categories.' in instructions
-        assert 'Do not recap the biography' in instructions
-        assert llm_writer._read_contract(llm_writer.GUARDRAIL_PATH) in instructions
-        assert llm_writer._read_contract(llm_writer.IDENTITY_PATH) in instructions
-        assert llm_writer._read_contract(llm_writer.FORMAT_PATH) in instructions
-        assert 'selected excerpts' not in instructions
-        assert 'Imperial administrative/industrial record voice' not in instructions
+        assert 'NCCE shared writing contract' in instructions
+        assert 'Generated fiction MAY' in instructions
+        assert 'First-person memories' in instructions
+        assert 'STYLE DEMONSTRATION' in instructions
+        assert llm_writer._read_contract(llm_writer.FORMAT_PATH) not in instructions
+        assert llm_writer._read_contract(llm_writer.DATE_PATH) not in instructions
+        assert 'Never create an action' not in instructions
         assert captured['body']['max_output_tokens']==650
         assert captured['body']['reasoning']=={'effort':'low'}
     finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
@@ -153,13 +152,15 @@ def test_diegetic_gate_rejects_mechanical_meta_prose_without_caching_or_blocking
 
 def test_c_nine_context_does_not_force_archive_voice_on_fighter_memory():
     instructions=llm_writer._contract_for('fighter_memory')
-    assert 'C-NINE-specific names and designations belong to C-NINE content/templates' in instructions
+    assert 'C-NINE conventions apply only where C-NINE context supplies them' in instructions
     assert 'Imperial administrative/industrial record voice' not in instructions
 
 
-def test_territory_writer_receives_full_territory_contract():
+def test_territory_writer_receives_shared_runtime_contract_and_form_brief():
     instructions=llm_writer._contract_for('territory_history')
-    assert llm_writer._read_contract(llm_writer.TERRITORY_PATH) in instructions
+    assert 'NCCE shared writing contract' in instructions
+    assert 'territory_history' in instructions
+    assert 'Preserve its baseline' in instructions
 
 
 def test_rejected_replacement_keeps_prior_artifact_visible_as_stale():
@@ -246,9 +247,9 @@ def test_document_packet_does_not_replay_prior_generated_paragraphs():
         llm_writer.write_document(None,'gang_history','g1',document)
         packet=captured['packet']
         assert 'blocks' not in packet
-        assert packet['mechanical_evidence']==['Holder: A → B']
+        assert packet['evidence']==['Holder: A → B']
         assert packet['writer_context']['current_event']=='Territory holder changed'
-        assert packet['writer_context']['continuity_reference']['earlier_entry_ids']==['abc']
+        assert 'continuity_reference' not in packet['writer_context']
         assert 'prior_entry' not in packet['writer_context'] and 'prior_entries' not in packet['writer_context']
         assert 'unrelated detail' not in json.dumps(packet)
     finally: llm_writer.write=old_write
@@ -264,7 +265,7 @@ def test_disabled_writer_keeps_prior_drafts_visible_as_stale():
             try:
                 before=campaign(); apply(store,before); apply(store,latest_game(before))
                 regenerate(store,force=True,writer_enabled=True,writer_run_id='approved-mock-draft')
-                assert llm_writer.run_summary()['requests_succeeded']>0
+                assert llm_writer.run_summary()['requests_succeeded']+llm_writer.run_summary()['cache_hits']>0
                 previous=store.db.execute("SELECT memory_key,content FROM story_memories WHERE active=1 AND writer_status='ready' AND content!='' LIMIT 1").fetchone()
                 assert previous
                 old_artifacts=store.db.execute("SELECT scope_type,scope_key,document_json FROM story_artifacts WHERE active=1 AND scope_type='fighter_biography'").fetchall()
@@ -316,7 +317,7 @@ def test_writer_budget_exhaustion_is_pending_and_does_not_call_provider():
             try:
                 paragraphs,status=llm_writer.write(store,'fighter_memory',{'event_title':'Critical injury'})
                 assert paragraphs==[] and status['status']=='pending'
-                assert 'next refresh' in status['message'] and not llm_writer._failure
+                assert 'not been attempted' in status['message'] and not llm_writer._failure
             finally: store.close()
     finally:
         llm_writer.API_KEY=old_key; llm_writer._calls=old_calls; llm_writer._failure=old_failure; llm_writer._call=old_call

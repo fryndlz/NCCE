@@ -1,24 +1,17 @@
-# NCCE 0.9.11 — current technical design
+# NCCE 0.10.0 — current technical design
 
-**Source release:** 0.9.11, complete writing contracts and diegetic quality gate
+**Source release:** 0.10.0, shared narrative writing pipeline. **Schema:** 10.
+**Checkpoint:** 2026-10-26 19:40 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
 
-**Hosted release:** 0.9.11, deployed 2026-10-26 11:56:48 CET as `a2105e7`; Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`; SQLite database path: `/var/data/ncce-preview.db`.
+## 0. Current writing implementation
 
-**Schema:** SQLite version 9 in source and hosted database.
+[Shared narrative pipeline](WRITER_PIPELINE_0_10.md) specifies the current writer for all thirteen forms. It supersedes the historical writer-release discussion later in this document. `writer_contract.py` provides a coherent common policy and form-specific examples; `narrative_context.py` separates authored material, factual events and accepted fictional continuity; `llm_writer.py` drafts semantic prose and document composition in one call; `writer_preview.py` runs bounded editorial tests without publishing to campaign state.
 
-**Documentation checkpoint:** 2026-10-26 11:49 CET (Europe/Warsaw, UTC+01:00)
+Historical fighter voice context comes from available snapshots. Territory events use historical ownership or explicitly unknown ownership. Old template plots and previous-policy generated prose do not feed new prompts. Composition includes heading, subject, body heading, closing label/text and signoff; reference IDs and Imperial dates remain app-controlled. Real dates and provenance remain outside the fictional document. Authored material is preserved.
 
-**Release verification:** Render deploy `dep-dbfj3fe7bikc73doo0a0` is live for commit `a2105e7` (0.9.11/schema 9); `/healthz` returned version 0.9.11. Previous deploy `dep-dbfi9m1srm7s73f3ckf0` carried 0.9.10. The authorized medium-effort Mara sample completed five successful calls (7,725 input / 1,761 output tokens). Five of her 13 generated memory entries were refreshed; eight older generated entries, including the reflection, remain visible and marked retained. Her player-authored biography and all other fighters' records were untouched. The writing is still repetitive and uses record-oriented framing; this test measures the medium setting but does not resolve the editorial problem. See `CHANGELOG.md` for the deployment, request ledger, and review.
+Schema 10 adds writer request details retaining exact credential-free prompts, raw responses, parsed drafts, effort and cache/reasoning token counts, including failures. These diagnostics are server-side. Documents default to a 1,800-token output ceiling; personal memories/reflections retain 650. Default model/effort remains gpt-6.1-sol/low. There is no best-of-N generation or paid critic. Duplicate failures are suppressed within a run. Routine writing remains disabled and the first four-entry territory preview is separate from campaign history.
 
-This document describes implemented source behavior, constants, and limitations. Campaign History adds versioned raw Munda Manager archives and derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2's Mara pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts; her authored biography was not rewritten. Version 0.9.5 makes inferred identity facets and stimulus-attention weights inspectable, adds event isolation to fighter observations/reflections, loads bounded source guardrails into the actual prompt, and reduced the short-memory output cap too far. Version 0.9.6's Mara memory request exhausted that 180-token cap without visible prose. Version 0.9.7 recorded response status and reasoning usage; a separate one-call sample with a 650-token allowance and low reasoning effort completed, but was not saved. Version 0.9.8 adopts those working settings for normal writing. Version 0.9.9 performs one authorized Mara-only regeneration; it completed 13 requests, though several entries repeat the same return-to-work concern and the reflection remains record-oriented. Routine writer calls remain disabled; do not run the writer again without explicit authorization. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
-
-## 0. Writing Director additions
-
-The current writing contract and implementation are described in [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md). The imported specifications are preserved in `docs/writing_sources/`; the identity taxonomy is in [WRITER_IDENTITY_TAGS.md](WRITER_IDENTITY_TAGS.md).
-
-Version 0.8 adds `llm_writer.py` (OpenAI Responses API drafts, structured outputs, caching and request bounds) to the 0.7 director. `writing_director.py` handles document forms, authored and inferred perspective packets, dates and guardrails; `world_streams.py` handles versioned gang/place entries and bounded ambient fiction; `writing.js` handles browser calendar rules; `writing.css` styles the semantic archive. Schema 7 adds a persistent model-result cache, writer status, and semantic inline marks for narrative red-status styling to the schema-5 identity revisions, narrative streams and raw territory-state retention. Schema 8 adds immutable/versioned Munda Manager archive rows, same-version conflict records and import-run provenance. Schema 9 adds a per-provider-request ledger with API request/response identifiers, writing form, subject, model, timestamps, status, token counts, and bounded errors. Original place/gang descriptions are kept separately from progressing stories. Territory diffs cover ownership, transformations, other fields and listing changes. The fighter numerical rules below remain in force.
-
-Current validation is recorded in §14 and `CHANGELOG.md`. The timeline feature has dedicated parser, versioning, join, confidence, participation, overlap and fighter-history tests. Hosted 0.6.1 verification below is historical deployment evidence, not a claim that this source release has been deployed.
+The numerical cognition, import, source-authority and timeline rules below remain unchanged. Historical release verification belongs to CHANGELOG.md; source tests are not a claim of literary quality.
 
 ## 1. Product and authority
 

@@ -14,12 +14,13 @@ import json
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = 'director-1.0'
+VERSION = 'director-1.1'
 DATE_POLICY = {'timezone': 'Europe/Warsaw', 'check': 9, 'year': 998, 'millennium': 41}
 CONTRACT_FILES = (
     'NARRATIVE_STYLE_MAP.json', 'NECROMUNDA_CHRONICLE_FORMATTING_STANDARD.md',
     'necromunda_chronicle_narrative_guardrails.md', 'NCCE_Date_Formatting_Specification.md',
     'dominion_territory_event_chronicle_rules.md',
+    'WRITER_RUNTIME_CONTRACT.md',
 )
 FORMS = {
     'battle_report': ('incident_record', 'District archive compiler', 'Collated engagement returns'),

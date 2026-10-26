@@ -186,6 +186,7 @@ def _retained_writer_content(store,fighter_id,memory_key,writer_status):
 
 
 def _memory(store, fighter, gang, key, et, payload, event=None, context=None, baseline=False, evidence=None, prior=()):
+    import narrative_context
     event = event or {}
     importance, title, tags = classify(et, payload)
     context = context or {}
@@ -193,8 +194,9 @@ def _memory(store, fighter, gang, key, et, payload, event=None, context=None, ba
         victory = payload.get("winner") == gang.get("name")
         tags.insert(0, "victory" if victory else "defeat" if payload.get("winner") else "battle")
         title = "Gang victory recorded" if victory else "Gang defeat recorded" if payload.get("winner") else "Gang engagement recorded"
-    packet=director.identity_context(fighter,gang,prose.voice_profile(fighter,gang))
-    written,writer_status=llm_writer.write_memory(store,fighter,gang,title,evidence or event_evidence({'event_type':et,'payload':payload}),packet,prior)
+    historical_fighter,historical_gang=narrative_context.fighter_at_event(store,fighter,gang,event,baseline)
+    packet=director.identity_context(historical_fighter,historical_gang,prose.voice_profile(historical_fighter,historical_gang))
+    written,writer_status=llm_writer.write_memory(store,historical_fighter,historical_gang,title,evidence or event_evidence({'event_type':et,'payload':payload}),packet,prior,event=event)
     content='\n\n'.join(llm_writer.paragraph_text(p) for p in written)
     content_runs=[llm_writer.paragraph_runs(p) for p in written]
     if not content:
@@ -246,13 +248,6 @@ def _artifact(store, scope, key, document, input_hash, generated_at):
     prior=store.db.execute("SELECT document_json FROM story_artifacts WHERE scope_type=? AND scope_key=? AND active=1 ORDER BY generated_at DESC LIMIT 1",(scope,str(key))).fetchone()
     if prior:
         old=json.loads(prior[0])
-        if old.get('writer_status') in ('ready','stale'):
-            context=dict(document.get('writer_context') or {})
-            context.pop('prior_entry',None)
-            context['continuity_reference']={'earlier_document_exists':True,
-                'source_event_ids':old.get('source_event_ids',[]),
-                'instruction':'Earlier generated prose is not evidence; use only facts in this packet.'}
-            document['writer_context']=context
     paragraphs,writer_status=llm_writer.write_document(store,scope,key,document)
     document=llm_writer.apply(document,paragraphs,writer_status)
     if prior:
@@ -486,6 +481,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     ref_text,ref_status=llm_writer.write_memory(store,fighter,gang,'What stays with me',
                            list(dict.fromkeys(x for m in cited for x in m['evidence'])),voice['writer_context'],
                            prior=[{'title':m['title'],'tags':m['tags'],'importance':m['importance'],
+                                   'occurred_at':m.get('occurred_at'),'observed_at':m.get('observed_at'),
+                                   'experience':m['content'] if m.get('writer_status')=='ready' else None,
                                    'evidence':m['evidence'],'source_event_ids':m['source_event_ids']} for m in cited],
                            form='fighter_reflection')
                     ref_content="\n\n".join(llm_writer.paragraph_text(p) for p in ref_text)
@@ -547,7 +544,7 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     opening=prose._PLACES.get(territory['territory'], f"The name {territory['territory']} marks a place where work and passage give an armed claim its value.")
                     origin = _artifact(store,'territory_origin',territory['id'],_document(territory['territory'],opening,[f"Recorded type at first description: {territory['territory']}"]),fingerprint,generated_at)
                 text = prose.territory_history(territory,battles)
-                related = [b for b in battles if b.get('territory') == territory['territory']]
+                related = [b for b in battles if (world_streams.locate_place({},territories,b.get('territory')) or {}).get('id') == territory['id']]
                 facts = [f"Recorded holder: {display(territory.get('gang_name'))}"] + [f"{b.get('date')}: {b.get('scenario')}; winner {display(b.get('winner'))}" for b in related]
                 anchors = [_current_battle_event(b,events) for b in related]
                 doc = _artifact(store,"territory_history",territory["id"],_document(territory["territory"],text,facts,[e['event_id'] for e in anchors if e]),fingerprint,generated_at)
@@ -562,7 +559,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                 store.db.execute("UPDATE battles SET chronicle=?,chronicle_provenance_class='inference' WHERE id=?",(_text(doc),battle["id"]))
             text = prose.region_history(gangs,territories,battles) if gangs else "The district record is awaiting its first verified campaign state."
             facts = [f"Active gangs: {len(gangs)}",f"Territory records: {len(territories)}",f"Recorded battles: {len(battles)}"] + [f"{g['name']} — reputation: {display(g.get('reputation'))}" for g in gangs]
-            doc = _artifact(store,"region_history","campaign",_document("Krakaumunda",text,facts),fingerprint,generated_at)
+            anchors=[_current_battle_event(b,events) for b in battles]
+            doc = _artifact(store,"region_history","campaign",_document("Krakaumunda",text,facts,[e['event_id'] for e in anchors if e]),fingerprint,generated_at)
             store.db.execute("UPDATE regions SET backstory=?,provenance_class='inference'",(_text(doc),))
             if not store.db.execute("SELECT 1 FROM regions").fetchone():
                 store.db.execute("INSERT INTO regions(name,backstory,provenance_class) VALUES('Krakaumunda',?,'inference')",(_text(doc),))

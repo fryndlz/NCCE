@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 — shared narrative writer (2026-10-26 19:40 CET)
+
+- Replaced conflicting whole-manual prompts with a reviewed common runtime specification, explicit allowed fiction, form-specific briefs and illustrative examples across every narrative form.
+- Removed prewritten local/ambient plots; added provenance-separated baseline and chronological continuity, historical ownership and fighter voice context. Legacy prose does not seed the new writer.
+- Added structured document headings, subjects and closing remarks, safe rendering and separate real-world date wrapper. Authored prose remains untouched. Previously hidden gang/place history documents are now visible as campaign accounts.
+- Added schema-10 retained provider request/response/draft audit, failed-call token accounting, provider cached-input counts and duplicate-failure suppression. No new public or authenticated paid HTTP endpoint was added.
+- Added a one-use four-entry editorial preview command, using the production writer and displaying saved results in System. Synthetic preview incidents never enter campaign history. Routine and bulk generation remain disabled.
+- Validation: existing Python and Node suites plus new shared writer regressions pass; disposable authenticated app smoke passed outside the sandbox (startup, login, read-only live sync, schema, fighter history, reports, logout). No authoritative source files were edited. Deployment and provider-run verification pending at this checkpoint.
+
+
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
 ## 0.9.12 — scoped territory writing pass

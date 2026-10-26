@@ -355,6 +355,7 @@ class Store:
   g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['battles']=q('''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 AND (b.attacker=? OR b.defender=? OR b.winner=? OR b.territory_claimer=?) ORDER BY b.date DESC''',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,))
   from world_streams import read_stream
   g['history_document']=document_for(self,'gang_origin',gid) or document_for(self,'gang_history',gid)
+  g['campaign_account_document']=document_for(self,'gang_history',gid)
   g['campaign_history']=self.gang_history(gid)
   g['narrative_stream']=read_stream(self,'gang',gid)
   for b in g['battles']:
@@ -383,6 +384,7 @@ class Store:
   if not r:return None
   from world_streams import read_stream
   t=dict(r); t['history_document']=document_for(self,'territory_origin',tid) or document_for(self,'territory_history',tid)
+  t['campaign_account_document']=document_for(self,'territory_history',tid)
   t['narrative_stream']=read_stream(self,'territory',tid)
   t['mechanics']=json.loads(t.get('mechanics_json') or '{}')
   return t

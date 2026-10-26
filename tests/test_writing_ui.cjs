@@ -63,3 +63,22 @@ assert.ok(server.includes("p=='/api/writer-diagnostic'") && server.includes("'wr
 assert.ok(server.includes("'can_final_run':can_final_run") && server.includes("'can_medium_run':can_medium_run") && server.includes("'mara_writer_check_medium_used'") && server.includes("reasoning_effort='medium'"));
 assert.equal((server.match(/^import llm_writer$/gm)||[]).length,1,'writer module is imported once at module scope so every API route can read its run summary');
 console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, inferred identity/stims, stale drafts, formatted dossier, persistent Mara result and live usage ledger)');
+
+// New documents keep application dates outside the diegetic header and escape composition.
+context.composed={document_type:'survey_note', reference:'NC/PREVIEW/1', writer_status:'ready',
+  composition:{heading:'<script>unsafe</script>',subject:'An assessment'},
+  date_display:{imperialDisplay:'9.815.998.M41',realDisplay:'25 October 2026'},
+  blocks:[{type:'body_paragraph',text:'The doors remain shut.'}]};
+const composed=run('blocks(composed)');
+assert.match(composed,/record-ui-date[^]*25 October 2026/);
+assert.match(composed,/&lt;script&gt;unsafe&lt;\/script&gt;/);
+const diegeticHeader=composed.slice(composed.indexOf('<header'),composed.indexOf('</header>'));
+assert.match(diegeticHeader,/9\.815\.998\.M41/);
+assert.doesNotMatch(diegeticHeader,/2026|District compiler|generated inference/);
+context.previewState={'writer_preview:test:claimed':'1','writer_preview:test':JSON.stringify({status:'complete',usage:{requests_attempted:4,cached_input_tokens:100},entries:[{label:'Hypothetical test',document:context.composed}]})};
+vm.runInContext(app.slice(app.indexOf('function editorialPreview('),app.indexOf('function captureUi(')),context);
+const preview=run('editorialPreview(previewState)');
+assert.match(preview,/not been added to campaign history/);
+assert.match(preview,/4 requests/);
+assert.match(preview,/Hypothetical test/);
+assert.doesNotMatch(preview,/<script>/);

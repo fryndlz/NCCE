@@ -43,7 +43,8 @@ def test_place_transformation_owner_and_mechanics_stay_one_history():
         assert document_for(store,'territory_origin',tid)==origin
         assert all(x['document']['author'] and x['document']['metadata'] and x['document']['date_display'] for x in stream)
         battle=next(x for x in stream if x['event_type']=='battle_result')
-        assert 'fuel gantries' in json.dumps(battle['document']) and 'furnace doors' not in json.dumps(battle['document'])
+        assert battle['document']['writer_context']['event']['territory']=='Promethium Cache'
+        assert 'invented_details' not in battle['document']['writer_context']['continuity']
         assert any(x['continuity']['previous_entry_ids'] for x in stream)
         records=mechanical_records(store)
         counts=[store.db.execute('SELECT count(*) FROM '+table).fetchone()[0] for table in ('narrative_entries','story_memories','story_artifacts')]
