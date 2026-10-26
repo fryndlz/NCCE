@@ -170,3 +170,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .comparison-case { margin: 2rem 0; }
 .comparison-case pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 800px) { .comparison-pair { grid-template-columns: 1fr; } }
+.writer-workshop label { display: flex; flex-direction: column; gap: .5rem; margin: 1rem 0; }
+.writer-workshop textarea, .writer-workshop input, .writer-workshop select { width: 100%; box-sizing: border-box; padding: .75rem; background: #171c17; color: #e5e2d5; border: 1px solid #535b4f; font: inherit; line-height: 1.6; }
+.writer-workshop textarea { resize: vertical; }
+.workshop-policies { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.5rem; margin: 1.5rem 0; }
+.workshop-policy, .workshop-trial { border: 1px solid #41483d; padding: 1.2rem; min-width: 0; }
+.workshop-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+.writer-workshop pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow-y: auto; font: .8rem/1.6 monospace; }
+.workshop-error { color: #edaa80; }
+#ws-status { padding: .7rem; border-left: 3px solid #00ca70; min-height: 2rem; }
+@media (max-width: 1000px) { .workshop-policies { grid-template-columns: 1fr; } }

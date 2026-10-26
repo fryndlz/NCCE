@@ -64,10 +64,9 @@ At supper, the collectors sat at their usual end of the table. There was no coll
 Closing: Keep the box. We paid for it.
 Notice: ownership loss expressed through a compatible small civilian aftermath. No invented attack, named fighter deployment, casualty or game-credit deduction. The speaker has a particular concern; no explanatory moral is needed. Other gangs require their own vocabulary and form.'''
 
-def contract(form):
+def example_for(form):
     if form not in BRIEFS:
         raise ValueError(f'Unsupported narrative form: {form}')
-    common = RUNTIME_PATH.read_text(encoding='utf-8-sig').strip()
     if form in PERSONAL:
         example = PERSONAL_EXAMPLE
     elif form == 'fighter_biography':
@@ -76,4 +75,8 @@ def contract(form):
         example = DOCUMENT_EXAMPLE + '\n\n' + EVENT_EXAMPLE
     else:
         example = COLLECTIVE_EXAMPLE
-    return common + '\n\n' + example + '\n\nREQUESTED FORM: ' + form + '\n' + BRIEFS[form]
+    return example
+
+def contract(form):
+    common = RUNTIME_PATH.read_text(encoding='utf-8-sig').strip()
+    return common + '\n\n' + example_for(form) + '\n\nREQUESTED FORM: ' + form + '\n' + BRIEFS[form]

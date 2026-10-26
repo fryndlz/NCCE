@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.0 — direct Writer Workshop (2026-10-26)
+
+- Added Writer Workshop navigation with source search across writing forms, editable shared/form instructions and examples, exact prompt/context inspection, saved draft versions and explicit activation/rollback for future writing.
+- Added one-call background trials with persistent idempotency keys, measured usage, original response retention and no automatic retry; saved instructions reach the normal production writer and invalidate only the relevant exact-contract cache.
+- Added free import/edit of existing samples, rendered document editing, immutable edit history, adding a saved edit to draft style examples and Markdown export. Samples stay outside campaign canon and normal narrative streams.
+- Added schema-11 private workshop tables. All workshop endpoints require configured app authentication; mutations require same-origin JSON. Generation is serialized with other writer work and stays unavailable on an unauthenticated local configuration.
+- Recorded the owner's comparison verdicts (territory neither/lean A; Mara A; gang neither/lean B) and exposed audited prompt identities. Added viewpoint consistency and literal-action clarity to the experimental candidate preset without activating it or rewriting previous prompts.
+- Offline backend/UI/HTTP tests and disposable authenticated application smoke pass, including zero-call inspection, source/canon preservation, explicit activation, exact prompt/cache changes and duplicate-click protection. No additional paid model calls were made. Hosted verification pending at implementation checkpoint. See `docs/WRITER_WORKSHOP.md`.
+
 ## 0.10.1 — controlled editorial comparison (2026-10-26)
 
 - Added a six-call experiment covering a sourced territory event, Mara Kel injury memory and gang event, with identical evidence/model/effort/schema within each pair. A/B order is shuffled independently; every result is saved under System → Writing comparison.

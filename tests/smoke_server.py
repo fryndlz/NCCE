@@ -33,7 +33,7 @@ def main():
 
         def read(path,body=None):
             request = Request(base+path,data=json.dumps(body).encode() if body is not None else None,
-                              headers={'Content-Type':'application/json'})
+                              headers={'Content-Type':'application/json','Origin':base})
             with client.open(request,timeout=5) as response:
                 return json.load(response)
 
@@ -41,13 +41,13 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.10.1'}
+                    assert read('/healthz') == {'ok':True,'version':'0.11.0'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
                         raise RuntimeError('App failed to start')
                     time.sleep(0.25)
-            for path,body in [('/api/dashboard',None),('/api/login',{'password':'wrong'})]:
+            for path,body in [('/api/dashboard',None),('/api/workshop',None),('/api/workshop/generate',{'request_key':'no-auth-000000000000'}),('/api/login',{'password':'wrong'})]:
                 try:
                     read(path,body)
                     raise AssertionError('Protected request unexpectedly succeeded')
@@ -64,7 +64,7 @@ def main():
                 if time.monotonic()>deadline:
                     raise AssertionError('Sheet sync did not finish')
                 time.sleep(0.25)
-            assert health['schema_version'] == 10 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
+            assert health['schema_version'] == 11 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
             dashboard = read('/api/dashboard')
             assert dashboard['writing_policy']['date']['year'] == 998
             assert dashboard['battles'] and dashboard['battles'][0]['report_document']
@@ -80,6 +80,23 @@ def main():
                     assert any('critical' in m['tags'] for m in detail['mind'])
             gang_details=[read('/api/gangs/'+gang['gang_id']) for gang in dashboard['gangs']]
             assert any(gang['narrative_stream'] for gang in gang_details)
+            workshop=read('/api/workshop')
+            assert workshop['samples'] and len(workshop['forms'])==14
+            source=next(s for s in workshop['samples'] if s['form']=='fighter_memory')
+            selected=read('/api/workshop/sample?key='+source['key'])
+            policy=read('/api/workshop/policy?scope=fighter_memory')
+            saved=read('/api/workshop/save-policy',{**policy['draft'],'label':'Disposable smoke revision'})
+            assert read('/api/workshop/policy?scope=fighter_memory')['active'] is None
+            read('/api/workshop/activate',{'scope':'fighter_memory','revision_id':saved['revision_id'],'expected_active':None})
+            assert read('/api/workshop/policy?scope=fighter_memory')['active']['revision_id']==saved['revision_id']
+            read('/api/workshop/activate',{'scope':'fighter_memory','revision_id':None,'expected_active':saved['revision_id']})
+            imported=read('/api/workshop/import',{'sample_key':source['key']})
+            edited=read('/api/workshop/edit',{'trial_id':imported['trial_id'],'body':'I left the spanner beside the lamp.','composition':{}})
+            assert edited['edits'][0]['document']['workshop_provenance']=='owner_edited_style_sample'
+            assert edited['usage']['requests_attempted']==0
+            hostile=Request(base+'/api/workshop/generate',data=b'{}',headers={'Content-Type':'application/json','Origin':'https://foreign.invalid'})
+            try: client.open(hostile); raise AssertionError('Cross-origin workshop mutation succeeded')
+            except HTTPError as error: assert error.code==403
             for place in dashboard['territories']:
                 detail=read('/api/territories/'+str(place['id']))
                 assert 'narrative_stream' in detail and detail['history_document']['document_type']=='survey_note'

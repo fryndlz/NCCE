@@ -1,9 +1,13 @@
-# NCCE 0.10.1 — current technical design
+# NCCE 0.11.0 — current technical design
 
-**Source release:** 0.10.1, shared narrative writing pipeline with a controlled editorial comparison. **Schema:** 10.
+**Source release:** 0.11.0, shared narrative writing pipeline and direct Writer Workshop. **Schema:** 11.
 **Checkpoint:** 2026-10-26 21:27 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
 
 ## 0. Current writing implementation
+
+[Writer Workshop](WRITER_WORKSHOP.md) exposes shared/form instructions, style examples, exact request inspection, a one-call source-backed trial, rendered prose editing, immutable edit/revision history and explicit activation/rollback for future writing. All workshop endpoints require configured passphrase authentication; mutation also requires same-origin JSON. Samples and edits are private derived artifacts, never campaign source/canon. The existing shared app passphrase is also the workshop permission boundary; separate owner/viewer roles are not implemented. No new model requests are made by opening, saving, inspecting, importing or editing. Automatic writing remains disabled.
+
+Schema 11 adds `workshop_revisions`, `workshop_active`, `workshop_trials` and `workshop_edits`. Active instructions are resolved by the production writer and participate in the exact-contract cache hash. Saved drafts do not affect production until explicitly activated. Request keys prevent duplicate paid work; provider calls share the existing writer pipeline lock and have a one-call budget. A restart marks unfinished trials interrupted, with no replay. The technical and editorial limits are specified in `WRITER_WORKSHOP.md`.
 
 The [six-call editorial comparison](WRITER_COMPARISON_0_10_1.md) adds a candidate general craft specification alongside the current contract. Three independently shuffled A/B pairs use identical factual/context inputs and fixed model/effort/output settings. The candidate is not active for routine campaign writing. Results are saved separately in System; all prompts/responses and costs remain in the server-side audit. There is no paid comparison HTTP endpoint or automatic replacement of campaign prose.
 

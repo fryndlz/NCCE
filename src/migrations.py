@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -735,6 +735,39 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(10,?,?)",
                        ('retained writer responses and exact runtime contracts', _now()))
             db.execute('PRAGMA user_version=10')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if current < 11:
+        try:
+            db.executescript('''
+                CREATE TABLE IF NOT EXISTS workshop_revisions(
+                    revision_id TEXT PRIMARY KEY, scope TEXT NOT NULL, label TEXT NOT NULL,
+                    instructions TEXT NOT NULL, examples TEXT NOT NULL, created_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS workshop_active(
+                    scope TEXT PRIMARY KEY, revision_id TEXT NOT NULL REFERENCES workshop_revisions(revision_id));
+                CREATE TABLE IF NOT EXISTS workshop_trials(
+                    trial_id TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE, sample_key TEXT NOT NULL,
+                    form TEXT NOT NULL, label TEXT NOT NULL, packet_json TEXT NOT NULL,
+                    instructions TEXT NOT NULL, model TEXT NOT NULL, effort TEXT NOT NULL,
+                    status TEXT NOT NULL, document_json TEXT NOT NULL DEFAULT '{}', usage_json TEXT NOT NULL DEFAULT '{}',
+                    error TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, finished_at TEXT);
+                CREATE TABLE IF NOT EXISTS workshop_edits(
+                    edit_id TEXT PRIMARY KEY, trial_id TEXT NOT NULL REFERENCES workshop_trials(trial_id),
+                    document_json TEXT NOT NULL, created_at TEXT NOT NULL);
+                CREATE TRIGGER IF NOT EXISTS workshop_revisions_no_update BEFORE UPDATE ON workshop_revisions
+                    BEGIN SELECT RAISE(ABORT,'Workshop revisions are immutable'); END;
+                CREATE TRIGGER IF NOT EXISTS workshop_revisions_no_delete BEFORE DELETE ON workshop_revisions
+                    BEGIN SELECT RAISE(ABORT,'Workshop revisions are immutable'); END;
+                CREATE TRIGGER IF NOT EXISTS workshop_edits_no_update BEFORE UPDATE ON workshop_edits
+                    BEGIN SELECT RAISE(ABORT,'Workshop edits are immutable'); END;
+                CREATE TRIGGER IF NOT EXISTS workshop_edits_no_delete BEFORE DELETE ON workshop_edits
+                    BEGIN SELECT RAISE(ABORT,'Workshop edits are immutable'); END;
+            ''')
+            db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(11,?,?)",
+                       ('versioned private writer workshop',_now()))
+            db.execute('PRAGMA user_version=11')
             db.commit()
         except Exception:
             db.rollback()

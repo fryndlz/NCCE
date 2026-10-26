@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.10.1'
+APP_VERSION='0.11.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -34,6 +34,14 @@ try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
 _writer_pipeline_guard=threading.Lock()
+with store._lock,store.db:
+ store.db.execute("UPDATE workshop_trials SET status='error',error='Server restarted during this trial. Inspect retained usage; no automatic retry was made.' WHERE status IN ('queued','running')")
+
+def _run_workshop(trial_id):
+ try:
+  import writer_workshop
+  with store._lock:writer_workshop.execute(store,trial_id)
+ finally:_writer_pipeline_guard.release()
 _writer_check_guard=threading.Lock(); _writer_check_active=False; _writer_check_used=store.get_state('mara_writer_check_used')=='1'; _writer_check_review_used=store.get_state('mara_writer_check_review_used')=='1'; _writer_check_final_used=store.get_state('mara_writer_check_final_used')=='1'; _writer_check_medium_used=store.get_state('mara_writer_check_medium_used')=='1'
 _writer_checks={}
 _territory_writer_guard=threading.Lock(); _territory_writer_active=False
@@ -43,12 +51,15 @@ if store.get_state('territory_writer_run_status') in {'queued','running'}:
 def _run_fighter_writer_check(run_id,fighter_id,call_budget=13,reasoning_effort=None,run_kind='initial_check'):
  global _writer_check_active
  _writer_checks[run_id]={'run_id':run_id,'status':'running','fighter_id':fighter_id,'call_limit':call_budget,'reasoning_effort':reasoning_effort,'run_kind':run_kind}
- old_effort=llm_writer.DEFAULT_REASONING_EFFORT
  try:
-  if reasoning_effort:llm_writer.DEFAULT_REASONING_EFFORT=reasoning_effort
-  with _writer_pipeline_guard,store._lock:
-   from story_engine import regenerate
-   result=regenerate(store,force=True,fighter_ids=[fighter_id],call_budget=call_budget,writer_run_id=run_id)
+  with _writer_pipeline_guard:
+   old_effort=llm_writer.DEFAULT_REASONING_EFFORT
+   try:
+    if reasoning_effort:llm_writer.DEFAULT_REASONING_EFFORT=reasoning_effort
+    with store._lock:
+     from story_engine import regenerate
+     result=regenerate(store,force=True,fighter_ids=[fighter_id],call_budget=call_budget,writer_run_id=run_id)
+   finally:llm_writer.DEFAULT_REASONING_EFFORT=old_effort
   _writer_checks[run_id]={'run_id':run_id,'status':'complete','fighter_id':fighter_id,'call_limit':call_budget,'reasoning_effort':reasoning_effort,'run_kind':run_kind,**result}
   with store._lock:
    store.set_state('mara_writer_check_status','complete'); store.set_state('mara_writer_check_summary',json.dumps(result.get('writer',{}),sort_keys=True))
@@ -57,7 +68,6 @@ def _run_fighter_writer_check(run_id,fighter_id,call_budget=13,reasoning_effort=
   with store._lock:
    store.set_state('mara_writer_check_status','error'); store.set_state('mara_writer_check_summary',json.dumps({'error':str(exc)[:240]},sort_keys=True))
  finally:
-  llm_writer.DEFAULT_REASONING_EFFORT=old_effort
   with _writer_check_guard: _writer_check_active=False
 
 def _run_territory_writer(run_id):
@@ -140,6 +150,17 @@ class H(BaseHTTPRequestHandler):
   return False
  def _serve_login(self):
   page=(WEB/'login.html').read_bytes(); self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(page))); self.end_headers(); self.wfile.write(page)
+ def _workshop_allowed(self,mutating=False):
+  # These editing/spending routes are unavailable when application auth is disabled.
+  if not AUTH_REQUIRED:self.js({'error':'Writer Workshop requires passphrase-protected access.'},403); return False
+  if not self._authenticated():self.js({'error':'authentication required'},401); return False
+  if mutating:
+   origin=urlparse(self.headers.get('Origin',''))
+   if origin.scheme not in ('http','https') or origin.netloc!=self.headers.get('Host') or self.headers.get('Sec-Fetch-Site')=='cross-site':
+    self.js({'error':'Use the workshop from this application origin.'},403); return False
+   if self.headers.get('Content-Type','').split(';')[0]!='application/json':
+    self.js({'error':'Expected a JSON request'},415); return False
+  return True
  def do_GET(self):
   parsed=urlparse(self.path); p=parsed.path
   if p=='/healthz':return self.js({'ok':True,'version':APP_VERSION})
@@ -149,6 +170,21 @@ class H(BaseHTTPRequestHandler):
    if p=='/':return self._serve_login()
    if p.startswith('/api/'):return self.js({'error':'authentication required'},401)
    return self.send_error(404)
+  if p.startswith('/api/workshop'):
+   if not self._workshop_allowed():return
+   import writer_workshop as workshop
+   query=parse_qs(parsed.query)
+   try:
+    with store.reader() as reader:
+     if p=='/api/workshop':result=workshop.home(reader)
+     elif p=='/api/workshop/policy':result=workshop.editor(reader,query.get('scope',['shared'])[0])
+     elif p=='/api/workshop/sample':
+      result=workshop.sample(reader,query.get('key',[''])[0])
+      result['packet_hash']=workshop.hashlib.sha256(workshop.packed(result['packet']).encode()).hexdigest()
+     elif p=='/api/workshop/trial':result=workshop.trial(reader,query.get('trial_id',[''])[0])
+     else:return self.send_error(404)
+    return self.js(result)
+   except ValueError as exc:return self.js({'error':str(exc)},400)
   if p=='/api/dashboard':
    with store.reader() as reader:return self.js(reader.dashboard())
   if p=='/api/health':
@@ -247,12 +283,42 @@ class H(BaseHTTPRequestHandler):
    payload=b'{"ok":true}'; self.send_response(200); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Set-Cookie',cookie); self.send_header('Content-Length',str(len(payload))); self.end_headers(); self.wfile.write(payload)
    return
   if AUTH_REQUIRED and not self._authenticated():return self.js({'error':'authentication required'},401)
+  if p.startswith('/api/workshop/'):
+   if not self._workshop_allowed(mutating=True):return
+   import writer_workshop as workshop
+   try:
+    length=int(self.headers.get('Content-Length','0'))
+    if length<1 or length>128000:return self.js({'error':'Workshop request is too long'},413)
+    body=json.loads(self.rfile.read(length).decode('utf-8'))
+    if not isinstance(body,dict):raise ValueError('Expected an object')
+    if p=='/api/workshop/generate':
+     with store.reader() as reader:
+      old=reader.db.execute('SELECT trial_id FROM workshop_trials WHERE request_key=?',(body.get('request_key'),)).fetchone()
+      if old:return self.js(workshop.trial(reader,old[0]))
+     if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'The writer is busy. No workshop call was made.'},409)
+     try:
+      item,fresh=workshop.queue(store,body)
+      if fresh:threading.Thread(target=_run_workshop,args=(item['trial_id'],),name='ncce-workshop-writer',daemon=True).start()
+      else:_writer_pipeline_guard.release()
+     except Exception:
+      _writer_pipeline_guard.release(); raise
+     return self.js(item,202 if fresh else 200)
+    with store._lock:
+     if p=='/api/workshop/save-policy':result=workshop.save_revision(store,body)
+     elif p=='/api/workshop/activate':result=workshop.activate(store,body)
+     elif p=='/api/workshop/preview':result=workshop.preview(store,body)
+     elif p=='/api/workshop/import':result=workshop.import_sample(store,body)
+     elif p=='/api/workshop/edit':result=workshop.save_edit(store,body)
+     else:return self.send_error(404)
+    return self.js(result)
+   except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
   if p=='/api/writer-diagnostic':
    origin=self.headers.get('Origin')
    if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)
    if not llm_writer.API_KEY:return self.js({'error':'Writing provider is not configured; no request was made.'},503)
    with _writer_check_guard:
     if store.get_state('writer_diagnostic_used')=='1':return self.js({'error':'The one-call writer diagnostic has already been used.'},409)
+    if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'The writer is busy. No diagnostic call was made.'},409)
     store.set_state('writer_diagnostic_used','1')
    run_id='writer-diagnostic-'+uuid.uuid4().hex
    packet={'subject':'Mara Kel','event_title':'Lasting injury: Critical Injury',
@@ -272,6 +338,7 @@ class H(BaseHTTPRequestHandler):
    finally:
     result['response']=dict(llm_writer._last_response)
     llm_writer.set_enabled(old_enabled)
+    _writer_pipeline_guard.release()
    store.set_state('writer_diagnostic_result',json.dumps(result,ensure_ascii=False,sort_keys=True))
    return self.js(result)
   if p.startswith('/api/fighters/') and p.endswith('/write-check'):

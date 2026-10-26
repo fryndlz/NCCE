@@ -1,6 +1,6 @@
-# Story Engine Architecture — NCCE 0.10.0
+# Story Engine Architecture — NCCE 0.11.0
 
-**Source schema:** 10. Current shared writing contracts, context assembly, composition schema, retained provider audit and bounded editorial previews are specified in [WRITER_PIPELINE_0_10.md](WRITER_PIPELINE_0_10.md). All writing forms use this pipeline. Routine provider calls remain disabled. Hosted release evidence is maintained in CHANGELOG.md.
+**Source schema:** 11. The [Writer Workshop](WRITER_WORKSHOP.md) adds versioned private editorial revisions, explicit future-policy activation, source-backed one-call trials and preserved prose edits. It resolves approved shared/form guidance on the existing production writer path. Current shared writing contracts, context assembly, composition schema, retained provider audit and bounded editorial previews are specified in [WRITER_PIPELINE_0_10.md](WRITER_PIPELINE_0_10.md). All writing forms use this pipeline. Routine provider calls remain disabled. Hosted release evidence is maintained in CHANGELOG.md.
 
 ## 1. Source boundary
 

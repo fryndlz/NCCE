@@ -213,6 +213,11 @@ def _record_request(store,form,trace,status,started,error='',signature='',draft=
 
 def write(store,form,packet,trace=None,contract_override=None):
  global _failure
+ if contract_override is None:
+  from writer_workshop import active_contract
+  contract_override=active_contract(store,form)
+  if contract_override is not None:
+   trace={**(trace or {}),'contract_revision':'workshop:'+hashlib.sha256(contract_override.encode()).hexdigest()[:16]}
  _run_stats['drafts_requested']=_run_stats.get('drafts_requested',0)+1
  if _failure: return [],{'status':'error','message':_failure}
  try: signature=hashlib.sha256(_json({'form':form,'packet':packet,'model':MODEL,'reasoning_effort':DEFAULT_REASONING_EFFORT,
@@ -222,7 +227,7 @@ def write(store,form,packet,trace=None,contract_override=None):
  if row:
   _run_stats['cache_hits']+=1
   paragraphs,composition=normalize_result(json.loads(row[0]))
-  return paragraphs,{'status':'ready','cached':True,'composition':composition,'revision':FORMATTING_REVISION}
+  return paragraphs,{'status':'ready','cached':True,'composition':composition,'revision':FORMATTING_REVISION,'contract_hash':_contract_fingerprint(form,contract_override)}
  if signature in _attempted:
   return [],_attempted[signature]
  if not WRITER_ENABLED: return [],{'status':'pending','message':'Narrative pending: automatic writing is paused. An explicit writing run is required.'}
@@ -256,7 +261,7 @@ def write(store,form,packet,trace=None,contract_override=None):
  store.db.execute('INSERT OR IGNORE INTO writer_result_cache(prompt_hash,result_json,model,created_at) VALUES(?,?,?,?)',(signature,json.dumps({'paragraphs':paragraphs,'composition':composition},ensure_ascii=False),MODEL,datetime.now(timezone.utc).isoformat()))
  _run_stats['requests_succeeded']+=1
  _record_request(store,form,trace,'succeeded',started,signature=signature,draft=draft)
- return paragraphs,{'status':'ready','cached':False,'composition':composition,'revision':FORMATTING_REVISION}
+ return paragraphs,{'status':'ready','cached':False,'composition':composition,'revision':FORMATTING_REVISION,'contract_hash':_contract_fingerprint(form,contract_override)}
 
 def memory_packet(store,fighter,gang,title,evidence,identity,prior=(),form='fighter_memory',event=None):
  import narrative_context
@@ -306,6 +311,7 @@ def apply(document,paragraphs,status):
   result['termination']={'type':'record_termination','text':composition.get('signoff','')}
  if status.get('status')=='ready': result['writer_revision']=status.get('revision',FORMATTING_REVISION)
  result['writer_status']=status.get('status','pending')
+ if status.get('contract_hash'):result['writer_contract_hash']=status['contract_hash']
  if status.get('message'): result['writer_message']=status['message']
  else: result.pop('writer_message',None)
  result['writer_model']=MODEL if status.get('status')=='ready' else None

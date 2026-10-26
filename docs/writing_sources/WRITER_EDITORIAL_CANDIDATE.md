@@ -20,6 +20,10 @@ Use clear, specific English, natural rhythms and compact paragraphs. Administrat
 
 A fighter remembers in their own vocabulary and through a particular concern. Their background shapes what they notice and what they do; it need not be recited. A gang's culture shapes its account without turning every member into a faction stereotype. Statistics inform embodied experience without dictating personality. Preserve appropriate cognition, narrator knowledge and authored language. C-NINE language belongs only to C-NINE context. Do not guess gender or pronouns.
 
+Choose the document's author and audience before writing. Keep that viewpoint throughout. A gang writing an internal report speaks as its own members (we/our), not as an outside observer describing the gang. An outside office may use third person. Do not combine an internal heading with an external narrator unless a clearly attributed quotation accounts for the shift.
+
+Check literal physical and causal sense. The reader should understand who performed an action, with what object, and what resulted. Technical vocabulary must mean what it says; a person's handwritten notes are not machine code. Do not sacrifice an intelligible action for a clever-sounding sentence.
+
 Let horror and absurdity arise from the practice or event described. A familiar human response can be enough; no obligatory punchline or portent. Opponents remain competent. Speech is addressed to someone for a reason. Delete sentences that explain the story's significance, announce personal transformation or paraphrase a game update.
 
 ## Short editorial lessons

@@ -180,7 +180,7 @@ async function api(url, options) {
   const response = await fetch(url, {cache: 'no-store', ...options});
   if (response.status === 401) { location.replace('/login'); throw new Error('Please sign in to continue.'); }
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'The chronicle could not complete that request.');
+  if (!response.ok) { const error=new Error(result.error || 'The chronicle could not complete that request.'); error.status=response.status; throw error; }
   return result;
 }
 function editorialPreview(state) {
@@ -235,7 +235,7 @@ async function refreshDashboard(preserve = true) {
     data.campaignEvents = list(ledger.events);
     fightersCache = Array.isArray(data.fighters) ? data.fighters : null;
     if (currentDetail) await openDetail(currentDetail.type, currentDetail.id, true);
-    else await render(activeView, true);
+    else if (activeView !== 'workshop') await render(activeView, true);
     restoreUi(saved);
   } finally { refreshing = false; }
 }
@@ -466,6 +466,7 @@ async function render(view, preserveScroll = false) {
   activeView = view === 'people' ? 'fighters' : view;
   currentDetail = null;
   document.querySelectorAll('nav button').forEach(button => button.classList.toggle('active', button.dataset.view === activeView));
+  if (activeView === 'workshop') { await window.NCCEWorkshop.open(app,api,blocks); return; }
   if (activeView === 'fighters') {
     if (!fightersCache) app.innerHTML = '<div class="loading-state" role="status">Opening fighter records…</div>';
     await ensureFighters();
