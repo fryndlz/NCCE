@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.9.5'
+APP_VERSION='0.9.6'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -33,7 +33,7 @@ AUTO_WRITE_ENABLED=configured_bool(os.environ.get('NCCE_AUTO_WRITE_ENABLED','0')
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
-_writer_check_guard=threading.Lock(); _writer_check_active=False; _writer_check_used=store.get_state('mara_writer_check_used')=='1'
+_writer_check_guard=threading.Lock(); _writer_check_active=False; _writer_check_used=store.get_state('mara_writer_check_used')=='1'; _writer_check_review_used=store.get_state('mara_writer_check_review_used')=='1'
 _writer_checks={}
 
 def _run_fighter_writer_check(run_id,fighter_id):
@@ -148,7 +148,8 @@ class H(BaseHTTPRequestHandler):
                   'failed':stats.get('requests_failed',usage['failed']),
                   'input_tokens':stats.get('input_tokens',usage['input_tokens']),
                   'output_tokens':stats.get('output_tokens',usage['output_tokens'])})
-   return self.js({**item,'request_usage':usage})
+   can_retry=_writer_check_used and not _writer_check_review_used and item.get('status') in {'complete','error'}
+   return self.js({**item,'request_usage':usage,'can_retry':can_retry})
   if p.startswith('/api/gangs/'):
    with store.reader() as reader:x=reader.gang(unquote(p.split('/api/gangs/',1)[1]))
    return self.js(x if x else {'error':'not found'},200 if x else 404)
@@ -202,21 +203,27 @@ class H(BaseHTTPRequestHandler):
    if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)
    try:fighter_id=int(p.split('/')[3])
    except (TypeError,ValueError):return self.js({'error':'invalid fighter id'},400)
-   global _writer_check_active,_writer_check_used
+   global _writer_check_active,_writer_check_used,_writer_check_review_used
    with _writer_check_guard:
-    if _writer_check_active or _writer_check_used:return self.js({'error':'The one-fighter Mara writer check has already been queued or completed.'},409)
+    if _writer_check_active:return self.js({'error':'A Mara writer check is already running.'},409)
+    is_review=_writer_check_used
+    prior_status=store.get_state('mara_writer_check_status','')
+    if is_review and (_writer_check_review_used or prior_status not in {'complete','error'}):
+     return self.js({'error':'The single revised Mara review has already been used or the previous run is not finished.'},409)
     with store._lock:
      fighter=store.db.execute('SELECT id,name,gang_name,backstory_source FROM fighters WHERE id=?',(fighter_id,)).fetchone()
     if not fighter or fighter['name']!='Mara Kel' or 'C-NINE' not in str(fighter['gang_name'] or '').upper() or 'c-nine story' not in str(fighter['backstory_source'] or '').lower():
      return self.js({'error':'This bounded check is currently restricted to Mara Kel’s authored C-NINE record.'},403)
     run_id=uuid.uuid4().hex; _writer_check_active=True; _writer_check_used=True
+    if is_review:_writer_check_review_used=True
     with store._lock:
      store.set_state('mara_writer_check_used','1'); store.set_state('mara_writer_check_run_id',run_id)
      store.set_state('mara_writer_check_fighter_id',str(fighter_id)); store.set_state('mara_writer_check_status','queued')
      store.set_state('mara_writer_check_summary','{}')
-    _writer_checks[run_id]={'run_id':run_id,'status':'queued','fighter_id':fighter_id,'fighter_name':'Mara Kel','call_limit':13}
+    if is_review:store.set_state('mara_writer_check_review_used','1')
+    _writer_checks[run_id]={'run_id':run_id,'status':'queued','fighter_id':fighter_id,'fighter_name':'Mara Kel','call_limit':13,'run_kind':'revised_review' if is_review else 'initial_check'}
     threading.Thread(target=_run_fighter_writer_check,args=(run_id,fighter_id),name='ncce-mara-writer-check',daemon=True).start()
-   return self.js({'run_id':run_id,'status':'queued','fighter_name':'Mara Kel','call_limit':13},202)
+   return self.js({'run_id':run_id,'status':'queued','fighter_name':'Mara Kel','call_limit':13,'run_kind':'revised_review' if is_review else 'initial_check'},202)
   if p.startswith('/api/fighters/') and p.endswith('/identity'):
    origin=self.headers.get('Origin')
    if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)

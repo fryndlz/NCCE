@@ -38,7 +38,7 @@ assert.ok(dossier.includes('personnel-section-label') && dossier.includes('Works
 assert.ok(dossier.includes('personnel-quote') && dossier.includes('It’s one workshop'));
 assert.ok(dossier.includes('personnel-watermark') && dossier.includes('C9-MK/a4d4'));
 assert.ok(dossier.includes('personnel-system') && dossier.includes('RECORD TERMINATED'));
-assert.ok(app.includes('Test the writer on Mara') && app.includes('at most 13 model requests'));
+assert.ok(app.includes('Test the writer on Mara') && app.includes('Run revised Mara check') && app.includes('at most 13 model requests'));
 assert.ok(app.includes('writer-ledger') && app.includes('r.request_id') && app.includes('r.response_id'));
 assert.ok(app.includes("/api/writer-runs/mara-latest") && app.includes('writerRunMarkup(run)'));
 assert.ok(app.includes('of 13 model requests attempted so far') && app.includes('innerHTML=writerRunMarkup(run)'));
