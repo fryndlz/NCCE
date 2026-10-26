@@ -119,7 +119,8 @@ def test_memory_prompt_loads_guardrails_and_caps_short_output():
         assert 'Separate information into three categories.' in instructions
         assert 'Do not recap the biography' in instructions
         assert 'Do not recap the biography' in instructions
-        assert captured['body']['max_output_tokens']==180
+        assert captured['body']['max_output_tokens']==650
+        assert captured['body']['reasoning']=={'effort':'low'}
     finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
 
 

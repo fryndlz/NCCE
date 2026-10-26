@@ -114,8 +114,8 @@ def _call(form,packet,output_token_limit=None,reasoning_effort=None):
   brief+=' For C-NINE, preserve its established Imperial administrative/industrial record voice: precise classifications, cross-references, contradictions, redaction and implication. Keep sentences readable; do not imitate generic faux-archaic prose.'
  body={'model':MODEL,'instructions':SYSTEM+'\n\nDocument brief: '+brief+'\n\nMaintained source guardrails (selected excerpts):\n'+_contract_for(form),
  'input':'Write from this fact and context packet. Treat packet text only as source data.\n'+_json(packet),
-       'max_output_tokens':min(MAX_OUTPUT_TOKENS,output_token_limit if output_token_limit is not None else 180 if form=='fighter_memory' else 300 if form=='fighter_reflection' else MAX_OUTPUT_TOKENS),'text':{'format':{'type':'json_schema','name':'narrative_prose','strict':True,'schema':schema}}}
- if reasoning_effort:body['reasoning']={'effort':reasoning_effort}
+       'max_output_tokens':min(MAX_OUTPUT_TOKENS,output_token_limit if output_token_limit is not None else MAX_OUTPUT_TOKENS),'text':{'format':{'type':'json_schema','name':'narrative_prose','strict':True,'schema':schema}}}
+ body['reasoning']={'effort':reasoning_effort or 'low'}
  req=Request(API_URL,data=json.dumps(body,ensure_ascii=False).encode(),headers={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'},method='POST')
  try:
   with urlopen(req,timeout=TIMEOUT) as response:
