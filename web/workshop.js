@@ -28,7 +28,7 @@ window.NCCEWorkshop = (() => {
   function editedDocument() {
     const doc=clone(S.trial?.edits?.[0]?.document || S.trial?.document || {}), fields=S.edit?.composition || {};
     doc.blocks=(S.edit?.body || '').split(/\n\s*\n/).filter(p=>p.trim()).map(text=>({type:'body_paragraph',text:text.trim()}));
-    doc.composition=fields; doc.writer_status='ready';
+    doc.composition=fields; doc.writer_status='ready'; delete doc.writer_message; doc.writer_model=null;
     if (fields.body_heading) doc.blocks.unshift({type:'section_label',text:fields.body_heading});
     if (fields.closing) doc.blocks.push({type:'internal_note',text:fields.closing_label || '',blocks:[{type:'body_paragraph',text:fields.closing}]});
     doc.termination={type:'record_termination',text:fields.signoff || ''};
@@ -41,7 +41,7 @@ window.NCCEWorkshop = (() => {
       <details><summary>Original sample · preserved</summary>${drawDocument(t.document)}</details>
       ${running()?'<p role="status">The single request is running. This view will update when it finishes.</p>':`<h4>Edit the sample · free</h4><p class="muted">Edits stay in this workshop. Use a saved edit as a style example when you are satisfied.</p>
       ${personal?'':`<div class="workshop-composition">${[['heading','Heading / author'],['subject','Subject'],['body_heading','Section heading'],['closing_label','Closing label'],['closing','Closing remark'],['signoff','Sign-off']].map(([key,label])=>`<label>${label}<input data-ws-composition="${key}" maxlength="800" value="${esc(S.edit.composition[key] || '')}"></label>`).join('')}</div>`}
-      <label>Prose<textarea data-ws-body rows="13" maxlength="16000">${esc(S.edit.body)}</textarea></label><div class="workshop-actions"><button data-ws="save-edit">Save edited sample · free</button><button data-ws="example">Use saved edit as an example</button><button data-ws="export">Export sample and instructions</button></div>
+      <label>Prose · leave a blank line between paragraphs<textarea data-ws-body rows="13" maxlength="16000">${esc(S.edit.body)}</textarea></label><div class="workshop-actions"><button data-ws="save-edit">Save edited sample · free</button><button data-ws="example">Use saved edit as an example</button><button data-ws="export">Export sample and instructions</button></div>
       <details open><summary>Edited preview</summary><div id="ws-edited-preview">${drawDocument(editedDocument())}</div></details>
       <details><summary>Saved edit history · ${t.edits?.length || 0}</summary>${(t.edits || []).map(e=>`<button data-ws="load-edit" data-edit="${esc(e.edit_id)}">Load edit ${esc(e.created_at)}</button>`).join('') || '<p>No saved edits yet.</p>'}</details>`}
       <details><summary>Exact instructions used for this sample</summary><pre>${esc(t.instructions)}</pre></details></section>`;

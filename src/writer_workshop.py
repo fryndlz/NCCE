@@ -132,8 +132,10 @@ def sample(store,key):
             if case_index not in range(3) or pos not in range(2):raise ValueError()
             case=saved['cases'][case_index]; entry=case['entries'][pos]
             row=store.db.execute('SELECT prompt_json FROM writer_requests JOIN writer_request_details USING(request_row_id) WHERE run_id=? AND subject_key=?',(saved['run_id'],ident)).fetchone()
-            packet=json.loads(json.loads(row[0])['input'].split('\n',1)[1]); packet.pop('editorial_evaluation_run',None)
-            return {'key':key,'form':case['form'],'label':case['label']+' · '+entry['label'],'packet':packet,'document':entry['document'],'at':entry['document'].get('occurred_at')}
+            saved_request=json.loads(row[0])
+            packet=json.loads(saved_request['input'].split('\n',1)[1]); packet.pop('editorial_evaluation_run',None)
+            return {'key':key,'form':case['form'],'label':case['label']+' · '+entry['label'],'packet':packet,'document':entry['document'],
+                    'instructions_used':saved_request['instructions'],'at':entry['document'].get('occurred_at')}
         except (KeyError,ValueError,TypeError,IndexError): raise ValueError('Comparison sample not found') from None
     if kind=='artifact':
         row=store.db.execute('SELECT * FROM story_artifacts WHERE artifact_id=? AND active=1',(ident,)).fetchone()
@@ -173,6 +175,9 @@ def trial(store,tid):
     row=store.db.execute('SELECT * FROM workshop_trials WHERE trial_id=?',(tid,)).fetchone()
     if not row:raise ValueError('Workshop trial not found')
     item=dict(row)
+    if item['status']=='imported' and item['instructions']=='Imported existing sample; no generation':
+        try:item['instructions']=sample(store,item['sample_key']).get('instructions_used','Original generation instructions are unavailable for this legacy sample. The source packet and prose remain preserved.')
+        except ValueError:item['instructions']='Original generation instructions are unavailable for this legacy sample. The source packet and prose remain preserved.'
     for key in ('packet','document','usage'):item[key]=json.loads(item.pop(key+'_json'))
     edits=[dict(r) for r in store.db.execute('SELECT * FROM workshop_edits WHERE trial_id=? ORDER BY created_at DESC,edit_id DESC',(tid,))]
     for edit in edits:edit['document']=json.loads(edit.pop('document_json'))
@@ -261,5 +266,7 @@ def import_sample(store,body):
     import llm_writer as writer
     with store._lock,store.db:
         store.db.execute('''INSERT INTO workshop_trials(trial_id,request_key,sample_key,form,label,packet_json,instructions,model,effort,status,document_json,usage_json,created_at,finished_at)
-            VALUES(?,?,?,?,?,?,?,?,?,'imported',?,?,?,?)''',(tid,'import-'+uuid.uuid4().hex,selected['key'],selected['form'],selected['label'],packed(selected['packet']),'Imported existing sample; no generation',writer.MODEL,writer.DEFAULT_REASONING_EFFORT,packed(selected['document']),packed({'requests_attempted':0}),now(),now()))
+            VALUES(?,?,?,?,?,?,?,?,?,'imported',?,?,?,?)''',(tid,'import-'+uuid.uuid4().hex,selected['key'],selected['form'],selected['label'],packed(selected['packet']),
+                selected.get('instructions_used','Original generation instructions are unavailable for this legacy sample. The source packet and prose remain preserved.'),
+                writer.MODEL,writer.DEFAULT_REASONING_EFFORT,packed(selected['document']),packed({'requests_attempted':0}),now(),now()))
     return trial(store,tid)

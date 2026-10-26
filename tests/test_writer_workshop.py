@@ -96,6 +96,15 @@ def test_failed_paid_draft_remains_audited_without_retry():
         assert result['usage']['input_tokens']==12 and result['usage']['requests_failed']==1
     with_store(check)
 
+def test_import_preserves_exact_available_prompt_without_spending():
+    def check(store):
+        selected={'key':'comparison:1:0','form':'fighter_memory','label':'Mara A','packet':{'subject':'Mara'},'document':{'blocks':[]},'instructions_used':'Exact audited comparison instructions'}
+        with patch.object(ws,'sample',return_value=selected),patch.object(writer,'_call') as provider:
+            imported=ws.import_sample(store,{'sample_key':selected['key']})
+            assert imported['instructions']==selected['instructions_used']
+            assert imported['usage']['requests_attempted']==0 and provider.call_count==0
+    with_store(check)
+
 if __name__=='__main__':
     for name,test in sorted(list(globals().items())):
         if name.startswith('test_') and callable(test):test();print('PASS',name)
