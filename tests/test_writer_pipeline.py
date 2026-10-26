@@ -120,6 +120,22 @@ def test_event_packets_have_baseline_not_boilerplate_or_future_stories():
     with_store(check)
 
 
+def test_preview_resolves_legacy_snapshot_without_fabricating_event_ids():
+    def check(store):
+        before=campaign(); apply(store,before); apply(store,latest_game(before))
+        tid=store.dashboard()['territories'][0]['id']
+        store.db.execute("UPDATE narrative_entries SET source_event_ids_json='[]' WHERE scope_type='territory'")
+        sample=writer_preview.territory_samples(store,tid)[1]
+        assert sample['packet']['source_event_ids']==[]
+        assert sample['packet']['source_records'][0]['snapshot_id']
+        assert sample['packet']['evidence'][0]['scenario']=='Takeover'
+        store.db.execute("UPDATE narrative_entries SET document_json='{}' WHERE scope_type='territory'")
+        try: writer_preview.territory_samples(store,tid)
+        except ValueError: pass
+        else: raise AssertionError('Unverified projection must not become factual evidence')
+    with_store(check)
+
+
 def test_preview_uses_shared_writer_and_never_publishes_synthetic_events():
     def check(store):
         before=campaign(); apply(store,before); apply(store,latest_game(before))

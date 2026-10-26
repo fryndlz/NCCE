@@ -7,6 +7,7 @@
 - Added structured document headings, subjects and closing remarks, safe rendering and separate real-world date wrapper. Authored prose remains untouched. Previously hidden gang/place history documents are now visible as campaign accounts.
 - Added schema-10 retained provider request/response/draft audit, failed-call token accounting, provider cached-input counts and duplicate-failure suppression. No new public or authenticated paid HTTP endpoint was added.
 - Added a one-use four-entry editorial preview command, using the production writer and displaying saved results in System. Synthetic preview incidents never enter campaign history. Routine and bulk generation remain disabled.
+- Preview source validation also resolves legacy battles against exact immutable snapshot records; absence of an event-ledger ID does not cause invented IDs or loss of provenance. The initial hosted plan-only check caught this legacy case before any provider call.
 - Validation: existing Python and Node suites plus new shared writer regressions pass; disposable authenticated app smoke passed outside the sandbox (startup, login, read-only live sync, schema, fighter history, reports, logout). No authoritative source files were edited. Deployment and provider-run verification pending at this checkpoint.
 
 
