@@ -1,5 +1,11 @@
 # Changelog
 
+## Response allowance fix — 2026-10-27
+
+- Diagnosed saved Palanite Precinct trial `workshop-3e0ab03ae4784d78b3c83cf644c91fd4`: 2,095 input / 1,800 output tokens; provider returned `incomplete: max_output_tokens` with truncated structured prose. This was NCCE's per-response ceiling, not an account quota or the one-call trial limit.
+- Raised the default/configured response allowance to 4,000 tokens for all forms, including reasoning and visible output. Removed the old hardcoded 650-token personal-memory sub-limit; short prose remains controlled by the form brief. Explicit diagnostic overrides remain bounded by their requested value. Model/effort remains Luna/medium, one call per trial, with no automatic retries or regeneration.
+- Added the effective response limit to writer availability. Existing failed output, owner revisions and samples remain preserved. No new provider calls are part of this fix.
+
 ## Writer configuration — Luna medium (2026-10-26)
 
 - Owner requested `gpt-6-luna` at `medium` reasoning effort for the NCCE writer and Workshop. Updated application defaults and the matching Render configuration keys. Existing prose, source data, one-call Workshop budget and paused routine generation are unchanged. No comparison or narrative generation is part of this configuration change.

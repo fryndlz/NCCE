@@ -53,7 +53,7 @@ All `/api/workshop` reads and mutations require configured application authentic
 
 Provider keys never enter browser payloads. Exact workshop instructions and selected context are inspectable, but there is no arbitrary raw audit dump endpoint. Persistent drafts are stored in private workshop tables rather than the dashboard's general `system_state` export.
 
-Generation requires an explicit click and a unique request key. The server atomically records the trial and treats repeats as status retrieval, not new work. A shared pipeline lock serializes generation with sync and other writer jobs; the per-trial budget is one. Server restart marks unfinished workshop trials as interrupted with no automatic replay. Model/effort and output limits currently use the configured production settings (`gpt-6-luna`, medium by default; personal outputs 650 tokens, documents 1,800 unless configured otherwise). The UI exposes model/effort and measured usage; saving/inspection/editing/importing use zero model calls.
+Generation requires an explicit click and a unique request key. The server atomically records the trial and treats repeats as status retrieval, not new work. A shared pipeline lock serializes generation with sync and other writer jobs; the per-trial budget is one. Server restart marks unfinished workshop trials as interrupted with no automatic replay. Model/effort and output limits currently use the configured production settings (`gpt-6-luna`, medium by default; 4,000 total response tokens including reasoning and prose, unless configured otherwise). The UI exposes model/effort and measured usage; saving/inspection/editing/importing use zero model calls.
 
 ## Validation and limits
 

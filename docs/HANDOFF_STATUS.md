@@ -1,5 +1,7 @@
 # Handoff status
 
+**Response limit fix — 2026-10-27:** Palanite Precinct Workshop trial hit the old 1,800 total response-token cap and returned truncated JSON (`incomplete: max_output_tokens`). Default/configured allowance is now 4,000 tokens including reasoning and prose for every form; the old personal 650-token sub-limit is removed. Luna/medium and one call per trial remain unchanged. Do not automatically retry the failed trial or overwrite owner edits.
+
 **Writer configuration — 2026-10-26:** owner explicitly requested `gpt-6-luna` / `medium` instead of Sol / low. Source defaults and Render configuration match that selection. Do not run a comparison or regenerate prose as part of changing this setting. Historical model/effort references below describe their original runs.
 
 **0.11.0 verified checkpoint — 2026-10-26 21:58:56 CET:** Writer Workshop is live at source `9eb029d`, schema 11. Mandatory authenticated/same-origin editing, one-call idempotent trials, immutable revisions/edits, source-backed samples, exact prompt inspection and explicit future-policy activation/rollback are implemented. Tests and disposable application smoke pass. Hosted UI import/restoration of Mara A and exact original prompt inspection were verified. Provider request count remained 108 before/after rollout; no policy was activated, automatic writing remains off, and Mara's authored biography matches the pre-workshop backup. See `WRITER_WORKSHOP.md` and `../CHANGELOG.md`.
