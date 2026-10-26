@@ -677,3 +677,15 @@ Before finalising any battle report or post-battle attachment, verify:
 **Post-battle attachment:**
 
 > Do not tell the reader what they already saw. Show them what they could not have seen.
+
+# 26. FIGHTER MEMORIES MUST STAY WITH ONE EVENT
+
+A fighter **observation** is a response to one identified recorded event. The event title and mechanical evidence define what happened. The character's identity, work, relationships, and authored history are only a lens for what that event could mean to them; those details are not additional events and must not be retold as though they happened now.
+
+For a short memory, name or clearly evoke the change, connect it to one concrete concern that is supported by the character's context, and let the fighter react in ordinary, individual language. Do not begin with generic lessons about being changed, becoming stronger, or learning what the event means. Do not paste a biography into the thought, list unrelated career events, repeat earlier generated prose, or mention that the wording was generated, inferred, sourced, or taken from a record. Mechanical evidence and provenance are displayed separately by the application.
+
+Never join separate mechanical changes into one event unless the packet explicitly identifies their shared event or interval. A fighter may interpret an injury through recorded work or a supported prior condition; the writer may not invent how the injury happened, what the fighter did in battle, or what another fighter said.
+
+A **reflection** is different: it may connect only the cited observations. Their event evidence remains authoritative; generated sentences from those observations are not a new source of fact. If the cited events do not support a meaningful pattern, use a restrained reflection rather than inventing one.
+
+Before returning a fighter memory, check: (1) is every event claim from this one event? (2) is any personal context relevant to this reaction rather than an unrelated anecdote? (3) does the passage sound like a person thinking, without editorial/source commentary? (4) is the mechanical evidence still separately inspectable?

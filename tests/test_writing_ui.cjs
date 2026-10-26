@@ -6,6 +6,7 @@ const context = vm.createContext({document:{querySelector:()=>({})}, Intl, Date}
 vm.runInContext(fs.readFileSync('web/writing.js','utf8'),context);
 const app = fs.readFileSync('web/app.js','utf8');
 vm.runInContext(app.slice(0,app.indexOf('async function api(')),context);
+vm.runInContext(app.slice(app.indexOf('function memoryCard('),app.indexOf('async function showFighter(')),context);
 const run = code => vm.runInContext(code,context);
 assert.equal(run("NCCEWriting.formatDate('2026-10-25T09:46:31.046883+00:00').imperialDisplay"),'9.814.998.M41');
 assert.equal(run("NCCEWriting.formatDate('2026-10-25T09:46:31.046883+00:00').realDisplay"),'25 October 2026 · 10:46');
@@ -41,7 +42,21 @@ assert.ok(app.includes('Test the writer on Mara') && app.includes('at most 13 mo
 assert.ok(app.includes('writer-ledger') && app.includes('r.request_id') && app.includes('r.response_id'));
 assert.ok(app.includes("/api/writer-runs/mara-latest") && app.includes('writerRunMarkup(run)'));
 assert.ok(app.includes('of 13 model requests attempted so far') && app.includes('innerHTML=writerRunMarkup(run)'));
+context.profile = {name:'crew / workshop',traits:['practical'],evidence:['Authored maintenance cues'],writer_context:{
+  identity:{},inferred_identity:[{label:'Authored work or craft',value:'maintenance fitter',source:'player_authored',basis:'Named in Backstory'}],
+  stim_weights:[{topic:'injury',weight:1.3,basis:['voice tendency: enduring']}]
+}};
+const profile = run('voiceDetails(profile)');
+assert.ok(profile.includes('Identity from known sources') && profile.includes('maintenance fitter'));
+assert.ok(profile.includes('Stimulus attention weights') && profile.includes('1.30×'));
+assert.ok(profile.includes('Player-authored') && profile.includes('They do not change game mechanics'));
+context.fighter = {id:7,writer_identity:{}};
+const editor = run('identityEditor(fighter)');
+assert.ok(editor.includes('inferred from the roster') && editor.includes('Gender and pronouns are never guessed'));
+assert.ok(editor.includes('Correct or add an explicitly known detail'));
+context.staleMemory = {id:'memory',memory_type:'observation',writer_status:'stale',title:'Condition changed',content:'The hurt makes the next shift uncertain.',evidence:['Status changed']};
+assert.ok(run('memoryCard(staleMemory)').includes('Earlier draft retained'));
 const server = fs.readFileSync('src/server.py','utf8');
 assert.ok(server.includes("p=='/api/writer-runs/mara-latest'") && server.includes('requests_attempted'));
 assert.equal((server.match(/^import llm_writer$/gm)||[]).length,1,'writer module is imported once at module scope so every API route can read its run summary');
-console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, formatted dossier, persistent Mara result and live usage ledger)');
+console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, inferred identity/stims, stale drafts, formatted dossier, persistent Mara result and live usage ledger)');

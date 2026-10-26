@@ -73,8 +73,11 @@ function authoredDossier(value) {
 }
 function blocks(document, fallback = '') {
   const content = list(document?.blocks);
+  const statusMessage = document?.writer_status === 'stale'
+    ? (document.writer_message || 'Earlier narrative retained; it has not been regenerated with the current writing rules.')
+    : document?.writer_message || (document?.writer_status === 'unconfigured' ? 'Narrative pending · configure the server-side writing provider.' : `Narrative ${document?.writer_status} · retry on the next refresh.`);
   if (!content.length) {
-    if (document?.writer_status && document.writer_status !== 'ready') return `<p class="writer-pending" role="status">${esc(document.writer_message || (document.writer_status === 'unconfigured' ? 'Narrative pending · configure the server-side writing provider.' : `Narrative ${document.writer_status} · retry on the next refresh.`))}</p>`;
+    if (document?.writer_status && document.writer_status !== 'ready') return `<p class="writer-pending" role="status">${esc(statusMessage)}</p>`;
     return prose(fallback);
   }
   const rich = content => list(content).map(run => {
@@ -106,7 +109,7 @@ function blocks(document, fallback = '') {
     return text ? `<p${anchor}>${text}</p>` : children();
   };
   const header = document.document_type ? `<header class="record-header"><div class="eyebrow">${esc(human(document.document_type))}</div>${document.date_display && !document.suppress_date ? dateStamp(document) : ''}<dl class="metadata-group">${list(document.metadata).map(field => `<div><dt>${inline(field.label)}</dt><dd>${inline(field.value)}</dd></div>`).join('')}</dl></header>` : '';
-  const status = document?.writer_status && document.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(document.writer_message || (document.writer_status === 'unconfigured' ? 'Narrative pending · configure the server-side writing provider.' : `Narrative ${document.writer_status} · retry on the next refresh.`))}</p>` : '';
+  const status = document?.writer_status && document.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(statusMessage)}</p>` : '';
   return `${header}${status}<div class="record-body">${content.map(block => node(block)).join('')}</div>${document.termination ? node(document.termination) : ''}`;
 }
 function markedParagraphs(paragraphs) {
@@ -461,19 +464,26 @@ function fighterEvidence(f) {
 }
 function memoryCard(memory) {
   const type = memory.memory_type === 'reflection' ? 'Reflection' : 'Observation';
-  const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">Narrative ${esc(memory.writer_status)} · ${memory.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'retry on the next refresh.'}</p>` : '';
+  const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(memory.writer_message || (memory.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${memory.writer_status} · ${memory.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'retry on the next refresh.'}`))}</p>` : '';
   return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${dateStamp(memory)}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}${status}<div class="memory-voice">${writtenProse(memory.content,memory.content_runs)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
 }
 function mindCard(thought) {
   const memoryId = thought.memory_id || thought.id;
   const label = thought.label || thought.title || thought.name || list(thought.tags)[0] || 'Current concern';
-  const status = thought.writer_status && thought.writer_status !== 'ready' ? `<p class="writer-pending" role="status">Narrative ${esc(thought.writer_status)} · ${thought.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'retry on the next refresh.'}</p>` : '';
+  const status = thought.writer_status && thought.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(thought.writer_message || (thought.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${thought.writer_status} · ${thought.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'retry on the next refresh.'}`))}</p>` : '';
   return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div>${status}<div class="thought">${writtenProse(thought.content || thought.thought,thought.content_runs)}</div>${evidence(thought.evidence || [], thought, true)}${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
 }
 function voiceDetails(profile) {
   if (!profile || !Object.keys(profile).length) return '';
   const traits = Array.isArray(profile.traits) ? profile.traits.map(evidenceText) : typeof profile.traits === 'object' ? Object.entries(profile.traits).map(([key, value]) => `${human(key)}: ${displayValue(value)}`) : [profile.traits].filter(Boolean);
-  return `<details class="voice-profile" data-key="voice-profile"><summary>Inferred voice profile</summary>${profile.name ? `<p>${esc(profile.name)}</p>` : ''}${traits.length ? `<ul>${traits.map(trait => `<li>${esc(trait)}</li>`).join('')}</ul>` : ''}${evidence(profile.evidence || [], {source_label: 'Voice inferred from biography, role, characteristics, and recorded history'}, true)}</details>`;
+  const context = profile.writer_context || {};
+  const facets = list(context.inferred_identity);
+  const explicit = Object.entries(context.identity || {}).flatMap(([key,value]) => (Array.isArray(value) ? value : [value]).filter(Boolean).map(item => ({label:human(key),value:item,source:'authored'})));
+  const weights = list(context.stim_weights);
+  const sourceLabel = source => source === 'mechanical_fact' ? 'Recorded' : source === 'player_authored' ? 'Player-authored' : source === 'canon_authored' ? 'Campaign canon' : 'Inferred';
+  const identityMarkup = [...explicit, ...facets].map(item => `<div class="identity-facet"><div><strong>${esc(item.label)}</strong><span>${esc(sourceLabel(item.source))}</span></div><p>${esc(Array.isArray(item.value) ? item.value.join(', ') : item.value)}</p><small>${esc(item.basis || '')}</small></div>`).join('');
+  const weightsMarkup = weights.map(item => `<div class="stim-weight"><div><strong>${esc(human(item.topic))}</strong><span>${esc(Number(item.weight).toFixed(2))}×</span></div><meter min="0.75" max="1.5" value="${esc(item.weight)}"></meter><small>${esc(list(item.basis).join('; ') || 'Neutral starting weight')}</small></div>`).join('');
+  return `<details class="voice-profile" data-key="voice-profile"><summary>Inferred fighter profile</summary><section class="profile-subsection"><h4>Voice</h4>${profile.name ? `<p>${esc(profile.name)}</p>` : ''}${traits.length ? `<ul>${traits.map(trait => `<li>${esc(trait)}</li>`).join('')}</ul>` : ''}${evidence(profile.evidence || [], {source_label: 'Voice inferred from biography, role, characteristics, and recorded history'}, true)}</section><section class="profile-subsection"><h4>Identity from known sources</h4><p class="muted compact">Recorded role and type, authored cues, faction context, current condition and mechanics. Unknown personal facts stay unknown.</p>${identityMarkup || '<p class="muted">No supported identity facets recorded.</p>'}</section><section class="profile-subsection"><h4>Stimulus attention weights</h4><p class="muted compact">Small context weights that guide what the writer notices. They do not change game mechanics or event importance.</p><div class="stim-weight-list">${weightsMarkup || '<p class="muted">Neutral attention across topics.</p>'}</div></section></details>`;
 }
 function mechanicsPanel(f) {
   let mechanics = f.mechanics || {};
@@ -491,9 +501,9 @@ function placeAssociationNotes() {
 }
 function identityEditor(fighter) {
   const identity = fighter.writer_identity || {};
-  const fields = [['being','Kind of being'],['lineage','Lineage'],['culture','Culture'],['institution','Institution'],['place','Upbringing / place'],['work','Occupation / craft'],['training','Training'],['condition','Relevant conditions'],['life_history','Personal history cues'],['voice','Individual voice cues'],['gender','Gender'],['pronouns','Pronouns'],['writer_tags','Additional tags']];
+  const fields = [['being','Kind of being'],['lineage','Lineage'],['culture','Culture'],['institution','Institution'],['place','Known place'],['work','Known work / craft'],['training','Training'],['condition','Relevant condition'],['life_history','Authored personal history cues'],['voice','Authored voice cues'],['gender','Gender (only if known)'],['pronouns','Pronouns (only if known)'],['writer_tags','Additional authored tags']];
   const mode = identity.narration_mode || '';
-  return `<details class="identity-editor"><summary>Writer identity</summary><p class="muted compact">Add known character context. Separate multiple values with semicolons. Leave unknown fields empty. These notes guide writing and preserve the campaign source.</p><form data-identity-form="${esc(fighter.id)}">${fields.map(([key,label]) => `<label>${esc(label)}<input name="${key}" value="${esc(Array.isArray(identity[key]) ? identity[key].join('; ') : identity[key] || '')}"></label>`).join('')}<label>Perspective<select name="narration_mode">${[['','From recorded identity'],['sapient','Language and personal thought'],['sensory','Sensation and learned association'],['task_log','Task and instruction log']].map(([value,label]) => `<option value="${value}"${value === mode ? ' selected' : ''}>${label}</option>`).join('')}</select></label><button type="submit">Save writing context</button><p role="status" class="identity-status"></p></form></details>`;
+  return `<details class="identity-editor"><summary>Correct or add an explicitly known detail</summary><p class="muted compact">The profile above is inferred from the roster, authored backstory and campaign evidence. Use this optional form only to add a detail you know; unknown fields can stay blank. Gender and pronouns are never guessed.</p><form data-identity-form="${esc(fighter.id)}">${fields.map(([key,label]) => `<label>${esc(label)}<input name="${key}" value="${esc(Array.isArray(identity[key]) ? identity[key].join('; ') : identity[key] || '')}"></label>`).join('')}<label>Perspective<select name="narration_mode">${[['','From recorded identity'],['sapient','Language and personal thought'],['sensory','Sensation and learned association'],['task_log','Task and instruction log']].map(([value,label]) => `<option value="${value}"${value === mode ? ' selected' : ''}>${label}</option>`).join('')}</select></label><button type="submit">Save known detail</button><p role="status" class="identity-status"></p></form></details>`;
 }
 async function showFighter(id, preserveScroll = false) {
   const token = ++renderToken, f = await api('/api/fighters/' + encodeURIComponent(id));

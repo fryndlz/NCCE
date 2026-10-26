@@ -167,10 +167,83 @@ def identity_context(fighter, gang, legacy=None):
             mode = 'sensory'
         if beings in ('automaton', 'servitor'):
             mode = 'task_log'
-    return {'identity': explicit, 'tags': tags, 'narration_mode': mode,
+    # Keep identity dimensions visible and explainable. These are bounded
+    # inferences from recorded designations, authored source text and current
+    # mechanics; unknown personal biography remains unknown.
+    inferred = []
+    def facet(label, value, source, basis):
+        if value not in (None, '', [], {}):
+            inferred.append({'label': label, 'value': value, 'source': source, 'basis': basis})
+    authored = fighter.get('backstory') if fighter.get('backstory') and any(
+        token in str(fighter.get('backstory_source', '')).lower()
+        for token in ('authored', 'c-nine story', 'canon', 'player')
+    ) and 'mechanic' not in str(fighter.get('backstory_source', '')).lower() else None
+    facet('Recorded role', fighter.get('class'), 'mechanical_fact', 'Current roster class')
+    facet('Recorded fighter type', fighter.get('type'), 'mechanical_fact', 'Current roster type')
+    gang_identity=[value for value in (gang.get('name') or fighter.get('gang_name'),gang.get('gang_type')) if value]
+    facet('Gang and faction', gang_identity, 'mechanical_fact', 'Current roster affiliation')
+    if authored:
+        authored_text = ' '.join(str(authored).split())
+        # Extract only a few explicit occupation cues. The entire biography is
+        # displayed in its authored source panel and is not repeated in prompts.
+        work_cues = (('maintenance fitter','maintenance fitter'),('machinist','machinist'),
+                     ('medicae','medicae'),('chirurgeon','chirurgeon'),('surveyor','surveyor'),
+                     ('prospector','prospector'),('driver','driver'),('trader','trader'),
+                     ('handler','handler'),('preacher','preacher'),('miner','miner'))
+        cue = next((label for token,label in work_cues if token in authored_text.casefold()),None)
+        if cue:
+            facet('Authored work or craft', cue,
+                  'player_authored' if 'player' in str(fighter.get('backstory_source', '')).lower() else 'canon_authored',
+                  f'Explicitly named in {fighter.get("backstory_source")}')
+        else:
+            facet('Authored history', 'Authored backstory on file; see Backstory above',
+                  'player_authored' if 'player' in str(fighter.get('backstory_source', '')).lower() else 'canon_authored',
+                  fighter.get('backstory_source'))
+    condition = ' · '.join(str(value).strip() for value in (fighter.get('status'), fighter.get('effects')) if value and str(value).strip())
+    facet('Recorded current condition', condition, 'mechanical_fact', 'Current roster Status and Effects')
+    mechanics = dict(recorded)
+    mechanics.update(fighter.get('mechanics') if isinstance(fighter.get('mechanics'), dict) else {})
+    for stat, label, threshold, better in (('T','Physical endurance',4,'higher'),('W','Wound capacity',2,'higher'),('S','Physical strength',4,'higher')):
+        value = mechanics.get(stat)
+        try: qualifies = float(str(value).replace('+','')) >= threshold
+        except (TypeError, ValueError): qualifies = False
+        if value not in (None, '') and qualifies:
+            facet(label, f'{stat} {value}', 'inference', f'Recorded characteristic; {better} value threshold {threshold} informs an embodied frame only')
+    voice_traits = (legacy or {}).get('traits') or []
+    if voice_traits:
+        facet('Voice tendencies', list(dict.fromkeys(voice_traits))[:6], 'inference', 'Derived from recorded role, authored cues and characteristics')
+    # Stim weights are bounded attention cues, not event importance, game
+    # mechanics, or psychological scores. Keep the rationale beside each.
+    topics = {'injury':1.0,'recovery':1.0,'growth':1.0,'advancement':1.0,'kills':1.0,
+              'battle':1.0,'victory':1.0,'defeat':1.0,'equipment':1.0,'weapon':1.0,
+              'belonging':1.0,'grief':1.0,'territory':1.0,'return':1.0,'identity':1.0}
+    bases = {topic: [] for topic in topics}
+    trait_topics = {'practical':{'equipment','weapon','return'},'clinical':{'injury','recovery','grief'},
+                    'responsible':{'belonging','grief','victory','defeat','advancement'},
+                    'aspiring':{'growth','advancement'},'enduring':{'injury','recovery','return'},
+                    'physical':{'equipment','weapon','growth'},'analytical':{'advancement','equipment'},
+                    'resolute':{'return','growth'},'blooded':{'kills','battle','victory','defeat'},
+                    'measured':{'territory','equipment'},'inward':{'identity','grief'}}
+    for trait in voice_traits:
+        for topic in trait_topics.get(trait, set()):
+            if topic in topics:
+                topics[topic] = min(1.5, topics[topic] + 0.15)
+                bases[topic].append(f'voice tendency: {trait}')
+    status_text = str(fighter.get('status','') or '') + ' ' + str(fighter.get('effects','') or '')
+    status_norm = status_text.casefold()
+    active_map = {'injury':('injur','critical'),'recovery':('recover','convalesc'),
+                  'growth':('juve','prospect'),'belonging':('leader','champion')}
+    for topic, words in active_map.items():
+        if any(word in status_norm for word in words) or (topic=='growth' and str(fighter.get('class','')).casefold() in ('juve','prospect')) or (topic=='belonging' and str(fighter.get('class','')).casefold() in ('leader','champion')):
+            topics[topic] = min(1.5, topics[topic] + 0.3)
+            bases[topic].append('current recorded condition or role')
+    stim_weights = [{'topic':topic,'weight':round(topics[topic],2),'basis':bases[topic] or ['neutral starting weight']}
+                    for topic in topics]
+    return {'identity': explicit, 'inferred_identity': inferred, 'stim_weights': stim_weights,
+            'tags': tags, 'narration_mode': mode,
             'recorded_category': fighter.get('class'), 'recorded_type': fighter.get('type'),
             'affiliation': gang.get('gang_type'), 'gang': gang.get('name'),
-            'authored_context': fighter.get('backstory') if any(token in str(fighter.get('backstory_source', '')).lower() for token in ('authored','c-nine story','canon')) and 'mechanic' not in str(fighter.get('backstory_source','')).lower() else None,
+            'authored_context': None,
             'knowledge_boundary': 'Only sourced personal events and attributed shared news; no hidden motives or unseen battle actions.',
             'guardrails': ['Identity does not change event importance or mechanics.',
                           'Affiliation supplies context, not automatic private beliefs.',

@@ -14,7 +14,7 @@ import re
 import writing_director as director
 
 
-GENERATOR_VERSION = "ncce-prose-0.6.1"
+GENERATOR_VERSION = "ncce-prose-0.6.2"
 C9 = "THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]"
 
 
@@ -184,7 +184,7 @@ def voice_profile(fighter, gang):
     if _number(fighter.get("kills")) >= 5:
         traits.append("blooded")
         evidence.append("At least five recorded kills")
-    packet = director.identity_context(fighter, gang, {'register':register})
+    packet = director.identity_context(fighter, gang, {'register':register, 'traits':list(dict.fromkeys(traits))})
     key = register + ':' + profession + ':' + ':'.join(traits) + json.dumps(packet, sort_keys=True)
     return {"id": hashlib.sha256(key.encode()).hexdigest()[:12], "name": f"{register} / {profession}",
             "register": register, "profession": profession, "traits": list(dict.fromkeys(traits)),

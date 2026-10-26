@@ -114,11 +114,29 @@ def test_identity_is_authored_persistent_and_changes_only_derived_voice():
     _with_store(check)
 
 
-def test_c_nine_authored_context_reaches_the_writer_packet():
+def test_authored_backstory_informs_identity_without_becoming_event_prompt_text():
     from writing_director import identity_context
     packet=identity_context({'name':'Mara Kel','backstory':'Canon instruction: preserve the broken archive record.','backstory_source':'C-NINE Story'},
                             {'name':C9,'gang_type':'Genestealer Cults'})
-    assert packet['authored_context']=='Canon instruction: preserve the broken archive record.'
+    assert packet['authored_context'] is None
+    assert any(item['label']=='Authored history' and item['source']=='canon_authored' for item in packet['inferred_identity'])
+    assert 'gender' not in packet['identity'] and 'pronouns' not in packet['identity']
+
+
+def test_identity_and_stim_weights_are_inferred_with_provenance():
+    from writing_director import identity_context
+    fighter={'name':'Mara Kel','class':'Specialist','type':'Maintenance Fitter','backstory':'KEL, Mara — Maintenance Fitter; the workshop is home.','backstory_source':'player-authored / C-NINE story','status':'Recovery','effects':'Critical Injury','mechanics':{'T':4,'S':3,'W':1}}
+    packet=identity_context(fighter,{'name':C9,'gang_type':'Genestealer Cults'},{'register':'crew','traits':['practical','enduring']})
+    facets={item['label']:item for item in packet['inferred_identity']}
+    weights={item['topic']:item for item in packet['stim_weights']}
+    assert facets['Recorded role']['value']=='Specialist'
+    assert facets['Authored work or craft']['value']=='maintenance fitter'
+    assert facets['Authored work or craft']['source']=='player_authored'
+    assert facets['Physical endurance']['source']=='inference'
+    assert 'Physical strength' not in facets
+    assert weights['injury']['weight']>1 and weights['recovery']['weight']>1
+    assert weights['equipment']['weight']>1
+    assert all('basis' in item for item in weights.values())
 
 
 def test_ambiguous_place_names_do_not_invent_a_location_link():

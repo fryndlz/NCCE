@@ -31,6 +31,9 @@ def read_stream(store, scope, key):
 def save_entry(store, scope, key, entry_key, kind, title, blocks, evidence, event=None,
                previous=(), provenance='inference', created_at=None, details=()):
     event=event or {}
+    old_draft=store.db.execute('''SELECT document_json FROM narrative_entries WHERE scope_type=? AND scope_key=? AND entry_key=?
+        ORDER BY created_at DESC LIMIT 1''',(scope,str(key),entry_key)).fetchone()
+    old_document=json.loads(old_draft[0]) if old_draft else None
     created_at=created_at or datetime.now(timezone.utc).isoformat()
     source_ids=[event['event_id']] if event.get('event_id') else []
     # The citation chain is narrative continuity, never additional mechanical evidence.
@@ -43,17 +46,16 @@ def save_entry(store, scope, key, entry_key, kind, title, blocks, evidence, even
                                             'provenance_class':provenance},record)
     doc['writer_context']={'scope':scope,'scope_key':str(key),'event_type':event.get('event_type') or 'ambient_report',
                            'event':event.get('payload',{}),'continuity':continuity}
-    earlier=[]
-    for previous_id in list(previous)[-2:]:
-        prior=store.db.execute('SELECT document_json FROM narrative_entries WHERE entry_id=?',(previous_id,)).fetchone()
-        if prior:
-            old=json.loads(prior[0])
-            if old.get('writer_status')=='ready':
-                earlier.extend(b.get('text','') for b in old.get('blocks',[]) if b.get('text'))
-    if earlier:
-        doc['writer_context']['prior_entries']=earlier
+    if previous:
+        doc['writer_context']['continuity_reference']={
+            'earlier_entry_ids':list(previous)[-2:],
+            'instruction':'Earlier generated prose is not evidence; use only the event and facts in this packet.'}
     paragraphs,writer_status=llm_writer.write_document(store,'place_ambient' if provenance=='connective_fiction' else 'place_event' if scope=='territory' else 'gang_event',entry_key,doc)
     doc=llm_writer.apply(doc,paragraphs,writer_status)
+    if old_document and old_document.get('writer_status') in ('ready','stale') and writer_status.get('status')!='ready' and not llm_writer.WRITER_ENABLED:
+        doc['blocks']=old_document.get('blocks',[])
+        doc['writer_status']='stale'
+        doc['writer_message']='Existing draft retained; the updated writing rules have not been run for this entry.'
     if event.get('source_locator'):
         doc['source_locator']=event['source_locator']
     # Do not make a new version merely because a refresh happened later.

@@ -175,6 +175,16 @@ code, .evidence, .system-state, .mechanical-field { overflow-wrap: anywhere; }
 .voice-profile summary, .mechanics-fold summary { color: #c1b995; }
 .voice-profile ul { padding-left: 19px; }
 .voice-profile p { margin-top: 14px; }
+.profile-subsection { border-top: 1px solid var(--line); padding: 12px 0 4px; }
+.profile-subsection h4 { margin: 0 0 8px; color: var(--admin-primary); font-size: .92rem; }
+.identity-facet { padding: 8px 10px; margin: 6px 0; background: #1b211b; border-left: 2px solid var(--identity-primary); }
+.identity-facet > div, .stim-weight > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.identity-facet > div span, .stim-weight > div span { color: var(--muted); font-size: .75rem; }
+.identity-facet p { margin: 5px 0 2px; color: var(--text-primary); }
+.identity-facet small, .stim-weight small { display: block; color: var(--muted); font-size: .75rem; line-height: 1.4; }
+.stim-weight { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.stim-weight meter { display: block; width: 100%; height: 8px; margin: 4px 0; accent-color: var(--admin-primary); }
+.identity-editor summary { color: var(--muted); }
 .ledger-fold > summary { font-size: .8rem; color: #c1b995; }
 .ledger-fold > summary > span { color: #858f78; margin-left: 8px; }
 .timeline { border-left: 1px solid #4a5140; margin: 24px 0 0 5px; padding-left: 18px; }

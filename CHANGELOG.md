@@ -2,6 +2,18 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.5 — inferred fighter context and event-isolated writing
+
+**Implementation checkpoint:** 2026-10-26 02:05 CET (Europe/Warsaw)
+
+- Added evidence-labelled inferred fighter identity facets to the profile, drawing only on roster role/type, gang/faction, explicit authored occupation cues, current condition, and bounded characteristic/voice cues. Gender, pronouns, lineage, upbringing, relationships, beliefs and motives remain unknown unless explicitly sourced. Optional authored corrections stay separate from inference.
+- Added per-topic stimulus-attention weights (1.00 baseline; +0.15 for supported voice tendencies; +0.30 for a matching active condition/role; cap 1.50), with basis visible in the dossier and prompt. These weights do not alter mechanical state, memory importance, reflection thresholds or Mind selection.
+- Isolated fighter observations to one event and its evidence. Full biographies and previous generated prose no longer enter every fighter-memory call. Reflections receive cited observation metadata/evidence instead of repeated model prose. Added explicit directions against unrelated backstory recap, provenance/meta commentary and generic AI phrasing.
+- The model now receives bounded excerpts from the maintained narrative guardrails, identity rules and formatting standard. Short observations are capped at 180 output tokens, reflections at 300. Writer prompt revision changes invalidate cache matches.
+- Prevented disabled startup refreshes from blanking previously generated writing after a prompt update. Existing text remains visible as `stale` with an explanation until an authorized writer run revises it; routine writer generation remains disabled.
+- Investigated usage screenshots: the displayed $1.69 / 353,466 tokens / 259 requests aggregate all API sources, projects and keys and cannot be assigned to NCCE. The exact hosted Mara ledger records 13 successes, 18,090 input and 5,171 output tokens (about 1,390 input tokens per request). Likely avoidable input included repeated authored biography and prior fighter memories; related gang/place/report calls also reused generated prose. The historical 80-draft batch predates per-request ledgering, so its exact usage cannot be reconstructed. The screenshot alone cannot establish how many calls or tokens came from NCCE. Local runtime request ledger contains no additional requests. No new provider requests or campaign narrative regeneration were performed for 0.9.5.
+- Added offline tests for identity/stim provenance, guardrail loading, event isolation, token caps and stale-draft retention. All documented offline suites and syntax checks passed; local HTTP smoke remains blocked by sandbox loopback socket permissions. Hosted version remains 0.9.4 until deployment is verified.
+
 ## 0.9.4 — repair persisted writer-run endpoint
 
 **Implementation checkpoint:** 2026-10-26 01:36 CET (Europe/Warsaw)

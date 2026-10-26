@@ -1,26 +1,26 @@
 # Handoff status
 
-**Current source implementation:** NCCE 0.9.4 — fixed authenticated persisted writer-run retrieval, SQLite schema 9
+**Current source implementation:** NCCE 0.9.5 — inferred fighter context and event-isolated writing, SQLite schema 9
 
 **Hosted implementation:** 0.9.4 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-26 01:36 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 02:05 CET (Europe/Warsaw)
 
-**Deployment:** 0.9.4 / schema 9 is live on Render. Deploy `dep-dbfa08vavr4c73dbu5ug` completed at 2026-10-26 01:35:22 CET for commit `5927c38`. The authenticated endpoint and Mara profile now display the persisted 13-request ledger after reload.
+**Hosted implementation:** 0.9.4 / schema 9 remains live on Render. Deploy `dep-dbfa08vavr4c73dbu5ug` completed at 2026-10-26 01:35:22 CET for commit `5927c38`. Source 0.9.5 is not deployed until local validation is complete.
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
 ## Writing Director source update
 
-Read [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md) for the integrated system and exact implementation limits. Five user-supplied source documents are preserved in `docs/writing_sources/`. Places and Gangs expose persistent progressing stories. The OpenAI-backed writer now drafts all generated prose from factual packets, identity context, and relevant continuity. Provider credentials are server-side; no-key or provider errors are visible as pending/error rather than template prose. Mechanical evidence, dates and attribution remain app-controlled.
+Read [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md) for the integrated system and exact implementation limits. Five reference documents are preserved in `docs/writing_sources/`; the guardrail and identity documents have added event-isolation rules. Places and Gangs expose persistent progressing stories. The OpenAI-backed writer drafts from factual packets and scoped context; fighter observations no longer receive the full biography or earlier generated prose. Provider credentials are server-side; no-key or provider errors are visible rather than template prose. Mechanical evidence, dates and attribution remain app-controlled.
 
-The hosted Mara-only check completed once: 13 successful provider requests (12 fighter memories, one reflection), 18,090 input tokens, 5,171 output tokens, zero failed/cache-hit drafts. It generated content only for Mara; authored biography remained unchanged, and no other fighter or campaign narrative was regenerated. Render logs exposed an import scoping error in 0.9.3's run-summary route; 0.9.4 fixes it and the profile's expandable request ledger is verified after reload. Routine writer calls remain disabled; do not run full-roster writing before the user reviews Mara's output.
+The hosted Mara-only check completed once: 13 successful provider requests (12 fighter memories, one reflection), 18,090 input tokens, 5,171 output tokens, zero failed/cache-hit drafts. It generated content only for Mara; authored biography remained unchanged, and no other fighter or campaign narrative was regenerated. Render logs exposed an import scoping error in 0.9.3's run-summary route; 0.9.4 fixed it and the profile's expandable request ledger was verified after reload. Routine writer calls remain disabled. 0.9.5 has not made provider calls or regenerated saved narratives; a future review run should remain limited to Mara unless the user explicitly changes scope.
 
 ## Workspace and product
 
 Continue in the existing repository. Use Git for history; do not rebuild the project or produce another versioned ZIP. Source/data authority remains in `AGENTS.md`. The Sheet is read-only, authored lore is canon, and generated narrative is inference with evidence.
 
-The app implements the principal story loop: campaign facts generate fighter memories, reflections, selected Mind thoughts, and regenerated reports. Narrative generation requires `NCCE_OPENAI_API_KEY`; `NCCE_WRITER_MODEL` defaults to `gpt-6.1-sol`. Relevant campaign facts, fighter identity tags, authored context and prior generated prose are sent to OpenAI for drafting, as authorized by the user. Successful outputs are cached locally; the writer has a per-run call budget. Version 0.9.2 renders Mara's authored C-NINE dossier as semantic sections, preserves her authored content over inference, and records per-request identifiers/token counts. The Mara pilot completed in 13 calls and is retrievable after reload. Routine syncs cannot make new model calls until full-roster writing is explicitly enabled.
+The app implements the principal story loop: campaign facts generate fighter memories, reflections, selected Mind thoughts, and reports. Narrative generation requires `NCCE_OPENAI_API_KEY`; `NCCE_WRITER_MODEL` defaults to `gpt-6.1-sol`. Per-event mechanical facts remain separate from diegetic writing; the writer receives compact inferred identity and stimulus-attention context. The 0.9.5 profile exposes facet provenance, stimulus weights and optional authored corrections. Existing prose is retained and labelled stale after a prompt revision while routine writes are disabled. The Mara pilot completed once in 13 calls and is retrievable after reload. Do not use the writer until a single-fighter refresh is explicitly authorized.
 
 The exact current technical design, module responsibilities, current labels, trigger/importance rules, voice thresholds, reflection algorithm, Mind formula and limits are in `docs/CURRENT_DESIGN.md`. The earlier design critique is archived as `docs/archive/DESIGN_REVIEW_2026-10-25.md`; `docs/IMPLEMENTATION_AUDIT.md` describes an earlier build.
 
@@ -43,6 +43,8 @@ This feature does not alter the Sheet, Apps Script, current roster, authored lor
 | Campaign history | Source implementation complete. Exact battle/session links, candidate session-time windows, per-gang downtime sequence, archive provenance, conflict/orphan warnings, fighter history and Chronicle Gantt timeline. Participation remains an explicit inference. |
 | Snapshot comparison and change tracker | Implemented. Known baseline fields can bridge to the first live read without fabricating new-stat deltas. Unknown occurrence dates stay unknown. |
 | Event-to-memory/reflection/Mind | Implemented. Model-drafted observations and sourced reflections when configured; documented salience/thresholds; current thoughts selected by importance, recency, relevance, and character biases. |
+| Inferred fighter identity and stimulus attention | 0.9.5 source implementation. Role/type, faction, authored work cues, current condition, supported characteristics/voice traits and bounded topic weights expose provenance in the dossier. No guessed gender/pronouns. No live writer rerun yet. |
+| Writer event separation and guardrail loading | 0.9.5 source implementation. One-event memory packet, no full biography/old prose repetition, cited reflection inputs, selected guardrail excerpts and stale-draft preservation. A paid prose-quality rerun remains a separate decision. |
 | Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
 | Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
 | Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |

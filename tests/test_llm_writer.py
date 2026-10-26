@@ -96,6 +96,104 @@ def test_openai_request_uses_server_key_and_structured_prose_schema():
     finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
 
 
+def test_memory_prompt_loads_guardrails_and_caps_short_output():
+    old_key,old_urlopen=llm_writer.API_KEY,llm_writer.urlopen
+    llm_writer.API_KEY='mock-secret'; captured={}
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self,*args): return False
+        headers={'x-request-id':'req_guardrails'}
+        def read(self):
+            return json.dumps({'id':'resp_guardrails','usage':{'input_tokens':20,'output_tokens':5},'output':[{'content':[{'type':'output_text','text':json.dumps({'paragraphs':[{'runs':[{'text':'The hurt makes the next shift uncertain.','marks':[]}]}]})}]}]}).encode()
+    def fake(request,timeout):
+        captured['body']=json.loads(request.data)
+        return Response()
+    llm_writer.urlopen=fake
+    try:
+        llm_writer._call('fighter_memory',{'event_title':'Critical injury','mechanical_evidence':['Critical Injury']})
+        instructions=captured['body']['instructions']
+        assert 'Maintained source guardrails' in instructions
+        assert 'Separate information into three categories.' in instructions
+        assert 'Do not recap the biography' in instructions
+        assert 'Do not recap the biography' in instructions
+        assert captured['body']['max_output_tokens']==180
+    finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
+
+
+def test_memory_packet_does_not_replay_unrelated_biography_or_old_prose():
+    old_write=llm_writer.write; captured={}
+    llm_writer.write=lambda store,form,packet,trace:(captured.update(form=form,packet=packet,trace=trace) or ([],{'status':'pending'}))
+    try:
+        authored='A long authored biography of an unrelated battle.'
+        identity={'authored_context':authored,'identity':{},'inferred_identity':[{'label':'Recorded role','value':'Specialist','source':'mechanical_fact'}],
+                  'stim_weights':[{'topic':'injury','weight':1.3,'basis':['voice tendency: enduring']}]}
+        llm_writer.write_memory(None,{'id':3,'name':'Mara Kel'},{'name':'C-NINE','gang_type':'GSC'},
+            'Critical injury',['Status: Active to Recovery'],identity,prior=['Unrelated old memory prose'])
+        packet=captured['packet']
+        assert packet['event_title']=='Critical injury'
+        assert packet['inferred_identity']==identity['inferred_identity']
+        assert packet['stimulus_attention']==identity['stim_weights']
+        assert packet['related_observations']==[]
+        assert 'authored_context' not in packet and 'prior_entries' not in packet
+        assert 'Unrelated old memory prose' not in json.dumps(packet)
+        assert 'C-NINE' in packet['gang_context']['name']
+    finally: llm_writer.write=old_write
+
+
+def test_document_packet_does_not_replay_prior_generated_paragraphs():
+    old_write=llm_writer.write; captured={}
+    llm_writer.write=lambda store,form,packet,trace:(captured.update(form=form,packet=packet) or ([],{'status':'pending'}))
+    try:
+        document={'title':'District account','blocks':[{'text':'Current narrative'}],
+                  'writer_context':{'prior_entry':'An earlier generated report full of unrelated detail.',
+                                    'prior_entries':['Old gang story','Older battle story'],
+                                    'continuity_reference':{'earlier_entry_ids':['abc']},
+                                    'current_event':'Territory holder changed'},
+                  'mechanical_evidence':['Holder: A → B']}
+        llm_writer.write_document(None,'gang_history','g1',document)
+        packet=captured['packet']
+        assert 'blocks' not in packet
+        assert packet['mechanical_evidence']==['Holder: A → B']
+        assert packet['writer_context']['current_event']=='Territory holder changed'
+        assert packet['writer_context']['continuity_reference']['earlier_entry_ids']==['abc']
+        assert 'prior_entry' not in packet['writer_context'] and 'prior_entries' not in packet['writer_context']
+        assert 'unrelated detail' not in json.dumps(packet)
+    finally: llm_writer.write=old_write
+
+
+def test_disabled_writer_keeps_prior_drafts_visible_as_stale():
+    old_key,old_call,old_enabled,old_revision=llm_writer.API_KEY,llm_writer._call,llm_writer.WRITER_ENABLED,llm_writer.FORMATTING_REVISION
+    llm_writer.API_KEY='mock-token'
+    llm_writer._call=lambda form,packet:[{'runs':[{'text':f'Existing {form} prose from the prior approved draft.','marks':[]}]}]
+    try:
+        with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+            store=Store(Path(folder)/'writer-stale-preserved.db')
+            try:
+                before=campaign(); apply(store,before); apply(store,latest_game(before))
+                regenerate(store,force=True,writer_enabled=True,writer_run_id='approved-mock-draft')
+                assert llm_writer.run_summary()['requests_succeeded']>0
+                previous=store.db.execute("SELECT memory_key,content FROM story_memories WHERE active=1 AND writer_status='ready' AND content!='' LIMIT 1").fetchone()
+                assert previous
+                old_artifacts=store.db.execute("SELECT scope_type,scope_key,document_json FROM story_artifacts WHERE active=1 AND scope_type='fighter_biography'").fetchall()
+                previous_artifact=next(({**dict(row),'document':json.loads(row['document_json'])} for row in old_artifacts
+                                        if json.loads(row['document_json']).get('writer_status')=='ready'),None)
+                llm_writer.FORMATTING_REVISION=old_revision+'-changed'
+                second=regenerate(store,force=True,writer_enabled=False,writer_run_id='no-spend-revision')
+                retained=store.db.execute("SELECT content,writer_status FROM story_memories WHERE active=1 AND memory_key=? ORDER BY created_at DESC LIMIT 1",(previous['memory_key'],)).fetchone()
+                assert retained['content']==previous['content'] and retained['writer_status']=='stale'
+                requests=store.db.execute("SELECT count(*) FROM writer_requests WHERE run_id='no-spend-revision'").fetchone()[0]
+                assert requests==0 and llm_writer.run_summary()['requests_attempted']==0
+                if previous_artifact:
+                    artifact=store.db.execute("SELECT document_json FROM story_artifacts WHERE active=1 AND scope_type=? AND scope_key=? ORDER BY generated_at DESC LIMIT 1",(previous_artifact['scope_type'],previous_artifact['scope_key'])).fetchone()
+                    assert artifact
+                    doc=json.loads(artifact[0])
+                    assert doc.get('writer_status')=='stale'
+                    assert doc.get('blocks')==previous_artifact['document'].get('blocks')
+            finally: store.close()
+    finally:
+        llm_writer.API_KEY=old_key; llm_writer._call=old_call; llm_writer.set_enabled(old_enabled); llm_writer.FORMATTING_REVISION=old_revision
+
+
 def test_provider_http_error_surfaces_safe_actionable_reason():
     old_key,old_urlopen=llm_writer.API_KEY,llm_writer.urlopen
     llm_writer.API_KEY='mock-secret'

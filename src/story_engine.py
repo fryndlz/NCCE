@@ -20,8 +20,8 @@ import writing_director as director
 import world_streams
 import llm_writer
 
-VERSION = "0.8.1"
-GENERATION = "story-0.8.1"
+VERSION = "0.8.2"
+GENERATION = "story-0.8.2"
 REFLECTION_THRESHOLD = 12.0
 RECENCY_HALF_LIFE_DAYS = 14.0
 
@@ -184,6 +184,15 @@ def _memory(store, fighter, gang, key, et, payload, event=None, context=None, ba
     written,writer_status=llm_writer.write_memory(store,fighter,gang,title,evidence or event_evidence({'event_type':et,'payload':payload}),packet,prior)
     content='\n\n'.join(llm_writer.paragraph_text(p) for p in written)
     content_runs=[llm_writer.paragraph_runs(p) for p in written]
+    if not content and not llm_writer.WRITER_ENABLED:
+        previous=store.db.execute("""SELECT content,content_runs_json FROM story_memories
+            WHERE fighter_id=? AND memory_key=? AND writer_status IN ('ready','stale') AND content!=''
+            ORDER BY created_at DESC LIMIT 1""",(fighter['id'],key)).fetchone()
+        if previous:
+            content=previous['content']
+            try: content_runs=json.loads(previous['content_runs_json'] or '[]')
+            except (ValueError,TypeError): content_runs=[]
+            writer_status={'status':'stale','message':'Existing draft retained; the updated writing rules have not been run for this entry.'}
     return {"memory_key": key, "memory_type": "observation", "title": title, "content": content,
             "importance": importance, "occurred_at": event.get("occurred_at"), "observed_at": event.get("observed_at"),
             "tags": list(dict.fromkeys(tags)), "evidence": evidence or event_evidence({"event_type": et, "payload": payload}),
@@ -230,12 +239,19 @@ def _artifact(store, scope, key, document, input_hash, generated_at):
     prior=store.db.execute("SELECT document_json FROM story_artifacts WHERE scope_type=? AND scope_key=? AND active=1 ORDER BY generated_at DESC LIMIT 1",(scope,str(key))).fetchone()
     if prior:
         old=json.loads(prior[0])
-        if old.get('writer_status')=='ready':
+        if old.get('writer_status') in ('ready','stale'):
             context=dict(document.get('writer_context') or {})
-            context['prior_entry']='\n\n'.join(b.get('text','') for b in old.get('blocks',[]) if b.get('text'))[:5000]
+            context.pop('prior_entry',None)
+            context['continuity_reference']={'earlier_document_exists':True,
+                'source_event_ids':old.get('source_event_ids',[]),
+                'instruction':'Earlier generated prose is not evidence; use only facts in this packet.'}
             document['writer_context']=context
     paragraphs,writer_status=llm_writer.write_document(store,scope,key,document)
     document=llm_writer.apply(document,paragraphs,writer_status)
+    if prior and old.get('writer_status') in ('ready','stale') and writer_status.get('status')!='ready' and not llm_writer.WRITER_ENABLED:
+        document['blocks']=old.get('blocks',[])
+        document['writer_status']='stale'
+        document['writer_message']='Existing draft retained; the updated writing rules have not been run for this entry.'
     scope_form={'gang_origin':'gang_history','territory_origin':'territory_history'}.get(scope,scope)
     document = director.direct_document(scope_form,key,document)
     document.setdefault("source_event_ids", [])
@@ -340,11 +356,11 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                               [e["event_id"] for e in events]])
         retry_writer=False
         if llm_writer.API_KEY:
-            retry_writer=bool(store.db.execute("SELECT 1 FROM story_memories WHERE writer_status!='ready' LIMIT 1").fetchone())
+            retry_writer=bool(store.db.execute("SELECT 1 FROM story_memories WHERE writer_status IN ('pending','unconfigured','error') LIMIT 1").fetchone())
             artifact_rows=store.db.execute("SELECT document_json FROM story_artifacts WHERE active=1").fetchall()
             entry_rows=store.db.execute("SELECT document_json FROM narrative_entries WHERE active=1").fetchall()
-            retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status')!='ready' for r in artifact_rows)
-            retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status')!='ready' for r in entry_rows)
+            retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status') in ('pending','unconfigured','error') for r in artifact_rows)
+            retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status') in ('pending','unconfigured','error') for r in entry_rows)
         if target_fighter_ids is None and not force and not retry_writer and store.get_state("story_input_hash") == fingerprint:
             with store.db:
                 added=world_streams.maybe_ambient(store,gangs,territories) if ambient else 0
@@ -464,7 +480,9 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     cited = sorted(candidates,key=lambda m:(-m["importance"],m["memory_key"]))[:4]
                     ref_text,ref_status=llm_writer.write_memory(store,fighter,gang,'What stays with me',
                            list(dict.fromkeys(x for m in cited for x in m['evidence'])),voice['writer_context'],
-                           prior=[m['content'] for m in cited],form='fighter_reflection')
+                           prior=[{'title':m['title'],'tags':m['tags'],'importance':m['importance'],
+                                   'evidence':m['evidence'],'source_event_ids':m['source_event_ids']} for m in cited],
+                           form='fighter_reflection')
                     ref = {"memory_key":f"reflection:{batch}", "memory_type":"reflection", "title":"What stays with me",
                            "content":"\n\n".join(llm_writer.paragraph_text(p) for p in ref_text),
                            "writer_content_runs":[llm_writer.paragraph_runs(p) for p in ref_text],"writer_status":ref_status.get('status','pending'),

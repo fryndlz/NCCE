@@ -1,8 +1,8 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current source and hosted app: **v0.9.1 — Campaign History Timeline and Writer Integration Fix**, SQLite schema 8. Story generation remains `0.8.1`; campaign archives do not alter story mechanics. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
+Current source: **v0.9.5 — inferred fighter identity and event-isolated writing**, SQLite schema 9. Hosted preview remains v0.9.4 until deployment is verified. Story generation is `0.8.2`; campaign archives do not alter mechanical truth. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
 
-Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default model is `gpt-6.1-sol`; override it with `NCCE_WRITER_MODEL`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Relevant campaign facts, identity context, authored context and earlier generated entries are sent to OpenAI for drafting. Without the key, generated prose is marked pending and no template prose is presented as finished writing. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
+Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default model is `gpt-6.1-sol`; override it with `NCCE_WRITER_MODEL`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Fighter observations use a one-event packet with compact, evidence-labelled identity and stimulus-attention context; the full biography and earlier generated memory prose are not repeated in those calls. Automatic writing remains disabled on routine syncs. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
 
 Open the [hosted preview](https://ncce-private-preview.onrender.com/) and use your existing invitation passphrase. See [hosting details](docs/HOSTED_DEPLOYMENT.md) for storage, cost, and backup limitations.
 

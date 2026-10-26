@@ -173,13 +173,21 @@ Use one or two context dimensions at a time. Let a personality emerge across man
 - **Dead/withdrawn/absent entities:** use existing lifecycle policy. Do not attribute current thoughts to a dead fighter, or infer death/retirement from disappearance.
 - **Provenance:** generated language remains inference. Keep mechanical evidence separate, and retain the event/memory links. A writer may say “I fear” only as diegetic interpretive prose; the app must not store that as a measured psychological fact.
 
+### Runtime inferred identity and stimulus attention
+
+The fighter dossier now derives an inspectable identity profile from the current roster, explicitly authored Backstory, writer-authored overrides, current Status/Effects, and supported characteristics. Each facet includes its evidence/source label. Role and fighter type retain the source designation. Explicitly named occupations can be shown as authored work; characteristics may contribute a cautious embodied cue only at documented thresholds. This projection does not infer gender, pronouns, childhood, lineage, personal relationships, beliefs, or private motives. Authored Backstory remains separately rendered as authored content and is not copied wholesale into every event prompt.
+
+The profile also exposes **stimulus attention weights** for event topics. Each starts at `1.00`; supported voice tendencies add `0.15` to their mapped topics, and a matching current condition or role adds `0.30`; values are capped at `1.50`. Every weight carries a short basis. The writer receives only elevated, most relevant topics. These numbers are bounded prompt-attention cues: they are not Necromunda mechanics, event importance, psychological diagnoses, or current-Mind retrieval weights. The existing Mind score remains unchanged.
+
+The user interface labels these facets as recorded, player-authored, campaign-canon, or inferred and keeps a collapsed optional correction form. Overrides are separate from the authoritative Sheet and never backfill unknown facts.
+
 ## Implementation plan
 
-1. Add an extensible authored identity record and provenance/source locator; do not overload `fighter.type` or rules fields.
-2. Normalize current roster and rule labels into role/function tags with raw labels retained. Add mappings conservatively and maintain a versioned Necromunda label catalog.
-3. Assemble the compact writer packet in one place and pass it to observation, reflection, and Mind prose. Keep numerical story-engine inputs unchanged.
-4. Create small contrast examples from the same event across materially different identities and across different roles within one faction. Review factual parity, knowledge boundaries, and stereotype leakage.
-5. Expand phrase families or prompt instructions only after those examples pass editorial review. The current deterministic writer will require deliberate wording coverage; metadata alone cannot make unseen combinations sound distinct.
+1. **Implemented:** extensible authored identity record, retained revisions and source provenance.
+2. **Implemented for currently supported evidence:** current roster role/type and supported authored/work/mechanics cues are exposed as bounded, sourced facets. This backlog item is complete. Comprehensive edition-versioned rule catalogs and richer nonhuman mappings are separate future work.
+3. **Implemented:** bounded topic stimulus-attention weights are inferred with visible basis, exposed in the dossier, and supplied selectively to event writing. This backlog item is complete. Numerical event importance and Mind retrieval remain unchanged.
+4. **Still needed:** reviewed contrast examples from materially different identities and roles within one faction; this change uses offline contract tests and does not spend API calls.
+5. **Ongoing:** prompt quality and new identity coverage require editorial review; metadata alone cannot make unseen combinations sound distinct.
 
 ## References and source limits
 
