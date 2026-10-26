@@ -11,7 +11,11 @@ Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October
 - The run uses the existing complete applicable guardrails and writer cache. It makes at most one uncached provider request per target; a validation/provider failure is retained as an error or stale prior draft and is not automatically retried in that run. Routine scheduled writing remains disabled.
 - Live inventory before the run: 24 active territory records and 20 active territory event entries. The server computes the final document/entry target count directly from the persistent database before writing.
 - Python syntax compilation, JavaScript syntax validation and `git diff --check` passed. No authoritative sheet/canon content was edited.
-- Deployment and one-time run results will be recorded below after the hosted workflow completes.
+- **2026-10-26 12:45:07 CET — deployed:** Render deploy `dep-dbfjq40m7kps739cg2vg` is live for commit `3ed4168` (NCCE 0.9.12/schema 9). `/healthz` returned version 0.9.12.
+- **2026-10-26 12:45–12:54 CET — authorized territory pass completed:** 24 active territories; 66 targets (48 origin/history documents and 18 event accounts). All 66 provider requests succeeded, none failed or used cache; 1,599,283 input tokens and 10,306 output tokens. No target was blocked by the 80-request budget. No Sheet values or authored campaign text were changed.
+- The final territory status summary also contains 2 `error` and 1 `missing` records outside the 66-target plan: three connective-fiction territory entries, which this pass intentionally did not regenerate. They are not failed model requests. Routine writer generation remains disabled and the one-time pass cannot be repeated.
+- **Hosted spot-check:** Bone Shrine now shows a generated origin and a sourced local account. The prose is readable and grounded in the place and battle record, but “the compiled returns put…” still exposes a source/compiler voice inside the narrative. This pilot confirms generation and rendering across the territory scope; it does not establish that every passage is publication-ready. No second generation was made.
+- Validation before deployment: Python syntax compilation, JavaScript syntax validation and `git diff --check` passed. The hosted System view and a territory detail page were verified after completion.
 
 ## 0.9.11 — complete writer contracts and diegetic quality gate
 

@@ -1,10 +1,12 @@
 # Handoff status
 
-**Current source implementation:** NCCE 0.9.11 — complete writing contracts and diegetic quality gate, SQLite schema 9
+**Current source implementation:** NCCE 0.9.12 — one-time territory-only writing pass, SQLite schema 9
 
-**Hosted implementation:** 0.9.11 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
+**Hosted implementation:** 0.9.12 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-26 11:49 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 12:54 CET (Europe/Warsaw)
+
+**Territory writing pass:** NCCE 0.9.12 is live on Render (deploy `dep-dbfjq40m7kps739cg2vg`, commit `3ed4168`, live at 12:45:07 CET). The explicitly authorized one-time pass completed 66 targets across 24 active territories: 48 origin/history documents and 18 territory event accounts. All 66 provider requests succeeded; 0 failed, 0 cache hits, 1,599,283 input tokens and 10,306 output tokens; budget was 80. Mechanical Sheet records and authored campaign content were not edited. Three connective-fiction entries were outside the plan and remain unchanged (2 status `error`, 1 `missing`); these were not model request failures. Bone Shrine was checked in the hosted UI: its origin and sourced event account rendered, though “the compiled returns put…” still sounds like compiler/source attribution and shows the remaining prose-quality limitation. No repeat generation was made. Routine writing remains disabled.
 
 **Writer enforcement update:** 0.9.11 source code now includes the complete narrative guardrails, identity tags, formatting standard and date-format specification in every uncached prompt; place writing also includes the complete territory-event rules. Fighter memories/reflections receive no automatic C-NINE archive-voice override. A deterministic voice/meta-language gate rejects known bad forms before cache storage and allows unrelated entries to continue without a second attempt. Failed replacements retain prior prose as stale. Cache keys include exact contract content. No provider calls or campaign-data edits were made for this update. Deployed to Render at 2026-10-26 11:56:48 CET; routine writer calls remain disabled.
 
