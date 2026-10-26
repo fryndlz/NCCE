@@ -2,6 +2,18 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.11 — complete writer contracts and diegetic quality gate
+
+**Implementation checkpoint:** 2026-10-26 11:49 CET (Europe/Warsaw)
+
+- Replaced the few-hundred-character excerpts with the complete narrative guardrails, writer identity tags, Chronicle formatting standard, and date-format specification on every uncached writing request. Territory/place writing additionally receives the complete Dominion territory-event rules. The style-map JSON remains renderer input, not prose instructions.
+- Removed the broad C-NINE archival-voice prompt override. C-NINE campaign context no longer turns a fighter's personal memory into an institutional record; campaign-specific naming remains in authored context and the supplied contracts.
+- Added a deterministic pre-cache quality gate for fighter memories/reflections. It requires first-person voice and rejects known source-reporting and mechanical formulations (including “recorded as” and “my concern is”), does not save the rejected draft, logs the failed attempt, and continues other entries without an automatic second generation. If a replacement is rejected/unavailable, the prior successful text remains visible as stale.
+- Added exact contract-content hashing to the cache key. Editing a guardrail or formatting document now makes earlier drafts ineligible for reuse under that policy.
+- Updated version to NCCE 0.9.11. This is code/prompt enforcement only; it made no OpenAI requests and did not regenerate campaign entries or modify source campaign data.
+- Validation: writer contracts and story-engine tests passed offline using mocked model responses; Python compilation passed. No live provider request was made.
+- **Not yet deployed.** Existing generated text stays as-is until a future authorized writer run; writer calls remain disabled on routine syncs.
+
 ## 0.9.10 — bounded medium-effort Mara sample
 
 **Implementation checkpoint:** 2026-10-26 11:05 CET (Europe/Warsaw)

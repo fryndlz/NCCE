@@ -1,10 +1,12 @@
 # Handoff status
 
-**Current source implementation:** NCCE 0.9.10 — one bounded medium-effort Mara sample, SQLite schema 9
+**Current source implementation:** NCCE 0.9.11 — complete writing contracts and diegetic quality gate, SQLite schema 9
 
 **Hosted implementation:** 0.9.10 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-26 11:05 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 11:49 CET (Europe/Warsaw)
+
+**Writer enforcement update:** 0.9.11 source code now includes the complete narrative guardrails, identity tags, formatting standard and date-format specification in every uncached prompt; place writing also includes the complete territory-event rules. Fighter memories/reflections receive no automatic C-NINE archive-voice override. A deterministic meta/mechanical-phrase gate rejects known bad forms before cache storage and allows unrelated entries to continue without a second attempt. Cache keys include exact contract content. No provider calls or campaign-data edits were made for this update. The update is not deployed; routine writer calls remain disabled.
 
 **Hosted implementation:** 0.9.10 / schema 9 is live on Render. Deploy `dep-dbfi9m1srm7s73f3ckf0` completed at 2026-10-26 11:02:36 CET for commit `cf08239`. The authorized medium-effort Mara sample completed five successful requests (7,725 input / 1,761 output tokens); the app displays the new entries. Five of thirteen generated memory entries were replaced; eight prior entries, including reflection, were retained as stale. Authored biography and other fighters' records were untouched.
 
@@ -44,7 +46,7 @@ This feature does not alter the Sheet, Apps Script, current roster, authored lor
 | Snapshot comparison and change tracker | Implemented. Known baseline fields can bridge to the first live read without fabricating new-stat deltas. Unknown occurrence dates stay unknown. |
 | Event-to-memory/reflection/Mind | Implemented. Model-drafted observations and sourced reflections when configured; documented salience/thresholds; current thoughts selected by importance, recency, relevance, and character biases. |
 | Inferred fighter identity and stimulus attention | 0.9.5 source implementation. Role/type, faction, authored work cues, current condition, supported characteristics/voice traits and bounded topic weights expose provenance in the dossier. No guessed gender/pronouns. |
-| Writer event separation and guardrail loading | 0.9.5 source implementation. One-event memory packet, no full biography/old prose repetition, cited reflection inputs, selected guardrail excerpts and stale-draft preservation. 0.9.7 exposes incomplete-response details; 0.9.8 fixes the output budget that starved reasoning models. The 0.9.9 one-use Mara regeneration is exhausted. |
+| Writer event separation and guardrail loading | 0.9.11 source implementation. One-event memory packet, no full biography/old prose, cited reflection inputs, complete applicable writing-contract documents, cache invalidation by contract content, and a deterministic diegetic/meta-language rejection gate. Provider errors and rejected drafts remain visible; no automatic retry is made for a rejected entry in the same run. |
 | Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
 | Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
 | Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |

@@ -31,7 +31,7 @@ def test_unconfigured_writer_returns_pending_without_template_fallback():
 def test_successful_draft_is_cached_by_fact_packet():
     old_key,old_call=llm_writer.API_KEY,llm_writer._call
     llm_writer.API_KEY='mock-token'; calls=[]
-    llm_writer._call=lambda form,packet:(calls.append((form,packet)) or [{'runs':[{'text':'A clear sentence grounded in the recorded event.','marks':[]}]}])
+    llm_writer._call=lambda form,packet:(calls.append((form,packet)) or [{'runs':[{'text':'I feel the change in the work my hands can do.','marks':[]}]}])
     try:
         with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
             store=Store(Path(folder)/'writer-cache.db')
@@ -39,7 +39,7 @@ def test_successful_draft_is_cached_by_fact_packet():
                 packet={'title':'Recovery','facts':['Status: Active → Recovery'],'identity':{'being':'human','work':'prospect miner'}}
                 first=llm_writer.write(store,'fighter_memory',packet)
                 second=llm_writer.write(store,'fighter_memory',packet)
-                expected=[{'runs':[{'text':'A clear sentence grounded in the recorded event.','marks':[]}]}]
+                expected=[{'runs':[{'text':'I feel the change in the work my hands can do.','marks':[]}]}]
                 assert first[0]==second[0]==expected
                 assert first[1]['status']==second[1]['status']=='ready' and second[1]['cached']
                 assert len(calls)==1 and calls[0][1]['identity']['work']=='prospect miner'
@@ -51,7 +51,7 @@ def test_successful_draft_is_cached_by_fact_packet():
 def test_disabled_writer_reuses_cached_prose_without_a_provider_call():
     old_key,old_call,old_enabled=llm_writer.API_KEY,llm_writer._call,llm_writer.WRITER_ENABLED
     llm_writer.API_KEY='mock-token'; llm_writer.reset_budget(); llm_writer.set_enabled(True); calls=[]
-    llm_writer._call=lambda form,packet:(calls.append(form) or [{'runs':[{'text':'Previously approved prose remains available.','marks':[]}]}])
+    llm_writer._call=lambda form,packet:(calls.append(form) or [{'runs':[{'text':'I keep the earlier draft close.','marks':[]}]}])
     try:
         with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
             store=Store(Path(folder)/'writer-cache-gated.db')
@@ -118,10 +118,76 @@ def test_memory_prompt_loads_guardrails_and_caps_short_output():
         assert 'Maintained source guardrails' in instructions
         assert 'Separate information into three categories.' in instructions
         assert 'Do not recap the biography' in instructions
-        assert 'Do not recap the biography' in instructions
+        assert llm_writer._read_contract(llm_writer.GUARDRAIL_PATH) in instructions
+        assert llm_writer._read_contract(llm_writer.IDENTITY_PATH) in instructions
+        assert llm_writer._read_contract(llm_writer.FORMAT_PATH) in instructions
+        assert 'selected excerpts' not in instructions
+        assert 'Imperial administrative/industrial record voice' not in instructions
         assert captured['body']['max_output_tokens']==650
         assert captured['body']['reasoning']=={'effort':'low'}
     finally: llm_writer.API_KEY=old_key; llm_writer.urlopen=old_urlopen
+
+
+def test_diegetic_gate_rejects_mechanical_meta_prose_without_caching_or_blocking_next_entry():
+    old_key,old_call=llm_writer.API_KEY,llm_writer._call
+    llm_writer.API_KEY='mock-token'; llm_writer.reset_budget(limit=5); calls=[]
+    def mock_call(form,packet):
+        calls.append((form,packet))
+        text='My condition is now recorded as critical injury. My concern is the next shift.' if len(calls)==1 else 'My hands shake when I reach for the spanner; the next shift will have to wait.'
+        return [{'runs':[{'text':text,'marks':[]}]}]
+    llm_writer._call=mock_call
+    try:
+        with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+            store=Store(Path(folder)/'writer-diegetic-gate.db')
+            try:
+                rejected,status=llm_writer.write(store,'fighter_memory',{'event_title':'Critical injury'})
+                assert rejected==[] and status['status']=='error'
+                assert 'diegetic voice check' in status['message']
+                assert store.db.execute('SELECT count(*) FROM writer_result_cache').fetchone()[0]==0
+                accepted,ok=llm_writer.write(store,'fighter_memory',{'event_title':'Recovery'})
+                assert ok['status']=='ready' and accepted[0]['runs'][0]['text'].startswith('My hands shake')
+                assert len(calls)==2 and llm_writer.run_summary()['requests_failed']==1
+            finally: store.close()
+    finally: llm_writer.API_KEY=old_key; llm_writer._call=old_call
+
+
+def test_c_nine_context_does_not_force_archive_voice_on_fighter_memory():
+    instructions=llm_writer._contract_for('fighter_memory')
+    assert 'C-NINE-specific names and designations belong to C-NINE content/templates' in instructions
+    assert 'Imperial administrative/industrial record voice' not in instructions
+
+
+def test_territory_writer_receives_full_territory_contract():
+    instructions=llm_writer._contract_for('territory_history')
+    assert llm_writer._read_contract(llm_writer.TERRITORY_PATH) in instructions
+
+
+def test_rejected_replacement_keeps_prior_artifact_visible_as_stale():
+    previous={'writer_status':'ready','blocks':[{'type':'body_paragraph','text':'Prior saved prose.'}]}
+    current={'writer_status':'error','blocks':[],'writer_message':'rejected'}
+    retained=llm_writer.retain_previous(current,previous,{'status':'error'})
+    assert retained['blocks']==previous['blocks']
+    assert retained['writer_status']=='stale'
+    assert 'retained' in retained['writer_message']
+
+
+def test_changing_contract_content_invalidates_cached_draft():
+    old_key,old_call,old_contract=llm_writer.API_KEY,llm_writer._call,llm_writer._contract_for
+    llm_writer.API_KEY='mock-token'; llm_writer.reset_budget(limit=5); calls=[]; contract=['guardrail version one']
+    llm_writer._contract_for=lambda form:contract[0]
+    llm_writer._call=lambda form,packet:(calls.append(form) or [{'runs':[{'text':'I carry this change into the next shift.','marks':[]}]}])
+    try:
+        with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+            store=Store(Path(folder)/'writer-contract-hash.db')
+            try:
+                packet={'event_title':'A new injury'}
+                first=llm_writer.write(store,'fighter_memory',packet)
+                contract[0]='guardrail version two'
+                second=llm_writer.write(store,'fighter_memory',packet)
+                assert first[1]['status']==second[1]['status']=='ready'
+                assert not second[1]['cached'] and calls==['fighter_memory','fighter_memory']
+            finally: store.close()
+    finally: llm_writer.API_KEY=old_key; llm_writer._call=old_call; llm_writer._contract_for=old_contract
 
 
 def test_incomplete_response_exposes_output_limit_diagnostics():
@@ -191,7 +257,7 @@ def test_document_packet_does_not_replay_prior_generated_paragraphs():
 def test_disabled_writer_keeps_prior_drafts_visible_as_stale():
     old_key,old_call,old_enabled,old_revision=llm_writer.API_KEY,llm_writer._call,llm_writer.WRITER_ENABLED,llm_writer.FORMATTING_REVISION
     llm_writer.API_KEY='mock-token'
-    llm_writer._call=lambda form,packet:[{'runs':[{'text':f'Existing {form} prose from the prior approved draft.','marks':[]}]}]
+    llm_writer._call=lambda form,packet:[{'runs':[{'text':'I remember the event in my own words.' if form in {'fighter_memory','fighter_reflection'} else f'Existing {form} prose from the prior approved draft.','marks':[]}]}]
     try:
         with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
             store=Store(Path(folder)/'writer-stale-preserved.db')
@@ -259,7 +325,7 @@ def test_writer_budget_exhaustion_is_pending_and_does_not_call_provider():
 def test_story_engine_uses_model_output_across_memories_artifacts_and_streams():
     old_key,old_call=llm_writer.API_KEY,llm_writer._call
     llm_writer.API_KEY='mock-token'; llm_writer.reset_budget()
-    llm_writer._call=lambda form,packet:[{'runs':[{'text':f'Model-written {form} prose grounded in its supplied account.','marks':[]}]}]
+    llm_writer._call=lambda form,packet:[{'runs':[{'text':'I remember the event and how it changed my work.' if form in {'fighter_memory','fighter_reflection'} else f'Model-written {form} prose grounded in its supplied account.','marks':[]}]}]
     try:
         with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
             store=Store(Path(folder)/'writer-integration.db')
@@ -267,7 +333,7 @@ def test_story_engine_uses_model_output_across_memories_artifacts_and_streams():
                 before=campaign(); apply(store,before); apply(store,latest_game(before))
                 maex=fighter(store,'Maex')
                 memories=read_memories(store,maex['id'])
-                assert any(m['writer_status']=='ready' and m['content'].startswith('Model-written fighter_memory') for m in memories)
+                assert any(m['writer_status']=='ready' and m['content'].startswith('I remember the event') for m in memories)
                 biography=document_for(store,'fighter_biography',maex['id'])
                 assert biography['writer_status']=='ready' and biography['blocks'][0]['text'].startswith('Model-written fighter_biography')
                 territory=store.dashboard()['territories'][0]
@@ -281,7 +347,7 @@ def test_story_engine_uses_model_output_across_memories_artifacts_and_streams():
 def test_mara_writer_check_is_scoped_and_preserves_authored_biography():
     old_key,old_call=llm_writer.API_KEY,llm_writer._call
     llm_writer.API_KEY=''; calls=[]
-    llm_writer._call=lambda form,packet:(calls.append((form,packet)) or [{'runs':[{'text':f'Mara-only draft for {form}, grounded in this record.','marks':[]}]}])
+    llm_writer._call=lambda form,packet:(calls.append((form,packet)) or [{'runs':[{'text':'I remember this event through my own work.' if form in {'fighter_memory','fighter_reflection'} else f'Mara-only draft for {form}, grounded in this record.','marks':[]}]}])
     authored="KEL, Mara\nDesignation: Maintenance Fitter\nWorkshop Audit — 781.M41\n‘It is one workshop.’"
     try:
         with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:

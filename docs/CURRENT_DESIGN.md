@@ -1,12 +1,12 @@
-# NCCE 0.9.10 — current technical design
+# NCCE 0.9.11 — current technical design
 
-**Source release:** 0.9.10, one medium-effort Mara sample capped at five calls
+**Source release:** 0.9.11, complete writing contracts and diegetic quality gate
 
-**Hosted release:** 0.9.10 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
+**Hosted release:** 0.9.10 until the source update is deployed. Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`; SQLite database path: `/var/data/ncce-preview.db`.
 
 **Schema:** SQLite version 9 in source and hosted database.
 
-**Documentation checkpoint:** 2026-10-26 11:05 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 11:49 CET (Europe/Warsaw, UTC+01:00)
 
 **Release verification:** Render deploy `dep-dbfi9m1srm7s73f3ckf0` is live for commit `cf08239` (0.9.10/schema 9). The authorized medium-effort Mara sample completed five successful calls (7,725 input / 1,761 output tokens). Five of her 13 generated memory entries were refreshed; eight older generated entries, including the reflection, remain visible and marked retained. Her player-authored biography and all other fighters' records were untouched. The writing is still repetitive and uses record-oriented framing; this test measures the medium setting but does not resolve the editorial problem. See `CHANGELOG.md` for the deployment, request ledger, and review.
 
@@ -179,7 +179,7 @@ The same fighter profile exposes topic attention weights for injury, recovery, g
 
 ### Event-isolated fighter writing
 
-An observation prompt contains the one event title/evidence, compact identity facets and elevated stimulus weights. It excludes full backstory and prior generated prose, and explicitly prohibits treating them as additional events. The task is one concrete fighter reaction to the recorded change, using relevant identity as a lens. Reflections receive no recycled prose; they receive only cited observation titles, tags, salience and evidence. Other generated documents receive source/event-ID continuity references, not previous generated paragraphs. The prompt loads bounded excerpts from the maintained writing guardrails and formatting standard. All forms use the configured output cap (650 by default) and low reasoning effort. The brief still constrains short fighter memories and reflections to concise prose. Policy/code changes invalidate matching cache drafts; disabled startup refreshes retain older drafts and label them stale rather than blanking them.
+An observation prompt contains the one event title/evidence, compact identity facets and elevated stimulus weights. It excludes full backstory and prior generated prose, and explicitly prohibits treating them as additional events. The task is one concrete fighter reaction to the recorded change, using relevant identity as a lens. Reflections receive no recycled prose; they receive only cited observation titles, tags, salience and evidence. Other generated documents receive source/event-ID continuity references, not previous generated paragraphs. Each uncached request receives the complete narrative guardrails, identity tags, formatting standard and date specification; place writing also receives the complete territory-event rules. The style-map JSON informs the renderer and is not sent as prose direction. A deterministic gate requires first-person fighter memories/reflections and rejects known record-reporting/mechanical phrases before caching. A rejected result consumes one attempt but never triggers a second call in the same pass; it leaves the prior successful draft visible as stale and does not block unrelated entries. Cache signatures include the exact contract contents. All forms use the configured output cap (650 by default) and low reasoning effort. The brief still constrains short fighter memories and reflections to concise prose. Policy/code changes invalidate matching cache drafts; disabled startup refreshes retain older drafts and label them stale rather than blanking them.
 
 Mechanical tendencies add the following traits:
 

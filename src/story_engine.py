@@ -255,10 +255,8 @@ def _artifact(store, scope, key, document, input_hash, generated_at):
             document['writer_context']=context
     paragraphs,writer_status=llm_writer.write_document(store,scope,key,document)
     document=llm_writer.apply(document,paragraphs,writer_status)
-    if prior and old.get('writer_status') in ('ready','stale') and writer_status.get('status')!='ready' and not llm_writer.WRITER_ENABLED:
-        document['blocks']=old.get('blocks',[])
-        document['writer_status']='stale'
-        document['writer_message']='Existing draft retained; the updated writing rules have not been run for this entry.'
+    if prior:
+        document=llm_writer.retain_previous(document,old,writer_status)
     scope_form={'gang_origin':'gang_history','territory_origin':'territory_history'}.get(scope,scope)
     document = director.direct_document(scope_form,key,document)
     document.setdefault("source_event_ids", [])
