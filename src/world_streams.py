@@ -233,9 +233,13 @@ def association_notes(store, battles):
             for battle in battles if battle.get('territory') and not locate_place({},places,battle['territory'])]
 
 
-def rebuild(store, gangs, territories, battles, events, current_battle, evidence_for, generated_at):
+def rebuild(store, gangs, territories, battles, events, current_battle, evidence_for, generated_at,
+            territories_only=False):
     all_places=places_with_aliases(store,events)
-    store.db.execute("UPDATE narrative_entries SET active=0 WHERE provenance_class='inference'")
+    if territories_only:
+        store.db.execute("UPDATE narrative_entries SET active=0 WHERE provenance_class='inference' AND scope_type='territory'")
+    else:
+        store.db.execute("UPDATE narrative_entries SET active=0 WHERE provenance_class='inference'")
     continuity={}
     def add(scope,key,entry_key,event,title,text,evidence):
         prior=continuity.setdefault((scope,str(key)),[])
@@ -283,6 +287,8 @@ def rebuild(store, gangs, territories, battles, events, current_battle, evidence
         if place:
             title,text=place_event_text({**place,'territory':p.get('territory') or place['territory']},event,battle)
             add('territory',place['id'],entry_key,event,title,text,evidence)
+        if territories_only:
+            continue
         affected={str(s['entity_key']) for s in event.get('subjects',[]) if s.get('entity_type')=='gang'}
         if battle:
             affected.update(str(g['gang_id']) for g in gangs if g['name'] in (battle.get('attacker'),battle.get('defender'),battle.get('winner'),battle.get('territory_claimer')))

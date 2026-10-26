@@ -2,6 +2,17 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.12 — scoped territory writing pass
+
+**Implementation checkpoint:** 2026-10-26 12:40 CET (Europe/Warsaw)
+
+- Added a one-time, authenticated territory-only writing run. It refreshes only current territory origin/history documents and place-event stream entries; fighter memories, authored biographies, gang histories, battle reports and campaign summaries are outside its scope.
+- The System view shows the current target count, starts the run once, and reports provider requests, token totals, failures and final writer statuses. The run checks that its targets fit the existing per-run call budget before it sends any request.
+- The run uses the existing complete applicable guardrails and writer cache. It makes at most one uncached provider request per target; a validation/provider failure is retained as an error or stale prior draft and is not automatically retried in that run. Routine scheduled writing remains disabled.
+- Live inventory before the run: 24 active territory records and 20 active territory event entries. The server computes the final document/entry target count directly from the persistent database before writing.
+- Python syntax compilation, JavaScript syntax validation and `git diff --check` passed. No authoritative sheet/canon content was edited.
+- Deployment and one-time run results will be recorded below after the hosted workflow completes.
+
 ## 0.9.11 — complete writer contracts and diegetic quality gate
 
 **Implementation checkpoint:** 2026-10-26 11:49 CET (Europe/Warsaw)

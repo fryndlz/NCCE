@@ -456,7 +456,22 @@ async function render(view, preserveScroll = false) {
     listResults('battles');
   } else if (activeView === 'chronicle') { app.innerHTML = chronicle(); loadCampaignTimeline(); }
   else if (activeView === 'archive') app.innerHTML = '<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored records remain available in their own voice.</p><article class="card"><div class="eyebrow">C-NINE · campaign log and personnel files</div><h3><button class="card-title" data-lore="1">C-NINE Story</button></h3><p>Open the canonical story export and personnel dossiers.</p></article>';
-  else if (activeView === 'system') app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2><section class="card system-state"><div class="row"><span>Writing provider</span><span class="muted">${esc(data.writer?.status || 'unknown')}${data.writer?.model ? ' · '+esc(data.writer.model) : ''}</span></div>${data.writer?.configured ? `<div class="row"><span>Model calls this refresh</span><span class="muted">${esc(data.writer.calls_used)} / ${esc(data.writer.call_budget)}</span></div>` : ''}${Object.entries(data.state).map(([key, value]) => `<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(value)}</span></div>`).join('')}</section>`;
+  else if (activeView === 'system') {
+    const territoryRun = await api('/api/territory-writer-runs/latest').catch(() => null);
+    const plan = territoryRun?.plan || {};
+    const runStatus = territoryRun?.status || 'unavailable';
+    const runUsed = Boolean(territoryRun?.used);
+    const runLive = ['queued','running'].includes(runStatus);
+    const runCounts = territoryRun?.summary || {};
+    const usage = territoryRun?.request_usage || {};
+    const territorySummary = territoryRun ? runStatus === 'complete'
+      ? `Finished: ${runCounts.writer?.requests_succeeded ?? usage.succeeded ?? 0} successful requests, ${runCounts.writer?.requests_failed ?? usage.failed ?? 0} failed; ${usage.input_tokens || 0} input and ${usage.output_tokens || 0} output tokens. ${JSON.stringify(runCounts.status_counts || {})}`
+      : runStatus === 'error' ? `Run ended: ${territoryRun.error || 'see writer status'}. ${usage.requests || 0} requests recorded.`
+      : runLive ? `Writing is running: ${usage.requests || 0} requests recorded so far.`
+      : `Ready to write ${plan.entries_targeted || 0} territory entries across ${plan.territories || 0} places: origins, histories, and event accounts. One attempt per entry; fighters, gangs, battles, and authored material are excluded.`
+      : 'Could not read territory writer status.';
+    app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2><section class="card writer-check"><div><strong>One-time territory writing pass</strong><p class="muted compact">${esc(territorySummary)}</p></div><button data-territory-writer="true"${!data.writer?.configured || runUsed || runLive ? ' disabled' : ''}>${runUsed ? runStatus === 'complete' ? 'Territory pass complete' : runLive ? 'Territory pass running…' : 'Territory pass already used' : 'Write all territory entries once'}</button><div class="territory-writer-status" role="status">${esc(territoryRun?.error || '')}</div></section><section class="card system-state"><div class="row"><span>Writing provider</span><span class="muted">${esc(data.writer?.status || 'unknown')}${data.writer?.model ? ' · '+esc(data.writer.model) : ''}</span></div>${data.writer?.configured ? `<div class="row"><span>Model calls this refresh</span><span class="muted">${esc(data.writer.calls_used)} / ${esc(data.writer.call_budget)}</span></div>` : ''}${Object.entries(data.state).map(([key, value]) => `<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(value)}</span></div>`).join('')}</section>`;
+  }
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 function fighterEvidence(f) {
@@ -598,6 +613,7 @@ app.addEventListener('click', event => {
   if (target.dataset.back) task = render(target.dataset.back);
   if (target.dataset.writerCheck) task = runMaraWriterCheck(target);
   if (target.dataset.writerDiagnostic) task = runWriterDiagnostic(target);
+  if (target.dataset.territoryWriter) task = runTerritoryWriter(target);
   if (target.dataset.clear) { filters[target.dataset.clear] = {...defaults[target.dataset.clear]}; task = render(target.dataset.clear); }
   if (target.dataset.gangFilter) { filters.fighters.gang = target.dataset.gangFilter; task = render('fighters'); }
   if (target.hasAttribute('data-retry')) task = refreshDashboard(false);
@@ -638,6 +654,27 @@ async function runWriterDiagnostic(button) {
   button.disabled=true; status.textContent='Sending one isolated writer prompt…';
   try { const result=await api('/api/writer-diagnostic',{method:'POST'}); status.innerHTML=writerDiagnosticMarkup(result); button.textContent='Diagnostic used'; }
   catch (error) { status.textContent=error.message; if (!/already been used/i.test(error.message)) button.disabled=false; }
+}
+async function runTerritoryWriter(button) {
+  const status = button.parentElement.querySelector('.territory-writer-status');
+  button.disabled = true; status.textContent = 'Starting the one-time territory-only writer pass…';
+  try {
+    await api('/api/territory-writer-runs', {method:'POST'});
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const run = await api('/api/territory-writer-runs/latest');
+      const use = run.request_usage || {}, result = run.summary || {};
+      if (run.status === 'complete') {
+        const counts = result.status_counts || {};
+        status.textContent = `Complete · ${result.writer?.requests_succeeded ?? use.succeeded ?? 0} successful, ${result.writer?.requests_failed ?? use.failed ?? 0} failed · ${use.input_tokens || 0} input / ${use.output_tokens || 0} output tokens · ${Object.entries(counts).map(([key,value])=>`${key}: ${value}`).join(', ')}`;
+        break;
+      }
+      if (run.status === 'error') { status.textContent = `Stopped · ${run.error || 'writer run failed'} · ${use.requests || 0} provider requests.`; break; }
+      status.textContent = `Writing territory entries · ${use.requests || 0} provider requests so far.`;
+    }
+    await refreshDashboard();
+    await render('system', true);
+  } catch (error) { status.textContent = error.message; button.disabled = false; }
 }
 document.querySelectorAll('nav button').forEach(button => button.addEventListener('click', () => render(button.dataset.view).catch(handleError)));
 syncNow.addEventListener('click', async () => {

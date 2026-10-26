@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.9.11'
+APP_VERSION='0.9.12'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -33,8 +33,12 @@ AUTO_WRITE_ENABLED=configured_bool(os.environ.get('NCCE_AUTO_WRITE_ENABLED','0')
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
+_writer_pipeline_guard=threading.Lock()
 _writer_check_guard=threading.Lock(); _writer_check_active=False; _writer_check_used=store.get_state('mara_writer_check_used')=='1'; _writer_check_review_used=store.get_state('mara_writer_check_review_used')=='1'; _writer_check_final_used=store.get_state('mara_writer_check_final_used')=='1'; _writer_check_medium_used=store.get_state('mara_writer_check_medium_used')=='1'
 _writer_checks={}
+_territory_writer_guard=threading.Lock(); _territory_writer_active=False
+if store.get_state('territory_writer_run_status') in {'queued','running'}:
+ store.set_state('territory_writer_run_status','error'); store.set_state('territory_writer_run_error','The server restarted before this territory writing run finished.')
 
 def _run_fighter_writer_check(run_id,fighter_id,call_budget=13,reasoning_effort=None,run_kind='initial_check'):
  global _writer_check_active
@@ -42,7 +46,7 @@ def _run_fighter_writer_check(run_id,fighter_id,call_budget=13,reasoning_effort=
  old_effort=llm_writer.DEFAULT_REASONING_EFFORT
  try:
   if reasoning_effort:llm_writer.DEFAULT_REASONING_EFFORT=reasoning_effort
-  with store._lock:
+  with _writer_pipeline_guard,store._lock:
    from story_engine import regenerate
    result=regenerate(store,force=True,fighter_ids=[fighter_id],call_budget=call_budget,writer_run_id=run_id)
   _writer_checks[run_id]={'run_id':run_id,'status':'complete','fighter_id':fighter_id,'call_limit':call_budget,'reasoning_effort':reasoning_effort,'run_kind':run_kind,**result}
@@ -56,12 +60,46 @@ def _run_fighter_writer_check(run_id,fighter_id,call_budget=13,reasoning_effort=
   llm_writer.DEFAULT_REASONING_EFFORT=old_effort
   with _writer_check_guard: _writer_check_active=False
 
+def _run_territory_writer(run_id):
+ global _territory_writer_active
+ store.set_state('territory_writer_run_status','running')
+ try:
+  from story_engine import regenerate_territory_writing
+  with _writer_pipeline_guard:
+   summary=regenerate_territory_writing(store,writer_run_id=run_id)
+  store.set_state('territory_writer_run_summary',json.dumps(summary,sort_keys=True))
+  store.set_state('territory_writer_run_status','complete')
+ except Exception as exc:
+  store.set_state('territory_writer_run_error',str(exc)[:300])
+  store.set_state('territory_writer_run_summary',json.dumps(llm_writer.run_summary(),sort_keys=True))
+  store.set_state('territory_writer_run_status','error')
+ finally:
+  with _territory_writer_guard: _territory_writer_active=False
+
+def _territory_writer_run_payload():
+ run_id=store.get_state('territory_writer_run_id')
+ status=store.get_state('territory_writer_run_status','not_started')
+ try:summary=json.loads(store.get_state('territory_writer_run_summary','{}'))
+ except (TypeError,ValueError):summary={}
+ usage={'requests':0,'succeeded':0,'failed':0,'input_tokens':0,'output_tokens':0}
+ from story_engine import territory_writing_plan
+ with store.reader() as reader:plan=territory_writing_plan(reader)[0]
+ if run_id:
+  with store.reader() as reader:
+   rows=reader.db.execute('SELECT status,input_tokens,output_tokens FROM writer_requests WHERE run_id=?',(run_id,)).fetchall()
+  usage.update({'requests':len(rows),'succeeded':sum(row['status']=='succeeded' for row in rows),
+                'failed':sum(row['status']=='failed' for row in rows),
+                'input_tokens':sum(row['input_tokens'] for row in rows),'output_tokens':sum(row['output_tokens'] for row in rows)})
+ return {'run_id':run_id,'status':status,'used':store.get_state('territory_writer_run_used')=='1','plan':plan,
+         'summary':summary,'request_usage':usage,'error':store.get_state('territory_writer_run_error','')}
+
 def _run_sync():
  global _worker_active
  try:
   started=datetime.now(timezone.utc).isoformat()
   with store._lock: store.set_state('sync_status','syncing'); store.set_state('sync_last_attempt',started); store.set_state('sync_last_error','')
-  result=sync_live_sheet(store,writer_enabled=AUTO_WRITE_ENABLED)
+  with _writer_pipeline_guard:
+   result=sync_live_sheet(store,writer_enabled=AUTO_WRITE_ENABLED)
   finished=datetime.now(timezone.utc).isoformat()
   with store._lock:
    store.set_state('last_sync',finished); store.set_state('sync_last_success',finished); store.set_state('sync_status','ok')
@@ -127,6 +165,7 @@ class H(BaseHTTPRequestHandler):
    run_id=store.get_state('mara_writer_check_run_id')
    if not run_id:return self.js({'error':'No Mara writer run has been recorded'},404)
    p='/api/writer-runs/'+run_id
+  if p=='/api/territory-writer-runs/latest':return self.js(_territory_writer_run_payload())
   if p.startswith('/api/writer-runs/'):
    run_id=p.rsplit('/',1)[1]
    item=_writer_checks.get(run_id)
@@ -287,6 +326,19 @@ class H(BaseHTTPRequestHandler):
     with store._lock: result=store.set_writer_identity(int(p.split('/')[3]),body.get('identity'))
     return self.js(result)
    except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
+  if p=='/api/territory-writer-runs':
+   origin=self.headers.get('Origin')
+   if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)
+   global _territory_writer_active
+   with _territory_writer_guard:
+    if _territory_writer_active:return self.js({'error':'A territory writer run is already active.'},409)
+    if not llm_writer.API_KEY:return self.js({'error':'Writing provider is not configured; no request was made.'},503)
+    if store.get_state('territory_writer_run_used')=='1':return self.js({'error':'The one-time territory writing pass has already been used.'},409)
+    run_id=uuid.uuid4().hex; _territory_writer_active=True
+    store.set_state('territory_writer_run_used','1'); store.set_state('territory_writer_run_id',run_id)
+    store.set_state('territory_writer_run_status','queued'); store.set_state('territory_writer_run_summary','{}'); store.set_state('territory_writer_run_error','')
+    threading.Thread(target=_run_territory_writer,args=(run_id,),name='ncce-territory-writer-run',daemon=True).start()
+   return self.js({'run_id':run_id,'status':'queued'},202)
   if p!='/api/sync': return self.send_error(404)
   queued=_schedule_sync()
   return self.js({'queued':queued,'sync_status':'syncing' if queued else 'already_running'},202)

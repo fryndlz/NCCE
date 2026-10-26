@@ -692,3 +692,50 @@ def fighter_story(store, fighter):
     return {"memories":memories,"mind":select_mind(fighter,memories),"voice_profile":voice,
             "biography_document":document_for(store,"fighter_biography",fighter["id"]),
             "mind_policy":{"count":"2–4 when supported; no current thoughts for deceased fighters","recency_half_life_days":RECENCY_HALF_LIFE_DAYS,"weights":{"importance":0.4,"recency":0.3,"relevance":0.25,"character_bias":0.05}}}
+
+
+def territory_writing_plan(store):
+    territories = [dict(row) for row in store.db.execute("SELECT * FROM territories WHERE active=1 ORDER BY id")]
+    origin_scopes = ("territory_origin", "territory_history")
+    artifacts = []
+    for territory in territories:
+        for scope in origin_scopes:
+            row = store.db.execute("SELECT document_json FROM story_artifacts WHERE scope_type=? AND scope_key=? AND active=1 ORDER BY generated_at DESC LIMIT 1",
+                                   (scope, str(territory["id"]))).fetchone()
+            if row:
+                artifacts.append((scope, territory["id"], json.loads(row["document_json"])))
+    stream_count = store.db.execute("SELECT COUNT(*) FROM narrative_entries WHERE scope_type='territory' AND active=1 AND provenance_class='inference'").fetchone()[0]
+    expected = len(artifacts) + int(stream_count)
+    return {"territories": len(territories), "place_documents": len(artifacts), "place_entries": int(stream_count), "entries_targeted": expected}, artifacts, territories
+
+
+def regenerate_territory_writing(store, call_budget=None, writer_run_id=None):
+    """Refresh only current place origin/history documents and place event entries."""
+    if not llm_writer.API_KEY:
+        raise RuntimeError("Writing provider is not configured; no request was made.")
+    plan, artifacts, territories = territory_writing_plan(store)
+    expected = plan["entries_targeted"]
+    budget = llm_writer.MAX_CALLS if call_budget is None else max(1, min(llm_writer.MAX_CALLS, int(call_budget)))
+    if expected > budget:
+        raise RuntimeError(f"Territory pass needs {expected} entries; configured per-run writer budget is {budget}. No writing was started.")
+    llm_writer.reset_budget(budget, writer_run_id)
+    llm_writer.set_enabled(True)
+    created = now()
+    try:
+        with store._lock, store.db:
+            for scope, key, document in artifacts:
+                input_hash = hashlib.sha256(json.dumps([GENERATION, scope, key, document], ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+                _artifact(store, scope, key, document, input_hash, created)
+            gangs = [dict(row) for row in store.db.execute("SELECT * FROM gangs WHERE active=1 ORDER BY gang_id")]
+            battles = [dict(row) for row in store.db.execute("SELECT * FROM battles WHERE active=1 ORDER BY date,source_row")]
+            events = _all_events(store)
+            world_streams.rebuild(store, gangs, territories, battles, events, _current_battle_event,
+                                  event_evidence, created, territories_only=True)
+            status_counts = defaultdict(int)
+            for row in store.db.execute("SELECT document_json FROM story_artifacts WHERE active=1 AND scope_type IN ('territory_origin','territory_history')"):
+                status_counts[json.loads(row[0]).get("writer_status", "missing")] += 1
+            for row in store.db.execute("SELECT document_json FROM narrative_entries WHERE active=1 AND scope_type='territory' AND provenance_class IN ('inference','connective_fiction')"):
+                status_counts[json.loads(row[0]).get("writer_status", "missing")] += 1
+        return {**plan, "status_counts": dict(status_counts), "writer": llm_writer.run_summary()}
+    finally:
+        llm_writer.set_enabled(False)
