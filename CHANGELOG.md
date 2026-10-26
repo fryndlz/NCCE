@@ -2,6 +2,27 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.8 — give reasoning models room to return prose
+
+**Implementation checkpoint:** 2026-10-26 10:38 CET (Europe/Warsaw)
+
+- Applied the settings validated by the 0.9.7 diagnostic to normal writer requests: low reasoning effort and a 650-token output ceiling (the configured default). The writer still receives a short-memory brief of 1–3 sentences / 35–110 words, so this raises the safety budget, not the intended prose length.
+- The prior 180-token cap had been consumed exactly by reasoning/output tokens before the API yielded visible prose. OpenAI's documentation confirms reasoning tokens count against `max_output_tokens` and that an incomplete response can contain no visible output. The 0.9.7 probe completed under the new settings: 218 total output tokens, of which 112 were reasoning.
+- **2026-10-26 10:37:17 CET — deployed:** Render deploy `dep-dbfhu78u01pc73bbnu5g` is live for commit `5dfb96a` (NCCE 0.9.8/schema 9). No campaign writer run or additional provider request was made after this change; the already completed one-call probe is the validation sample.
+- Writer suite, diagnostic-response contract, UI contract, JavaScript syntax, Python compilation and `git diff --check` passed.
+- This change does not regenerate existing narratives automatically. The single diagnostic control is exhausted; routine and full-roster generation remain disabled.
+
+## 0.9.7 — expose writer completion diagnostics
+
+**Implementation checkpoint:** 2026-10-26 10:35 CET (Europe/Warsaw)
+
+- The previous Mara memory request used exactly its 180-token output ceiling and returned no visible prose. The adapter had discarded response completion status, incomplete reason, output item types, and reasoning-token count, reducing this to a generic “no prose” error.
+- Added response diagnostics for completion status, incomplete reason, output item types, and reasoning tokens. Incomplete responses now report their actual reason instead of looking like an empty successful response.
+- Added one authenticated, persistent one-call diagnostic for Mara's Critical Injury → Recovery memory. It uses the same structured NCCE writer instructions and guardrails, a 650-token output allowance and low reasoning effort. It returns a sample and metadata to the profile but does not update the campaign, memory stream, or narrative cache. The diagnostic is now consumed.
+- **2026-10-26 10:33:53 CET — deployed:** Render deploy `dep-dbfhslavcj2c7387ilhg` is live for commit `3643d1e` (NCCE 0.9.7/schema 9).
+- **2026-10-26 10:34 CET — provider diagnostic completed:** 1 request succeeded: 1,139 input tokens, 218 output tokens including 112 reasoning tokens; response status `completed`, with `output_text`. The sample was displayed but not saved to Mara's records. This strongly supports the output-ceiling diagnosis, but because this probe also lowered reasoning effort, it does not prove which of those two changes was decisive. No further provider call was made.
+- Writer tests, diagnostic incomplete-response contract, writing UI contract, JS syntax check, Python compilation and `git diff --check` passed. Routine/full-roster writer calls remain disabled.
+
 ## 0.9.6 — scoped revised Mara writer review
 
 **Implementation checkpoint:** 2026-10-26 09:28 CET (Europe/Warsaw)

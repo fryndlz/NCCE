@@ -1,16 +1,16 @@
-# NCCE 0.9.6 — current technical design
+# NCCE 0.9.8 — current technical design
 
-**Source release:** 0.9.6, scoped revised Mara writer review
+**Source release:** 0.9.8, reasoning-aware writer output budget
 
-**Hosted release:** 0.9.6 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
+**Hosted release:** 0.9.8 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
 **Schema:** SQLite version 9 in source and hosted database.
 
-**Documentation checkpoint:** 2026-10-26 09:30 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 10:38 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** Render deploy `dep-dbfgu7e7bikc73dh1nb0` is live for commit `96fa191` (0.9.6/schema 9). One user-authorized Mara-only run was attempted: 1 request, 0 successful, 1 failed, 1,551 input and 180 output tokens. The provider result contained no prose; no draft was accepted. No other records were processed. See `CHANGELOG.md` for the full release and review record.
+**Release verification:** Render deploy `dep-dbfhu78u01pc73bbnu5g` is live for commit `5dfb96a` (0.9.8/schema 9). The writer now defaults to low reasoning effort and a 650-token output ceiling. The isolated 0.9.7 probe using these same settings completed with 1,139 input and 218 output tokens (112 reasoning tokens) and returned visible prose. It did not save that sample to campaign data. See `CHANGELOG.md` for the full diagnostic record.
 
-This document describes implemented source behavior, constants, and limitations. Campaign History adds versioned raw Munda Manager archives and derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2's Mara pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts; her authored biography was not rewritten. Version 0.9.5 makes inferred identity facets and stimulus-attention weights inspectable, adds event isolation to fighter observations/reflections, loads bounded source guardrails into the actual prompt, and reduces the short-memory output cap. Version 0.9.6 enabled exactly one reviewed Mara retry, which returned no usable prose and is now consumed. Automatic writer calls during routine refresh remain disabled; do not run the writer again without explicit authorization. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
+This document describes implemented source behavior, constants, and limitations. Campaign History adds versioned raw Munda Manager archives and derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2's Mara pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts; her authored biography was not rewritten. Version 0.9.5 makes inferred identity facets and stimulus-attention weights inspectable, adds event isolation to fighter observations/reflections, loads bounded source guardrails into the actual prompt, and reduced the short-memory output cap too far. Version 0.9.6's Mara memory request exhausted that 180-token cap without visible prose. Version 0.9.7 recorded response status and reasoning usage; a separate one-call sample with a 650-token allowance and low reasoning effort completed, but was not saved. Version 0.9.8 adopts those working settings for normal writing. Routine writer calls remain disabled; do not run the writer again without explicit authorization. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
 ## 0. Writing Director additions
 
@@ -179,7 +179,7 @@ The same fighter profile exposes topic attention weights for injury, recovery, g
 
 ### Event-isolated fighter writing
 
-An observation prompt contains the one event title/evidence, compact identity facets and elevated stimulus weights. It excludes full backstory and prior generated prose, and explicitly prohibits treating them as additional events. The task is one concrete fighter reaction to the recorded change, using relevant identity as a lens. Reflections receive no recycled prose; they receive only cited observation titles, tags, salience and evidence. Other generated documents receive source/event-ID continuity references, not previous generated paragraphs. The prompt loads bounded excerpts from the maintained writing guardrails and formatting standard. Short fighter observations have a 180-token output cap; reflections have a 300-token cap. Other forms use the configured cap (650 by default). Policy/code changes invalidate matching cache drafts; disabled startup refreshes retain older drafts and label them stale rather than blanking them.
+An observation prompt contains the one event title/evidence, compact identity facets and elevated stimulus weights. It excludes full backstory and prior generated prose, and explicitly prohibits treating them as additional events. The task is one concrete fighter reaction to the recorded change, using relevant identity as a lens. Reflections receive no recycled prose; they receive only cited observation titles, tags, salience and evidence. Other generated documents receive source/event-ID continuity references, not previous generated paragraphs. The prompt loads bounded excerpts from the maintained writing guardrails and formatting standard. All forms use the configured output cap (650 by default) and low reasoning effort. The brief still constrains short fighter memories and reflections to concise prose. Policy/code changes invalidate matching cache drafts; disabled startup refreshes retain older drafts and label them stale rather than blanking them.
 
 Mechanical tendencies add the following traits:
 
@@ -324,9 +324,9 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 14. Validation and deployment checkpoint
 
-The 0.9.5 source validation includes all seven Python suites, Python compilation, Node writing/timeline contracts, JavaScript syntax, and `git diff --check`; all passed on 2026-10-26. The local server process starts with the bundled Python runtime, but loopback HTTP/TCP checks are blocked by this Windows sandbox's socket permissions. The 0.9.6 hosted deploy completed at 09:28 CET and the app loaded with the current campaign data. Mara's dossier visibly exposes inferred identity/stimulus data and the one-use review control. Its authorized review ended in one failed empty-prose response; no other fighter was written.
+The 0.9.8 writer tests, diagnostic incomplete-response contract, writing UI contract, JS syntax check, Python compilation and `git diff --check` passed. The local server process starts with the bundled Python runtime, but loopback HTTP/TCP checks are blocked by this Windows sandbox's socket permissions. The 0.9.8 hosted deploy completed at 10:37:17 CET. The 0.9.7 authenticated Mara diagnostic returned one sample under the new writer settings, with no update to campaign or narrative records.
 
-Hosted release `0.9.6` (`96fa191`) is live at https://ncce-private-preview.onrender.com/. Routine writer calls remain disabled. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. Mara's earlier 13-call pilot used 13 calls; the later authorized review used one request and failed to return prose. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
+Hosted release `0.9.8` (`5dfb96a`) is live at https://ncce-private-preview.onrender.com/. Routine writer calls remain disabled. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. Mara's earlier 13-call pilot used 13 calls; the 0.9.6 review failed at the 180 output-token ceiling; the 0.9.7 one-call sample completed with the settings now used in 0.9.8. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
 
 ## 15. Campaign history archive and timeline
 
