@@ -3,6 +3,7 @@
 ## Writer configuration — Luna medium (2026-10-26)
 
 - Owner requested `gpt-6-luna` at `medium` reasoning effort for the NCCE writer and Workshop. Updated application defaults and the matching Render configuration keys. Existing prose, source data, one-call Workshop budget and paused routine generation are unchanged. No comparison or narrative generation is part of this configuration change.
+- Live configuration deploy `dep-dbfs4sifngtc73crstj0` completed 2026-10-26 22:14:24 CET. Only the two writer model/effort environment keys were merged into the existing service configuration; other variables were preserved. Repository defaults are tracked in `4e2e041`. Writer tests passed without provider calls.
 
 ## 0.11.0 — direct Writer Workshop (2026-10-26)
 
