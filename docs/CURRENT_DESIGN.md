@@ -1,9 +1,11 @@
-# NCCE 0.10.0 — current technical design
+# NCCE 0.10.1 — current technical design
 
-**Source release:** 0.10.0, shared narrative writing pipeline. **Schema:** 10.
+**Source release:** 0.10.1, shared narrative writing pipeline with a controlled editorial comparison. **Schema:** 10.
 **Checkpoint:** 2026-10-26 19:40 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
 
 ## 0. Current writing implementation
+
+The [six-call editorial comparison](WRITER_COMPARISON_0_10_1.md) adds a candidate general craft specification alongside the current contract. Three independently shuffled A/B pairs use identical factual/context inputs and fixed model/effort/output settings. The candidate is not active for routine campaign writing. Results are saved separately in System; all prompts/responses and costs remain in the server-side audit. There is no paid comparison HTTP endpoint or automatic replacement of campaign prose.
 
 [Shared narrative pipeline](WRITER_PIPELINE_0_10.md) specifies the current writer for all fourteen forms. It supersedes the historical writer-release discussion later in this document. `writer_contract.py` provides a coherent common policy and form-specific examples; `narrative_context.py` separates authored material, factual events and accepted fictional continuity; `llm_writer.py` drafts semantic prose and document composition in one call; `writer_preview.py` runs bounded editorial tests without publishing to campaign state.
 

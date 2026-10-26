@@ -165,3 +165,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .record-ui-date { color: var(--muted, #a6a69b); font: .75rem/1.5 sans-serif; margin: .7rem 0; }
 .archive-heading { color: var(--accent, #c8bd79); font-weight: bold; letter-spacing: .06em; margin: 1rem 0; overflow-wrap: anywhere; }
 .composed-record .metadata-group { margin-bottom: 1.5rem; }
+.comparison-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+.comparison-pair .biography { min-width: 0; }
+.comparison-case { margin: 2rem 0; }
+.comparison-case pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 800px) { .comparison-pair { grid-template-columns: 1fr; } }

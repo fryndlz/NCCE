@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.1 — controlled editorial comparison (2026-10-26)
+
+- Added a six-call experiment covering a sourced territory event, Mara Kel injury memory and gang event, with identical evidence/model/effort/schema within each pair. A/B order is shuffled independently; every result is saved under System → Writing comparison.
+- Added a general editorial candidate teaching evocative specificity, meaningful detail, proportion, subject identity and developed consequences. It is evaluated alongside the current prompt; production writing policy remains unchanged pending review.
+- Added exact prompt overrides to the existing audited/cached writer path, plus a shared fighter-packet builder. No new paid HTTP endpoint; one-use server-side execution; no campaign prose replacement or source/canon edits. See `docs/WRITER_COMPARISON_0_10_1.md`.
+- Offline checks verify paired-input equality, prompt separation, six-call accounting, blinded presentation and preserved campaign records. Hosted results pending at implementation checkpoint.
+
 ## 0.10.0 — shared narrative writer (2026-10-26 19:40 CET)
 
 - Replaced conflicting whole-manual prompts with a reviewed common runtime specification, explicit allowed fiction, form-specific briefs and illustrative examples across every narrative form.
