@@ -43,4 +43,5 @@ assert.ok(app.includes("/api/writer-runs/mara-latest") && app.includes('writerRu
 assert.ok(app.includes('of 13 model requests attempted so far') && app.includes('innerHTML=writerRunMarkup(run)'));
 const server = fs.readFileSync('src/server.py','utf8');
 assert.ok(server.includes("p=='/api/writer-runs/mara-latest'") && server.includes('requests_attempted'));
+assert.equal((server.match(/^import llm_writer$/gm)||[]).length,1,'writer module is imported once at module scope so every API route can read its run summary');
 console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, formatted dossier, persistent Mara result and live usage ledger)');

@@ -2,6 +2,16 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.4 — repair persisted writer-run endpoint
+
+**Implementation checkpoint:** 2026-10-26 01:35 CET (Europe/Warsaw)
+
+- Render logs showed `/api/writer-runs/<id>` raising `UnboundLocalError` when the endpoint referenced `llm_writer`: a redundant import inside `/api/health` made Python treat the module name as local throughout `do_GET`.
+- Removed the route-local import; the module is imported once at server startup. This lets the persisted Mara run endpoint compute the request ledger without changing or regenerating campaign content.
+- Added a UI contract guard against reintroducing the local import and updated the disposable smoke check's expected app version.
+- No provider requests or campaign writes were made for this fix. Full-roster writing remains disabled.
+- **Validation/deployment:** pending.
+
 ## 0.9.3 — persistent Mara results and request progress
 
 **Implementation checkpoint:** 2026-10-26 01:32 CET (Europe/Warsaw)

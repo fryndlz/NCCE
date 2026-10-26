@@ -1,12 +1,12 @@
 # Handoff status
 
-**Current source implementation:** NCCE 0.9.3 — persistent Mara pilot results and accurate request progress, SQLite schema 9
+**Current source implementation:** NCCE 0.9.4 — fixed authenticated persisted writer-run retrieval, SQLite schema 9
 
-**Hosted implementation:** 0.9.3 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
+**Hosted implementation:** 0.9.3 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. A 0.9.4 endpoint fix is in progress after Render logs exposed a local-import scoping error.
 
-**Checkpoint:** 2026-10-26 01:32 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 01:35 CET (Europe/Warsaw)
 
-**Deployment:** 0.9.3 / schema 9 is live on Render. Deploy `dep-dbf9u5fb9u1s73c5bbkg` completed at 2026-10-26 01:31:27 CET for commit `4e3b428`; hosted health and Mara profile reload were verified.
+**Deployment:** 0.9.3 / schema 9 is live on Render. Deploy `dep-dbf9u5fb9u1s73c5bbkg` completed at 2026-10-26 01:31:27 CET for commit `4e3b428`. The Mara profile loads, but the 0.9.3 persisted-run endpoint raised `UnboundLocalError`; see 0.9.4 changelog entry for the fix and redeployment status.
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
@@ -14,7 +14,7 @@
 
 Read [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md) for the integrated system and exact implementation limits. Five user-supplied source documents are preserved in `docs/writing_sources/`. Places and Gangs expose persistent progressing stories. The OpenAI-backed writer now drafts all generated prose from factual packets, identity context, and relevant continuity. Provider credentials are server-side; no-key or provider errors are visible as pending/error rather than template prose. Mechanical evidence, dates and attribution remain app-controlled.
 
-The 0.9.2 hosted Mara-only check completed once: 13 successful provider requests (12 fighter memories, one reflection), 18,090 input tokens, 5,171 output tokens, zero failed/cache-hit drafts. It generated content only for Mara; authored biography remained unchanged, and no other fighter or campaign narrative was regenerated. Version 0.9.3 fixes progress/ledger rendering and fetches the persisted run result on Mara's profile after reload. The seven Python suites, Python compilation, Node writing/timeline contracts, JavaScript syntax, and `git diff --check` pass. Routine writer calls remain disabled; do not run full-roster writing before the user reviews Mara's output. The local HTTP smoke is blocked by sandbox loopback restrictions (`WinError 10013`).
+The hosted Mara-only check completed once: 13 successful provider requests (12 fighter memories, one reflection), 18,090 input tokens, 5,171 output tokens, zero failed/cache-hit drafts. It generated content only for Mara; authored biography remained unchanged, and no other fighter or campaign narrative was regenerated. 0.9.3 displays persisted outputs but its run-summary endpoint failed due to an import scoping bug; 0.9.4 moves that import to module scope. Routine writer calls remain disabled; do not run full-roster writing before the user reviews Mara's output.
 
 ## Workspace and product
 
