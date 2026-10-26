@@ -2,6 +2,17 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.9 — one authorized Mara regeneration
+
+**Implementation checkpoint:** 2026-10-26 10:50 CET (Europe/Warsaw)
+
+- Added a server-enforced, persistent one-time Mara regeneration after the earlier one-use review and diagnostic. The endpoint allows only Mara's authored C-NINE fighter record and caps the run at 13 provider calls. No other fighter, place, gang, or battle report can be processed by this run.
+- Bumped the writer formatting revision so prior cached drafts cannot satisfy this regeneration. The run used the 0.9.8 production settings: `gpt-6.1-sol`, low reasoning effort, 650-token output ceiling.
+- **2026-10-26 10:47:59 CET — deployed:** Render deploy `dep-dbfi38qvcj2c7388cls0` is live for commit `4baef9f` (NCCE 0.9.9/schema 9).
+- **2026-10-26 10:49 CET — Mara run completed:** 13 successful provider requests, 0 failed, 0 cached; 20,818 input tokens and 2,446 output tokens. New generated memories and reflection are visible on Mara's profile. Her player-authored C-NINE biography was preserved; no other records were processed.
+- Editorial review: the revised entries respond to the injury, Recovery status, work as a maintenance fitter, and recorded gang outcomes. Several still repeat the same return-to-work concern; the reflection uses record-oriented phrasing. This is a successful technical regeneration, but the prose still needs editorial refinement. No further calls were made.
+- Validation: writer and UI contracts, JS syntax, Python compilation and `git diff --check` passed. Routine full-roster writing remains disabled.
+
 ## 0.9.8 — give reasoning models room to return prose
 
 **Implementation checkpoint:** 2026-10-26 10:38 CET (Europe/Warsaw)

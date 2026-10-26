@@ -1,16 +1,16 @@
-# NCCE 0.9.8 — current technical design
+# NCCE 0.9.9 — current technical design
 
-**Source release:** 0.9.8, reasoning-aware writer output budget
+**Source release:** 0.9.9, one authorized Mara regeneration
 
-**Hosted release:** 0.9.8 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
+**Hosted release:** 0.9.9 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
 **Schema:** SQLite version 9 in source and hosted database.
 
-**Documentation checkpoint:** 2026-10-26 10:38 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 10:50 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** Render deploy `dep-dbfhu78u01pc73bbnu5g` is live for commit `5dfb96a` (0.9.8/schema 9). The writer now defaults to low reasoning effort and a 650-token output ceiling. The isolated 0.9.7 probe using these same settings completed with 1,139 input and 218 output tokens (112 reasoning tokens) and returned visible prose. It did not save that sample to campaign data. See `CHANGELOG.md` for the full diagnostic record.
+**Release verification:** Render deploy `dep-dbfi38qvcj2c7388cls0` is live for commit `4baef9f` (0.9.9/schema 9). Mara's authorized 13-call regeneration completed successfully with 20,818 input and 2,446 output tokens. The app shows the new memories/reflection; her player-authored biography and all other fighters' records were untouched. See `CHANGELOG.md` for deployment, diagnostics and editorial findings.
 
-This document describes implemented source behavior, constants, and limitations. Campaign History adds versioned raw Munda Manager archives and derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2's Mara pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts; her authored biography was not rewritten. Version 0.9.5 makes inferred identity facets and stimulus-attention weights inspectable, adds event isolation to fighter observations/reflections, loads bounded source guardrails into the actual prompt, and reduced the short-memory output cap too far. Version 0.9.6's Mara memory request exhausted that 180-token cap without visible prose. Version 0.9.7 recorded response status and reasoning usage; a separate one-call sample with a 650-token allowance and low reasoning effort completed, but was not saved. Version 0.9.8 adopts those working settings for normal writing. Routine writer calls remain disabled; do not run the writer again without explicit authorization. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
+This document describes implemented source behavior, constants, and limitations. Campaign History adds versioned raw Munda Manager archives and derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2's Mara pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts; her authored biography was not rewritten. Version 0.9.5 makes inferred identity facets and stimulus-attention weights inspectable, adds event isolation to fighter observations/reflections, loads bounded source guardrails into the actual prompt, and reduced the short-memory output cap too far. Version 0.9.6's Mara memory request exhausted that 180-token cap without visible prose. Version 0.9.7 recorded response status and reasoning usage; a separate one-call sample with a 650-token allowance and low reasoning effort completed, but was not saved. Version 0.9.8 adopts those working settings for normal writing. Version 0.9.9 performs one authorized Mara-only regeneration; it completed 13 requests, though several entries repeat the same return-to-work concern and the reflection remains record-oriented. Routine writer calls remain disabled; do not run the writer again without explicit authorization. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
 ## 0. Writing Director additions
 
@@ -324,9 +324,9 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 14. Validation and deployment checkpoint
 
-The 0.9.8 writer tests, diagnostic incomplete-response contract, writing UI contract, JS syntax check, Python compilation and `git diff --check` passed. The local server process starts with the bundled Python runtime, but loopback HTTP/TCP checks are blocked by this Windows sandbox's socket permissions. The 0.9.8 hosted deploy completed at 10:37:17 CET. The 0.9.7 authenticated Mara diagnostic returned one sample under the new writer settings, with no update to campaign or narrative records.
+The 0.9.9 writer tests, one-use run UI contract, JS syntax check, Python compilation and `git diff --check` passed. The 0.9.9 hosted deploy completed at 10:47:59 CET. Mara's authorized run generated 13 new outputs and the profile was inspected after completion; authored biography remained unchanged.
 
-Hosted release `0.9.8` (`5dfb96a`) is live at https://ncce-private-preview.onrender.com/. Routine writer calls remain disabled. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. Mara's earlier 13-call pilot used 13 calls; the 0.9.6 review failed at the 180 output-token ceiling; the 0.9.7 one-call sample completed with the settings now used in 0.9.8. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
+Hosted release `0.9.9` (`4baef9f`) is live at https://ncce-private-preview.onrender.com/. Routine writer calls remain disabled. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. Mara's earlier 13-call pilot used 13 calls; the 0.9.6 review failed at the 180 output-token ceiling; a one-call 0.9.7 sample demonstrated the 0.9.8 settings; and the authorized 0.9.9 Mara regeneration completed with 13 successes. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
 
 ## 15. Campaign history archive and timeline
 
