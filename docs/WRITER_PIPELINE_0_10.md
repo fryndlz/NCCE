@@ -1,6 +1,6 @@
 # Shared narrative pipeline — NCCE 0.10.0
 
-Design checkpoint: 2026-10-26 19:40 CET. Schema 10. Applies to all 13 writer forms, not only territories.
+Design checkpoint: 2026-10-26 19:40 CET. Schema 10. Applies to all 14 writer forms, not only territories.
 
 ## Responsibilities
 

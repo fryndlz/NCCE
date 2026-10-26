@@ -5,7 +5,7 @@
 
 ## 0. Current writing implementation
 
-[Shared narrative pipeline](WRITER_PIPELINE_0_10.md) specifies the current writer for all thirteen forms. It supersedes the historical writer-release discussion later in this document. `writer_contract.py` provides a coherent common policy and form-specific examples; `narrative_context.py` separates authored material, factual events and accepted fictional continuity; `llm_writer.py` drafts semantic prose and document composition in one call; `writer_preview.py` runs bounded editorial tests without publishing to campaign state.
+[Shared narrative pipeline](WRITER_PIPELINE_0_10.md) specifies the current writer for all fourteen forms. It supersedes the historical writer-release discussion later in this document. `writer_contract.py` provides a coherent common policy and form-specific examples; `narrative_context.py` separates authored material, factual events and accepted fictional continuity; `llm_writer.py` drafts semantic prose and document composition in one call; `writer_preview.py` runs bounded editorial tests without publishing to campaign state.
 
 Historical fighter voice context comes from available snapshots. Territory events use historical ownership or explicitly unknown ownership. Old template plots and previous-policy generated prose do not feed new prompts. Composition includes heading, subject, body heading, closing label/text and signoff; reference IDs and Imperial dates remain app-controlled. Real dates and provenance remain outside the fictional document. Authored material is preserved.
 
