@@ -1,5 +1,7 @@
 # Handoff status
 
+**Writer configuration — 2026-10-26:** owner explicitly requested `gpt-6-luna` / `medium` instead of Sol / low. Source defaults and Render configuration match that selection. Do not run a comparison or regenerate prose as part of changing this setting. Historical model/effort references below describe their original runs.
+
 **0.11.0 verified checkpoint — 2026-10-26 21:58:56 CET:** Writer Workshop is live at source `9eb029d`, schema 11. Mandatory authenticated/same-origin editing, one-call idempotent trials, immutable revisions/edits, source-backed samples, exact prompt inspection and explicit future-policy activation/rollback are implemented. Tests and disposable application smoke pass. Hosted UI import/restoration of Mara A and exact original prompt inspection were verified. Provider request count remained 108 before/after rollout; no policy was activated, automatic writing remains off, and Mara's authored biography matches the pre-workshop backup. See `WRITER_WORKSHOP.md` and `../CHANGELOG.md`.
 
 The owner has now reviewed all three comparison pairs: territory neither (lean A), Mara A, gang neither (lean B, but narration mismatched an internal report). Comparison identities may be revealed; no prompt or rejected sample should be automatically promoted. Workshop feedback resolves actual identities from the private saved audit.

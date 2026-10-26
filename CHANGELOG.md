@@ -1,5 +1,9 @@
 # Changelog
 
+## Writer configuration — Luna medium (2026-10-26)
+
+- Owner requested `gpt-6-luna` at `medium` reasoning effort for the NCCE writer and Workshop. Updated application defaults and the matching Render configuration keys. Existing prose, source data, one-call Workshop budget and paused routine generation are unchanged. No comparison or narrative generation is part of this configuration change.
+
 ## 0.11.0 — direct Writer Workshop (2026-10-26)
 
 - Added Writer Workshop navigation with source search across writing forms, editable shared/form instructions and examples, exact prompt/context inspection, saved draft versions and explicit activation/rollback for future writing.

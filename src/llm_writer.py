@@ -6,8 +6,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 import writer_contract
 
-MODEL=os.environ.get('NCCE_WRITER_MODEL','gpt-6.1-sol')
-DEFAULT_REASONING_EFFORT=os.environ.get('NCCE_WRITER_REASONING_EFFORT','low')
+MODEL=os.environ.get('NCCE_WRITER_MODEL','gpt-6-luna')
+DEFAULT_REASONING_EFFORT=os.environ.get('NCCE_WRITER_REASONING_EFFORT','medium')
 API_KEY=os.environ.get('NCCE_OPENAI_API_KEY','')
 API_URL='https://api.openai.com/v1/responses'
 MAX_CALLS=max(1,min(200,int(os.environ.get('NCCE_WRITER_CALL_BUDGET','80'))))

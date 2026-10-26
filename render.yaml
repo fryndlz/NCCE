@@ -24,7 +24,9 @@ services:
       - key: NCCE_SYNC_INTERVAL_SECONDS
         value: "900"
       - key: NCCE_WRITER_MODEL
-        value: gpt-6.1-sol
+        value: gpt-6-luna
+      - key: NCCE_WRITER_REASONING_EFFORT
+        value: medium
       - key: NCCE_OPENAI_API_KEY
         sync: false
       - key: NCCE_ACCESS_PASSWORD
