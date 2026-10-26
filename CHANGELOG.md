@@ -12,7 +12,7 @@ Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October
 - Added exact contract-content hashing to the cache key. Editing a guardrail or formatting document now makes earlier drafts ineligible for reuse under that policy.
 - Updated version to NCCE 0.9.11. This is code/prompt enforcement only; it made no OpenAI requests and did not regenerate campaign entries or modify source campaign data.
 - Validation: writer contracts and story-engine tests passed offline using mocked model responses; Python compilation passed. No live provider request was made.
-- **Not yet deployed.** Existing generated text stays as-is until a future authorized writer run; writer calls remain disabled on routine syncs.
+- **2026-10-26 11:56:48 CET — deployed:** Render deploy `dep-dbfj3fe7bikc73doo0a0` is live for commit `a2105e7` (NCCE 0.9.11/schema 9). `/healthz` returned `{"ok": true, "version": "0.9.11"}`. Existing generated text stays as-is until a future authorized writer run; routine syncs still do not call the writer.
 
 ## 0.9.10 — bounded medium-effort Mara sample
 

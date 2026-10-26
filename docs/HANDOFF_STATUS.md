@@ -2,13 +2,13 @@
 
 **Current source implementation:** NCCE 0.9.11 — complete writing contracts and diegetic quality gate, SQLite schema 9
 
-**Hosted implementation:** 0.9.10 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
+**Hosted implementation:** 0.9.11 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
 **Checkpoint:** 2026-10-26 11:49 CET (Europe/Warsaw)
 
-**Writer enforcement update:** 0.9.11 source code now includes the complete narrative guardrails, identity tags, formatting standard and date-format specification in every uncached prompt; place writing also includes the complete territory-event rules. Fighter memories/reflections receive no automatic C-NINE archive-voice override. A deterministic meta/mechanical-phrase gate rejects known bad forms before cache storage and allows unrelated entries to continue without a second attempt. Cache keys include exact contract content. No provider calls or campaign-data edits were made for this update. The update is not deployed; routine writer calls remain disabled.
+**Writer enforcement update:** 0.9.11 source code now includes the complete narrative guardrails, identity tags, formatting standard and date-format specification in every uncached prompt; place writing also includes the complete territory-event rules. Fighter memories/reflections receive no automatic C-NINE archive-voice override. A deterministic voice/meta-language gate rejects known bad forms before cache storage and allows unrelated entries to continue without a second attempt. Failed replacements retain prior prose as stale. Cache keys include exact contract content. No provider calls or campaign-data edits were made for this update. Deployed to Render at 2026-10-26 11:56:48 CET; routine writer calls remain disabled.
 
-**Hosted implementation:** 0.9.10 / schema 9 is live on Render. Deploy `dep-dbfi9m1srm7s73f3ckf0` completed at 2026-10-26 11:02:36 CET for commit `cf08239`. The authorized medium-effort Mara sample completed five successful requests (7,725 input / 1,761 output tokens); the app displays the new entries. Five of thirteen generated memory entries were replaced; eight prior entries, including reflection, were retained as stale. Authored biography and other fighters' records were untouched.
+**Previous hosted implementation:** 0.9.10 / schema 9 was live on Render until 11:56:48 CET. Deploy `dep-dbfi9m1srm7s73f3ckf0` completed at 2026-10-26 11:02:36 CET for commit `cf08239`. The authorized medium-effort Mara sample completed five successful requests (7,725 input / 1,761 output tokens); five of thirteen generated memory entries were replaced and eight prior entries, including reflection, were retained as stale. Authored biography and other fighters' records were untouched.
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
