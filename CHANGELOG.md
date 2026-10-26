@@ -4,13 +4,16 @@ Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October
 
 ## 0.9.10 — bounded medium-effort Mara sample
 
-**Implementation checkpoint:** 2026-10-26 10:58 CET (Europe/Warsaw)
+**Implementation checkpoint:** 2026-10-26 11:05 CET (Europe/Warsaw)
 
 - Added one persistent, server-enforced allowance for the user's explicitly requested Mara-only writer run. It uses medium reasoning effort, has a hard five-provider-request cap, and shows the cap/effort in the run ledger. It cannot process other fighters or campaign reports; Mara's authored dossier and mechanical data are outside the generated-memory writes.
 - Made reasoning effort part of the writer cache key, so medium-effort requests do not reuse the previous low-effort drafts.
 - When the five-call limit leaves entries unprocessed, their prior ready drafts remain visible and are marked stale instead of being replaced with blank pending entries.
 - Validation: 13 writer contracts and 15 story-engine tests passed (run individually with per-test writer budget reset because pytest is unavailable in the bundled Python); writing UI contract, JavaScript syntax, Python compilation, and `git diff --check` passed.
-- **Deployment and five-call sample pending.** Record actual deploy ID, provider request count/tokens and direct editorial review when complete.
+- **2026-10-26 11:02:36 CET — deployed:** Render deploy `dep-dbfi9m1srm7s73f3ckf0` is live for commit `cf08239` (NCCE 0.9.10/schema 9).
+- **2026-10-26 by 11:05 CET — Mara sample completed:** 5 successful `fighter_memory` requests, 0 cached, 0 failed; 7,725 input and 1,761 output tokens. Five of 13 memory entries now have medium-effort drafts; the remaining eight—including the reflection—retain their previous drafts and are marked stale. The player-authored biography and other fighters were untouched. Request IDs and response IDs are visible in Mara's run ledger.
+- Editorial review: injury, status, experience, baseline and Willpower advancement observations were refreshed; no reflection was among the five requests. Several new entries still describe a “record,” a “classification,” or a “return-to-work entry” and repeat the maintenance-readiness concern. The injury sentence is more direct, but the prose remains mechanically framed rather than fully diegetic. Medium reasoning did not solve the voice/repetition issue. The five-call allowance is consumed; no further request was made.
+- Validation: 13 writer contracts and 15 story-engine tests passed (run individually with per-test writer budget reset because pytest is unavailable in the bundled Python); writing UI contract, JavaScript syntax, Python compilation, and `git diff --check` passed.
 
 ## 0.9.9 — one authorized Mara regeneration
 
