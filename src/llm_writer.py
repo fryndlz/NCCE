@@ -1,7 +1,7 @@
 """OpenAI-backed prose writer; no key means explicit pending state, never templates."""
 from __future__ import annotations
 from datetime import datetime, timezone
-import hashlib, json, os
+import hashlib, json, os, uuid
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -14,6 +14,10 @@ TIMEOUT=max(5,min(90,int(os.environ.get('NCCE_WRITER_TIMEOUT_SECONDS','35'))))
 _calls=0
 _failure=''
 WRITER_ENABLED=True
+_run_id=''
+_run_limit=MAX_CALLS
+_last_response={}
+_run_stats={}
 FORMATTING_REVISION='semantic-status-marks-v2'
 ALLOWED_MARKS={'critical_status','error_or_missing','machine_error'}
 
@@ -43,10 +47,19 @@ Before returning, silently revise any sentence that sounds unnatural, abstract, 
 
 def availability():
  return {'configured':bool(API_KEY),'provider':'openai-responses' if API_KEY else None,'model':MODEL if API_KEY else None,
-         'status':'ready' if API_KEY else 'unconfigured','call_budget':MAX_CALLS,'calls_used':_calls}
+         'status':'ready' if API_KEY else 'unconfigured','call_budget':_run_limit,'calls_used':_calls}
 
-def reset_budget():
- global _calls,_failure; _calls=0; _failure=''
+def reset_budget(limit=None,run_id=None):
+ global _calls,_failure,_run_id,_run_limit,_run_stats,_last_response
+ _calls=0; _failure=''; _run_id=run_id or uuid.uuid4().hex
+ _run_limit=MAX_CALLS if limit is None else max(1,min(MAX_CALLS,int(limit)))
+ _run_stats={'run_id':_run_id,'call_limit':_run_limit,'drafts_requested':0,'requests_attempted':0,
+             'requests_succeeded':0,'requests_failed':0,'cache_hits':0,'blocked_by_budget':0,
+             'input_tokens':0,'output_tokens':0}
+ _last_response={}
+
+def run_summary():
+ return dict(_run_stats)
 
 def set_enabled(value):
  global WRITER_ENABLED; WRITER_ENABLED=bool(value)
@@ -57,9 +70,9 @@ def _json(value):
  return text
 
 def _call(form,packet):
- global _calls
+ global _calls,_last_response
  if not API_KEY: return None
- if _calls>=MAX_CALLS: raise RuntimeError('Writing budget reached; remaining entries are pending')
+ if _calls>=_run_limit: raise RuntimeError('Writing budget reached; remaining entries are pending')
  _calls+=1
  schema={'type':'object','properties':{'paragraphs':{'type':'array','items':{'type':'object','properties':{'runs':{'type':'array','items':{'type':'object','properties':{'text':{'type':'string'},'marks':{'type':'array','items':{'type':'string','enum':['critical_status','error_or_missing','machine_error']}}},'required':['text','marks'],'additionalProperties':False},'minItems':1,'maxItems':40}},'required':['runs'],'additionalProperties':False},'minItems':1,'maxItems':3}},'required':['paragraphs'],'additionalProperties':False}
  brief=BRIEFS.get(form,'Write clear, concise prose from supplied facts.')
@@ -70,8 +83,11 @@ def _call(form,packet):
        'max_output_tokens':MAX_OUTPUT_TOKENS,'text':{'format':{'type':'json_schema','name':'narrative_prose','strict':True,'schema':schema}}}
  req=Request(API_URL,data=json.dumps(body,ensure_ascii=False).encode(),headers={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'},method='POST')
  try:
-  with urlopen(req,timeout=TIMEOUT) as response: result=json.loads(response.read().decode())
+  with urlopen(req,timeout=TIMEOUT) as response:
+   result=json.loads(response.read().decode())
+   request_id=response.headers.get('x-request-id') if getattr(response,'headers',None) else None
  except HTTPError as exc:
+  _last_response={'request_id':getattr(exc,'headers',{}).get('x-request-id') if getattr(exc,'headers',None) else None,'response_id':None,'input_tokens':0,'output_tokens':0}
   # OpenAI's response body contains actionable validation details (for
   # example, an unsupported schema constraint). Preserve only the provider's
   # structured error fields; never include request headers or credentials.
@@ -89,6 +105,9 @@ def _call(form,packet):
   raise RuntimeError(f'Writing provider returned HTTP {exc.code}{suffix}') from None
  except (URLError,TimeoutError,OSError): raise RuntimeError('Writing provider could not be reached') from None
  output=next((c.get('text','') for item in result.get('output',[]) for c in item.get('content',[]) if c.get('type')=='output_text'),'')
+ usage=result.get('usage') or {}
+ _last_response={'request_id':request_id,'response_id':result.get('id'),'input_tokens':int(usage.get('input_tokens') or 0),
+                 'output_tokens':int(usage.get('output_tokens') or 0)}
  if not output: raise RuntimeError('Writing provider returned no prose')
  paragraphs=json.loads(output).get('paragraphs',[])
  return normalize_paragraphs(paragraphs)
@@ -130,36 +149,63 @@ def paragraph_runs(paragraph):
  if isinstance(paragraph,str): return [{'text':paragraph,'marks':[]}]
  return [{'text':run['text'],'marks':list(run.get('marks',[]))} for run in paragraph.get('runs',[]) if run.get('text')]
 
-def write(store,form,packet):
+def _record_request(store,form,trace,status,started,error=''):
+ trace=trace if isinstance(trace,dict) else {}
+ response=_last_response if isinstance(_last_response,dict) else {}
+ finished=datetime.now(timezone.utc).isoformat()
+ try:
+  store.db.execute('''INSERT INTO writer_requests(run_id,request_id,response_id,form,subject_type,subject_key,subject_name,model,
+      requested_at,finished_at,status,input_tokens,output_tokens,error_text) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+      (_run_id,response.get('request_id'),response.get('response_id'),form,trace.get('subject_type'),str(trace.get('subject_key') or '') or None,
+       trace.get('subject_name'),MODEL,started,finished,status,int(response.get('input_tokens') or 0),
+       int(response.get('output_tokens') or 0),str(error)[:240] or None))
+ except Exception:
+  # A telemetry-table problem must not discard successfully drafted narrative.
+  pass
+
+def write(store,form,packet,trace=None):
  global _failure
- if not WRITER_ENABLED: return [],{'status':'pending','message':'Narrative pending: drafting begins on the next campaign refresh.'}
- if not API_KEY: return [],{'status':'unconfigured','message':'Narrative pending: configure the writing provider.'}
+ _run_stats['drafts_requested']=_run_stats.get('drafts_requested',0)+1
  if _failure: return [],{'status':'error','message':_failure}
  try: signature=hashlib.sha256(_json({'form':form,'packet':packet,'model':MODEL,'formatting_revision':FORMATTING_REVISION}).encode()).hexdigest()
  except ValueError as exc: return [],{'status':'error','message':str(exc)}
  row=store.db.execute('SELECT result_json FROM writer_result_cache WHERE prompt_hash=?',(signature,)).fetchone()
- if row: return normalize_paragraphs(json.loads(row[0])),{'status':'ready','cached':True}
- if _calls>=MAX_CALLS:
+ if row:
+  _run_stats['cache_hits']+=1
+  return normalize_paragraphs(json.loads(row[0])),{'status':'ready','cached':True}
+ if not WRITER_ENABLED: return [],{'status':'pending','message':'Narrative pending: drafting begins on the next campaign refresh.'}
+ if not API_KEY: return [],{'status':'unconfigured','message':'Narrative pending: configure the writing provider.'}
+ if _calls>=_run_limit:
+  _run_stats['blocked_by_budget']+=1
   return [],{'status':'pending','message':'Narrative pending: writing budget reached; it will resume on the next refresh.'}
+ started=datetime.now(timezone.utc).isoformat()
+ _last_response.clear()
+ _run_stats['requests_attempted']+=1
  try: paragraphs=normalize_paragraphs(_call(form,packet))
  except Exception as exc:
   message=str(exc) if isinstance(exc,RuntimeError) else 'Writing provider request failed'
   _failure=message[:160]
+  _run_stats['requests_failed']+=1
+  _record_request(store,form,trace,'failed',started,message)
   return [],{'status':'error','message':message[:160]}
  if not paragraphs: return [],{'status':'unconfigured','message':'Narrative pending: configure the writing provider.'}
  store.db.execute('INSERT OR IGNORE INTO writer_result_cache(prompt_hash,result_json,model,created_at) VALUES(?,?,?,?)',(signature,json.dumps(paragraphs,ensure_ascii=False),MODEL,datetime.now(timezone.utc).isoformat()))
+ _run_stats['requests_succeeded']+=1
+ _run_stats['input_tokens']+=int(_last_response.get('input_tokens') or 0)
+ _run_stats['output_tokens']+=int(_last_response.get('output_tokens') or 0)
+ _record_request(store,form,trace,'succeeded',started)
  return paragraphs,{'status':'ready','cached':False}
 
 def write_memory(store,fighter,gang,title,evidence,identity,prior=(),form='fighter_memory'):
  packet={'subject':fighter.get('name'),'gang':gang.get('name'),'affiliation':gang.get('gang_type'),'event_title':title,
          'mechanical_evidence':evidence,'identity':identity,'authored_context':identity.get('authored_context') if isinstance(identity,dict) else None,
          'prior_entries':list(prior)[-3:],'knowledge_boundary':identity.get('knowledge_boundary') if isinstance(identity,dict) else None}
- return write(store,form,packet)
+ return write(store,form,packet,{'subject_type':'fighter','subject_key':fighter.get('id'),'subject_name':fighter.get('name')})
 
 def write_document(store,scope,key,document):
  form={'gang_origin':'gang_origin','territory_origin':'territory_origin'}.get(scope,scope)
  packet={k:v for k,v in document.items() if k not in {'blocks','generated_at','date_display','metadata','termination'}}
- return write(store,form,packet)
+ return write(store,form,packet,{'subject_type':scope,'subject_key':key,'subject_name':document.get('title')})
 
 def apply(document,paragraphs,status):
  result=dict(document); result['blocks']=[{'type':'body_paragraph','text':paragraph_text(p),'content':paragraph_runs(p)} for p in paragraphs]

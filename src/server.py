@@ -4,12 +4,13 @@ from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, unquote, parse_qs
+import uuid
 from store import Store
 from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.9.1'
+APP_VERSION='0.9.2'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -28,16 +29,36 @@ from story_engine import regenerate
 import llm_writer
 # Keep service startup/health responsive. Configured writing begins on the first scheduled/manual refresh.
 regenerate(store,writer_enabled=not bool(llm_writer.API_KEY))
+AUTO_WRITE_ENABLED=configured_bool(os.environ.get('NCCE_AUTO_WRITE_ENABLED','0'))
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
+_writer_check_guard=threading.Lock(); _writer_check_active=False; _writer_check_used=store.get_state('mara_writer_check_used')=='1'
+_writer_checks={}
+
+def _run_fighter_writer_check(run_id,fighter_id):
+ global _writer_check_active
+ _writer_checks[run_id]={'run_id':run_id,'status':'running','fighter_id':fighter_id}
+ try:
+  with store._lock:
+   from story_engine import regenerate
+   result=regenerate(store,force=True,fighter_ids=[fighter_id],call_budget=13,writer_run_id=run_id)
+  _writer_checks[run_id]={'run_id':run_id,'status':'complete','fighter_id':fighter_id,**result}
+  with store._lock:
+   store.set_state('mara_writer_check_status','complete'); store.set_state('mara_writer_check_summary',json.dumps(result.get('writer',{}),sort_keys=True))
+ except Exception as exc:
+  _writer_checks[run_id]={'run_id':run_id,'status':'error','fighter_id':fighter_id,'error':str(exc)[:240]}
+  with store._lock:
+   store.set_state('mara_writer_check_status','error'); store.set_state('mara_writer_check_summary',json.dumps({'error':str(exc)[:240]},sort_keys=True))
+ finally:
+  with _writer_check_guard: _writer_check_active=False
 
 def _run_sync():
  global _worker_active
  try:
   started=datetime.now(timezone.utc).isoformat()
   with store._lock: store.set_state('sync_status','syncing'); store.set_state('sync_last_attempt',started); store.set_state('sync_last_error','')
-  result=sync_live_sheet(store)
+  result=sync_live_sheet(store,writer_enabled=AUTO_WRITE_ENABLED)
   finished=datetime.now(timezone.utc).isoformat()
   with store._lock:
    store.set_state('last_sync',finished); store.set_state('sync_last_success',finished); store.set_state('sync_status','ok')
@@ -100,6 +121,21 @@ class H(BaseHTTPRequestHandler):
    with store.reader() as reader:return self.js({'events':reader.events(limit=limit,entity_id=entity_id)})
   if p=='/api/history':
    with store.reader() as reader:return self.js(reader.history_timeline())
+  if p.startswith('/api/writer-runs/'):
+   run_id=p.rsplit('/',1)[1]
+   item=_writer_checks.get(run_id)
+   if item is None and store.get_state('mara_writer_check_run_id')==run_id:
+    try: saved_summary=json.loads(store.get_state('mara_writer_check_summary','{}'))
+    except (TypeError,ValueError): saved_summary={}
+    item={'run_id':run_id,'status':store.get_state('mara_writer_check_status','queued'),
+          'fighter_id':store.get_state('mara_writer_check_fighter_id'),'writer':saved_summary}
+   if item is None:return self.js({'error':'writer run not found'},404)
+   with store.reader() as reader:
+    rows=reader.db.execute('SELECT request_id,response_id,form,subject_name,model,requested_at,finished_at,status,input_tokens,output_tokens,error_text FROM writer_requests WHERE run_id=? ORDER BY request_row_id',(run_id,)).fetchall()
+   requests=[dict(row) for row in rows]
+   usage={'requests':len(requests),'succeeded':sum(r['status']=='succeeded' for r in requests),'failed':sum(r['status']=='failed' for r in requests),
+          'input_tokens':sum(r['input_tokens'] for r in requests),'output_tokens':sum(r['output_tokens'] for r in requests),'records':requests}
+   return self.js({**item,'request_usage':usage})
   if p.startswith('/api/gangs/'):
    with store.reader() as reader:x=reader.gang(unquote(p.split('/api/gangs/',1)[1]))
    return self.js(x if x else {'error':'not found'},200 if x else 404)
@@ -148,6 +184,26 @@ class H(BaseHTTPRequestHandler):
    payload=b'{"ok":true}'; self.send_response(200); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Set-Cookie',cookie); self.send_header('Content-Length',str(len(payload))); self.end_headers(); self.wfile.write(payload)
    return
   if AUTH_REQUIRED and not self._authenticated():return self.js({'error':'authentication required'},401)
+  if p.startswith('/api/fighters/') and p.endswith('/write-check'):
+   origin=self.headers.get('Origin')
+   if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)
+   try:fighter_id=int(p.split('/')[3])
+   except (TypeError,ValueError):return self.js({'error':'invalid fighter id'},400)
+   global _writer_check_active,_writer_check_used
+   with _writer_check_guard:
+    if _writer_check_active or _writer_check_used:return self.js({'error':'The one-fighter Mara writer check has already been queued or completed.'},409)
+    with store._lock:
+     fighter=store.db.execute('SELECT id,name,gang_name,backstory_source FROM fighters WHERE id=?',(fighter_id,)).fetchone()
+    if not fighter or fighter['name']!='Mara Kel' or 'C-NINE' not in str(fighter['gang_name'] or '').upper() or 'c-nine story' not in str(fighter['backstory_source'] or '').lower():
+     return self.js({'error':'This bounded check is currently restricted to Mara Kel’s authored C-NINE record.'},403)
+    run_id=uuid.uuid4().hex; _writer_check_active=True; _writer_check_used=True
+    with store._lock:
+     store.set_state('mara_writer_check_used','1'); store.set_state('mara_writer_check_run_id',run_id)
+     store.set_state('mara_writer_check_fighter_id',str(fighter_id)); store.set_state('mara_writer_check_status','queued')
+     store.set_state('mara_writer_check_summary','{}')
+    _writer_checks[run_id]={'run_id':run_id,'status':'queued','fighter_id':fighter_id,'fighter_name':'Mara Kel','call_limit':13}
+    threading.Thread(target=_run_fighter_writer_check,args=(run_id,fighter_id),name='ncce-mara-writer-check',daemon=True).start()
+   return self.js({'run_id':run_id,'status':'queued','fighter_name':'Mara Kel','call_limit':13},202)
   if p.startswith('/api/fighters/') and p.endswith('/identity'):
    origin=self.headers.get('Origin')
    if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)

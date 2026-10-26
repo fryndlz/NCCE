@@ -2,6 +2,18 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.2 — authored dossier rendering and Mara writer pilot
+
+**Implementation checkpoint:** 2026-10-26 01:15 CET (Europe/Warsaw)
+
+- Preserved Mara Kel's authored C-NINE dossier as semantic document sections (nameplate, role/medical fields, audit heading/body, quotation, archive reference, and termination mark) rather than flattening it into generated prose. Authored content continues to take precedence over inference.
+- Added a one-time, authenticated Mara-only writer check. It drafts only her pending memories/reflection, never her authored biography or campaign-level reports, and enforces a maximum of 13 provider calls. The one-use flag persists in the SQLite database across service restarts.
+- Disabled new provider calls in routine Sheet refreshes by default during this pilot. Re-enable full-roster writing with `NCCE_AUTO_WRITE_ENABLED=1` only after the pilot is reviewed and that broader scope is approved. Existing successful prompt-cache entries can still be reused without a provider call.
+- Added schema 9 `writer_requests` ledger with provider request ID, response ID, subject, form, model, timestamps, outcome, token counts and bounded error details. The Mara result panel can expand the ledger to show exactly what each provider call wrote and its usage.
+- Corrected story fingerprint stability so per-run identifiers do not cause every sync to appear changed.
+- Validation: Python compilation, core suite, writer suite, all 15 story-engine checks, Node writing UI contracts and `git diff --check` passed. `tests/smoke_server.py` was attempted but the sandbox blocked loopback networking with Windows `WinError 10013`; hosted health/API verification has not yet been performed.
+- No authoritative Sheet data, mechanical campaign facts, authored source files or canon were modified. This checkpoint is in source only and has not yet been deployed; the hosted service remains 0.9.1 / schema 8.
+
 ## 0.9.1 — Writer integration repair
 
 **Implementation checkpoint:** 2026-10-26 00:44+01:00 (Europe/Warsaw)

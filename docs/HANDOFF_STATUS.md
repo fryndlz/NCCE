@@ -1,10 +1,12 @@
 # Handoff status
 
-**Current source implementation:** NCCE 0.9.1 — Munda Manager Campaign History Timeline and Writer Integration Fix, SQLite schema 8
+**Current source implementation:** NCCE 0.9.2 — authored dossier formatting and bounded Mara writer pilot, SQLite schema 9
 
 **Hosted implementation:** 0.9.1 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-26 00:51 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 01:15 CET (Europe/Warsaw)
+
+**Deployment:** 0.9.2 is not yet deployed. Hosted service remains 0.9.1 / schema 8 until Render deployment and health verification.
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
@@ -12,13 +14,13 @@
 
 Read [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md) for the integrated system and exact implementation limits. Five user-supplied source documents are preserved in `docs/writing_sources/`. Places and Gangs expose persistent progressing stories. The OpenAI-backed writer now drafts all generated prose from factual packets, identity context, and relevant continuity. Provider credentials are server-side; no-key or provider errors are visible as pending/error rather than template prose. Mechanical evidence, dates and attribution remain app-controlled.
 
-Local validation: 43 Python checks, Node renderer/date contracts, and the authenticated disposable HTTP/live-sync smoke pass. Read-only WAL snapshots keep the prior committed campaign visible during model drafting. The synthetic preview shows the explicit pending state because this workspace has no API key. The hosted source and persistent database have not been modified for this change.
+Local validation for 0.9.2: Python compilation, core tests, writer tests, all 15 story-engine checks, Node writing UI contracts, and `git diff --check` pass. The authenticated disposable HTTP smoke is blocked by sandbox loopback restrictions (`WinError 10013`); the Mara live writer pilot remains unrun pending deployment. Routine writer calls are disabled by default in this build; `NCCE_AUTO_WRITE_ENABLED=1` enables full-roster writing only after that scope is authorized. The targeted Mara check remains limited to one persistent use and 13 provider calls.
 
 ## Workspace and product
 
 Continue in the existing repository. Use Git for history; do not rebuild the project or produce another versioned ZIP. Source/data authority remains in `AGENTS.md`. The Sheet is read-only, authored lore is canon, and generated narrative is inference with evidence.
 
-The app now implements the principal story loop rather than only refreshing a roster. New campaign facts generate fighter memories, reflections, selected Mind thoughts, and regenerated reports. Narrative generation requires `NCCE_OPENAI_API_KEY`; `NCCE_WRITER_MODEL` defaults to `gpt-6.1-sol`. Relevant campaign facts, fighter identity tags, authored context and prior generated prose are sent to OpenAI for drafting, as authorized by the user. Successful outputs are cached locally; the writer has a configurable per-refresh call budget. A 0.9.1 fix removes the schema keyword that caused HTTP 400 and keeps quota-limited narratives pending for later refreshes.
+The app implements the principal story loop: campaign facts generate fighter memories, reflections, selected Mind thoughts, and regenerated reports. Narrative generation requires `NCCE_OPENAI_API_KEY`; `NCCE_WRITER_MODEL` defaults to `gpt-6.1-sol`. Relevant campaign facts, fighter identity tags, authored context and prior generated prose are sent to OpenAI for drafting, as authorized by the user. Successful outputs are cached locally; the writer has a per-run call budget. Version 0.9.2 renders Mara's authored C-NINE dossier as semantic sections, preserves her authored content over inference, and records per-request identifiers/token counts. The Mara pilot is limited to her pending memory/reflection items and 13 calls; routine syncs cannot make new model calls until full-roster writing is explicitly enabled.
 
 The exact current technical design, module responsibilities, current labels, trigger/importance rules, voice thresholds, reflection algorithm, Mind formula and limits are in `docs/CURRENT_DESIGN.md`. The earlier design critique is archived as `docs/archive/DESIGN_REVIEW_2026-10-25.md`; `docs/IMPLEMENTATION_AUDIT.md` describes an earlier build.
 
@@ -36,7 +38,7 @@ This feature does not alter the Sheet, Apps Script, current roster, authored lor
 | --- | --- |
 | Hosted link and invite access | Existing Render preview at https://ncce-private-preview.onrender.com/. Public GitHub source; campaign app protected by a shared passphrase. Starter compute and persistent disk cost about $7.25/month. Deployed release evidence is recorded in `CHANGELOG.md`. |
 | Chronicle-first navigation | Implemented. Story/history leads; raw mechanical state is inspectable evidence. People is now Fighters. |
-| Durable factual/event/provenance schema | Implemented. Sources, entities, immutable snapshots/events, subjects/roles, evidence links, correction chains, versioned writing output, and campaign archive history. Schema 8. |
+| Durable factual/event/provenance schema | Implemented. Sources, entities, immutable snapshots/events, subjects/roles, evidence links, correction chains, versioned writing output, campaign archive history, and per-request writer ledger. Source schema 9. Hosted schema remains 8 pending deployment. |
 | Read-only Sheet sync | Implemented. Startup, 15-minute schedule, and manual refresh; source-state projection and narrative refresh follow successful reads. Raw archive tabs are imported into their own versioned local ledger. |
 | Campaign history | Source implementation complete. Exact battle/session links, candidate session-time windows, per-gang downtime sequence, archive provenance, conflict/orphan warnings, fighter history and Chronicle Gantt timeline. Participation remains an explicit inference. |
 | Snapshot comparison and change tracker | Implemented. Known baseline fields can bridge to the first live read without fabricating new-stat deltas. Unknown occurrence dates stay unknown. |
@@ -44,7 +46,7 @@ This feature does not alter the Sheet, Apps Script, current roster, authored lor
 | Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
 | Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
 | Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |
-| Validation | The 0.9.0 source passed the Python/Node and syntax checks listed in `CHANGELOG.md`. On 0.9.1, all focused writer checks and Python compilation passed. The hosted writer completed 80 model calls after removing the unsupported schema constraint; further pending narratives continue on subsequent refreshes. |
+| Validation | 0.9.2 local core/writer/15 story-engine/renderer checks, Python compilation, and `git diff --check` pass. HTTP smoke cannot open loopback sockets in this sandbox. Mara's hosted writer pilot has not run yet. |
 
 ## Historical limits
 

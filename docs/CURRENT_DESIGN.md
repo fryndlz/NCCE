@@ -1,22 +1,22 @@
-# NCCE 0.9.1 — current technical design
+# NCCE 0.9.2 — current technical design
 
-**Source release:** 0.9.1, campaign archive timeline and writer integration repair
+**Source release:** 0.9.2, authored dossier formatting and bounded Mara writer pilot
 
-**Hosted release:** 0.9.1 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
+**Hosted release:** 0.9.1 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`. Version 0.9.2 is prepared in source and is not yet verified on Render.
 
-**Schema:** SQLite version 8
+**Schema:** SQLite version 9 in source; hosted database remains on schema 8 until deployment.
 
-**Documentation checkpoint:** 2026-10-26 00:51 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 01:15 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** hosted `/healthz` returned HTTP 200 and version `0.6.1` after redeploy. The app reused its database on `/var/data` without a fresh-seed log. The 31 deterministic checks and local authenticated HTTP/live-sync smoke passed before this infrastructure-only change. See `CHANGELOG.md` for deployment evidence.
+**Release verification:** this source checkpoint has not been deployed. Local Python/Node contracts pass; local HTTP smoke was blocked because this sandbox cannot open loopback sockets (`WinError 10013`). The hosted 0.9.1 deployment remains the previous version. See `CHANGELOG.md` for exact validation state.
 
-This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. Campaign History adds versioned raw Munda Manager archives and a derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. The 0.9.1 writer fix removes a rejected JSON Schema keyword and marks call-budget exhaustion as pending. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
+This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. Campaign History adds versioned raw Munda Manager archives and a derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. The 0.9.2 source adds semantic rendering for Mara's authored C-NINE dossier, a request/token ledger, and a one-time Mara-only writer pilot capped at 13 provider calls. Automatic writer calls during routine refresh are disabled by default until the pilot is reviewed; set `NCCE_AUTO_WRITE_ENABLED=1` only after authorizing full writer rollout. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
 ## 0. Writing Director additions
 
 The current writing contract and implementation are described in [WRITING_DIRECTOR.md](WRITING_DIRECTOR.md). The imported specifications are preserved in `docs/writing_sources/`; the identity taxonomy is in [WRITER_IDENTITY_TAGS.md](WRITER_IDENTITY_TAGS.md).
 
-Version 0.8 adds `llm_writer.py` (OpenAI Responses API drafts, structured outputs, caching and request bounds) to the 0.7 director. `writing_director.py` handles document forms, authored perspective packets, dates and guardrails; `world_streams.py` handles versioned gang/place entries and bounded ambient fiction; `writing.js` handles browser calendar rules; `writing.css` styles the semantic archive. Schema 7 adds a persistent model-result cache, writer status, and semantic inline marks for narrative red-status styling to the schema-5 identity revisions, narrative streams and raw territory-state retention. Schema 8 adds immutable/versioned Munda Manager archive rows, same-version conflict records and import-run provenance. Original place/gang descriptions are kept separately from progressing stories. Territory diffs cover ownership, transformations, other fields and listing changes. The fighter numerical rules below remain in force.
+Version 0.8 adds `llm_writer.py` (OpenAI Responses API drafts, structured outputs, caching and request bounds) to the 0.7 director. `writing_director.py` handles document forms, authored perspective packets, dates and guardrails; `world_streams.py` handles versioned gang/place entries and bounded ambient fiction; `writing.js` handles browser calendar rules; `writing.css` styles the semantic archive. Schema 7 adds a persistent model-result cache, writer status, and semantic inline marks for narrative red-status styling to the schema-5 identity revisions, narrative streams and raw territory-state retention. Schema 8 adds immutable/versioned Munda Manager archive rows, same-version conflict records and import-run provenance. Schema 9 adds a per-provider-request ledger with API request/response identifiers, writing form, subject, model, timestamps, status, token counts, and bounded errors. Original place/gang descriptions are kept separately from progressing stories. Territory diffs cover ownership, transformations, other fields and listing changes. The fighter numerical rules below remain in force.
 
 Current validation is recorded in §14 and `CHANGELOG.md`. The timeline feature has dedicated parser, versioning, join, confidence, participation, overlap and fighter-history tests. Hosted 0.6.1 verification below is historical deployment evidence, not a claim that this source release has been deployed.
 
@@ -52,10 +52,10 @@ Rules reference: https://www.necroraw.com.ru/
 | `src/diff.py` | Pure comparison of normalized snapshots. Produces factual event drafts, subjects, source locators, and before/after payloads. Matches battle identities without treating row insertion as a new history. |
 | `src/sync.py` | Source registry, snapshot persistence, seed-to-live bridge, immutable factual event ingestion, current-state projection, then story regeneration. |
 | `src/store.py` | SQLite access and migrations; source/entity/event APIs; current-state projection; authored biography preservation; dashboard and detail response assembly. Attaches narrative documents, memory history, selected Mind thoughts, and derived archive timelines. |
-| `src/migrations.py` | Schema versions 1–8, legacy provenance backfill, immutable-record protections, current membership flags, versioned story tables, and Munda Manager archive import tables. |
+| `src/migrations.py` | Schema versions 1–9, legacy provenance backfill, immutable-record protections, current membership flags, versioned story tables, Munda Manager archive imports, and writer request ledger. |
 | `src/story_engine.py` | Event classification/importance, memory creation, bounded shared gang events, reflection batches, narrative revisioning, source links, and current Mind retrieval. Owns the numerical rules listed below. |
 | `src/story_prose.py` | Identity/fact extraction and compatibility helpers. Its legacy phrase helpers are not presented as finished production prose. |
-| `src/llm_writer.py` | Production OpenAI Responses API drafts, structured outputs, provider bounds, status, and cache. The key remains server-side. |
+| `src/llm_writer.py` | Production OpenAI Responses API drafts, structured outputs, provider bounds, status, cache, and per-request usage telemetry. The key remains server-side. |
 | `src/writing_director.py`, `src/world_streams.py` | Form-specific writing packets, provenance/format constraints, dates, continuity, and versioned Gang/Place narratives. |
 | `src/narrative.py` | Legacy deterministic templates retained for initial seed compatibility. The active v0.6 story layer supersedes the old seeded moodlets and narrative text. |
 | `src/seed.py` | Creates a missing database from tracked baseline data and the C-NINE export. Refuses to overwrite an existing database. |
@@ -72,11 +72,11 @@ Rules reference: https://www.necroraw.com.ru/
 | `tests/test_story_engine.py` | Event-to-memory/Mind behavior, first-live bridge, source links, idempotency, regeneration, canon preservation, and corrected/removed battle behavior. |
 | `tests/smoke_server.py` | Opt-in authenticated HTTP integration check using a disposable fresh database and a read-only live Sheet refresh. |
 
-The writing integration uses the OpenAI Responses API when the server-side key is configured; the writer and selection rules run on the host. The campaign archive parser and timeline are deterministic and do not invoke the model. There is no continuous off-table life simulation.
+The writing integration uses the OpenAI Responses API when the server-side key is configured; the writer and selection rules run on the host. The campaign archive parser and timeline are deterministic and do not invoke the model. There is no continuous off-table life simulation. In 0.9.2, routine refreshes do not make provider calls unless `NCCE_AUTO_WRITE_ENABLED=1`; the dedicated Mara pilot runs only her narrative generation and enforces a single persistent use with a 13-call maximum.
 
 ## 3. Runtime sequence
 
-1. Open or seed the existing database and apply migrations through schema 8.
+1. Open or seed the existing database and apply migrations through schema 9.
 2. Generate any missing or stale derived story revision from the database already available. This allows the app to work before its first live refresh succeeds.
 3. Fetch the live workbook and normalize it into a snapshot. Retain the source capture time and deduplicate unchanged content.
 4. When a legacy seed snapshot lacks the current snapshot shape, build a one-time comparison bridge from fields the seed really knew. Newly available statistics are treated as baseline values, rather than reported as improvements from missing data.
@@ -281,6 +281,8 @@ Every generated narrative view pairs prose with a visibly distinct mechanical ev
 
 Semantic report blocks support headings, paragraphs, quotations, lists and record fragments. Limited `**bold**` and `*italic*` are supported after source text is HTML-escaped; arbitrary source HTML is not executed. Authored text preserves paragraph/line breaks. There is no WYSIWYG editing interface in v0.6.
 
+The C-NINE-authored fighter dossier renderer recognizes the document's semantic sections: nameplate, designation and labour/medical fields, audit heading/body, quoted line, archive reference, and explicit termination mark. These are rendered as separate visual blocks instead of flattening all authored text into a generated prose paragraph. Authored biography content is always retained ahead of mechanically inferred biography. The one-fighter pilot is restricted to Mara Kel's authored C-NINE record; it drafts her pending memories/reflection only and does not regenerate any fighter biography or campaign-level narrative.
+
 | View | Search and filters |
 | --- | --- |
 | Fighters | Text search across name/type/class/gang/backstory/Effects; gang, status, role, and listed/unlisted filters. |
@@ -296,7 +298,7 @@ Responsive CSS collapses the fighter split layout, moves Mind above history on n
 
 The existing Python HTTP/JSON API remains the presentation boundary. It supplies session/login/logout, health/status, dashboard, events, gang/fighter/territory/lore details, and manual sync. Fighter responses include generated memories, selected Mind, voice profile, and biography document. Dashboard/detail payloads attach the relevant narrative artifacts.
 
-The server schedules one Sheet sync at startup and every `NCCE_SYNC_INTERVAL_SECONDS` (default 900, minimum 60), plus manual refresh. Concurrent refresh requests are guarded. A failed source read keeps available local records and reports the sync failure. The UI polls status periodically and refreshes narrative views when the story revision/state changes.
+The server schedules one Sheet sync at startup and every `NCCE_SYNC_INTERVAL_SECONDS` (default 900, minimum 60), plus manual refresh. Concurrent refresh requests are guarded. A failed source read keeps available local records and reports the sync failure. The UI polls status periodically and refreshes narrative views when the story revision/state changes. Routine syncs keep narrative derivation and cache reuse available but suppress new provider calls unless `NCCE_AUTO_WRITE_ENABLED=1`. The Mara pilot endpoint is authenticated, same-origin, fighter-restricted, persistently one-use, and capped at 13 API calls. Its status response includes each provider request ID and response ID, writing form, subject, model, status, timestamps, token counts, and bounded provider error.
 
 Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cookie; the service can mark it Secure behind HTTPS. This is invite access by shared secret, not per-person accounts or an invitation administration system. Public `/healthz` is a minimal service check; campaign APIs require a session when authentication is enabled.
 
@@ -314,9 +316,9 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 14. Validation and deployment checkpoint
 
-The source implementation is 0.9.1. The full baseline suites passed on 0.9.0; targeted writer checks and the new budget-state check passed on 0.9.1. `tests/smoke_server.py` could not reach its local socket in the current sandbox. A local app process initialized and bound successfully, but loopback client access was denied by Windows permissions in this execution environment. This is not a result about the user's machine or hosted Render service.
+The source implementation is 0.9.2. Core, writer, story-engine (15 checks), UI renderer, syntax, and whitespace validations pass. The authenticated disposable HTTP smoke could not bind/connect in the current sandbox (`WinError 10013`); this says nothing about the user's machine or hosted Render service. The live Mara-only writer pilot has not yet been run.
 
-Hosted release `0.9.1` (`e110408`) is live at https://ncce-private-preview.onrender.com/. The writer is configured and the repaired structured-output request completed a full 80-call batch; later pending writing continues on refresh. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
+Hosted release `0.9.1` (`e110408`) is live at https://ncce-private-preview.onrender.com/. The writer is configured. The 0.9.2 pilot build is not yet deployed; do not infer a completed Mara draft from this source checkpoint. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
 
 ## 15. Campaign history archive and timeline
 

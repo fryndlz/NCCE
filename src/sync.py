@@ -153,7 +153,7 @@ def ingest_snapshot(store, snapshot: dict, source_id: str = SHEET_SOURCE_ID) -> 
     }
 
 
-def sync_live_sheet(store) -> dict:
+def sync_live_sheet(store, writer_enabled=True) -> dict:
     """Fetch, ledger, and project one read-only snapshot of the live campaign Sheet."""
     snapshot = fetch_live_snapshot()
     with store._lock:
@@ -161,5 +161,5 @@ def sync_live_sheet(store) -> dict:
         ingested = ingest_snapshot(store, snapshot)
         projection = store.project_snapshot(snapshot)
         from story_engine import regenerate
-        narrative = regenerate(store, ambient=True)
+        narrative = regenerate(store, ambient=True, writer_enabled=writer_enabled)
     return {**ingested, "history_import": history, "projection": projection, "narrative": narrative, "source_metadata": snapshot.get("source_metadata", {})}

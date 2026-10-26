@@ -312,9 +312,12 @@ def _current_battle_event(battle, events):
             "occurred_at":chosen.get("occurred_at") if chosen["event_type"] == "battle_result" else None}
 
 
-def regenerate(store, force=False, ambient=False, writer_enabled=True):
-    """Regenerate all derived views atomically and retain previous narrative versions."""
-    llm_writer.reset_budget()
+def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_ids=None, call_budget=None, writer_run_id=None):
+    """Regenerate all views, or only selected fighters when fighter_ids is supplied."""
+    target_fighter_ids = None if fighter_ids is None else {int(value) for value in fighter_ids}
+    if target_fighter_ids is not None and len(target_fighter_ids) != 1:
+        raise ValueError("A scoped writer run must target exactly one fighter")
+    llm_writer.reset_budget(call_budget,writer_run_id)
     llm_writer.set_enabled(writer_enabled)
     with store._lock:
         lore = store.db.execute("SELECT * FROM lore_sources ORDER BY id LIMIT 1").fetchone()
@@ -322,6 +325,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True):
             store.record_source("canon:c-nine-story-export","authored_campaign_lore","canon_authored",lore["title"] or "C-NINE Story",source_uri=lore["source_url"],content_hash=hashlib.sha256(lore["content"].encode("utf-8")).hexdigest())
         gangs = [dict(r) for r in store.db.execute("SELECT * FROM gangs WHERE active=1 ORDER BY gang_id")]
         fighters = [dict(r) for r in store.db.execute("SELECT * FROM fighters ORDER BY id")]
+        if target_fighter_ids is not None and not target_fighter_ids.issubset({int(f["id"]) for f in fighters}):
+            raise ValueError("The selected fighter does not exist")
         battles = [dict(r) for r in store.db.execute("SELECT * FROM battles WHERE active=1 ORDER BY date,source_row")]
         territories = [dict(r) for r in store.db.execute("SELECT * FROM territories WHERE active=1 ORDER BY id")]
         events = _all_events(store)
@@ -340,7 +345,7 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True):
             entry_rows=store.db.execute("SELECT document_json FROM narrative_entries WHERE active=1").fetchall()
             retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status')!='ready' for r in artifact_rows)
             retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status')!='ready' for r in entry_rows)
-        if not force and not retry_writer and store.get_state("story_input_hash") == fingerprint:
+        if target_fighter_ids is None and not force and not retry_writer and store.get_state("story_input_hash") == fingerprint:
             with store.db:
                 added=world_streams.maybe_ambient(store,gangs,territories) if ambient else 0
                 if added:
@@ -360,8 +365,13 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True):
                     gang_events[subject["entity_key"]].append(event)
         all_memories = []
         with store.db:
-            store.db.execute("UPDATE story_memories SET active=0")
+            if target_fighter_ids is None:
+                store.db.execute("UPDATE story_memories SET active=0")
+            else:
+                store.db.executemany("UPDATE story_memories SET active=0 WHERE fighter_id=?",[(value,) for value in target_fighter_ids])
             for fighter in fighters:
+                if target_fighter_ids is not None and int(fighter["id"]) not in target_fighter_ids:
+                    continue
                 gang = by_gang.get(str(fighter["gang_id"]), {"name":fighter["gang_name"],"gang_type":""})
                 voice = prose.voice_profile(fighter, gang)
                 store.db.execute("UPDATE fighters SET voice_profile_json=? WHERE id=?", (encode(voice),fighter["id"]))
@@ -477,6 +487,12 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True):
                     document['writer_context']=voice['writer_context']
                     doc = _artifact(store,"fighter_biography",fighter["id"],document,fingerprint,generated_at)
                     store.db.execute("UPDATE fighters SET backstory=?,backstory_source='mechanically-inferred',provenance_class='inference' WHERE id=?", (_text(doc),fighter["id"]))
+            if target_fighter_ids is not None:
+                return {"changed":True,"revision":fingerprint[:16],"memories":len(all_memories),
+                        "fighters":len(target_fighter_ids),"generated_at":generated_at,
+                        "writer":llm_writer.run_summary(),"memory_results":[
+                            {"memory_id":m["id"],"title":m["title"],"writer_status":m["writer_status"]}
+                            for m in all_memories]}
             for gang in gangs:
                 fs = [f for f in fighters if str(f["gang_id"]) == str(gang["gang_id"])]
                 if not _authored(gang):

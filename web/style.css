@@ -50,6 +50,25 @@ small, .muted { color: var(--muted); }
 .region-intro .narrative { font-size: 1.13rem; line-height: 1.7; }
 .narrative > .eyebrow { margin-bottom: 12px; }
 .authored-source { margin-top: 14px; color: var(--accent); font: .72rem/1.5 var(--sans); }
+.authored-dossier { color: #deddd3; font-family: Georgia, 'Times New Roman', serif; }
+.personnel-designation { margin: 0 0 12px; color: #e6bd55; font: 700 .82rem/1.5 var(--sans); letter-spacing: .12em; text-transform: uppercase; }
+.personnel-fields { margin: 0 0 18px; font: .76rem/1.55 var(--sans); }
+.personnel-fields > div { display: grid; grid-template-columns: minmax(120px, .32fr) 1fr; gap: 12px; padding: 3px 0; }
+.personnel-fields dt { color: #28cb79; text-transform: uppercase; letter-spacing: .07em; font-size: .65rem; }
+.personnel-fields dd { margin: 0; color: #c5c5bc; }
+.personnel-section-label { color: #28cb79; font: 700 .72rem/1.5 var(--sans); letter-spacing: .1em; text-transform: uppercase; margin: 22px 0 9px; }
+.personnel-quote { margin: 14px 0 20px 18px; padding: 2px 0 2px 15px; border-left: 2px solid #9b9b91; color: #d4d3cb; font-style: italic; }
+.personnel-watermark { margin: 24px 0; color: #343b31; text-align: center; font: 700 clamp(1.3rem, 5vw, 2.1rem)/1.3 ui-monospace, 'Courier New', monospace; letter-spacing: .12em; }
+.personnel-system { margin: 3px 0; color: #36bf77; font: .66rem/1.55 ui-monospace, 'Courier New', monospace; letter-spacing: .04em; }
+.writer-check { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 22px; padding: 13px 15px; border-left: 2px solid #c7b680; background: #1b1c17; font-family: var(--sans); }
+.writer-check strong { font-size: .78rem; }
+.writer-check p { flex-basis: 100%; margin: 0; }
+.writer-check-status { color: #b9d1b1; font-size: .76rem; line-height: 1.5; }
+.writer-ledger { flex-basis: 100%; margin-top: .7rem; padding: .6rem; border: 1px solid var(--line); background: var(--panel); }
+.writer-ledger summary { cursor: pointer; color: var(--accent); }
+.writer-ledger ol { display: grid; gap: .65rem; padding-left: 1.2rem; }
+.writer-ledger li { line-height: 1.55; overflow-wrap: anywhere; }
+.writer-ledger small { color: var(--muted); }
 .split { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(260px, 1fr); gap: 28px; }
 .split > *, .fighter-layout > * { min-width: 0; }
 .chronicle-layout .section-title:first-child { margin-top: 0; }
@@ -213,6 +232,7 @@ code, .evidence, .system-state, .mechanical-field { overflow-wrap: anywhere; }
   .battle-report { padding: 20px; }
   .battle-report > h3 { font-size: 1.4rem; }
   .biography { padding: 20px; }
+  .personnel-fields > div { grid-template-columns: minmax(94px, .42fr) 1fr; gap: 8px; }
   .memory-card { padding: 20px; }
   .memory-voice { font-size: 1.08rem; }
   .archive-document { padding: 22px; }

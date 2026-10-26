@@ -40,6 +40,37 @@ function inline(value) {
 function prose(value) {
   return String(value || '').trim().split(/\n\s*\n/).filter(Boolean).map(paragraph => `<p>${inline(paragraph).replaceAll('\n', '<br>')}</p>`).join('');
 }
+function authoredDossier(value) {
+  const lines = String(value || '').replace(/\r/g, '').split('\n');
+  const output = [], fields = [], paragraph = [];
+  let sawBody = false;
+  const flushParagraph = () => { if (paragraph.length) output.push(`<p>${inline(paragraph.join('\n')).replaceAll('\n','<br>')}</p>`); paragraph.length = 0; };
+  const flushFields = () => { if (fields.length) output.push(`<dl class="personnel-fields">${fields.map(([label,text]) => `<div><dt>${inline(label)}</dt><dd>${inline(text)}</dd></div>`).join('')}</dl>`); fields.length = 0; };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { flushParagraph(); continue; }
+    if (/^[A-Z][A-Z '-]+,\s*[A-Z][\w '-]+$/.test(line) && !sawBody && !output.length) {
+      flushParagraph(); output.push(`<div class="personnel-designation">${inline(line)}</div>`); continue;
+    }
+    const field = line.match(/^([^:\n]{2,48}):\s*(.+)$/);
+    if (field && !/^\[ERR::/i.test(line)) { flushParagraph(); fields.push([field[1],field[2]]); continue; }
+    if (/^(Workshop Audit|ATTACHED INCIDENT LOG|SURGICAL RECORD|PERSONNEL TRANSFER|MEDICAL PROCUREMENT AUTHORISATION)\b/i.test(line)) {
+      flushParagraph(); flushFields(); sawBody = true; output.push(`<h4 class="personnel-section-label">${inline(line)}</h4>`); continue;
+    }
+    if (/^C9-(?:MK|AUX|ASSOC)\//i.test(line)) {
+      flushParagraph(); flushFields(); output.push(`<div class="personnel-watermark">${inline(line)}</div>`); continue;
+    }
+    if (/^\[SYS\.|^\[ERR::|^[├└│]/.test(line)) {
+      flushParagraph(); flushFields(); output.push(`<div class="personnel-system">${inline(line)}</div>`); continue;
+    }
+    if (/^[“"‘].*[”"’]$/.test(line)) {
+      flushParagraph(); flushFields(); output.push(`<blockquote class="personnel-quote">${inline(line)}</blockquote>`); sawBody = true; continue;
+    }
+    flushFields(); paragraph.push(line); sawBody = true;
+  }
+  flushParagraph(); flushFields();
+  return `<div class="authored-dossier">${output.join('')}</div>`;
+}
 function blocks(document, fallback = '') {
   const content = list(document?.blocks);
   if (!content.length) {
@@ -133,7 +164,8 @@ function narrative(value, source, items = [], meta = {}) {
   const document = meta.biography_document || meta.history_document;
   const isAuthored = authored(source || document?.provenance_class || meta.provenance_class);
   const basis = document?.evidence?.length ? document.evidence : items;
-  return `<div class="narrative"><div class="eyebrow">${isAuthored ? 'Authored campaign record' : 'Generated inference'}</div>${isAuthored ? prose(value) : blocks(document, value)}</div>${isAuthored ? `<div class="authored-source">${esc(source || 'Authored campaign canon')}</div>` : evidence(basis, {...meta, ...document})}`;
+  const authoredBody = isAuthored ? (/C-NINE story/i.test(String(source || '')) ? authoredDossier(value) : prose(value)) : blocks(document, value);
+  return `<div class="narrative"><div class="eyebrow">${isAuthored ? 'Authored campaign record' : 'Generated inference'}</div>${authoredBody}</div>${isAuthored ? `<div class="authored-source">${esc(source || 'Authored campaign canon')}</div>` : evidence(basis, {...meta, ...document})}`;
 }
 const empty = message => `<div class="empty-state"><p>${esc(message)}</p></div>`;
 async function api(url, options) {
@@ -470,7 +502,9 @@ async function showFighter(id, preserveScroll = false) {
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const mind = Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead').slice(0, 4);
   const deceased = /killed|dead/i.test(f.status || '');
-  app.innerHTML = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}</aside></div>`;
+  const maraWriterCheck = f.name === 'Mara Kel' && /C-NINE story/i.test(String(f.backstory_source || ''))
+    ? `<section class="writer-check"><div><strong>One-fighter writer check</strong><p class="muted compact">Only Mara’s pending memories and reflection; at most 13 model requests. No other fighter or campaign report is included.</p></div><button data-writer-check="${esc(f.id)}"${sessionStorage.getItem('ncce-mara-writer-check') ? ' disabled' : ''}>${sessionStorage.getItem('ncce-mara-writer-check') ? 'Mara check already submitted in this session' : 'Test the writer on Mara'}</button><p class="writer-check-status" role="status"></p></section>` : '';
+  app.innerHTML = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}${maraWriterCheck}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}</aside></div>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showGang(id, preserveScroll = false) {
@@ -541,11 +575,32 @@ app.addEventListener('click', event => {
   if (target.dataset.territory) task = showTerritory(target.dataset.territory);
   if (target.dataset.lore) task = showLore(target.dataset.lore);
   if (target.dataset.back) task = render(target.dataset.back);
+  if (target.dataset.writerCheck) task = runMaraWriterCheck(target);
   if (target.dataset.clear) { filters[target.dataset.clear] = {...defaults[target.dataset.clear]}; task = render(target.dataset.clear); }
   if (target.dataset.gangFilter) { filters.fighters.gang = target.dataset.gangFilter; task = render('fighters'); }
   if (target.hasAttribute('data-retry')) task = refreshDashboard(false);
   if (task?.catch) task.catch(handleError);
 });
+async function runMaraWriterCheck(button) {
+  const id=button.dataset.writerCheck, status=button.parentElement.querySelector('.writer-check-status');
+  button.disabled=true; status.textContent='Starting a Mara-only run capped at 13 model requests…';
+  try {
+    const started=await api(`/api/fighters/${encodeURIComponent(id)}/write-check`,{method:'POST'});
+    sessionStorage.setItem('ncce-mara-writer-check',started.run_id);
+    let run;
+    while (true) {
+      await new Promise(resolve=>setTimeout(resolve,2000));
+      run=await api(`/api/writer-runs/${encodeURIComponent(started.run_id)}`);
+      if (run.status==='complete' || run.status==='error') break;
+      status.textContent=`Mara only · ${run.request_usage?.requests || 0} requests recorded so far.`;
+    }
+    const use=run.request_usage || {}, summary=run.writer || {};
+    const ledger=(use.records||[]).map(r=>`<li><strong>${esc(r.form)}</strong> · ${esc(r.subject_name||'Mara Kel')} · ${esc(r.status)} · ${Number(r.input_tokens)||0} in / ${Number(r.output_tokens)||0} out tokens<br><small>API request: ${esc(r.request_id||'unavailable')} · response: ${esc(r.response_id||'unavailable')}</small>${r.error_text?`<br><small>${esc(r.error_text)}</small>`:''}</li>`).join('');
+    status.innerHTML=(run.status==='error' ? `Writer check stopped: ${esc(run.error || 'see error status')}. ${use.requests || 0} requests recorded.` : `Finished for Mara: ${summary.requests_succeeded || use.succeeded || 0} successful requests, ${summary.cache_hits || 0} cached entries, ${summary.requests_failed || use.failed || 0} failed requests; ${use.input_tokens || 0} input and ${use.output_tokens || 0} output tokens. No other records were processed.`)+`<details class="writer-ledger"><summary>Request ledger · ${use.requests||0} provider calls</summary><ol>${ledger||'<li>No provider requests were needed.</li>'}</ol></details>`;
+    await showFighter(id,true);
+    const refreshed=app.querySelector('.writer-check-status'); if (refreshed) refreshed.textContent=status.textContent;
+  } catch (error) { status.textContent=error.message; button.disabled=false; }
+}
 document.querySelectorAll('nav button').forEach(button => button.addEventListener('click', () => render(button.dataset.view).catch(handleError)));
 syncNow.addEventListener('click', async () => {
   syncNow.disabled = true; syncNow.textContent = 'Requesting…';

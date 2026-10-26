@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -693,6 +693,34 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(8,?,?)",
                        ('Munda Manager raw archive import and campaign history timeline', _now()))
             db.execute('PRAGMA user_version=8')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if db.execute('PRAGMA user_version').fetchone()[0] < 9:
+        db.execute('BEGIN IMMEDIATE')
+        try:
+            db.execute('''CREATE TABLE IF NOT EXISTS writer_requests(
+                    request_row_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id TEXT NOT NULL,
+                    request_id TEXT,
+                    response_id TEXT,
+                    form TEXT NOT NULL,
+                    subject_type TEXT,
+                    subject_key TEXT,
+                    subject_name TEXT,
+                    model TEXT NOT NULL,
+                    requested_at TEXT NOT NULL,
+                    finished_at TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    input_tokens INTEGER NOT NULL DEFAULT 0,
+                    output_tokens INTEGER NOT NULL DEFAULT 0,
+                    error_text TEXT
+                )''')
+            db.execute('CREATE INDEX writer_requests_run_idx ON writer_requests(run_id,request_row_id)')
+            db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(9,?,?)",
+                       ('scoped writer checks and per-request usage provenance', _now()))
+            db.execute('PRAGMA user_version=9')
             db.commit()
         except Exception:
             db.rollback()
