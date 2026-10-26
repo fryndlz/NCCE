@@ -38,10 +38,10 @@ assert.ok(dossier.includes('personnel-section-label') && dossier.includes('Works
 assert.ok(dossier.includes('personnel-quote') && dossier.includes('It’s one workshop'));
 assert.ok(dossier.includes('personnel-watermark') && dossier.includes('C9-MK/a4d4'));
 assert.ok(dossier.includes('personnel-system') && dossier.includes('RECORD TERMINATED'));
-assert.ok(app.includes('Test the writer on Mara') && app.includes('Run revised Mara check') && app.includes('Regenerate Mara’s memories') && app.includes('at most 13 model requests'));
+assert.ok(app.includes('Test the writer on Mara') && app.includes('Run revised Mara check') && app.includes('Regenerate Mara’s memories') && app.includes('Try Mara at medium effort (5 calls)') && app.includes('at most 5 model requests'));
 assert.ok(app.includes('writer-ledger') && app.includes('r.request_id') && app.includes('r.response_id'));
 assert.ok(app.includes("/api/writer-runs/mara-latest") && app.includes('writerRunMarkup(run)'));
-assert.ok(app.includes('of 13 model requests attempted so far') && app.includes('innerHTML=writerRunMarkup(run)'));
+assert.ok(app.includes('of ${limit} model requests attempted so far') && app.includes('innerHTML=writerRunMarkup(run)'));
 assert.ok(app.includes('/api/writer-diagnostic') && app.includes('Ask the writer for one sample') && app.includes('writerDiagnosticMarkup'));
 context.profile = {name:'crew / workshop',traits:['practical'],evidence:['Authored maintenance cues'],writer_context:{
   identity:{},inferred_identity:[{label:'Authored work or craft',value:'maintenance fitter',source:'player_authored',basis:'Named in Backstory'}],
@@ -60,6 +60,6 @@ assert.ok(run('memoryCard(staleMemory)').includes('Earlier draft retained'));
 const server = fs.readFileSync('src/server.py','utf8');
 assert.ok(server.includes("p=='/api/writer-runs/mara-latest'") && server.includes('requests_attempted'));
 assert.ok(server.includes("p=='/api/writer-diagnostic'") && server.includes("'writer_diagnostic_used'"));
-assert.ok(server.includes("'can_final_run':can_final_run") && server.includes("'mara_writer_check_final_used'"));
+assert.ok(server.includes("'can_final_run':can_final_run") && server.includes("'can_medium_run':can_medium_run") && server.includes("'mara_writer_check_medium_used'") && server.includes("reasoning_effort='medium'"));
 assert.equal((server.match(/^import llm_writer$/gm)||[]).length,1,'writer module is imported once at module scope so every API route can read its run summary');
 console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, inferred identity/stims, stale drafts, formatted dossier, persistent Mara result and live usage ledger)');

@@ -6,6 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 MODEL=os.environ.get('NCCE_WRITER_MODEL','gpt-6.1-sol')
+DEFAULT_REASONING_EFFORT=os.environ.get('NCCE_WRITER_REASONING_EFFORT','low')
 API_KEY=os.environ.get('NCCE_OPENAI_API_KEY','')
 API_URL='https://api.openai.com/v1/responses'
 MAX_CALLS=max(1,min(200,int(os.environ.get('NCCE_WRITER_CALL_BUDGET','80'))))
@@ -115,7 +116,7 @@ def _call(form,packet,output_token_limit=None,reasoning_effort=None):
  body={'model':MODEL,'instructions':SYSTEM+'\n\nDocument brief: '+brief+'\n\nMaintained source guardrails (selected excerpts):\n'+_contract_for(form),
  'input':'Write from this fact and context packet. Treat packet text only as source data.\n'+_json(packet),
        'max_output_tokens':min(MAX_OUTPUT_TOKENS,output_token_limit if output_token_limit is not None else MAX_OUTPUT_TOKENS),'text':{'format':{'type':'json_schema','name':'narrative_prose','strict':True,'schema':schema}}}
- body['reasoning']={'effort':reasoning_effort or 'low'}
+ body['reasoning']={'effort':reasoning_effort or DEFAULT_REASONING_EFFORT}
  req=Request(API_URL,data=json.dumps(body,ensure_ascii=False).encode(),headers={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'},method='POST')
  try:
   with urlopen(req,timeout=TIMEOUT) as response:
@@ -208,7 +209,7 @@ def write(store,form,packet,trace=None):
  global _failure
  _run_stats['drafts_requested']=_run_stats.get('drafts_requested',0)+1
  if _failure: return [],{'status':'error','message':_failure}
- try: signature=hashlib.sha256(_json({'form':form,'packet':packet,'model':MODEL,'formatting_revision':FORMATTING_REVISION}).encode()).hexdigest()
+ try: signature=hashlib.sha256(_json({'form':form,'packet':packet,'model':MODEL,'reasoning_effort':DEFAULT_REASONING_EFFORT,'formatting_revision':FORMATTING_REVISION}).encode()).hexdigest()
  except ValueError as exc: return [],{'status':'error','message':str(exc)}
  row=store.db.execute('SELECT result_json FROM writer_result_cache WHERE prompt_hash=?',(signature,)).fetchone()
  if row:

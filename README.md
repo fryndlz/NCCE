@@ -1,6 +1,6 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current source and hosted preview: **v0.9.9 — Mara-only regeneration**, SQLite schema 9. Story generation is `0.8.2`; campaign archives do not alter mechanical truth. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
+Current source: **v0.9.10 — bounded medium-effort Mara sample**, SQLite schema 9. The hosted preview updates after this commit is pushed and deployed. Story generation is `0.8.2`; campaign archives do not alter mechanical truth. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
 
 Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default model is `gpt-6.1-sol`; override it with `NCCE_WRITER_MODEL`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Fighter observations use a one-event packet with compact, evidence-labelled identity and stimulus-attention context; the full biography and earlier generated memory prose are not repeated in those calls. Automatic writing remains disabled on routine syncs. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
 

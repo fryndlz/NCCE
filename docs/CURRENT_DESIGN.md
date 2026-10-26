@@ -1,6 +1,6 @@
-# NCCE 0.9.9 — current technical design
+# NCCE 0.9.10 — current technical design
 
-**Source release:** 0.9.9, one authorized Mara regeneration
+**Source release:** 0.9.10, one medium-effort Mara sample capped at five calls
 
 **Hosted release:** 0.9.9 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 

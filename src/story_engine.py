@@ -172,6 +172,19 @@ def _authored(row):
     return bool(row.get("backstory")) and ("authored" in source or "c-nine story" in source or "canon" in source) and "mechanic" not in source
 
 
+def _retained_writer_content(store,fighter_id,memory_key,writer_status):
+    if writer_status.get('status') not in {'pending','error','unconfigured'}:
+        return None
+    previous=store.db.execute("""SELECT content,content_runs_json FROM story_memories
+        WHERE fighter_id=? AND memory_key=? AND writer_status IN ('ready','stale') AND content!=''
+        ORDER BY created_at DESC LIMIT 1""",(fighter_id,memory_key)).fetchone()
+    if not previous:
+        return None
+    try:runs=json.loads(previous['content_runs_json'] or '[]')
+    except (ValueError,TypeError):runs=[]
+    return previous['content'],runs,{'status':'stale','message':'Earlier draft retained; this limited run did not replace it.'}
+
+
 def _memory(store, fighter, gang, key, et, payload, event=None, context=None, baseline=False, evidence=None, prior=()):
     event = event or {}
     importance, title, tags = classify(et, payload)
@@ -184,15 +197,9 @@ def _memory(store, fighter, gang, key, et, payload, event=None, context=None, ba
     written,writer_status=llm_writer.write_memory(store,fighter,gang,title,evidence or event_evidence({'event_type':et,'payload':payload}),packet,prior)
     content='\n\n'.join(llm_writer.paragraph_text(p) for p in written)
     content_runs=[llm_writer.paragraph_runs(p) for p in written]
-    if not content and not llm_writer.WRITER_ENABLED:
-        previous=store.db.execute("""SELECT content,content_runs_json FROM story_memories
-            WHERE fighter_id=? AND memory_key=? AND writer_status IN ('ready','stale') AND content!=''
-            ORDER BY created_at DESC LIMIT 1""",(fighter['id'],key)).fetchone()
-        if previous:
-            content=previous['content']
-            try: content_runs=json.loads(previous['content_runs_json'] or '[]')
-            except (ValueError,TypeError): content_runs=[]
-            writer_status={'status':'stale','message':'Existing draft retained; the updated writing rules have not been run for this entry.'}
+    if not content:
+        retained=_retained_writer_content(store,fighter['id'],key,writer_status)
+        if retained: content,content_runs,writer_status=retained
     return {"memory_key": key, "memory_type": "observation", "title": title, "content": content,
             "importance": importance, "occurred_at": event.get("occurred_at"), "observed_at": event.get("observed_at"),
             "tags": list(dict.fromkeys(tags)), "evidence": evidence or event_evidence({"event_type": et, "payload": payload}),
@@ -483,9 +490,14 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                            prior=[{'title':m['title'],'tags':m['tags'],'importance':m['importance'],
                                    'evidence':m['evidence'],'source_event_ids':m['source_event_ids']} for m in cited],
                            form='fighter_reflection')
+                    ref_content="\n\n".join(llm_writer.paragraph_text(p) for p in ref_text)
+                    ref_runs=[llm_writer.paragraph_runs(p) for p in ref_text]
+                    if not ref_content:
+                        retained=_retained_writer_content(store,fighter['id'],f"reflection:{batch}",ref_status)
+                        if retained: ref_content,ref_runs,ref_status=retained
                     ref = {"memory_key":f"reflection:{batch}", "memory_type":"reflection", "title":"What stays with me",
-                           "content":"\n\n".join(llm_writer.paragraph_text(p) for p in ref_text),
-                           "writer_content_runs":[llm_writer.paragraph_runs(p) for p in ref_text],"writer_status":ref_status.get('status','pending'),
+                           "content":ref_content,
+                           "writer_content_runs":ref_runs,"writer_status":ref_status.get('status','pending'),
                            "importance":min(10,round(sum(m["importance"] for m in cited)/len(cited)+0.5,1)),
                            "occurred_at":None, "observed_at":max((m.get("observed_at") or "" for m in cited),default="") or None,
                            "tags":list(dict.fromkeys(["reflection"]+[t for m in cited for t in m["tags"]])),

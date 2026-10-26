@@ -2,6 +2,16 @@
 
 Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October 2026. Times below are release-record checkpoints, not invented per-file edit times.
 
+## 0.9.10 — bounded medium-effort Mara sample
+
+**Implementation checkpoint:** 2026-10-26 10:58 CET (Europe/Warsaw)
+
+- Added one persistent, server-enforced allowance for the user's explicitly requested Mara-only writer run. It uses medium reasoning effort, has a hard five-provider-request cap, and shows the cap/effort in the run ledger. It cannot process other fighters or campaign reports; Mara's authored dossier and mechanical data are outside the generated-memory writes.
+- Made reasoning effort part of the writer cache key, so medium-effort requests do not reuse the previous low-effort drafts.
+- When the five-call limit leaves entries unprocessed, their prior ready drafts remain visible and are marked stale instead of being replaced with blank pending entries.
+- Validation: 13 writer contracts and 15 story-engine tests passed (run individually with per-test writer budget reset because pytest is unavailable in the bundled Python); writing UI contract, JavaScript syntax, Python compilation, and `git diff --check` passed.
+- **Deployment and five-call sample pending.** Record actual deploy ID, provider request count/tokens and direct editorial review when complete.
+
 ## 0.9.9 — one authorized Mara regeneration
 
 **Implementation checkpoint:** 2026-10-26 10:50 CET (Europe/Warsaw)
