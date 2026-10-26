@@ -4,13 +4,15 @@ Timestamps use Europe/Warsaw. The clock changed to CET (UTC+01:00) on 25 October
 
 ## 0.9.4 — repair persisted writer-run endpoint
 
-**Implementation checkpoint:** 2026-10-26 01:35 CET (Europe/Warsaw)
+**Implementation checkpoint:** 2026-10-26 01:36 CET (Europe/Warsaw)
 
 - Render logs showed `/api/writer-runs/<id>` raising `UnboundLocalError` when the endpoint referenced `llm_writer`: a redundant import inside `/api/health` made Python treat the module name as local throughout `do_GET`.
 - Removed the route-local import; the module is imported once at server startup. This lets the persisted Mara run endpoint compute the request ledger without changing or regenerating campaign content.
 - Added a UI contract guard against reintroducing the local import and updated the disposable smoke check's expected app version.
 - No provider requests or campaign writes were made for this fix. Full-roster writing remains disabled.
-- **Validation/deployment:** pending.
+- **Validation:** all seven Python suites, Python compilation, Node writing/timeline contracts, `node --check web/app.js`, and `git diff --check` pass. The local HTTP smoke could not bind loopback in this sandbox (`WinError 10013`).
+- **2026-10-26 01:35:22 CET — deployed:** Render reports commit `5927c38` live as deploy `dep-dbfa08vavr4c73dbu5ug`.
+- **2026-10-26 01:36 CET — verified:** hosted health reports app `0.9.4`, schema 9, and successful Sheet sync. The authenticated persisted-run endpoint returns Mara's 13 request rows (13 succeeded, 0 failed; 18,090 input and 5,171 output tokens); her profile now shows the completed run summary and expandable request/response IDs after reload. No writer calls were made during this fix or deploy.
 
 ## 0.9.3 — persistent Mara results and request progress
 

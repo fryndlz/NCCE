@@ -2,13 +2,13 @@
 
 **Source release:** 0.9.4, repaired persisted Mara writer-run retrieval
 
-**Hosted release:** 0.9.3 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
+**Hosted release:** 0.9.4 on Render Starter, one instance, with a 1 GB persistent disk mounted at `/var/data`. SQLite database path: `/var/data/ncce-preview.db`.
 
 **Schema:** SQLite version 9 in source and hosted database.
 
-**Documentation checkpoint:** 2026-10-26 01:35 CET (Europe/Warsaw, UTC+01:00)
+**Documentation checkpoint:** 2026-10-26 01:36 CET (Europe/Warsaw, UTC+01:00)
 
-**Release verification:** Hosted 0.9.3 deploy `dep-dbf9u5fb9u1s73c5bbkg` (commit `4e3b428`) runs schema 9. Render logs exposed a 0.9.3 run-summary endpoint scoping error; 0.9.4 removes the conflicting local import and is pending validation/deploy. The 13 Mara outputs themselves are persisted and visible; full-roster writing remains disabled. See `CHANGELOG.md` for deployment and usage traceability.
+**Release verification:** Hosted 0.9.4 deploy `dep-dbfa08vavr4c73dbu5ug` (commit `5927c38`) runs schema 9. Mara's authenticated result endpoint and profile show all 13 request rows and the persisted outputs after reload. No full-roster writing was run. See `CHANGELOG.md` for deployment and usage traceability.
 
 This document describes implemented behavior. It is the technical specification of the current app, including its constants and limitations. Campaign History adds versioned raw Munda Manager archives and a derived chronology; it does not change the Sheet, campaign mechanics, or authored lore. Version 0.9.2 added semantic rendering for Mara's authored C-NINE dossier, a request/token ledger, and a one-time Mara-only writer pilot capped at 13 provider calls. That pilot completed with 13 successful requests (12 memories and one reflection), 18,090 input tokens, 5,171 output tokens, and no failed or cached drafts. Her authored biography was not rewritten. Version 0.9.3 preserves the collapsed request ledger, displays in-progress calls from live run counters, and reloads the persisted pilot result on Mara's page. Automatic writer calls during routine refresh remain disabled; set `NCCE_AUTO_WRITE_ENABLED=1` only after authorizing full-roster writing. The previous v0.5 review is preserved in `docs/archive/DESIGN_REVIEW_2026-10-25.md`.
 
@@ -316,9 +316,9 @@ Hosted access uses a shared passphrase and signed HttpOnly/SameSite session cook
 
 ## 14. Validation and deployment checkpoint
 
-The source implementation is 0.9.4. Core, writer, story-engine (15 checks), UI renderer, Python/JavaScript syntax, and whitespace validations passed on 0.9.3; 0.9.4 validation and hosted verification are pending. The authenticated disposable HTTP smoke could not bind/connect in the current sandbox (`WinError 10013`). Mara's one-time live writer pilot completed successfully with 13 calls; no other fighter was written.
+The source and hosted implementation is 0.9.4. All seven Python suites, Python compilation, Node writing/timeline contracts, JavaScript syntax, and `git diff --check` pass. The authenticated disposable HTTP smoke could not bind/connect in the current sandbox (`WinError 10013`). The hosted endpoint and Mara profile reload confirm the 13-call pilot ledger; no other fighter was written.
 
-Hosted release `0.9.3` (`4e3b428`) is live at https://ncce-private-preview.onrender.com/. The writer is configured. A run-summary route error is being fixed in source 0.9.4. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
+Hosted release `0.9.4` (`5927c38`) is live at https://ncce-private-preview.onrender.com/. The writer is configured. The screenshot's 96 API requests were shown with All API sources, projects and keys selected, so they cannot all be attributed to NCCE. Mara's one-time pilot used 13 calls. A prior deployment record documents a successful 80-draft NCCE batch, but schema 8 had no request-level IDs; exact historical request-to-output mapping is unavailable. Deployment details and the remaining backup limitation are in `CHANGELOG.md`.
 
 ## 15. Campaign history archive and timeline
 

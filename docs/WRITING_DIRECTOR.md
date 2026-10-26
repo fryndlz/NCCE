@@ -1,6 +1,6 @@
 # NCCE Writing Director
 
-Source implementation: 0.8.1, schema 7. Hosted release remains 0.6.1 until a separate deployment.
+Source and hosted implementation: 0.9.4, schema 9. This document describes the integrated Writing Director in the current NCCE release.
 
 The director coordinates factual inputs, character perspective, document form, dates, semantic layout and narrative continuity. The `llm_writer.py` module sends a form-specific structured packet to the OpenAI Responses API and returns prose paragraphs. App logic continues to own facts, evidence, dates, source attribution, memory selection and persistence. The API key is read only from server environment `NCCE_OPENAI_API_KEY`; the fixed destination is `api.openai.com`. The default model is `gpt-6.1-sol`, configurable with `NCCE_WRITER_MODEL`.
 
