@@ -2,11 +2,11 @@
 
 **Current source implementation:** NCCE 0.9.5 — inferred fighter context and event-isolated writing, SQLite schema 9
 
-**Hosted implementation:** 0.9.4 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
+**Hosted implementation:** 0.9.5 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`.
 
-**Checkpoint:** 2026-10-26 02:05 CET (Europe/Warsaw)
+**Checkpoint:** 2026-10-26 02:07 CET (Europe/Warsaw)
 
-**Hosted implementation:** 0.9.4 / schema 9 remains live on Render. Deploy `dep-dbfa08vavr4c73dbu5ug` completed at 2026-10-26 01:35:22 CET for commit `5927c38`. Source 0.9.5 is not deployed until local validation is complete.
+**Hosted implementation:** 0.9.5 / schema 9 is live on Render. Deploy `dep-dbfaf5o473hc73ceckg0` completed at 2026-10-26 02:07:09 CET for commit `a392079`. Mara's profile was inspected after a hard reload; it shows inferred identity facets and stimulus-attention weights. Existing narrative is labelled stale pending review. No model calls were made for this release.
 
 **Rollout:** see `CHANGELOG.md` for the application commit, final hosted version, and release verification timestamps.
 
@@ -48,7 +48,7 @@ This feature does not alter the Sheet, Apps Script, current roster, authored lor
 | Generated histories and reports | Regenerated fighter/gang/place/region histories, battle reports, downtime, and repeated-opponent relationship chronicle. Authored biographies and C-NINE canon preserved. |
 | Battle correctness | Stable source IDs/fallback identities, row reorder safety, duplicate handling, current report facts, corrections/removals, and bounded inferred association of recent roster deltas. |
 | Presentation and filtering | Structured prose plus visually separate evidence, safe limited emphasis, source links, current Mind traceability, search/filter controls, and responsive CSS. Desktop inspected; mobile visual verification not completed. |
-| Validation | 0.9.2 hosted Mara run: 13/13 provider calls succeeded; live app output inspected. 0.9.3 UI/persistence fix passes local Python and Node checks; deployment check remains. HTTP smoke cannot open loopback sockets in this sandbox. |
+| Validation | Seven Python suites, Python compilation, Node writer/timeline checks, JS syntax, and `git diff --check` pass for 0.9.5. Hosted release was hard-reloaded and Mara's inferred identity/stim weights were verified. Loopback HTTP smoke cannot open sockets in this sandbox. No new provider calls were made. |
 
 ## Historical limits
 
