@@ -102,7 +102,7 @@ def test_durable_ledger_and_snapshot_deduplication():
                 raise AssertionError('Snapshot update should be rejected')
             except sqlite3.IntegrityError:
                 pass
-            assert s.db.execute('PRAGMA user_version').fetchone()[0]==11
+            assert s.db.execute('PRAGMA user_version').fetchone()[0]==12
         finally:
             s.close()
 
@@ -122,7 +122,7 @@ def test_legacy_database_provenance_migration():
         db.commit(); db.close()
         s=Store(path)
         try:
-            assert s.schema_version==11
+            assert s.schema_version==12
             assert {'request_id','response_id','subject_name','input_tokens','output_tokens'} <= {row['name'] for row in s.db.execute('PRAGMA table_info(writer_requests)')}
             assert s.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==2
             assert s.db.execute("SELECT provenance_class FROM memories").fetchone()[0]=='mechanical_fact'

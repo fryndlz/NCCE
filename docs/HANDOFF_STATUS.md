@@ -1,5 +1,7 @@
 # Handoff status
 
+**0.12.0 source update - 2026-10-27 01:01 CET:** verified 2023 Core Rulebook context for 26 standard Dominion territory types; shared free planning across all forms; persistent inspected/pinned Workshop plans; compact repetition hints separate from same-subject continuity. Schema 12 adds private plan/footprint tables only. Owner policies/edits and campaign data are preserved. Routine writing stays paused; Luna/medium unchanged. No paid calls or campaign prose replacements during implementation. Tests and disposable authenticated live-Sheet smoke pass. See [WRITER_CREATIVE_PLANNING.md](WRITER_CREATIVE_PLANNING.md). Hosted rollout verification is recorded in CHANGELOG.md.
+
 **Response limit fix — 2026-10-27:** Palanite Precinct Workshop trial hit the old 1,800 total response-token cap and returned truncated JSON (`incomplete: max_output_tokens`). Default/configured allowance is now 4,000 tokens including reasoning and prose for every form; the old personal 650-token sub-limit is removed. Luna/medium and one call per trial remain unchanged. Do not automatically retry the failed trial or overwrite owner edits.
 
 **Writer configuration — 2026-10-26:** owner explicitly requested `gpt-6-luna` / `medium` instead of Sol / low. Source defaults and Render configuration match that selection. Do not run a comparison or regenerate prose as part of changing this setting. Historical model/effort references below describe their original runs.
@@ -12,7 +14,7 @@ The owner has now reviewed all three comparison pairs: territory neither (lean A
 
 **0.10.0 checkpoint — 2026-10-26 20:55 CET:** shared runtime writing contract across all fourteen forms, positive examples, explicit creative permission, historical context, structured composition, retained responses and usage, and separate four-entry editorial preview. See `WRITER_PIPELINE_0_10.md`. Existing and new offline tests and authenticated live-Sheet HTTP smoke pass. Routine writing remains disabled. Source `e5b26ec` is live; four Bone Shrine previews completed with 8,809 input / 1,249 output tokens, 1,613 cached input tokens, no failures or retries. View System → Writing preview. The entries are not published campaign history. Literary approval remains pending; do not infer bulk-generation approval from this test. Full deployment, request and editorial evidence is in `../CHANGELOG.md`.
 
-**Current source implementation:** NCCE 0.11.0 — direct Writer Workshop and shared narrative pipeline, SQLite schema 11
+**Current source implementation:** NCCE 0.12.0 — referenced context and shared creative planning, SQLite schema 12
 
 **Hosted implementation:** 0.11.0 / schema 11 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. Latest pre-release backup: `/var/data/pre-workshop-0.11.0.db` (39,137,280 bytes). Earlier pre-0.10.0 backup remains.
 

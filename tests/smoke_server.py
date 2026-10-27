@@ -41,7 +41,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.11.0'}
+                    assert read('/healthz') == {'ok':True,'version':'0.12.0'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
@@ -64,7 +64,7 @@ def main():
                 if time.monotonic()>deadline:
                     raise AssertionError('Sheet sync did not finish')
                 time.sleep(0.25)
-            assert health['schema_version'] == 11 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
+            assert health['schema_version'] == 12 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
             dashboard = read('/api/dashboard')
             assert dashboard['writing_policy']['date']['year'] == 998
             assert dashboard['battles'] and dashboard['battles'][0]['report_document']
@@ -91,6 +91,10 @@ def main():
             assert read('/api/workshop/policy?scope=fighter_memory')['active']['revision_id']==saved['revision_id']
             read('/api/workshop/activate',{'scope':'fighter_memory','revision_id':None,'expected_active':saved['revision_id']})
             imported=read('/api/workshop/import',{'sample_key':source['key']})
+            inspected=read('/api/workshop/preview',{'sample_key':source['key']})
+            assert inspected['packet']['creative_plan']['focus']=='recorded_event'
+            reinspected=read('/api/workshop/preview',{'sample_key':source['key'],'plan_key':inspected['plan_key']})
+            assert reinspected['packet']==inspected['packet']
             edited=read('/api/workshop/edit',{'trial_id':imported['trial_id'],'body':'I left the spanner beside the lamp.','composition':{}})
             assert edited['edits'][0]['document']['workshop_provenance']=='owner_edited_style_sample'
             assert edited['usage']['requests_attempted']==0

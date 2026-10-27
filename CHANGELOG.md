@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.0 - rulebook context and creative planning (2026-10-27)
+
+- **01:01 CET:** implemented shared planning across all fourteen writer forms, with compatible least-used focus selection for baselines/ambient accounts and fixed event/sequence anchoring elsewhere. Workshop exposes free focus pinning, variation and exact saved-plan inspection; one Generate request reuses the inspected packet.
+- Added 26 concise Dominion territory reference cards, checked against text and rendered pages of the supplied 2023 Core Rulebook, printed pp. 173-181. Explicit historical type context has priority; unknown/custom/conflicting types remain unverified. Book benefits and House associations never become recorded campaign outcomes/ownership.
+- Added compact recent-name/device/ending warnings based on bounded private footprints and saved Workshop samples/edits. Other subjects' prose is not a positive example or accepted continuity. Lexical signals are approximate; no semantic critic or extra model call was introduced.
+- Schema 12 adds private frozen plans/footprints and preserves schema-11 owner instructions/edits. Existing source packets, authored canon and published prose are not regenerated. Model/effort remains Luna/medium; 4,000 response-token allowance and paused routine writing remain unchanged.
+- Passed offline reference/planning, migration/transaction, core/story, writer/pipeline, Workshop/comparison and UI regressions; authenticated HTTP tests and a disposable live-Sheet app smoke also passed. No paid provider calls during implementation. Updated current design, architecture, source registry and Workshop documentation.
+- Pre-deploy consistent SQLite backup `/var/data/pre-creative-plans-0.12.0.db`: 43,655,168 bytes, schema 11; 123 prior writer requests, 14 saved instruction revisions, 2 saved prose edits. Hosted rollout verification follows below.
+
 ## Response allowance fix — 2026-10-27
 
 - Diagnosed saved Palanite Precinct trial `workshop-3e0ab03ae4784d78b3c83cf644c91fd4`: 2,095 input / 1,800 output tokens; provider returned `incomplete: max_output_tokens` with truncated structured prose. This was NCCE's per-response ceiling, not an account quota or the one-call trial limit.

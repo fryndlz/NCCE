@@ -56,14 +56,15 @@ window.NCCEWorkshop = (() => {
       <div class="workshop-source"><label>Find an entry<input type="search" data-ws-search value="${esc(S.search || '')}" placeholder="Fighter, gang, place, writing form…"></label><label>Sample<select data-ws-sample>${list.map(item=>`<option value="${esc(item.key)}"${item.key===S.sample?.key?' selected':''}>${esc(item.label)} · ${esc(item.form.replaceAll('_',' '))}</option>`).join('')}</select></label><button data-ws="sources">Refresh source list · free</button></div>
       ${S.sample?`<p><strong>${esc(S.sample.label)}</strong> · ${esc(S.sample.form.replaceAll('_',' '))}</p><details><summary>Read-only evidence and context for the next request</summary><pre>${esc(JSON.stringify(S.sample.packet,null,2))}</pre></details>
       <fieldset class="workshop-policies"${S.busy || running()?' disabled':''}>${policyEditor('shared','Shared writing craft · all forms')}${policyEditor('specific','This writing form')}</fieldset>
-      <div class="workshop-actions"><button data-ws="inspect">Inspect exact next instructions · free</button><button data-ws="import">Import selected sample for editing · free</button><button data-ws="generate"${!h.configured || S.busy || running()?' disabled':''}>${S.busy || running()?'Generation in progress…':'Generate one draft · 1 API call'}</button></div>
-      ${S.inspection?`<details open><summary>Next request · saved draft instructions</summary><p>Approximately ${Math.ceil((S.inspection.instructions.length+JSON.stringify(S.inspection.packet).length)/4)} input tokens before API overhead; estimate only.</p><pre>${esc(S.inspection.instructions)}</pre></details>`:''}`:'<p>No generated entries are available to test.</p>'}
+      <fieldset${S.busy || running()?' disabled':''}><legend>Creative plan · free</legend><label>Focus for this entry<select data-ws-focus><option value="auto">${(h.focus_options?.[S.sample.form] || []).length>1?'Choose a less-used compatible focus':'Keep the recorded event or sequence central'}</option>${(h.focus_options?.[S.sample.form] || []).map(o=>`<option value="${esc(o.value)}"${o.value===S.focus?' selected':''}>${esc(o.label)} · pin for this entry</option>`).join('')}</select></label><p class="muted">A focus is inspiration. Recorded events stay central. It changes no facts or saved writing instructions.</p>${(h.focus_options?.[S.sample.form] || []).length>1?'<button data-ws="variation">Try another plan · free</button>':''}</fieldset>
+      <div class="workshop-actions"><button data-ws="inspect">Inspect exact next instructions and plan · free</button><button data-ws="import">Import selected sample for editing · free</button><button data-ws="generate"${!h.configured || S.busy || running()?' disabled':''}>${S.busy || running()?'Generation in progress…':'Generate one draft · 1 API call'}</button></div>
+      ${S.inspection?`<details open><summary>Next request · saved draft instructions</summary><p>Approximately ${Math.ceil((S.inspection.instructions.length+JSON.stringify(S.inspection.packet).length)/4)} input tokens before API overhead; estimate only.</p><p><strong>${esc(S.inspection.packet.creative_plan?.focus_label || 'Recorded event')}</strong> · this plan is saved for the next request.</p>${S.inspection.packet.rulebook_context?`<p>Rulebook: ${esc(S.inspection.packet.rulebook_context.source?.title || 'Unverified type')} ${esc(S.inspection.packet.rulebook_context.source?.printed_page ? '· p. '+S.inspection.packet.rulebook_context.source.printed_page : '')}</p>`:''}<pre>${esc(S.inspection.instructions)}</pre><details><summary>Exact context, reference and recent-pattern hints</summary><pre>${esc(JSON.stringify(S.inspection.packet,null,2))}</pre></details></details>`:''}`:'<p>No generated entries are available to test.</p>'}
       <section class="workshop-history"><h3>Workshop samples</h3><label>Open a previous trial or imported sample<select data-ws-trial><option value="">Choose saved sample…</option>${h.trials.map(t=>`<option value="${esc(t.trial_id)}"${t.trial_id===S.trial?.trial_id?' selected':''}>${esc(t.label)} · ${esc(t.status)} · ${esc(t.created_at)}</option>`).join('')}</select></label></section>${trialPanel()}</section>`;
   }
   async function selectSample(key) {
     S.sample=await request('/api/workshop/sample?key='+encodeURIComponent(key));
     const meta=await request('/api/workshop/policy?scope='+encodeURIComponent(S.sample.form));
-    S.specificMeta=meta; S.specific=clone(meta.draft); S.inspection=null;
+    S.specificMeta=meta; S.specific=clone(meta.draft); S.inspection=null; S.planKey=null; S.focus='auto'; S.variation=0;
     paint();
   }
   async function savePolicy(which) {
@@ -75,7 +76,7 @@ window.NCCEWorkshop = (() => {
     return S[which].revision_id;
   }
   async function prepared() {
-    return {sample_key:S.sample.key,packet_hash:S.sample.packet_hash,shared_revision_id:await savePolicy('shared'),form_revision_id:await savePolicy('specific')};
+    return {sample_key:S.sample.key,packet_hash:S.sample.packet_hash,shared_revision_id:await savePolicy('shared'),form_revision_id:await savePolicy('specific'),focus:S.focus || 'auto',variation:S.variation || 0,plan_key:S.planKey || null};
   }
   async function pollTrial() {
     try {
@@ -99,7 +100,8 @@ window.NCCEWorkshop = (() => {
         S[which+'Meta']=await post('activate',{scope:S[which].scope,revision_id:null,expected_active:S[which+'Meta'].active?.revision_id || null});
         S.message='Built-in instructions restored for future writing. Your saved revisions remain available.'; break;
       }
-      case 'inspect': S.inspection=await post('preview',await prepared()); S.message='Exact next instructions shown below. No provider request.'; break;
+      case 'variation': S.variation=(S.variation || 0)+1; S.planKey=null; // fall through: free inspection
+      case 'inspect': S.inspection=await post('preview',await prepared()); S.planKey=S.inspection.plan_key; S.message='Exact instructions, reference and saved creative plan shown below. No provider request.'; break;
       case 'import': setEditor(await post('import',{sample_key:S.sample.key})); S.home=await request('/api/workshop'); S.message='Existing sample imported. Edit it below; no provider request.'; break;
       case 'generate': {
         if (S.busy || running()) return;
@@ -162,6 +164,7 @@ window.NCCEWorkshop = (() => {
     root.addEventListener('change',event=>{
       const t=event.target;
       let task;
+      if(t.hasAttribute('data-ws-focus')) {S.focus=t.value;S.planKey=null;S.inspection=null;paint();}
       if(t.hasAttribute('data-ws-sample') && t.value) task=selectSample(t.value);
       if(t.dataset.wsHistory && t.value) {const which=t.dataset.wsHistory;S[which]=clone(S[which+'Meta'].history.find(r=>r.revision_id===t.value));paint();}
       if(t.hasAttribute('data-ws-trial') && t.value) task=request('/api/workshop/trial?trial_id='+encodeURIComponent(t.value)).then(item=>{setEditor(item);paint();if(running())pollTrial();});

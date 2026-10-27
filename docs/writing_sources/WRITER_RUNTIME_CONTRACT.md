@@ -24,6 +24,12 @@ Avoid generic transformation claims, lists of traits, empty uncertainty, stock g
 
 ## Context and presentation
 
+Rulebook context describes a territory TYPE, not this holding's recorded history. Keep its primary function intact. A listed benefit or House association does not prove a benefit was used, a captive was assigned, or that House owns the place. Unverified types remain unknown; do not substitute remembered rules. Campaign facts and authored local context remain separate.
+
+The creative plan is an editorial lens, not an event or a mandatory plot. Use it only where compatible with the subject, its narrator, established identity and the recorded event. An event's real change remains central; a history preserves its chronology. For a baseline or ambient incident, develop one particular situation from that lens. Do not default to efficient local accounting, customary claims and an official refusal to recognise them. Administration is a narrator's perspective, not a requirement to make every subject about administration.
+
+Recent patterns are compact avoidance signals from OTHER subjects, including experimental drafts. They establish no world facts. Do not reuse their names, central devices or ending logic merely with different nouns. They are not positive style examples. Same-subject continuity is supplied separately: preserve its established identity instead of discarding it for novelty. No novelty instruction permits a contradiction or an invented tabletop outcome.
+
 The packet separates hard facts, authored context and generated continuity. Previously generated material can preserve fictional details, but cannot establish mechanics or override canon. Only use history available at the event's time. No future knowledge. The examples demonstrate craft and form; their names, institutions, incidents and objects are NOT facts about the requested subject. Do not transplant them.
 
 Return the requested structured output. For documents, compose an appropriate heading, subject, optional body heading and optional closing remark. Empty optional strings are preferable to repetitive boilerplate. Do not write reference numbers or dates: the app supplies them. No Gregorian dates inside prose. No HTML, CSS or formatting instructions. Semantic marks apply only to the smallest explicit supported adverse status, missing value or machine error; leave ordinary prose unmarked. Do not mark whole paragraphs or use red for dramatic emphasis. Redacted content must remain concealed.

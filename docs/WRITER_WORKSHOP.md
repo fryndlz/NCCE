@@ -35,6 +35,8 @@ The workshop shows those judgements and resolves A/B identities from the saved s
 
 ## Modules and storage
 
+Version 0.12.0 adds **Creative plan** controls and expands free inspection to the exact context/reference/repetition packet. Leave the focus automatic, pin an available lens, or try a free variation for baseline/ambient writing. Recorded events/histories retain their event/sequence. Generate reuses the inspected saved plan. Schema 12 adds private plan/footprint tables; all schema-11 revisions and edits remain intact. See [WRITER_CREATIVE_PLANNING.md](WRITER_CREATIVE_PLANNING.md) for source pages, selection rules, memory-window limits and known limitations.
+
 | Component | Responsibility |
 | --- | --- |
 | `writer_workshop.py` | Policy defaults/composition, saved revisions, explicit activation, source catalogue/packets, trial preparation, one-call execution, retained edits, comparison feedback |

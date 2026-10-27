@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -768,6 +768,25 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(11,?,?)",
                        ('versioned private writer workshop',_now()))
             db.execute('PRAGMA user_version=11')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if current < 12:
+        try:
+            db.executescript('''
+                CREATE TABLE IF NOT EXISTS writer_creative_plans(
+                    plan_key TEXT PRIMARY KEY, form TEXT NOT NULL, source_hash TEXT NOT NULL,
+                    packet_json TEXT NOT NULL, created_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS writer_creative_footprints(
+                    fingerprint TEXT PRIMARY KEY, form TEXT NOT NULL, subject_key TEXT NOT NULL,
+                    footprint_json TEXT NOT NULL, created_at TEXT NOT NULL);
+                CREATE TRIGGER IF NOT EXISTS writer_creative_plans_no_update BEFORE UPDATE ON writer_creative_plans
+                    BEGIN SELECT RAISE(ABORT,'Creative plans are immutable'); END;
+            ''')
+            db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(12,?,?)",
+                       ('persistent creative plans and private repetition memory',_now()))
+            db.execute('PRAGMA user_version=12')
             db.commit()
         except Exception:
             db.rollback()

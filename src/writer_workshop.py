@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import writer_contract as contract
 import writing_director as director
 import narrative_context as context
+import writer_planning as planning
 
 REVIEW=[
     {'case':0,'verdict':'neither','lean':'A','note':'Territory: almost A, but neither reaches the required quality.'},
@@ -194,6 +195,7 @@ def home(store):
     import llm_writer as writer
     return {'forms':list(contract.BRIEFS),'samples':catalog(store),'review':comparison_review(store),
             'model':writer.MODEL,'effort':writer.DEFAULT_REASONING_EFFORT,'configured':bool(writer.API_KEY),
+            'focus_options':{form:[{'value':key,'label':planning.FOCUSES.get(key,('Recorded events',))[0]} for key in planning.options(form)] for form in contract.BRIEFS},
             'trials':[dict(r) for r in store.db.execute('SELECT trial_id,label,form,status,created_at FROM workshop_trials ORDER BY created_at DESC LIMIT 40')]}
 
 def preview(store,body):
@@ -202,7 +204,10 @@ def preview(store,body):
     specific=revision(store,body['form_revision_id'],selected['form']) if body.get('form_revision_id') else defaults(selected['form'])
     packet_hash=hashlib.sha256(packed(selected['packet']).encode()).hexdigest()
     if body.get('packet_hash') and body['packet_hash']!=packet_hash:raise ValueError('This entry context changed. Select it again to inspect the updated facts before generating.')
+    selected['packet']=planning.prepare(store,selected['form'],selected['packet'],selected['key'],
+        focus=body.get('focus','auto'),variant=body.get('variation',0),plan_key=body.get('plan_key'))
     return {**selected,'packet_hash':packet_hash,'instructions':compose(selected['form'],shared,specific),
+            'plan_key':selected['packet']['creative_plan']['plan_key'],
             'shared_revision_id':shared['revision_id'],'form_revision_id':specific['revision_id']}
 
 def queue(store,body):
@@ -210,9 +215,9 @@ def queue(store,body):
     if not isinstance(request_key,str) or not 16<=len(request_key)<=100:raise ValueError('A valid request key is required')
     prepared=preview(store,body)
     with store._lock,store.db:
-        old=store.db.execute('SELECT trial_id,sample_key,instructions FROM workshop_trials WHERE request_key=?',(request_key,)).fetchone()
+        old=store.db.execute('SELECT trial_id,sample_key,instructions,packet_json FROM workshop_trials WHERE request_key=?',(request_key,)).fetchone()
         if old:
-            if old['sample_key']!=prepared['key'] or old['instructions']!=prepared['instructions']:raise ValueError('Request key already belongs to another draft')
+            if old['sample_key']!=prepared['key'] or old['instructions']!=prepared['instructions'] or old['packet_json']!=packed(prepared['packet']):raise ValueError('Request key already belongs to another draft')
             return trial(store,old['trial_id']),False
         if store.db.execute("SELECT 1 FROM workshop_trials WHERE status IN ('queued','running')").fetchone():raise ValueError('A workshop generation is already running')
         import llm_writer as writer

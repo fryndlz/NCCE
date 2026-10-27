@@ -222,6 +222,11 @@ def write(store,form,packet,trace=None,contract_override=None):
    trace={**(trace or {}),'contract_revision':'workshop:'+hashlib.sha256(contract_override.encode()).hexdigest()[:16]}
  _run_stats['drafts_requested']=_run_stats.get('drafts_requested',0)+1
  if _failure: return [],{'status':'error','message':_failure}
+ # All forms share the free planner. Workshop freezes the exact plan before
+ # queueing; production freezes it on the first enabled attempt.
+ if not packet.get('creative_plan'):
+  import writer_planning
+  packet=writer_planning.prepare(store,form,packet,persist=bool(WRITER_ENABLED and API_KEY))
  try: signature=hashlib.sha256(_json({'form':form,'packet':packet,'model':MODEL,'reasoning_effort':DEFAULT_REASONING_EFFORT,
                                        'formatting_revision':FORMATTING_REVISION,'contract_fingerprint':_contract_fingerprint(form,contract_override)}).encode()).hexdigest()
  except (ValueError,OSError) as exc: return [],{'status':'error','message':str(exc)}
@@ -263,6 +268,8 @@ def write(store,form,packet,trace=None,contract_override=None):
  store.db.execute('INSERT OR IGNORE INTO writer_result_cache(prompt_hash,result_json,model,created_at) VALUES(?,?,?,?)',(signature,json.dumps({'paragraphs':paragraphs,'composition':composition},ensure_ascii=False),MODEL,datetime.now(timezone.utc).isoformat()))
  _run_stats['requests_succeeded']+=1
  _record_request(store,form,trace,'succeeded',started,signature=signature,draft=draft)
+ import writer_planning
+ writer_planning.remember(store,signature,form,packet,paragraphs,composition)
  return paragraphs,{'status':'ready','cached':False,'composition':composition,'revision':FORMATTING_REVISION,'contract_hash':_contract_fingerprint(form,contract_override)}
 
 def memory_packet(store,fighter,gang,title,evidence,identity,prior=(),form='fighter_memory',event=None):

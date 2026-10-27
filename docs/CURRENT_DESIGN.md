@@ -1,7 +1,9 @@
-# NCCE 0.11.0 — current technical design
+# NCCE 0.12.0 — current technical design
 
-**Source release:** 0.11.0, shared narrative writing pipeline and direct Writer Workshop. **Schema:** 11.
-**Checkpoint:** 2026-10-26 21:58:56 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
+**Source release:** 0.12.0, rulebook context and shared creative planning. **Schema:** 12.
+**Checkpoint:** 2026-10-27 01:01 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
+
+[Writer creative planning](WRITER_CREATIVE_PLANNING.md) specifies the new shared modules and exact rules: 26 verified 2023 Core Rulebook territory cards, least-used compatible focus selection for baselines/ambient writing, event/sequence anchoring for other forms, frozen inspectable plans and compact heuristic recent-pattern memory. Plans/footprints are private derived data; they cannot establish facts or replace same-subject continuity. Workshop focus selection is free and pinnable. Saved instructions/edits remain intact; one provider call per draft, no automatic regeneration. Luna/medium and a 4,000-token total response allowance remain configured.
 
 ## 0. Current writing implementation
 

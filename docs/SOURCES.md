@@ -11,6 +11,8 @@ Necromunda rules authority:
 https://www.necroraw.com.ru/
 
 ## Local frozen sources
+
+Territory writer reference: supplied **Necromunda: Core Rulebook (2023)**, Dominion Campaign Territories, printed pp. 173-181 (PDF pp. 174-182). Verified concise paraphrases/page provenance are in `src/territory_reference.py`; source hash, coverage and limits are in [WRITER_CREATIVE_PLANNING.md](WRITER_CREATIVE_PLANNING.md). Type definitions do not establish campaign occurrences. No PDF is committed or sent wholesale; unknown/custom types remain unverified. Supplemental editions/faction rules are not silently merged.
 `data/lore/C-NINE Story - canonical export.txt` is a frozen export for development/offline context. The live Google Doc remains authoritative if it changes.
 
 ## Research basis
