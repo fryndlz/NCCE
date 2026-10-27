@@ -7,6 +7,7 @@
 - Separated mission designation from clickable participant gang names; moved Cycle above Time Window; removed the timezone caption and framed real-date panel; renamed the activity heading to `+++ RECORDED EVENTS // CHRONOLOGICAL INDEX +++`.
 - Independently audited all 26 hosted battles: 23 timed engagements total 346,949 seconds (96h 22m), with zero per-battle mismatches against session-union durations. Three incomplete/untimed records are excluded. The source includes windows of approximately 24h 36m and 18h 16m; retained without trimming or editing campaign data.
 - Updated design and regressions; source schema remains 12 and writer settings/policies are untouched. See `docs/TIMELINE_0_12_2.md`.
+- **20:40:36 CET:** final source `cc3cc81` is live via `dep-dbgfru61egvs73a65mi0` (implementation `9be927e`, label polish `4f1d558`). Authenticated health confirmed 0.12.2, successful sync and zero writer calls. Hosted checks verified scrollable gang lanes, Ctrl-pointer capture/release without stuck drag state, engagement counts/time, both participant links, mission separation, Cycle-first metadata, unframed normal-colour real dates and the recorded-events heading. Combined drag movement/click suppression is covered by the deterministic regression. Screenshot: local `output/timeline-0.12.2.png`. No campaign records or Workshop instructions/edits were changed.
 
 ## 0.12.1 - legible campaign timeline (2026-10-27)
 

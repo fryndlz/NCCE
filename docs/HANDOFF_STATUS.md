@@ -2,6 +2,8 @@
 
 **0.12.2 source update - 2026-10-27 20:31 CET:** Ctrl-drag timeline pan/vertical navigation; engagement counts and time; mission/participant separation and links; Cycle-first metadata; unframed real dates and cogitator event heading. Source timing audit found zero mismatches: 23 timed engagements / 346,949 seconds / 96h 22m, including two long source windows. No campaign-data, writer-policy or schema change. See [TIMELINE_0_12_2.md](TIMELINE_0_12_2.md).
 
+**0.12.2 verified - 2026-10-27 20:40:36 CET:** source `cc3cc81`, deploy `dep-dbgfru61egvs73a65mi0`, is live. Hosted checks confirmed layout, linked participants, Cycle-first order, plain timing text, event heading, lane counts/time and Ctrl-pointer capture/release; deterministic regressions cover two-axis movement and suppressed accidental clicks. Source duration sum is correct; the two unusually long recorded windows remain included unchanged. Zero writer calls for the release.
+
 **0.12.1 timeline source update - 2026-10-27 20:00 CET:** approved readability pass: Ctrl-wheel zoom, screen-distance clusters, separate coloured gang lanes, strict per-gang Battle/Downtime detail membership, nested collapsible activity, icons, Imperial/real date layers, playtime and linked Winner/Territory. Repetitive qualifiers and lower registry/source controls removed from the UI; source/provenance remains stored. Schema stays 12, writing remains paused. See [TIMELINE_0_12_1.md](TIMELINE_0_12_1.md). No paid calls or source edits; hosted release evidence is in CHANGELOG.md.
 
 **0.12.1 verified - 2026-10-27 20:08:02 CET:** source `3fb9c92`, deploy `dep-dbgfcp0473hc73dsnnq0`, is live. Browser checks verified gang colours, zoom/fit, numbered-cluster drilldown, grouped activity, links, Imperial/real dates and playtime. Ethmet's earlier death is excluded from the reported 31 August battle panel. Provider calls remain zero for this release. Schema 12 and the existing persistent disk remain; no writer policy, campaign data or schema migration changed.
@@ -22,7 +24,7 @@ The owner has now reviewed all three comparison pairs: territory neither (lean A
 
 **Current source implementation:** NCCE 0.12.2 — engagement navigation and record refinement; SQLite schema 12
 
-**Hosted implementation:** 0.12.1 / schema 12, source `3fb9c92`, live 2026-10-27 20:08:02 CET via `dep-dbgfcp0473hc73dsnnq0`. Render Starter, 1 GB disk `/var/data`, database `/var/data/ncce-preview.db`. Latest consistent schema backup: `/var/data/pre-creative-plans-0.12.0.db` (43,655,168 bytes); 0.12.1 introduces no schema migration. Automatic writing remains off. Historical 0.12.0 verification preserved 14 owner revisions, 2 edits, source records and biographies at 123 audited provider requests; later user-triggered Workshop calls are independent of these zero-call implementation passes. Owner editor tabs were not reloaded.
+**Hosted implementation:** 0.12.2 / schema 12, source `cc3cc81`, live 2026-10-27 20:40:36 CET via `dep-dbgfru61egvs73a65mi0`. Render Starter, 1 GB disk `/var/data`, database `/var/data/ncce-preview.db`. Latest consistent schema backup: `/var/data/pre-creative-plans-0.12.0.db` (43,655,168 bytes); 0.12.2 introduces no schema migration. Automatic writing remains off. Historical 0.12.0 verification preserved 14 owner revisions, 2 edits, source records and biographies at 123 audited provider requests; later user-triggered Workshop calls are independent of these zero-call implementation passes. Owner editor tabs were not reloaded.
 
 **Checkpoint:** 2026-10-26 12:54 CET (Europe/Warsaw)
 
