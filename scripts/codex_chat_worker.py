@@ -13,7 +13,7 @@ class ChatWorker:
         (self.client.folder / 'chat-lock').mkdir(exist_ok=True)
 
     def post(self, action, body=None):
-        return self.client.post(action, {'transport': 'codex_chat', 'poll_interval': 300, **(body or {})})
+        return self.client.post(action, {'transport': 'codex_chat', 'poll_interval': 0, **(body or {})})
 
     def save(self, value):
         tmp = self.active.with_suffix('.tmp')
@@ -27,13 +27,13 @@ class ChatWorker:
             self.save({**active, 'status': result['job_status']})
         return result
 
-    def claim(self, turn_id):
+    def claim(self, turn_id, job_id=None):
         if not turn_id.strip(): raise ValueError('Read the actual current Codex turn identity first')
         with single_instance(self.client.folder / 'chat-lock'):
             previous = json.loads(self.active.read_text(encoding='utf-8')) if self.active.exists() else {}
             if previous.get('status') in ('claimed', 'reviewing'):
                 raise RuntimeError('Unfinished native review: inspect the chat and job; no automatic replay')
-            reply = self.post('claim'); job = reply.get('job')
+            reply = self.post('claim', {'job_id': job_id} if job_id else None); job = reply.get('job')
             if not job: return {'job': None}
             value = {'job_id': job['job_id'], 'lease': reply['lease'], 'turn_id': turn_id, 'status': 'claimed'}
             self.save(value)  # Persist before acknowledging any model work.
@@ -61,12 +61,13 @@ def main():
     parser.add_argument('action', choices=['heartbeat', 'claim', 'complete', 'fail', 'self-test'])
     parser.add_argument('--config', default=str(DEFAULT_CONFIG))
     parser.add_argument('--turn-id', default='')
+    parser.add_argument('--job-id')
     parser.add_argument('--file')
     parser.add_argument('--message')
     parser.add_argument('--new-attempt', action='store_true')
     args = parser.parse_args(); worker = ChatWorker(args.config)
     (worker.client.folder / 'chat-lock').mkdir(exist_ok=True)
-    if args.action == 'claim': result = worker.claim(args.turn_id)
+    if args.action == 'claim': result = worker.claim(args.turn_id, args.job_id)
     elif args.action == 'complete': result = worker.finish(review=json.loads(Path(args.file).read_text(encoding='utf-8-sig')))
     elif args.action == 'fail': result = worker.finish(error=args.message or 'Human attention required')
     elif args.action == 'self-test': result = worker.post('self-test', {'new_attempt': args.new_attempt})

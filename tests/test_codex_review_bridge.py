@@ -180,6 +180,48 @@ def test_native_helper_never_starts_model_or_discloses_lease_and_no_replay():
         assert complete['turn_id']=='actual-native-turn' and complete['lease']=='private-lease'
 
 
+def test_event_wait_never_claims_and_exact_job_claim_ignores_cancelled():
+    def check(store):
+        assert cq.events(store,{**identity(),'wait_seconds':0})=={'job_id':None}
+        job=cq.self_test(store,{})['job_id']
+        assert cq.events(store,{**identity(),'wait_seconds':0})=={'job_id':job}
+        assert cq.get(store,job)['status']=='queued'
+        assert cq.claim(store,{**identity(),'job_id':'unknown'})['job'] is None
+        cq.cancel(store,job,'Owner cancelled before wake')
+        assert cq.claim(store,{**identity(),'job_id':job})['job'] is None
+    with_store(check)
+
+
+def test_event_listener_idle_is_free_and_restart_never_duplicates_model_wake():
+    sys.path.insert(0,str(ROOT/'scripts'))
+    from codex_event_listener import EventListener
+    from types import SimpleNamespace
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+        path=Path(folder)/'config.json'
+        path.write_text(json.dumps({'base_url':'http://localhost','worker_id':'event-test-worker','thread_id':cq.THREAD_ID,'token':TOKEN,'codex_executable':'codex'}))
+        listener=EventListener(path);listener.post=lambda *a,**k:{'job_id':None}
+        with patch('subprocess.run') as run:
+            for _ in range(5):assert listener.tick() is False
+            run.assert_not_called()
+        listener.post=lambda *a,**k:{'job_id':'review-event-test'}
+        with patch('subprocess.run',return_value=SimpleNamespace(returncode=0)) as run,patch('codex_event_listener.time.sleep'):
+            assert listener.tick() is True
+            assert listener.tick() is False
+            restarted=EventListener(path);restarted.post=listener.post;assert restarted.tick() is False
+            assert run.call_count==1
+            argv=run.call_args[0][0]
+            assert argv[1:4]==['queue','--thread',cq.THREAD_ID]
+            assert TOKEN not in ' '.join(argv) and '--job-id review-event-test' in argv[-1]
+        # Uncertain command output never causes a second automatic wake.
+        listener.post=lambda *a,**k:{'job_id':'review-uncertain'}
+        with patch('subprocess.run',side_effect=TimeoutError('uncertain')) as run:
+            for _ in range(2):
+                try:listener.tick()
+                except (RuntimeError,TimeoutError):pass
+                else:raise AssertionError('Uncertain wake replayed')
+            assert run.call_count==1
+
+
 if __name__=='__main__':
     for name,test in sorted(list(globals().items())):
         if name.startswith('test_') and callable(test):test();print('PASS',name)

@@ -37,9 +37,11 @@ def main():
                 assert call('/api/workshop/generate',{})[0]==403
                 assert call('/api/workshop/optimize',{})[0]==403
                 assert call('/api/reviewer-bridge/claim',{})[0]==401
+                assert call('/api/reviewer-bridge/events',{})[0]==401
                 bridge_body={'thread_id':bridge.thread_id(),'worker_id':'http-test-worker'}
                 bearer='Bearer '+bridge_token
                 assert call('/api/reviewer-bridge/claim',bridge_body,authorization=bearer)[0]==200
+                assert call('/api/reviewer-bridge/events',{**bridge_body,'wait_seconds':0},authorization=bearer)[1]=={'job_id':None}
                 assert call('/api/workshop/activate',{},authorization=bearer)[0]==403
                 assert server.store.db.execute('SELECT count(*) FROM workshop_trials').fetchone()[0]==0
                 server.AUTH_REQUIRED=True;server.SESSION_KEY=effective_session_key('disposable-password','disposable-test-secret')

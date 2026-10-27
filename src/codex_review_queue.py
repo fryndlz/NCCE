@@ -50,7 +50,7 @@ def heartbeat(store, body):
     interval = body.get('poll_interval', 0)
     if type(interval) is not int or not 0 <= interval <= 300: raise ValueError('Invalid polling interval')
     info = {'worker_id': worker, 'thread_id': thread_id(), 'last_seen': now(), 'seen_epoch': time.time(), 'state': state,
-            'poll_interval': interval, 'transport': 'codex_chat' if body.get('transport') == 'codex_chat' else 'stdio'}
+            'poll_interval': interval, 'transport': body.get('transport') if body.get('transport') in ('codex_chat','queue_listener') else 'stdio'}
     with store._lock, store.db:
         store.db.execute('INSERT INTO codex_review_bridge VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET info_json=excluded.info_json', (packed(info),))
     result = status(store)
@@ -69,6 +69,20 @@ def enqueue(store, state, pair, preceding, schema, rubric):
     return job_id
 
 
+def events(store, body):
+    """Long-poll for work identifiers only. Never claims a job or starts a model."""
+    heartbeat(store, body)
+    wait = body.get('wait_seconds', 25)
+    if type(wait) is not int or not 0 <= wait <= 25: raise ValueError('Invalid event wait')
+    deadline = time.monotonic() + wait
+    while True:
+        with store._lock:
+            row = store.db.execute("SELECT job_id FROM codex_review_jobs WHERE status='queued' ORDER BY created_at LIMIT 1").fetchone()
+        if row: return {'job_id': row['job_id']}
+        if time.monotonic() >= deadline: return {'job_id': None}
+        time.sleep(min(.5, max(0, deadline-time.monotonic())))
+
+
 def connection_check_id():
     return 'connection-check-' + hashlib.sha256(thread_id().encode()).hexdigest()[:20]
 
@@ -83,7 +97,7 @@ def self_test(store, body):
     previous = latest_check(store)
     job_id = previous['job_id'] if previous else connection_check_id()
     if body.get('new_attempt'):
-        if previous and previous['status'] not in ('failed', 'cancelled'): raise ValueError('Existing connection check must finish; no replay')
+        if previous and previous['status'] not in ('failed', 'cancelled', 'completed'): raise ValueError('Existing connection check must finish; no replay')
         job_id = connection_check_id() + '-' + uuid.uuid4().hex[:12]
     payload = {'job_id': job_id, 'run_id': 'connection-check', 'thread_id': thread_id(),
         'form': 'fighter_memory', 'diagnostic': True,
@@ -102,12 +116,15 @@ def self_test(store, body):
 
 
 def claim(store, body):
-    heartbeat(store, body)
+    heartbeat(store, {k:v for k,v in body.items() if k not in ('job_id','lease')})
     with store._lock, store.db:
         store.db.execute('BEGIN IMMEDIATE')
         # Never silently re-lease an uncertain dispatch after a crash.
         if store.db.execute("SELECT 1 FROM codex_review_jobs WHERE status IN ('claimed','reviewing')").fetchone(): return {'job': None}
-        row = store.db.execute("SELECT * FROM codex_review_jobs WHERE status='queued' ORDER BY created_at LIMIT 1").fetchone()
+        if body.get('job_id'):
+            row = store.db.execute("SELECT * FROM codex_review_jobs WHERE status='queued' AND job_id=?", (body['job_id'],)).fetchone()
+        else:
+            row = store.db.execute("SELECT * FROM codex_review_jobs WHERE status='queued' ORDER BY created_at LIMIT 1").fetchone()
         if not row: return {'job': None}
         lease = secrets.token_urlsafe(32)
         store.db.execute("UPDATE codex_review_jobs SET status='claimed',worker_id=?,lease_hash=?,claimed_at=? WHERE job_id=?", (body['worker_id'], hashlib.sha256(lease.encode()).hexdigest(), now(), row['job_id']))

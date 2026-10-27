@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.14.0'
+APP_VERSION='0.14.1'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -291,9 +291,11 @@ class H(BaseHTTPRequestHandler):
     body=json.loads(self.rfile.read(length).decode('utf-8'))
     if not isinstance(body,dict):raise ValueError('Expected an object')
     action=p.rsplit('/',1)[-1]
-    functions={'heartbeat':bridge.heartbeat,'claim':bridge.claim,'started':bridge.started,'complete':bridge.complete,'fail':bridge.fail,'self-test':bridge.self_test}
+    functions={'heartbeat':bridge.heartbeat,'claim':bridge.claim,'started':bridge.started,'complete':bridge.complete,'fail':bridge.fail,'self-test':bridge.self_test,'events':bridge.events}
     if action not in functions:return self.js({'error':'Unknown bridge operation'},404)
-    with store._lock:result=functions[action](store,body)
+    if action=='events':result=functions[action](store,body)
+    else:
+     with store._lock:result=functions[action](store,body)
     return self.js(result)
    except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
   if p=='/api/login':
