@@ -200,6 +200,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .flow-node rect { fill:#243028; stroke:#63715e; stroke-width:1.5; }.flow-node.is-visited rect { fill:#2b3d2c; stroke:#92ac7d; }.flow-node.is-current rect { fill:#4b4329; stroke:#f0ce7a; stroke-width:3; }.flow-node.needs-human rect { fill:#4b3227; stroke:#e6b272; }
 .flow-title { fill:#eeeee0; font-size:15px; font-weight:bold; }.flow-subtitle { fill:#c7cdbb; font-size:12px; }.flow-label { fill:#b5bfa9; font-size:11px; }
 .writing-flow p,.activity-source { color:#b7bdb0; font-size:.8rem; line-height:1.5; }
+.agent-banter { display:block; margin-bottom:.7rem; font-weight:bold; color:#f1dfb0; }.agent-facts { display:block; font-size:.8rem; }
+.agent-dialogue { border-left:2px solid #73856a; padding:.4rem 1rem; background:#1d2921; margin:1rem 0; }.agent-dialogue p { font-size:.85rem; line-height:1.5; }
+.codex-connection.is-online { color:#b7dda9; }.codex-connection.is-offline { color:#e6b272; }
+.expression-angry { filter:drop-shadow(0 0 3px #9c5d43); }.expression-sad { opacity:.62; }
 @keyframes agent-beacon { 50% { box-shadow:0 0 17px var(--agent-accent); } }
 @keyframes agent-speaking { 50% { transform:scaleY(1.8); } }
 @keyframes flow-move { to { stroke-dashoffset:-26; } }

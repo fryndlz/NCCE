@@ -155,7 +155,7 @@ def test_schema_11_upgrade_preserves_owner_workshop_revisions_and_edits():
             store.db.execute('DELETE FROM schema_migrations WHERE version>=12')
             store.db.execute('PRAGMA user_version=11')
         from migrations import migrate
-        assert migrate(store.db)==13
+        assert migrate(store.db)==14
         assert workshop.revision(store,policy['revision_id'])['instructions']=='Owner original.'
         assert workshop.trial(store,imported['trial_id'])['edits'][0]['document']['blocks'][0]['text']=='My edited memory.'
     with_store(check)

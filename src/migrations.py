@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -828,4 +828,20 @@ def migrate(db: sqlite3.Connection) -> int:
         except Exception:
             db.rollback()
             raise
+    if current < 14:
+        try:
+            db.executescript('''
+                CREATE TABLE IF NOT EXISTS codex_review_bridge(
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1), info_json TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS codex_review_jobs(
+                    job_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, status TEXT NOT NULL,
+                    payload_json TEXT NOT NULL, worker_id TEXT, lease_hash TEXT,
+                    created_at TEXT NOT NULL, claimed_at TEXT, finished_at TEXT,
+                    result_json TEXT NOT NULL DEFAULT '{}', error TEXT NOT NULL DEFAULT '');
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(14,?,?)',
+                       ('scoped persistent Codex reviewer bridge', _now()))
+            db.execute('PRAGMA user_version=14'); db.commit()
+        except Exception:
+            db.rollback(); raise
     return SCHEMA_VERSION

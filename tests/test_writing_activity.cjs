@@ -11,5 +11,11 @@ assert.ok(view.people.every(p=>!p.active));assert.equal(view.people[2].attention
 run.status='awaiting_approval';run.activity={phase:'approval',actor:'human',message:'Please approve'};assert.ok(activity.model(run).people.every(p=>!p.active));assert.match(activity.render(run),/You decide/);
 run.status='approved';run.activity={phase:'complete',actor:'human',message:'Approved'};assert.match(activity.render(run),/approved is active/);
 assert.ok(activity.model(null).people.every(p=>!p.active));assert.match(activity.render(null),/I’m ready/);
+run.status='running';run.activity={phase:'awaiting_reviewer',actor:'StoryTechMan',message:'Waiting for Codex'};
+assert.ok(activity.model(run).people.every(p=>!p.active));assert.match(activity.render(run),/Waiting for Codex/);
+run.activity={phase:'revise',actor:'JKSimmons',message:'Save candidate'};
+assert.equal(activity.model(run).people[0].expression,'sad');assert.equal(activity.model(run).people[1].expression,'angry');
+const neutral=activity.render(run,{personas:false});assert.ok(!neutral.includes('Enough fog'));assert.match(neutral,/Save candidate/);
+const original=JSON.stringify(run);activity.render(run);assert.equal(JSON.stringify(run),original,'Personas cannot mutate grades or run state');
 assert.match(fs.readFileSync('web/writing.css','utf8'),/prefers-reduced-motion/);
 console.log('PASS live agent heads and workflow: one working actor, escaped speech, review transition, human escalation, approval, idle and reduced motion');

@@ -49,12 +49,15 @@ window.NCCEWorkshop = (() => {
   }
   function optimizationPanel() {
     const config=S.optimizations?.configuration || {}, run=S.optimization;
+    const bridge=S.optimizations?.bridge, available=!bridge || bridge.online;
     return `<section class="workshop-optimization"><h3>Improve NCCE's writing setup</h3>
-      ${window.NCCEWritingActivity?.render(run) || ''}
+      <p class="codex-connection ${available?'is-online':'is-offline'}">${available?'● Codex reviewer connected':'○ Codex reviewer offline'} · JKSimmons — NCCE Writing Reviewer</p><p class="muted">${available?'Reviews go to your actual Codex chat, using its context and saved standards.':'Start START JKSIMMONS.vbs in your NCCE folder, then check the connection. Your computer must remain on for Codex reviews.'} No reviewer API fallback.</p>
+      <div class="workshop-actions"><button data-ws="opt-connection">Check Codex connection</button><button data-ws="opt-personas">${S.personas===false?'Enable':'Disable'} character banter</button></div>
+      ${window.NCCEWritingActivity?.render(run,{personas:S.personas!==false}) || ''}
       <p>JuniorWriter tries two drafts on each of two independent entries. JKSimmons reviews both pairs and revises the form guidance between rounds. Context or pipeline problems stop the run for you and StoryTechMan.</p>
       <p>Writer: ${esc(config.writer_model || S.home.model)} · Reviewer: ${esc(config.reviewer_model || S.home.model)}. Candidate instructions remain inactive until you approve the tested setup.</p>
-      <label>Maximum rounds<select data-ws-opt-rounds${optimizing()?' disabled':''}>${[1,2,3].map(n=>`<option value="${n}"${n===(S.optRounds || 1)?' selected':''}>${n} · up to ${n*4} writing + ${n*2} review requests</option>`).join('')}</select></label>
-      <div class="workshop-actions"><button data-ws="opt-start"${!S.sample || !S.home.configured || S.busy || running() || optimizing()?' disabled':''}>${S.optBody?'Check submitted run':'Improve this prose form'}</button>${optimizing()?'<button data-ws="opt-stop">Stop after current request</button>':''}</div>
+      <label>Maximum rounds<select data-ws-opt-rounds${optimizing()?' disabled':''}>${[1,2,3].map(n=>`<option value="${n}"${n===(S.optRounds || 1)?' selected':''}>${n} · up to ${n*4} writing calls + ${n*2} Codex reviews</option>`).join('')}</select></label>
+      <div class="workshop-actions"><button data-ws="opt-start"${!available || !S.sample || !S.home.configured || S.busy || running() || optimizing()?' disabled':''}>${S.optBody?'Check submitted run':'Improve this prose form'}</button>${optimizing()?'<button data-ws="opt-stop">Stop after current request</button>':''}</div>
       <label>Previous improvement runs<select data-ws-opt-history><option value="">Choose run…</option>${(S.optimizations?.runs || []).map(r=>`<option value="${esc(r.run_id)}">${esc(r.form.replaceAll('_',' '))} · ${esc(r.status)} · ${esc(r.created_at)}</option>`).join('')}</select></label>
       ${run?`<p role="status"><strong>${esc(run.status.replaceAll('_',' '))}</strong> · ${esc(run.form.replaceAll('_',' '))}<br>${esc(run.message)}</p><p>Reserved request slots: ${run.writer_reserved}/${run.writer_limit} writer, ${run.reviewer_reserved}/${run.reviewer_limit} reviewer.</p>
       <details><summary>Tested form instructions</summary><pre>${esc(run.specific.instructions)}</pre><p>Shared revision: ${esc(run.shared.label)}</p><pre>${esc(run.shared.instructions)}</pre></details>
@@ -113,10 +116,12 @@ window.NCCEWorkshop = (() => {
   async function action(button) {
     const which=button.dataset.which;
     switch(button.dataset.ws) {
+      case 'opt-connection': S.optimizations=await request('/api/workshop/optimizations');S.message=S.optimizations.bridge?.online?'Codex companion is connected.':'Codex companion is offline; no writer calls will start.';break;
+      case 'opt-personas': S.personas=S.personas===false;break;
       case 'opt-start': {
         if(S.busy || optimizing() || running()) return;
         const rounds=S.optRounds || 1;
-        if(!S.optBody && !window.confirm(`Improve this prose form with up to ${rounds*4} paid writing requests and ${rounds*2} paid reviewer requests? The run tests two independent entries, stops on technical issues and does not activate instructions automatically.`)) {paint();return;}
+        if(!S.optBody && !window.confirm(`Improve this prose form with up to ${rounds*4} paid JuniorWriter calls and ${rounds*2} reviews in your JKSimmons Codex chat? Codex usage limits apply. There are no external reviewer API calls. The run stops on technical issues and never activates instructions automatically.`)) {paint();return;}
         S.busy=true;paint();
         try {
           if(!S.optBody) S.optBody={...await prepared(),request_key:crypto.randomUUID(),max_rounds:rounds,allow_paid:true};

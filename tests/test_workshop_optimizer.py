@@ -11,9 +11,19 @@ sys.path[:0] = [str(ROOT / 'src'), str(ROOT / 'tests')]
 import llm_writer as writer
 import writer_workshop as ws
 import workshop_optimizer as opt
-from test_writer_pipeline import with_store, draft
+from test_writer_pipeline import with_store as base_with_store, draft
+import os
+import codex_review_queue as cq
 from test_writer_workshop import seed
 from test_story_engine import mechanical_records
+
+
+def with_store(check):
+    def wrapped(store):
+        with patch.dict(os.environ, {'NCCE_REVIEW_BRIDGE_TOKEN':'test-bridge-token-'*4}):
+            cq.heartbeat(store, {'thread_id':cq.thread_id(),'worker_id':'test-worker-0001'})
+            check(store)
+    base_with_store(wrapped)
 
 
 def body(store, rounds=2):
@@ -53,11 +63,11 @@ def test_live_activity_is_persisted_before_each_provider_role_runs():
                 return {'status':'ready','document':{},'usage':{},'error':''}
             def reviewer(store, state, pair, preceding):
                 live = opt.get(store, state['run_id'])['activity']
-                assert live['actor'] == 'JKSimmons' and live['phase'] == 'review'
+                assert live['actor'] == 'StoryTechMan' and live['phase'] == 'awaiting_reviewer'
                 return assessment(7 if len(state['rounds']) == 1 else 9)
             result = opt.execute(store, state['run_id'], generator=generator, reviewer=reviewer)
             assert result['activity']['phase'] == 'approval' and result['activity']['actor'] == 'human'
-            assert set(result['visited_steps']) == {'context','draft','review','evaluate','revise','approval'}
+            assert set(result['visited_steps']) == {'context','draft','awaiting_reviewer','evaluate','revise','approval'}
     with_store(check)
 
 
@@ -150,27 +160,17 @@ def test_duplicate_context_cannot_be_used_as_two_independent_samples():
     with_store(check)
 
 
-def test_structured_reviewer_is_one_call_audited_and_rejected_responses_retained():
+def test_codex_wait_has_no_external_api_fallback():
     def check(store):
-        request = body(store)
-        with patch.object(writer, 'API_KEY', 'private-test-key'):
-            state, _ = opt.queue(store, request)
-            pair = {'instructions': 'Protected instructions', 'packet': {'subject': 'Test'}, 'candidates': []}
-            for status in ('completed', 'incomplete'):
-                response = {'status': status, 'usage': {'input_tokens': 10, 'output_tokens': 20},
-                            'output': [{'content': [{'type': 'output_text', 'text': json.dumps(assessment())}]}]}
-                with patch.object(opt, 'urlopen', return_value=io.BytesIO(json.dumps(response).encode())) as network:
-                    try: result = opt.review_pair(store, state, pair, [])
-                    except RuntimeError: assert status == 'incomplete'
-                    else: assert result == assessment() and status == 'completed'
-                    assert network.call_count == 1
-                    request = json.loads(network.call_args.args[0].data)
-                    assert request['text']['format']['strict'] is True
-                    assert 'private-test-key' not in json.dumps(request)
-            rows = store.db.execute('SELECT * FROM workshop_review_requests ORDER BY rowid').fetchall()
-            assert [r['status'] for r in rows] == ['succeeded', 'failed']
-            assert json.loads(rows[-1]['response_json'])['status'] == 'incomplete'
-            assert json.loads(rows[-1]['usage_json'])['input_tokens'] == 10
+        with patch.object(writer, 'API_KEY', 'mock'):
+            state, _ = opt.queue(store, body(store))
+            pair={'instructions':'protected','packet':{},'candidates':[]}
+            with patch('urllib.request.urlopen') as network:
+                try:opt.review_pair(store,state,pair,[],cancelled=lambda:True)
+                except opt.ReviewCancelled:pass
+                else:raise AssertionError('Cancelled Codex wait continued')
+                assert network.call_count==0
+            assert store.db.execute("SELECT status FROM codex_review_jobs").fetchone()[0]=='cancelled'
     with_store(check)
 
 
@@ -197,7 +197,7 @@ def test_server_upgrade_backup_includes_committed_wal_without_changing_source():
             assert db.execute("SELECT value FROM system_state WHERE key='backup-test'").fetchone()[0] == 'preserved'
             assert db.execute('PRAGMA quick_check').fetchone()[0] == 'ok'
         assert store.db.execute('PRAGMA user_version').fetchone()[0] == 12
-        with store.db: store.db.execute('PRAGMA user_version=13')
+        with store.db: store.db.execute('PRAGMA user_version=14')
         assert backup_before_upgrade(store.path) is None
     with_store(check)
 

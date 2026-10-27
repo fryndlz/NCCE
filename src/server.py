@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.13.0'
+APP_VERSION='0.14.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -50,8 +50,9 @@ workshop_optimizer.recover(store)
 _optimizer_stops={}
 def _run_optimization(run_id):
  try:
-  with store._lock:
-   workshop_optimizer.execute(store,run_id,cancelled=_optimizer_stops[run_id].is_set)
+  worker_store=Store(DB)
+  try:workshop_optimizer.execute(worker_store,run_id,cancelled=_optimizer_stops[run_id].is_set)
+  finally:worker_store.close()
  finally:
   _optimizer_stops.pop(run_id,None)
   _writer_pipeline_guard.release()
@@ -281,6 +282,20 @@ class H(BaseHTTPRequestHandler):
   self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
  def do_POST(self):
   p=urlparse(self.path).path
+  if p.startswith('/api/reviewer-bridge/'):
+   import codex_review_queue as bridge
+   if not bridge.authenticated(self.headers.get('Authorization')):return self.js({'error':'Reviewer bridge authentication required'},401)
+   try:
+    length=int(self.headers.get('Content-Length','0'))
+    if not 1<=length<=1500000:return self.js({'error':'Review payload too long'},413)
+    body=json.loads(self.rfile.read(length).decode('utf-8'))
+    if not isinstance(body,dict):raise ValueError('Expected an object')
+    action=p.rsplit('/',1)[-1]
+    functions={'heartbeat':bridge.heartbeat,'claim':bridge.claim,'started':bridge.started,'complete':bridge.complete,'fail':bridge.fail,'self-test':bridge.self_test}
+    if action not in functions:return self.js({'error':'Unknown bridge operation'},404)
+    with store._lock:result=functions[action](store,body)
+    return self.js(result)
+   except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
   if p=='/api/login':
    if not AUTH_REQUIRED:return self.js({'ok':True,'auth_required':False})
    try:

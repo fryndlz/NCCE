@@ -8,12 +8,12 @@ import json
 import math
 import os
 import uuid
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+import time
 
 import llm_writer as writer
 import writer_workshop as ws
 from writer_quality import CRITERIA, RUBRIC
+import codex_review_queue as codex_queue
 
 
 def packed(value): return json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False)
@@ -22,8 +22,8 @@ def hashed(value): return hashlib.sha256(packed(value).encode()).hexdigest()
 
 def configuration():
     return {'writer_model': writer.MODEL, 'writer_effort': writer.DEFAULT_REASONING_EFFORT,
-            'reviewer_model': os.environ.get('NCCE_REVIEWER_MODEL') or writer.MODEL,
-            'reviewer_effort': os.environ.get('NCCE_REVIEWER_REASONING_EFFORT') or writer.DEFAULT_REASONING_EFFORT,
+            'reviewer_model': 'Codex · JKSimmons', 'reviewer_effort': 'Existing Codex chat settings',
+            'reviewer_mode': 'codex', 'reviewer_thread_id': codex_queue.thread_id(),
             'max_output_tokens': writer.MAX_OUTPUT_TOKENS}
 
 
@@ -44,11 +44,18 @@ def activity(store, state, phase, actor, message, **position):
     state['activity'] = {'phase': phase, 'actor': actor, 'message': message, 'at': ws.now(), **position}
     visited = state.setdefault('visited_steps', [])
     if phase not in visited: visited.append(phase)
+    dialogue = state.setdefault('dialogue', [])
+    line = {'at': ws.now(), 'phase': phase, 'from': 'JuniorWriter' if phase == 'awaiting_reviewer' else actor,
+            'to': 'JKSimmons' if phase in ('draft','awaiting_reviewer') else 'JuniorWriter' if phase in ('review','evaluate','revise') else 'Owner', 'text': message}
+    if dialogue and dialogue[-1]['phase'] == phase: dialogue[-1] = line
+    else: dialogue.append(line)
+    state['dialogue'] = dialogue[-30:]
     save(store, state, actor + ': ' + message)
 
 
 def home(store):
     return {'configuration': configuration(), 'configured': bool(writer.API_KEY),
+            'bridge': codex_queue.status(store),
             'runs': [json.loads(r[0]) for r in store.db.execute('SELECT state_json FROM workshop_optimization_runs ORDER BY rowid DESC LIMIT 12')]}
 
 
@@ -68,6 +75,7 @@ def queue(store, body):
     key = body.get('request_key')
     if not isinstance(key, str) or not 16 <= len(key) <= 100: raise ValueError('A unique request key is required')
     if not writer.API_KEY: raise ValueError('The server writing provider is not configured; no calls made')
+    if not codex_queue.status(store)['online']: raise ValueError('The JKSimmons Codex companion is offline. Start it on your computer before spending writer calls.')
     selected = ws.sample(store, body.get('sample_key'))
     # Two independent real contexts: duplicate A/B comparison packets do not count.
     samples = [selected]; seen = {hashed(selected['packet'])}
@@ -98,7 +106,7 @@ def queue(store, body):
              'coverage': 'Two independent source packets for one prose form; representative checks, not a guarantee across all prose.',
              'activity': {'phase': 'queued', 'actor': 'StoryTechMan', 'message': 'Your bounded run is queued. Preparing the source checks.', 'at': ws.now()},
              'visited_steps': [],
-             'reviewer_context': 'Recovered requirements and saved NCCE editorial feedback; original chat reviews/images unavailable.'}
+             'reviewer_context': 'Actual persistent JKSimmons Codex chat, with its conversation, saved standards and corrections. Reviews are not external reviewer API calls.'}
     with store._lock, store.db:
         store.db.execute('INSERT INTO workshop_optimization_runs VALUES(?,?,?,?)', (state['run_id'], key, hashed(body), packed(state)))
     return state, True
@@ -110,6 +118,8 @@ def stop(store, state, message, status='escalated'):
 
 
 def recover(store):
+    with store.db:
+        store.db.execute("UPDATE codex_review_jobs SET status='cancelled',error='Server restarted; uncertain reviews are not replayed',finished_at=? WHERE status IN ('queued','claimed','reviewing')", (ws.now(),))
     for row in store.db.execute('SELECT state_json FROM workshop_optimization_runs').fetchall():
         state = json.loads(row[0])
         if state['status'] in ('queued', 'running'):
@@ -157,54 +167,34 @@ def assess(value):
     return qualified, escalated
 
 
-def review_pair(store, state, pair, preceding_reviews):
-    call_id = uuid.uuid4().hex
-    config = state['configuration']
-    instructions = RUBRIC + '''\nThis task optimizes NCCE's form guidance, not just one output.
-Return summary, candidates and proposed_form_instructions using the required schema.
-The proposal must be a COMPLETE form brief of at most 4,000 characters, integrating lessons
-from this pair AND preceding pair reviews. It may revise craft, never authority or evidence.
-Preserve required viewpoint, prose length and form. Keep reusable lessons; do not hardcode
-the sample's facts, names, events or metaphors. Do not imitate the example subject's story.
-If supplied context, reference selection, historical identity, chronology or technical pipeline
-is wrong/missing, classify an issue as context/technical. Prompt wording is not a substitute
-for repairing missing information. Model scores never authorize policy activation or spending.
-'''
-    payload = {'form': state['form'], 'protected_contract_and_candidate': pair['instructions'],
-               'packet': pair['packet'], 'drafts': pair['candidates'],
-               'prior_sample_reviews_this_round': preceding_reviews, 'saved_owner_feedback': ws.REVIEW}
-    request_body = {'model': config['reviewer_model'], 'instructions': instructions,
-                    'input': packed(payload), 'max_output_tokens': config['max_output_tokens'],
-                    'reasoning': {'effort': config['reviewer_effort']},
-                    'text': {'format': {'type': 'json_schema', 'name': 'ncce_writing_review', 'strict': True, 'schema': review_schema()}}}
-    with store.db:
-        store.db.execute('INSERT INTO workshop_review_requests(call_id,run_id,status,prompt_json) VALUES(?,?,?,?)',
-                         (call_id, state['run_id'], 'reserved', packed(request_body)))
-    response = {}; usage = {}; error = ''
-    try:
-        request = Request(writer.API_URL, data=packed(request_body).encode(), method='POST',
-                          headers={'Authorization': 'Bearer ' + writer.API_KEY, 'Content-Type': 'application/json'})
-        with urlopen(request, timeout=writer.TIMEOUT) as result: response = json.load(result)
-        usage = response.get('usage') or {}
-        if response.get('status') != 'completed': raise RuntimeError('Reviewer response did not complete; no retry')
-        text = '\n'.join(c.get('text', '') for part in response.get('output', []) for c in part.get('content', []) if c.get('type') == 'output_text')
-        value = json.loads(text); assess(value)
-        return value
-    except HTTPError as exc:
-        error = 'Reviewer provider returned HTTP ' + str(exc.code)
-        raise RuntimeError(error) from None
-    except (URLError, TimeoutError, OSError):
-        error = 'Reviewer provider could not be reached; no retry'
-        raise RuntimeError(error) from None
-    except Exception as exc:
-        error = str(exc).replace(writer.API_KEY, '[redacted]') if writer.API_KEY else str(exc)
-        raise RuntimeError(error[:300]) from None
-    finally:
-        raw = packed(response)
-        if writer.API_KEY: raw = raw.replace(writer.API_KEY, '[redacted]')
-        with store.db:
-            store.db.execute('UPDATE workshop_review_requests SET status=?,response_json=?,usage_json=?,error=? WHERE call_id=?',
-                             ('failed' if error else 'succeeded', raw, packed(usage), error[:300], call_id))
+class ReviewCancelled(Exception): pass
+
+
+def review_pair(store, state, pair, preceding_reviews, cancelled=lambda: False):
+    """Wait for the actual Codex chat; there is deliberately no API fallback."""
+    if not codex_queue.configured(): raise ValueError('Codex reviewer bridge is not configured')
+    job_id = codex_queue.enqueue(store, state, pair, preceding_reviews, review_schema(), RUBRIC)
+    pair['codex_job_id'] = job_id
+    activity(store, state, 'awaiting_reviewer', 'StoryTechMan', 'Review packet sealed. Awaiting JKSimmons in Codex. No external reviewer API request will be made.')
+    deadline = time.monotonic() + 1800
+    waiting_since = time.monotonic()
+    claimed = False
+    while time.monotonic() < deadline:
+        if cancelled():
+            codex_queue.cancel(store, job_id, 'Owner stopped the run')
+            raise ReviewCancelled('Owner stopped the run while waiting for Codex')
+        job = codex_queue.get(store, job_id)
+        if job['status'] == 'reviewing' and not claimed:
+            activity(store, state, 'review', 'JKSimmons', 'I have the two drafts in my Codex chat. Comparing the evidence, your standards and the writing itself.')
+            claimed = True
+        if job['status'] == 'completed': return json.loads(job['result_json'])
+        if job['status'] in ('failed', 'cancelled'): raise ValueError(job['error'] or 'Codex review stopped')
+        if time.monotonic() - waiting_since > 90 and not codex_queue.status(store)['online']:
+            codex_queue.cancel(store, job_id, 'Codex companion went offline')
+            raise ValueError('Codex companion is offline. The loop is paused; no API reviewer fallback was made.')
+        time.sleep(1)
+    codex_queue.cancel(store, job_id, 'Codex review timed out; no automatic replay')
+    raise ValueError('Codex reviewer did not finish within 30 minutes. Check the reviewer chat; no API fallback or automatic replay was made.')
 
 
 def generate(store, state, prepared, instructions, token):
@@ -249,9 +239,9 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
                 if cancelled(): stop(store, state, 'Stopped by the owner before review.', 'stopped'); return state
                 if state['reviewer_reserved'] >= state['reviewer_limit']: raise ValueError('Authorized reviewer-call limit reached')
                 state['reviewer_reserved'] += 1
-                activity(store, state, 'review', 'JKSimmons', f"Reviewing both drafts for entry {sample_index + 1}. Checking facts, voice, concrete meaning and prose quality; looking for context or pipeline problems.", round=round_index + 1, sample=sample_index + 1)
+                activity(store, state, 'awaiting_reviewer', 'StoryTechMan', f"Passing entry {sample_index + 1} to the actual JKSimmons Codex chat.", round=round_index + 1, sample=sample_index + 1)
                 preceding = [p['review'] for p in round_item['pairs'][:-1]]
-                assessment = (reviewer or review_pair)(store, state, pair, preceding)
+                assessment = reviewer(store, state, pair, preceding) if reviewer else review_pair(store, state, pair, preceding, cancelled)
                 pair['review'] = assessment
                 passed, technical = assess(assessment); all_pass = all_pass and passed
                 activity(store, state, 'evaluate', 'JKSimmons', assessment['summary'], round=round_index + 1, sample=sample_index + 1)
@@ -266,6 +256,8 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
                     'instructions': assessment['proposed_form_instructions'], 'label': 'Optimizer candidate ' + state['run_id'][-8:] + ' round ' + str(round_index + 2)})
                 save(store, state, 'Candidate form brief saved for the next round; production policy unchanged.')
         stop(store, state, 'Authorized rounds exhausted before all samples passed. Review the findings; further spending needs a new run.', 'budget_exhausted')
+    except ReviewCancelled as exc:
+        stop(store, state, str(exc), 'stopped')
     except Exception as exc:
         message = str(exc)
         if writer.API_KEY: message = message.replace(writer.API_KEY, '[redacted]')

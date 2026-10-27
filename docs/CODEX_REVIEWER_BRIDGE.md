@@ -1,0 +1,33 @@
+# Actual Codex reviewer connection
+
+NCCE 0.14.0 replaces the optimizer's external reviewer API call with a scoped queue for the existing **JKSimmons — NCCE Writing Reviewer** Codex chat (`01a17f57-f5bb-7782-bce0-8b3b43dd367f`). JuniorWriter still uses the existing writing provider. There is no reviewer API fallback.
+
+## Transport and context
+
+A local Python companion polls authenticated review endpoints on the hosted NCCE app. Idle polling makes no model turns. When a review job exists, it uses the installed Codex CLI's documented stdio app-server transport, resumes the actual saved chat, and starts a structured-output review turn. It preserves the chat's model settings; no model override or external provider key is supplied. The packet includes exact prompts/context, both drafts, preceding reviews, the rubric and current private reviewer guidance/feedback. The persistent Codex conversation contributes the owner's corrections and prior discussion.
+
+The companion creates a fresh transport for each job so it reads the current saved conversation. It refuses a review if the last saved turn is still active. Avoid sending a simultaneous manual turn while the reviewer head is working; the local read/start boundary cannot atomically lock a separate desktop client. Human input/tool-approval requests, quotas, interrupted turns, malformed reviews or lost transport pause the job rather than retrying the model.
+
+This uses Codex account usage. It is not local model inference and does not bypass Codex limits.
+
+## Narrow credentials and lifecycle
+
+`NCCE_REVIEW_BRIDGE_TOKEN` authenticates only heartbeat, job claim, actual-turn start, completion/failure and a single synthetic connection check. It cannot activate policies, modify canon, run arbitrary commands, or obtain a general owner session. The token is stored privately outside Git in `C:\Codex\NCCE\.codex-review-bridge\config.json`, protected for the owner and SYSTEM, and merged into the existing service environment without replacing other secrets. `NCCE_CODEX_REVIEWER_THREAD_ID` binds jobs to the intended chat.
+
+Schema 14 adds `codex_review_bridge` and `codex_review_jobs`. A job receives a random lease. Results must match the worker, lease and recorded Codex turn. Accepted results are immutable/idempotent and retain thread/turn identities. Claimed/uncertain jobs are never automatically re-leased. A local journal is persisted before dispatch so a crash cannot silently replay a review. The connection-check fixture can be queued once per thread and makes no JuniorWriter requests or policy changes.
+
+The optimizer runs on its own database connection while waiting. This lets completion and stop requests reach the server without a long-held shared-store lock. Cancelling a run cancels its queued/active review; the companion observes cancellation and requests a Codex interrupt. A restart cancels unfinished jobs for human investigation. Offline companions block new spending at run creation; an offline bridge during a run pauses it after a grace period. There is no silent fallthrough to the former API reviewer.
+
+## Running locally
+
+Double-click `C:\Codex\NCCE\START JKSIMMONS.vbs`. It starts the companion without a terminal. Keep this computer on while review jobs are pending. The Workshop shows the last heartbeat and offers **Check Codex connection**. A single-instance file lock prevents duplicate local companions; this is not an installed system service or an unrequested login/startup task.
+
+Do not commit the private config, journals, logs or reviewer feedback. Logs omit tokens, prompts, drafts and model responses. Only new authorized jobs start Codex turns; opening the Workshop, polling and idle heartbeats do not.
+
+## Presentation stays separate
+
+The stern, theatrical critic, anxious JuniorWriter and Mechanicus supervisor are optional presentation skins. Heads switch between neutral, working, talking, angry, sad and pleased expressions according to persisted activity and reviewed results. The working light appears only after the actual Codex turn is acknowledged. Waiting for transport is shown separately. Team handoffs show actual phase events; banter is labelled presentation-only and can be disabled. These renderers do not mutate scores, call budgets, writer instructions or approval rules. The reviewer's private PERSONA.md likewise requires clear factual grading independent of its conversational voice.
+
+## Verification
+
+Offline checks cover scoped authentication, wrong thread/lease denial, real-turn identity, immutable completion, waiting versus working states, cancellation, no replay, changed guidance, no API fallback, and presentation immutability. A synthetic connection check should be verified against the actual Codex chat before claiming that the live queue is connected. It validates transport and structured assessment only, not literary calibration or broad quality consistency.
