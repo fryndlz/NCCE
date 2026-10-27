@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.0 - reviewer bridge prototype and expressive team (2026-10-27)
+
+- Added a private review queue and local Codex companion, exact-thread/turn result identities, cancellation and no-replay safeguards. Removed external reviewer API fallback.
+- Added optional character banter, distinct critic/writer/Mechanicus SVG portraits, state-driven expressions and actual-phase handoffs. Presentation cannot alter writing instructions, scores or budgets.
+- Live connection test found a desktop thread ownership conflict before any model turn. Automatic improvement remains blocked; a heartbeat alone cannot enable writer spending. The actual reviewer chat remains available for direct discussion.
+- Verified schema 13→14 backup, local queue/optimizer/HTTP/presentation checks and hosted UI. No JuniorWriter calls or policy activation for this release. See docs/CODEX_REVIEWER_BRIDGE.md for the unresolved connection boundary.
+
 ## 0.12.2 - engagement navigation and record refinement (2026-10-27)
 
 - **20:31 CET:** added Ctrl-primary-drag navigation through time and vertically through gang lanes, stable-root pointer capture across chart redraws, retained vertical scrolling, drag threshold/cancellation and prevention of accidental battle/event selection after dragging. Ctrl-wheel and normal clicks remain available.

@@ -63,6 +63,21 @@ def test_scoped_auth_offline_and_claim_result_ownership():
     with_store(check)
 
 
+def test_failed_diagnostic_stays_offline_despite_fresh_heartbeat():
+    def check(store):
+        job=cq.self_test(store,{})['job_id'];claimed=cq.claim(store,identity())
+        cq.fail(store,{**identity(),'job_id':job,'lease':claimed['lease'],'error':'Codex chat already has an active writer'})
+        cq.heartbeat(store,identity())
+        current=cq.status(store)
+        assert not current['online'] and not current['verified']
+        assert 'active writer' in current['connection_error']
+        request=body(store)
+        before=store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]
+        with patch.object(writer,'API_KEY','mock'):rejects(lambda:opt.queue(store,request))
+        assert store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==before
+    with_store(check)
+
+
 def test_waiter_lights_only_after_actual_codex_turn_start_and_returns_review():
     def check(store):
         ready_bridge(store);request=body(store)
