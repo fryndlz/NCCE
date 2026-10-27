@@ -5,7 +5,7 @@
 [Timeline 0.12.2](TIMELINE_0_12_2.md) adds two-axis Ctrl-drag with stable pointer capture, filtered engagement counts/time on gang lanes, linked participants, separated mission identity, Cycle-first metadata, neutral real-world timing and the independent hosted duration audit. Recorded campaign windows and existing writer policies remain unchanged.
 
 [Timeline 0.12.1](TIMELINE_0_12_1.md) specifies zoom, screen-distance clustering, gang colours, separate bar/marker rows, strict activity intervals, nested collapsible groups, source/Imperial date layers and merged-session playtime. This supersedes the older timeline presentation description below; source provenance and participation inference rules remain unchanged.
-**Checkpoint:** 2026-10-27 20:40 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
+**Checkpoint:** 2026-10-27 21:25 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
 
 [Writer creative planning](WRITER_CREATIVE_PLANNING.md) specifies the new shared modules and exact rules: 26 verified 2023 Core Rulebook territory cards, least-used compatible focus selection for baselines/ambient writing, event/sequence anchoring for other forms, frozen inspectable plans and compact heuristic recent-pattern memory. Plans/footprints are private derived data; they cannot establish facts or replace same-subject continuity. Workshop focus selection is free and pinnable. Saved instructions/edits remain intact; one provider call per draft, no automatic regeneration. Luna/medium and a 4,000-token total response allowance remain configured.
 
