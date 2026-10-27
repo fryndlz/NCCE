@@ -39,6 +39,8 @@ for(const name of ['period-battle','period-downtime','history-gang-group','histo
 assert.doesNotMatch(panel,/Earlier death|Ethmet Griz|next-battle|too-late|outsider|Window source|Linked sessions|Original battle record|session_timestamp_proxy/);
 for(const id of ['at-start','during','at-end','after','other-gang-later'])assert.ok(panel.includes(id),id);
 vm.runInContext(`historyFilters.battle='battle-1';`,ctx);
+vm.runInContext('renderCampaignTimeline();',ctx);
+assert.match(root.innerHTML,/1 engagement</);assert.doesNotMatch(root.innerHTML,/1 engagements/);
 const included=JSON.parse(vm.runInContext('JSON.stringify(timelineRows().map(e=>e.event_id))',ctx));
 assert.ok(!included.includes('OLD-DEATH')&&!included.includes('next-battle')&&!included.includes('too-late'));
 vm.runInContext(`historyFilters.battle=''; renderCampaignTimeline();`,ctx);
