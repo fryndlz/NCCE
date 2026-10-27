@@ -30,11 +30,14 @@ def main():
             with patch.object(server.llm_writer,'API_KEY','mock-provider-key'):
                 assert call('/api/workshop')[0]==403
                 assert call('/api/workshop/generate',{})[0]==403
+                assert call('/api/workshop/optimize',{})[0]==403
                 assert server.store.db.execute('SELECT count(*) FROM workshop_trials').fetchone()[0]==0
                 server.AUTH_REQUIRED=True;server.SESSION_KEY=effective_session_key('disposable-password','disposable-test-secret')
                 cookie=make_session_token(server.SESSION_KEY)
                 assert call('/api/workshop')[0]==401
                 assert call('/api/workshop/generate',{})[0]==401
+                assert call('/api/workshop/optimize',{})[0]==401
+                assert call('/api/workshop/optimization-decide',{},cookie,'https://foreign.invalid')[0]==403
                 assert call('/api/workshop/generate',{},cookie,'https://foreign.invalid')[0]==403
                 assert call('/api/workshop/generate',{},cookie,'')[0]==403
                 status,home=call('/api/workshop',cookie=cookie);assert status==200 and home['samples']
@@ -53,6 +56,25 @@ def main():
                     assert code==200 and first['trial_id']==second['trial_id'] and len(launches)==1
                 assert server.store.db.execute('SELECT count(*) FROM workshop_trials').fetchone()[0]==1
                 assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==0
+                optimization={'sample_key':source['key'],'request_key':'http-optimizer-00000000','max_rounds':1,'allow_paid':True}
+                assert call('/api/workshop/optimize',{**optimization,'allow_paid':False},cookie)[0]==400
+                server._writer_pipeline_guard.acquire()
+                assert call('/api/workshop/optimize',optimization,cookie)[0]==409
+                server._writer_pipeline_guard.release()
+                launched.clear(); optimizer_launches=[]
+                def optimizer_worker(run_id):
+                    optimizer_launches.append(run_id);server._writer_pipeline_guard.release();launched.set()
+                with patch.object(server,'_run_optimization',side_effect=optimizer_worker):
+                    code,first=call('/api/workshop/optimize',optimization,cookie)
+                    assert code==202 and launched.wait(2)
+                    code,second=call('/api/workshop/optimize',optimization,cookie)
+                    assert code==200 and first['run_id']==second['run_id'] and len(optimizer_launches)==1
+                assert call('/api/workshop/optimization?run_id='+first['run_id'],cookie=cookie)[0]==200
+                assert call('/api/workshop/optimization-decide',{'run_id':first['run_id'],'approve':True},cookie)[0]==400
+                assert call('/api/workshop/optimization-stop',{'run_id':first['run_id']},cookie)[1]['stop_requested']
+                assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==0
+                assert server.store.db.execute('SELECT count(*) FROM workshop_review_requests').fetchone()[0]==0
+                assert call('/api/workshop/optimizations',cookie=cookie)[0]==200
             print('HTTP workshop passed: auth mandatory, cross-origin denied, busy rejected, duplicate key queued once, no paid calls')
         finally:http.shutdown();http.server_close();thread.join();server.store.close()
 

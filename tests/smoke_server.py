@@ -64,7 +64,7 @@ def main():
                 if time.monotonic()>deadline:
                     raise AssertionError('Sheet sync did not finish')
                 time.sleep(0.25)
-            assert health['schema_version'] == 12 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
+            assert health['schema_version'] == 13 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
             dashboard = read('/api/dashboard')
             timeline=read('/api/history')
             assert all('playtime_seconds' in battle and 'local_territory_id' in battle for battle in timeline['battles'])

@@ -6,6 +6,7 @@ window.NCCEWorkshop = (() => {
   const post = (path, body) => request('/api/workshop/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const clone = value => JSON.parse(JSON.stringify(value));
   const running = () => ['queued','running'].includes(S.trial?.status);
+  const optimizing = () => ['queued','running'].includes(S.optimization?.status);
   const visible = () => root?.querySelector('.writer-workshop');
   function setEditor(trial) {
     S.trial=trial;
@@ -46,12 +47,34 @@ window.NCCEWorkshop = (() => {
       <details><summary>Saved edit history · ${t.edits?.length || 0}</summary>${(t.edits || []).map(e=>`<button data-ws="load-edit" data-edit="${esc(e.edit_id)}">Load edit ${esc(e.created_at)}</button>`).join('') || '<p>No saved edits yet.</p>'}</details>`}
       <details><summary>Exact instructions used for this sample</summary><pre>${esc(t.instructions)}</pre></details></section>`;
   }
+  function optimizationPanel() {
+    const config=S.optimizations?.configuration || {}, run=S.optimization;
+    return `<section class="workshop-optimization"><h3>Improve NCCE's writing setup</h3>
+      <p>JuniorWriter tries two drafts on each of two independent entries. JKSimmons reviews both pairs and revises the form guidance between rounds. Context or pipeline problems stop the run for you and StoryTechMan.</p>
+      <p>Writer: ${esc(config.writer_model || S.home.model)} · Reviewer: ${esc(config.reviewer_model || S.home.model)}. Candidate instructions remain inactive until you approve the tested setup.</p>
+      <label>Maximum rounds<select data-ws-opt-rounds${optimizing()?' disabled':''}>${[1,2,3].map(n=>`<option value="${n}"${n===(S.optRounds || 1)?' selected':''}>${n} · up to ${n*4} writing + ${n*2} review requests</option>`).join('')}</select></label>
+      <div class="workshop-actions"><button data-ws="opt-start"${!S.sample || !S.home.configured || S.busy || running() || optimizing()?' disabled':''}>${S.optBody?'Check submitted run':'Improve this prose form'}</button>${optimizing()?'<button data-ws="opt-stop">Stop after current request</button>':''}</div>
+      <label>Previous improvement runs<select data-ws-opt-history><option value="">Choose run…</option>${(S.optimizations?.runs || []).map(r=>`<option value="${esc(r.run_id)}">${esc(r.form.replaceAll('_',' '))} · ${esc(r.status)} · ${esc(r.created_at)}</option>`).join('')}</select></label>
+      ${run?`<p role="status"><strong>${esc(run.status.replaceAll('_',' '))}</strong> · ${esc(run.form.replaceAll('_',' '))}<br>${esc(run.message)}</p><p>Reserved request slots: ${run.writer_reserved}/${run.writer_limit} writer, ${run.reviewer_reserved}/${run.reviewer_limit} reviewer.</p>
+      <details><summary>Tested form instructions</summary><pre>${esc(run.specific.instructions)}</pre><p>Shared revision: ${esc(run.shared.label)}</p><pre>${esc(run.shared.instructions)}</pre></details>
+      ${(run.rounds || []).map(round=>`<details${round===run.rounds.at(-1)?' open':''}><summary>Round ${round.number}</summary>${round.pairs.map(pair=>`<h4>${esc(pair.label)}</h4>${pair.candidates.map((candidate,i)=>`<details><summary>Draft ${i?'B':'A'} · ${esc(candidate.status)}</summary>${drawDocument(candidate.document)}</details>`).join('')}${pair.review?`<p><strong>JKSimmons:</strong> ${esc(pair.review.summary)}</p>${pair.review.candidates.map(c=>`<p>Draft ${c.index?'B':'A'}: ${esc(c.overall)}/10 · ${Object.entries(c.scores).map(([k,v])=>`${esc(k.replaceAll('_',' '))}: ${esc(v)}`).join(' · ')}</p>${c.issues.map(issue=>`<p role="alert"><strong>${esc(issue.category)}:</strong> ${esc(issue.explanation)}<br>Evidence: ${esc(issue.evidence)}</p>`).join('')}`).join('')}`:''}`).join('')}</details>`).join('')}
+      ${run.status==='awaiting_approval'?'<div class="workshop-actions"><button data-ws="opt-approve">Approve tested setup for future NCCE writing</button><button data-ws="opt-reject">Reject this setup</button></div>':''}
+      <details><summary>StoryTechMan handoff and run history</summary><p>${esc(run.coverage)}</p><p>${esc(run.reviewer_context)}</p>${run.events.map(e=>`<p>${esc(e.at)} · ${esc(e.message)}</p>`).join('')}</details><details><summary>Complete run report · exact prompts, context and results</summary><pre>${esc(JSON.stringify(run,null,2))}</pre></details>`:''}</section>`;
+  }
+  async function pollOptimization() {
+    try {
+      S.optimization=await request('/api/workshop/optimization?run_id='+encodeURIComponent(S.optimization.run_id)); paint();
+      if(optimizing()) setTimeout(pollOptimization,1500);
+      else {S.optBody=null; S.optimizations=await request('/api/workshop/optimizations'); paint();}
+    } catch(error) {S.message=error.message+' Reopen the saved improvement run to check it; no new calls were made.';paint();}
+  }
   function paint() {
     if (!visible()) return;
     const h=S.home, list=h.samples.filter(item=>!S.search || (item.label+' '+item.form).toLowerCase().includes(S.search.toLowerCase()));
     if (S.sample && !list.some(x=>x.key===S.sample.key)) list.unshift({key:S.sample.key,label:S.sample.label,form:S.sample.form});
     root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Editorial desk</div><h2>Writer Workshop</h2><p>Shape the writer directly: edit instructions, test one entry, revise the prose and save examples you approve.</p><p class="muted">Saving, importing, editing and inspecting are free. Generate sends one request. Activating a revision affects future writing; it does not rewrite existing entries.</p>
       <p role="status" id="ws-status">${esc(S.message)}</p><p>${esc(h.model)} · ${esc(h.effort)} effort · one-call limit per generation</p>
+      ${optimizationPanel()}
       <details><summary>Your comparison feedback and prompt identities</summary>${h.review.map(r=>`<p><strong>${esc(r.label)}</strong>: ${esc(r.note)}<br>A: ${esc(r.versions.A)}; B: ${esc(r.versions.B)}. ${r.verdict==='neither'?'Neither approved.':'A preferred; not automatically added as an example.'}</p>`).join('')}</details>
       <div class="workshop-source"><label>Find an entry<input type="search" data-ws-search value="${esc(S.search || '')}" placeholder="Fighter, gang, place, writing form…"></label><label>Sample<select data-ws-sample>${list.map(item=>`<option value="${esc(item.key)}"${item.key===S.sample?.key?' selected':''}>${esc(item.label)} · ${esc(item.form.replaceAll('_',' '))}</option>`).join('')}</select></label><button data-ws="sources">Refresh source list · free</button></div>
       ${S.sample?`<p><strong>${esc(S.sample.label)}</strong> · ${esc(S.sample.form.replaceAll('_',' '))}</p><details><summary>Read-only evidence and context for the next request</summary><pre>${esc(JSON.stringify(S.sample.packet,null,2))}</pre></details>
@@ -89,6 +112,28 @@ window.NCCEWorkshop = (() => {
   async function action(button) {
     const which=button.dataset.which;
     switch(button.dataset.ws) {
+      case 'opt-start': {
+        if(S.busy || optimizing() || running()) return;
+        const rounds=S.optRounds || 1;
+        if(!S.optBody && !window.confirm(`Improve this prose form with up to ${rounds*4} paid writing requests and ${rounds*2} paid reviewer requests? The run tests two independent entries, stops on technical issues and does not activate instructions automatically.`)) {paint();return;}
+        S.busy=true;paint();
+        try {
+          if(!S.optBody) S.optBody={...await prepared(),request_key:crypto.randomUUID(),max_rounds:rounds,allow_paid:true};
+          S.optimization=await post('optimize',S.optBody);
+          S.busy=false;if(!optimizing())S.optBody=null;paint();if(optimizing())setTimeout(pollOptimization,1000);
+        } catch(error) {S.busy=false;if(error.status>=400 && error.status<500 && ![408,429].includes(error.status))S.optBody=null;throw error;}
+        break;
+      }
+      case 'opt-stop': await post('optimization-stop',{run_id:S.optimization.run_id});S.message='Stop requested. The current request may finish; no further requests will begin.';break;
+      case 'opt-approve':
+      case 'opt-reject': {
+        const approve=button.dataset.ws==='opt-approve';
+        if(approve && !window.confirm('Activate the exact tested shared and form instructions for future NCCE generation? Existing campaign prose stays unchanged.'))break;
+        S.optimization=await post('optimization-decide',{run_id:S.optimization.run_id,approve});
+        S.optimizations=await request('/api/workshop/optimizations');
+        if(approve){S.sharedMeta=await request('/api/workshop/policy?scope=shared');S.home=await request('/api/workshop');await selectSample(S.sample.key);}
+        S.message=approve?'Tested setup activated for future NCCE writing.':'Candidate rejected. Active setup unchanged.';break;
+      }
       case 'preset': S[which]={...clone(S[which+'Meta'][button.dataset.preset]),dirty:true}; S.inspection=null; S.message='Preset loaded as a draft. Future writing is unchanged.'; break;
       case 'save': await savePolicy(which); S.message='Draft saved. No API call; active instructions unchanged.'; break;
       case 'activate': {
@@ -104,7 +149,7 @@ window.NCCEWorkshop = (() => {
       case 'inspect': S.inspection=await post('preview',await prepared()); S.planKey=S.inspection.plan_key; S.message='Exact instructions, reference and saved creative plan shown below. No provider request.'; break;
       case 'import': setEditor(await post('import',{sample_key:S.sample.key})); S.home=await request('/api/workshop'); S.message='Existing sample imported. Edit it below; no provider request.'; break;
       case 'generate': {
-        if (S.busy || running()) return;
+        if (S.busy || running() || optimizing()) return;
         S.busy=true; S.message='Sending one generation request…'; paint();
         try {
           if (!S.requestBody) S.requestBody={...await prepared(),request_key:crypto.randomUUID()};
@@ -165,6 +210,8 @@ window.NCCEWorkshop = (() => {
       const t=event.target;
       let task;
       if(t.hasAttribute('data-ws-focus')) {S.focus=t.value;S.planKey=null;S.inspection=null;paint();}
+      if(t.hasAttribute('data-ws-opt-rounds')) {S.optRounds=Number(t.value);paint();}
+      if(t.hasAttribute('data-ws-opt-history') && t.value) task=request('/api/workshop/optimization?run_id='+encodeURIComponent(t.value)).then(run=>{S.optimization=run;paint();if(optimizing())setTimeout(pollOptimization,1000);});
       if(t.hasAttribute('data-ws-sample') && t.value) task=selectSample(t.value);
       if(t.dataset.wsHistory && t.value) {const which=t.dataset.wsHistory;S[which]=clone(S[which+'Meta'].history.find(r=>r.revision_id===t.value));paint();}
       if(t.hasAttribute('data-ws-trial') && t.value) task=request('/api/workshop/trial?trial_id='+encodeURIComponent(t.value)).then(item=>{setEditor(item);paint();if(running())pollTrial();});
@@ -177,6 +224,9 @@ window.NCCEWorkshop = (() => {
     try {
       if(!S.home) {
         S.home=await request('/api/workshop'); S.sharedMeta=await request('/api/workshop/policy?scope=shared');S.shared=clone(S.sharedMeta.draft);
+        S.optimizations=await request('/api/workshop/optimizations');
+        const active=S.optimizations.runs.find(r=>['queued','running'].includes(r.status));
+        if(active){S.optimization=active;setTimeout(pollOptimization,1000);}
         const initial=S.home.samples.find(s=>s.key==='comparison:1:0') || S.home.samples[0];
         if(initial) await selectSample(initial.key);
       }

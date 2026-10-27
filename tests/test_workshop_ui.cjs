@@ -5,26 +5,34 @@ const escaped=s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;');
 const bodyDoc={blocks:[{type:'body_paragraph',text:'Original sample'}],composition:{}};
 const home={model:'same-model',effort:'low',configured:true,review:[],focus_options:{fighter_memory:[{value:'recorded_event',label:'Recorded event'}]},samples:[{key:'test',form:'fighter_memory',label:'Mara'}],trials:[]};
 const sample={key:'test',form:'fighter_memory',label:'Mara',packet:{evidence:['Critical Injury']},document:bodyDoc};
+const optimization={run_id:'opt-test',form:'fighter_memory',status:'queued',message:'<unsafe>',writer_reserved:0,writer_limit:4,reviewer_reserved:0,reviewer_limit:2,specific:{instructions:'Candidate <unsafe>'},shared:{label:'Shared',instructions:'Protected'},rounds:[],events:[],coverage:'Two source contexts',reviewer_context:'Saved review brief'};
 let ids=0;
 async function api(url,options){
   calls.push([url,options]);
   if(url==='/api/workshop')return home;
+  if(url==='/api/workshop/optimizations')return {configuration:{},runs:[]};
   if(url.startsWith('/api/workshop/policy')){const scope=url.includes('shared')?'shared':'fighter_memory';return {draft:{scope,label:'Current',instructions:'Some <unsafe> instructions',examples:'Example'},active:null,history:[],builtin:{},candidate:{}};}
   if(url.startsWith('/api/workshop/sample'))return sample;
   const data=options?.body?JSON.parse(options.body):{};
   if(url.endsWith('save-policy'))return {...data,revision_id:'r'+(++ids)};
   if(url.endsWith('preview'))return {...sample,plan_key:'frozen-plan',packet:{...sample.packet,creative_plan:{focus_label:'Recorded event'}},instructions:'Exact inspected instructions'};
   if(url.endsWith('generate'))return {trial_id:'once',status:'queued',form:'fighter_memory',label:'Mara',document:{},edits:[],packet:sample.packet,usage:{},instructions:'Saved instructions'};
+  if(url.endsWith('/optimize'))return optimization;
+  if(url.includes('/optimization?'))return {...optimization,status:'awaiting_approval'};
+  if(url.endsWith('/optimization-decide'))return {...optimization,status:data.approve?'approved':'rejected'};
   if(url.includes('/trial?'))return {trial_id:'once',status:'ready',form:'fighter_memory',label:'Mara',document:bodyDoc,edits:[],packet:sample.packet,usage:{requests_attempted:1,input_tokens:100},instructions:'Saved instructions'};
   throw new Error('Unexpected request '+url);
 }
-const context={window:{},console,setTimeout:fn=>timers.push(fn),crypto:{randomUUID:()=> 'same-request-key'}};
+const context={window:{confirm:()=>false},console,setTimeout:fn=>timers.push(fn),crypto:{randomUUID:()=> 'same-request-key'}};
 vm.createContext(context);vm.runInContext(fs.readFileSync('web/workshop.js','utf8'),context);
 function click(action){const button={dataset:{ws:action},disabled:false};callbacks.click({target:{closest:()=>button}});}
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
   await context.window.NCCEWorkshop.open(root,api,doc=>escaped(JSON.stringify(doc)));
   assert.equal(calls.filter(c=>c[1]?.method==='POST').length,0,'Opening must not write or spend');
+  assert.match(root.innerHTML,/Improve NCCE/);
+  click('opt-start');await settle();
+  assert.equal(calls.filter(c=>c[0].endsWith('/optimize')).length,0,'Declining paid optimization must not queue it');
   assert.match(root.innerHTML,/Generate one draft/);assert.ok(!root.innerHTML.includes('<unsafe>'));
   click('inspect');await settle();
   assert.match(root.innerHTML,/Exact inspected instructions/);
@@ -38,5 +46,17 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   assert.match(root.innerHTML,/100 input/);
   callbacks.input({target:{dataset:{},value:'<img src=x onerror=bad()>',hasAttribute:name=>name==='data-ws-body'}});
   assert.ok(!root.preview.innerHTML.includes('<img'),'Edited preview must escape prose');
+  context.window.confirm=()=>true;
+  click('opt-start');click('opt-start');await settle();
+  assert.equal(calls.filter(c=>c[0].endsWith('/optimize')).length,1,'Double click must authorize only one bounded run');
+  const optBody=JSON.parse(calls.find(c=>c[0].endsWith('/optimize'))[1].body);
+  assert.equal(optBody.allow_paid,true);assert.equal(optBody.max_rounds,1);
+  assert.ok(!root.innerHTML.includes('<unsafe>'));
+  await timers.shift()();await settle();
+  assert.match(root.innerHTML,/Approve tested setup/);
+  context.window.confirm=()=>false;click('opt-approve');await settle();
+  assert.equal(calls.filter(c=>c[0].endsWith('/optimization-decide')).length,0,'Activation needs human confirmation');
+  context.window.confirm=()=>true;click('opt-approve');await settle();
+  assert.equal(calls.filter(c=>c[0].endsWith('/optimization-decide')).length,1);
   console.log('Workshop UI passed: free opening/inspection, escaping, one-call double-click protection, completion rendering');
 })().catch(error=>{console.error(error);process.exitCode=1;});

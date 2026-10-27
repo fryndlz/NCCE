@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.12.3'
+APP_VERSION='0.13.0-dev'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -42,6 +42,16 @@ def _run_workshop(trial_id):
   import writer_workshop
   with store._lock:writer_workshop.execute(store,trial_id)
  finally:_writer_pipeline_guard.release()
+import workshop_optimizer
+workshop_optimizer.recover(store)
+_optimizer_stops={}
+def _run_optimization(run_id):
+ try:
+  with store._lock:
+   workshop_optimizer.execute(store,run_id,cancelled=_optimizer_stops[run_id].is_set)
+ finally:
+  _optimizer_stops.pop(run_id,None)
+  _writer_pipeline_guard.release()
 _writer_check_guard=threading.Lock(); _writer_check_active=False; _writer_check_used=store.get_state('mara_writer_check_used')=='1'; _writer_check_review_used=store.get_state('mara_writer_check_review_used')=='1'; _writer_check_final_used=store.get_state('mara_writer_check_final_used')=='1'; _writer_check_medium_used=store.get_state('mara_writer_check_medium_used')=='1'
 _writer_checks={}
 _territory_writer_guard=threading.Lock(); _territory_writer_active=False
@@ -182,6 +192,8 @@ class H(BaseHTTPRequestHandler):
       result=workshop.sample(reader,query.get('key',[''])[0])
       result['packet_hash']=workshop.hashlib.sha256(workshop.packed(result['packet']).encode()).hexdigest()
      elif p=='/api/workshop/trial':result=workshop.trial(reader,query.get('trial_id',[''])[0])
+     elif p=='/api/workshop/optimization':result=workshop_optimizer.get(reader,query.get('run_id',[''])[0])
+     elif p=='/api/workshop/optimizations':result=workshop_optimizer.home(reader)
      else:return self.send_error(404)
     return self.js(result)
    except ValueError as exc:return self.js({'error':str(exc)},400)
@@ -294,6 +306,25 @@ class H(BaseHTTPRequestHandler):
     if length<1 or length>128000:return self.js({'error':'Workshop request is too long'},413)
     body=json.loads(self.rfile.read(length).decode('utf-8'))
     if not isinstance(body,dict):raise ValueError('Expected an object')
+    if p=='/api/workshop/optimization-stop':
+     run_id=body.get('run_id')
+     flag=_optimizer_stops.get(run_id)
+     if flag:flag.set()
+     with store.reader() as reader:result=workshop_optimizer.get(reader,run_id)
+     return self.js({'stop_requested':bool(flag),'run':result})
+    if p=='/api/workshop/optimize':
+     with store.reader() as reader:old=workshop_optimizer.existing(reader,body)
+     if old:return self.js(old)
+     if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'The writer is busy. No optimization calls were made.'},409)
+     try:
+      with store._lock:item,fresh=workshop_optimizer.queue(store,body)
+      if fresh:
+       _optimizer_stops[item['run_id']]=threading.Event()
+       threading.Thread(target=_run_optimization,args=(item['run_id'],),name='ncce-workshop-optimizer',daemon=True).start()
+      else:_writer_pipeline_guard.release()
+     except Exception:
+      _writer_pipeline_guard.release();raise
+     return self.js(item,202 if fresh else 200)
     if p=='/api/workshop/generate':
      with store.reader() as reader:
       old=reader.db.execute('SELECT trial_id FROM workshop_trials WHERE request_key=?',(body.get('request_key'),)).fetchone()
@@ -312,6 +343,7 @@ class H(BaseHTTPRequestHandler):
      elif p=='/api/workshop/preview':result=workshop.preview(store,body)
      elif p=='/api/workshop/import':result=workshop.import_sample(store,body)
      elif p=='/api/workshop/edit':result=workshop.save_edit(store,body)
+     elif p=='/api/workshop/optimization-decide':result=workshop_optimizer.decide(store,body)
      else:return self.send_error(404)
     return self.js(result)
    except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)

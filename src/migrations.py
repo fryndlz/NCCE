@@ -8,7 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -787,6 +787,25 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute("INSERT INTO schema_migrations(version,name,applied_at) VALUES(12,?,?)",
                        ('persistent creative plans and private repetition memory',_now()))
             db.execute('PRAGMA user_version=12')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    if current < 13:
+        try:
+            db.executescript('''
+                CREATE TABLE IF NOT EXISTS workshop_optimization_runs(
+                    run_id TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE,
+                    request_hash TEXT NOT NULL, state_json TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS workshop_review_requests(
+                    call_id TEXT PRIMARY KEY, run_id TEXT NOT NULL,
+                    status TEXT NOT NULL, prompt_json TEXT NOT NULL,
+                    response_json TEXT NOT NULL DEFAULT '{}', usage_json TEXT NOT NULL DEFAULT '{}',
+                    error TEXT NOT NULL DEFAULT '');
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(13,?,?)',
+                       ('bounded Workshop prompt optimization and reviewer audit', _now()))
+            db.execute('PRAGMA user_version=13')
             db.commit()
         except Exception:
             db.rollback()

@@ -178,6 +178,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .workshop-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
 .writer-workshop pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow-y: auto; font: .8rem/1.6 monospace; }
 .workshop-error { color: #edaa80; }
+.workshop-optimization { border: 1px solid #748267; background: #181f1b; padding: 1.3rem; margin: 1.5rem 0; }
+.workshop-optimization pre { max-height: 28rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 #ws-status { padding: .7rem; border-left: 3px solid #00ca70; min-height: 2rem; }
 @media (max-width: 1000px) { .workshop-policies { grid-template-columns: 1fr; } }
 
