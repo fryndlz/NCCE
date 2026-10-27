@@ -877,6 +877,7 @@ async function startApp() {
   if (session.auth_required && !session.authenticated) { location.replace('/login'); return; }
   if (logout) logout.hidden = !session.auth_required;
   await refreshDashboard(false); await refreshStatus();
+  if (location.hash === '#workshop') await render('workshop');
   setInterval(() => refreshStatus().catch(error => { health.textContent = 'Could not check the latest Sheet refresh'; health.classList.add('has-error'); console.error(error); }), 15000);
 }
 startApp().catch(handleError);

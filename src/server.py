@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.13.0-dev'
+APP_VERSION='0.13.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -24,6 +24,9 @@ COOKIE_SECURE=configured_bool(os.environ.get('NCCE_SECURE_COOKIES'))
 if not DB.exists():
  from seed import main as seed_database
  seed_database(str(DB))
+from migrations import backup_before_upgrade
+upgrade_backup=backup_before_upgrade(DB)
+if upgrade_backup:print('Verified pre-upgrade database backup: '+str(upgrade_backup),flush=True)
 store=Store(DB)
 from story_engine import regenerate
 import llm_writer

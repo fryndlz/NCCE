@@ -50,6 +50,7 @@ window.NCCEWorkshop = (() => {
   function optimizationPanel() {
     const config=S.optimizations?.configuration || {}, run=S.optimization;
     return `<section class="workshop-optimization"><h3>Improve NCCE's writing setup</h3>
+      ${window.NCCEWritingActivity?.render(run) || ''}
       <p>JuniorWriter tries two drafts on each of two independent entries. JKSimmons reviews both pairs and revises the form guidance between rounds. Context or pipeline problems stop the run for you and StoryTechMan.</p>
       <p>Writer: ${esc(config.writer_model || S.home.model)} · Reviewer: ${esc(config.reviewer_model || S.home.model)}. Candidate instructions remain inactive until you approve the tested setup.</p>
       <label>Maximum rounds<select data-ws-opt-rounds${optimizing()?' disabled':''}>${[1,2,3].map(n=>`<option value="${n}"${n===(S.optRounds || 1)?' selected':''}>${n} · up to ${n*4} writing + ${n*2} review requests</option>`).join('')}</select></label>

@@ -180,6 +180,31 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .workshop-error { color: #edaa80; }
 .workshop-optimization { border: 1px solid #748267; background: #181f1b; padding: 1.3rem; margin: 1.5rem 0; }
 .workshop-optimization pre { max-height: 28rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.writing-team { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin:1.3rem 0; }
+.writing-agent { --agent-accent:#9dbfd6; display:grid; grid-template-columns:82px 1fr; align-items:center; gap:.7rem; padding:1rem; border:1px solid #485448; border-radius:12px; background:#111b17; min-width:0; transition:border-color .2s,box-shadow .2s; }
+.agent-critic { --agent-accent:#d2b5e0; }.agent-tech { --agent-accent:#a9d59d; }
+.agent-head { position:relative; width:82px; }.agent-portrait { width:82px; height:88px; display:block; opacity:.72; transition:opacity .2s,filter .2s; }
+.agent-halo { fill:#26352e; stroke:#4d6053; stroke-width:2; }
+.agent-status-dot { position:absolute; width:11px; height:11px; right:1px; top:4px; border-radius:50%; background:#617066; border:2px solid #111b17; }
+.agent-identity h4 { margin:0 0 .35rem; font-size:1.05rem; overflow-wrap:anywhere; }.agent-identity span { color:#b7bdb0; font-size:.78rem; line-height:1.5; display:block; }
+.agent-bubble { position:relative; grid-column:1/-1; background:#26372d; border:1px solid #50634e; border-radius:10px; padding:.85rem; font-size:.9rem; line-height:1.5; min-height:6rem; color:#e1e5d7; }
+.agent-bubble::before { content:''; position:absolute; width:10px; height:10px; background:#26372d; border-left:1px solid #50634e; border-top:1px solid #50634e; transform:rotate(45deg); top:-6px; left:33px; }
+.writing-agent.is-working { border-color:var(--agent-accent); box-shadow:0 0 22px color-mix(in srgb,var(--agent-accent) 17%,transparent); }
+.is-working .agent-portrait { opacity:1; filter:drop-shadow(0 0 7px var(--agent-accent)); }.is-working .agent-status-dot { background:var(--agent-accent); box-shadow:0 0 10px var(--agent-accent); animation:agent-beacon 1.3s ease-in-out infinite; }
+.is-working .agent-mouth { transform-box:fill-box; transform-origin:center; animation:agent-speaking .65s steps(2) infinite; }
+.writing-agent.needs-human { border-color:#e6b272; }.needs-human .agent-status-dot { background:#e6b272; box-shadow:0 0 9px #e6b272; }
+.writing-flow { margin:1rem 0; border:1px solid #485448; border-radius:12px; padding:1rem; overflow-x:auto; background:#111914; }
+.writing-flow figcaption { font-size:1rem; font-weight:bold; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }.writing-flow figcaption span { font-size:.8rem; color:#c5c9af; font-weight:normal; }
+.writing-flow svg { width:100%; min-width:680px; display:block; margin:.8rem auto; }.writing-flow marker path { fill:#81927c; }
+.flow-edge { fill:none; stroke:#697b66; stroke-width:2; }.flow-next { stroke-dasharray:5 5; }.flow-edge.is-current { stroke:#f0ce7a; stroke-width:3; stroke-dasharray:8 5; animation:flow-move 1.1s linear infinite; }
+.flow-node rect { fill:#243028; stroke:#63715e; stroke-width:1.5; }.flow-node.is-visited rect { fill:#2b3d2c; stroke:#92ac7d; }.flow-node.is-current rect { fill:#4b4329; stroke:#f0ce7a; stroke-width:3; }.flow-node.needs-human rect { fill:#4b3227; stroke:#e6b272; }
+.flow-title { fill:#eeeee0; font-size:15px; font-weight:bold; }.flow-subtitle { fill:#c7cdbb; font-size:12px; }.flow-label { fill:#b5bfa9; font-size:11px; }
+.writing-flow p,.activity-source { color:#b7bdb0; font-size:.8rem; line-height:1.5; }
+@keyframes agent-beacon { 50% { box-shadow:0 0 17px var(--agent-accent); } }
+@keyframes agent-speaking { 50% { transform:scaleY(1.8); } }
+@keyframes flow-move { to { stroke-dashoffset:-26; } }
+@media (max-width:850px) { .writing-team { grid-template-columns:1fr; }.agent-bubble { min-height:0; }.writing-agent { grid-template-columns:64px 1fr; }.agent-head,.agent-portrait { width:64px; }.agent-portrait { height:70px; } }
+@media (prefers-reduced-motion:reduce) { .is-working .agent-status-dot,.is-working .agent-mouth,.flow-edge.is-current { animation:none; } }
 #ws-status { padding: .7rem; border-left: 3px solid #00ca70; min-height: 2rem; }
 @media (max-width: 1000px) { .workshop-policies { grid-template-columns: 1fr; } }
 

@@ -39,6 +39,14 @@ def save(store, state, action=None):
         store.db.execute('UPDATE workshop_optimization_runs SET state_json=? WHERE run_id=?', (packed(state), state['run_id']))
 
 
+def activity(store, state, phase, actor, message, **position):
+    """Persist observable work before it begins; the UI never invents agent activity."""
+    state['activity'] = {'phase': phase, 'actor': actor, 'message': message, 'at': ws.now(), **position}
+    visited = state.setdefault('visited_steps', [])
+    if phase not in visited: visited.append(phase)
+    save(store, state, actor + ': ' + message)
+
+
 def home(store):
     return {'configuration': configuration(), 'configured': bool(writer.API_KEY),
             'runs': [json.loads(r[0]) for r in store.db.execute('SELECT state_json FROM workshop_optimization_runs ORDER BY rowid DESC LIMIT 12')]}
@@ -88,6 +96,8 @@ def queue(store, body):
              'expected_active': {scope: (ws.active(store, scope) or {}).get('revision_id') for scope in ('shared', selected['form'])},
              'samples': prepared, 'rounds': [], 'events': [], 'message': '', 'decision': None,
              'coverage': 'Two independent source packets for one prose form; representative checks, not a guarantee across all prose.',
+             'activity': {'phase': 'queued', 'actor': 'StoryTechMan', 'message': 'Your bounded run is queued. Preparing the source checks.', 'at': ws.now()},
+             'visited_steps': [],
              'reviewer_context': 'Recovered requirements and saved NCCE editorial feedback; original chat reviews/images unavailable.'}
     with store._lock, store.db:
         store.db.execute('INSERT INTO workshop_optimization_runs VALUES(?,?,?,?)', (state['run_id'], key, hashed(body), packed(state)))
@@ -96,7 +106,7 @@ def queue(store, body):
 
 def stop(store, state, message, status='escalated'):
     state['status'] = status; state['message'] = message
-    save(store, state, 'StoryTechMan: ' + message)
+    activity(store, state, status, 'StoryTechMan', message)
 
 
 def recover(store):
@@ -212,7 +222,7 @@ def generate(store, state, prepared, instructions, token):
 def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=None):
     state = get(store, run_id)
     if state['status'] != 'queued': return state
-    state['status'] = 'running'; save(store, state, 'Human authorized bounded writer and reviewer calls; no automatic policy activation.')
+    state['status'] = 'running'; activity(store, state, 'context', 'StoryTechMan', 'Checking the writer configuration and source context before any calls.')
     try:
         if configuration() != state['configuration'] or not writer.API_KEY: raise ValueError('Writer/reviewer configuration changed or credentials unavailable')
         for round_index in range(state['max_rounds']):
@@ -220,6 +230,7 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
             state['rounds'].append(round_item); all_pass = True
             for sample_index, prepared in enumerate(state['samples']):
                 if cancelled(): stop(store, state, 'Stopped by the owner before the next call.', 'stopped'); return state
+                activity(store, state, 'context', 'StoryTechMan', f"Checking entry {sample_index + 1} of 2: {prepared['label']}", round=round_index + 1, sample=sample_index + 1)
                 if hashed(ws.sample(store, prepared['key'])['packet']) != prepared['packet_hash']:
                     raise ValueError('Source context changed; inspect and start a new run')
                 instructions = ws.compose(state['form'], state['shared'], state['specific'])
@@ -229,25 +240,28 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
                 for index in range(2):
                     if cancelled(): stop(store, state, 'Stopped by the owner before the next call.', 'stopped'); return state
                     if state['writer_reserved'] >= state['writer_limit']: raise ValueError('Authorized writer-call limit reached')
-                    state['writer_reserved'] += 1; save(store, state, 'JuniorWriter: reserved one draft call')
+                    state['writer_reserved'] += 1
+                    activity(store, state, 'draft', 'JuniorWriter', f"Writing draft {'A' if index == 0 else 'B'} for entry {sample_index + 1} of 2, round {round_index + 1}. Using NCCE’s inspected context and candidate instructions.", round=round_index + 1, sample=sample_index + 1, draft=index + 1)
                     token = f"{state['run_id']}-{round_index}-{sample_index}-{index}"
                     result = (generator or generate)(store, state, prepared, instructions, token)
                     pair['candidates'].append(result); save(store, state)
                     if result['status'] != 'ready': raise ValueError(result.get('error') or 'Writer draft failed; no retry')
                 if cancelled(): stop(store, state, 'Stopped by the owner before review.', 'stopped'); return state
                 if state['reviewer_reserved'] >= state['reviewer_limit']: raise ValueError('Authorized reviewer-call limit reached')
-                state['reviewer_reserved'] += 1; save(store, state, 'JKSimmons: reserved one review call')
+                state['reviewer_reserved'] += 1
+                activity(store, state, 'review', 'JKSimmons', f"Reviewing both drafts for entry {sample_index + 1}. Checking facts, voice, concrete meaning and prose quality; looking for context or pipeline problems.", round=round_index + 1, sample=sample_index + 1)
                 preceding = [p['review'] for p in round_item['pairs'][:-1]]
                 assessment = (reviewer or review_pair)(store, state, pair, preceding)
                 pair['review'] = assessment
                 passed, technical = assess(assessment); all_pass = all_pass and passed
-                save(store, state, 'JKSimmons: ' + assessment['summary'])
+                activity(store, state, 'evaluate', 'JKSimmons', assessment['summary'], round=round_index + 1, sample=sample_index + 1)
                 if technical: stop(store, state, 'Context, technical or permission issue identified. Inspect the review; human input is required.'); return state
             if all_pass:
                 state['status'] = 'awaiting_approval'
                 state['message'] = 'Both drafts on both independent samples reached 8/10 on every criterion. Review the tested instructions and results before activating.'
-                save(store, state, state['message']); return state
+                activity(store, state, 'approval', 'human', state['message']); return state
             if round_index + 1 < state['max_rounds']:
+                activity(store, state, 'revise', 'JKSimmons', 'Saving the revised form brief from the reviews. I will test it on both entries again; active NCCE instructions stay unchanged.', round=round_index + 1)
                 state['specific'] = ws.save_revision(store, {**state['specific'],
                     'instructions': assessment['proposed_form_instructions'], 'label': 'Optimizer candidate ' + state['run_id'][-8:] + ' round ' + str(round_index + 2)})
                 save(store, state, 'Candidate form brief saved for the next round; production policy unchanged.')
@@ -274,8 +288,11 @@ def decide(store, body):
             for revision in (state['shared'], state['specific']):
                 store.db.execute('INSERT INTO workshop_active VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET revision_id=excluded.revision_id', (revision['scope'], revision['revision_id']))
             state['status'] = 'approved'; state['decision'] = {'approved': True, 'at': ws.now()}
+            state['activity'] = {'phase': 'complete', 'actor': 'human', 'message': 'You approved the tested setup. Future NCCE writing will use these instructions.', 'at': ws.now()}
+            state.setdefault('visited_steps', []).extend(['activate', 'complete'])
             state['events'].append({'at': ws.now(), 'message': 'Owner approved the exact tested shared/form pair for future NCCE generation. Existing prose unchanged.'})
             store.db.execute('UPDATE workshop_optimization_runs SET state_json=? WHERE run_id=?', (packed(state), state['run_id']))
     else:
-        state['status'] = 'rejected'; state['decision'] = {'approved': False, 'at': ws.now()}; save(store, state, 'Owner rejected the candidate. Production policy unchanged.')
+        state['status'] = 'rejected'; state['decision'] = {'approved': False, 'at': ws.now()}
+        activity(store, state, 'rejected', 'human', 'You rejected this candidate. Active NCCE instructions stay unchanged; we can discuss the findings before another run.')
     return state

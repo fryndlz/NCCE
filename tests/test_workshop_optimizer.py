@@ -41,6 +41,26 @@ def fake_call(form, packet, **kwargs):
     return draft('I put the handle down. My hand still hurt when I opened it.')
 
 
+def test_live_activity_is_persisted_before_each_provider_role_runs():
+    def check(store):
+        request = body(store, 2)
+        with patch.object(writer, 'API_KEY', 'mock'):
+            state, _ = opt.queue(store, request)
+            def generator(store, state, prepared, instructions, token):
+                live = opt.get(store, state['run_id'])['activity']
+                assert live['actor'] == 'JuniorWriter' and live['phase'] == 'draft'
+                assert live['draft'] in (1, 2) and live['sample'] in (1, 2)
+                return {'status':'ready','document':{},'usage':{},'error':''}
+            def reviewer(store, state, pair, preceding):
+                live = opt.get(store, state['run_id'])['activity']
+                assert live['actor'] == 'JKSimmons' and live['phase'] == 'review'
+                return assessment(7 if len(state['rounds']) == 1 else 9)
+            result = opt.execute(store, state['run_id'], generator=generator, reviewer=reviewer)
+            assert result['activity']['phase'] == 'approval' and result['activity']['actor'] == 'human'
+            assert set(result['visited_steps']) == {'context','draft','review','evaluate','revise','approval'}
+    with_store(check)
+
+
 def test_loop_revises_real_prompt_and_explicit_approval_changes_future_ncce_generation():
     def check(store):
         request = body(store); before = mechanical_records(store)
@@ -160,6 +180,26 @@ def test_invalid_reviewer_scores_and_shapes_fail_closed():
         rejects(lambda: opt.assess(bad))
     for change in ({'candidates': []}, {'proposed_form_instructions': ''}, {'summary': ''}):
         rejects(lambda: opt.assess({**assessment(), **change}))
+
+
+def test_server_upgrade_backup_includes_committed_wal_without_changing_source():
+    import sqlite3
+    from contextlib import closing
+    from migrations import backup_before_upgrade
+    def check(store):
+        with store.db:
+            store.db.execute("INSERT INTO system_state VALUES('backup-test','preserved')")
+            store.db.execute('PRAGMA user_version=12')
+        target = backup_before_upgrade(store.path)
+        assert target and target.exists()
+        with closing(sqlite3.connect(target)) as db:
+            assert db.execute('PRAGMA user_version').fetchone()[0] == 12
+            assert db.execute("SELECT value FROM system_state WHERE key='backup-test'").fetchone()[0] == 'preserved'
+            assert db.execute('PRAGMA quick_check').fetchone()[0] == 'ok'
+        assert store.db.execute('PRAGMA user_version').fetchone()[0] == 12
+        with store.db: store.db.execute('PRAGMA user_version=13')
+        assert backup_before_upgrade(store.path) is None
+    with_store(check)
 
 
 if __name__ == '__main__':

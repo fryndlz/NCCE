@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const context={window:{}};vm.createContext(context);vm.runInContext(fs.readFileSync('web/writing_activity.js','utf8'),context);
+const activity=context.window.NCCEWritingActivity;
+const run={run_id:'opt-test',status:'running',writer_reserved:1,reviewer_reserved:0,visited_steps:['context','draft'],activity:{phase:'draft',actor:'JuniorWriter',message:'Writing draft A <unsafe>',sample:1}};
+let view=activity.model(run);assert.equal(view.people.filter(p=>p.active).length,1);assert.equal(view.people[0].active,true);
+let html=activity.render(run);assert.ok(!html.includes('<unsafe>'));assert.match(html,/Writing draft A &lt;unsafe&gt;/);assert.match(html,/agent-writer is-working/);assert.match(html,/aria-current="step"/);
+assert.match(html,/Next independent entry/);assert.match(html,/Retest both entries/);
+run.activity={phase:'review',actor:'JKSimmons',message:'Checking both drafts'};view=activity.model(run);assert.equal(view.people[1].active,true);assert.equal(view.people[0].active,false);
+run.status='escalated';run.activity={phase:'escalated',actor:'StoryTechMan',message:'Missing a historical source'};view=activity.model(run);
+assert.ok(view.people.every(p=>!p.active));assert.equal(view.people[2].attention,true);assert.match(activity.render(run),/Missing a historical source/);
+run.status='awaiting_approval';run.activity={phase:'approval',actor:'human',message:'Please approve'};assert.ok(activity.model(run).people.every(p=>!p.active));assert.match(activity.render(run),/You decide/);
+run.status='approved';run.activity={phase:'complete',actor:'human',message:'Approved'};assert.match(activity.render(run),/approved is active/);
+assert.ok(activity.model(null).people.every(p=>!p.active));assert.match(activity.render(null),/I’m ready/);
+assert.match(fs.readFileSync('web/writing.css','utf8'),/prefers-reduced-motion/);
+console.log('PASS live agent heads and workflow: one working actor, escaped speech, review transition, human escalation, approval, idle and reduced motion');

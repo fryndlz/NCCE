@@ -6,6 +6,8 @@ import json
 import re
 import sqlite3
 import unicodedata
+from contextlib import closing
+from pathlib import Path
 from datetime import datetime, timezone
 
 SCHEMA_VERSION = 13
@@ -21,6 +23,22 @@ _PROVENANCE_SQL = "'mechanical_fact','player_authored','canon_authored','inferen
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def backup_before_upgrade(path):
+    """Server startup safeguard: preserve a consistent old-schema DB before migrating."""
+    path = Path(path).resolve()
+    with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as source:
+        version = source.execute('PRAGMA user_version').fetchone()[0]
+        if not 0 < version < SCHEMA_VERSION:
+            return None
+        stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+        target = path.with_name(f'pre-schema-{version}-to-{SCHEMA_VERSION}-{stamp}.db')
+        with closing(sqlite3.connect(target)) as destination:
+            source.backup(destination)
+            if destination.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
+                raise RuntimeError('Pre-upgrade SQLite backup failed verification')
+        return target
 
 
 def _stable_id(value: str) -> str:

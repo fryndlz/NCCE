@@ -30,7 +30,7 @@
   </main>
   <script>
     const form=document.querySelector('#login'),password=document.querySelector('#password'),button=document.querySelector('#submit'),error=document.querySelector('#error');
-    form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;button.textContent='Checking…';error.textContent='';try{const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:password.value})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not sign in.');location.replace('/')}catch(problem){error.textContent=problem.message;button.disabled=false;button.textContent='Enter the chronicle';password.focus()}});
+    form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;button.textContent='Checking…';error.textContent='';try{const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:password.value})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not sign in.');location.replace(location.hash==='#workshop'?'/#workshop':'/')}catch(problem){error.textContent=problem.message;button.disabled=false;button.textContent='Enter the chronicle';password.focus()}});
   </script>
 </body>
 </html>

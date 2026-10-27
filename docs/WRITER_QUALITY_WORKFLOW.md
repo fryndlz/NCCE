@@ -2,6 +2,10 @@
 
 ## Primary workflow: improve the actual NCCE writing setup
 
+Version 0.13.0 adds a live control room inside the Workshop: three illustrated role portraits, speech bubbles, working lights, an amber human-attention state and an SVG workflow graph. Progress is saved before each real writer/reviewer operation; polling highlights the actual phase, including context checking, drafting, reviewing, evaluation, brief revision, approval, activation and stops. The supervisor is explicitly identified as a procedural context/execution gate, not an independent model secretly repairing code. Reduced-motion settings disable animation while retaining state indicators. Open `/#workshop` to land directly in Workshop, including after signing in.
+
+Before an older on-disk schema is upgraded, server startup uses SQLite online backup and `quick_check` to create `pre-schema-12-to-13-<UTC timestamp>.db` beside the database. A failed backup stops startup before migration. This is a release safeguard, not offsite retention or an automatic downgrade procedure.
+
 The development branch now includes **Writer Workshop → Improve NCCE's writing setup** in the NCCE web application. This supersedes the detached Writing Lab as the main workflow. The goal is reusable improvements to NCCE's prompts and context delivery, not repeatedly polishing standalone samples. Source is `0.13.0-dev`, schema 13; this is not deployed to the hosted app.
 
 Select the prose form and starting sample in Workshop, choose a maximum of 1–3 rounds, then **Improve this prose form**. The confirmation covers both writing and reviewer requests. Each round uses two independent real source packets with two JuniorWriter drafts per packet, followed by one JKSimmons review per pair: at most **4 writing + 2 reviewer calls per round**, or **12 + 6** for three rounds. Independent contexts are identified by full source-packet hashes; two comparison variants of the same packet do not count. A form without two independent sourced samples cannot start. Nothing generates merely by opening the Workshop.
