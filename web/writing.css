@@ -180,3 +180,60 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .workshop-error { color: #edaa80; }
 #ws-status { padding: .7rem; border-left: 3px solid #00ca70; min-height: 2rem; }
 @media (max-width: 1000px) { .workshop-policies { grid-template-columns: 1fr; } }
+
+/* Chronicle timeline: source mechanics and Imperial presentation are separate. */
+.timeline-navigation { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:14px 0; font:.72rem/1.5 var(--sans); }
+.timeline-navigation span { margin-left:auto; color:var(--text-secondary); }
+.timeline-navigation button { min-height:36px; }
+.campaign-timeline-scroll { overflow-x:auto; overflow-y:hidden; }
+.campaign-timeline-svg { min-width:900px; }
+.timeline-lane .timeline-lane-label { fill:var(--gang-color); font-size:12px; }
+.timeline-lane-playtime { fill:#a8b1b8; font:10px sans-serif; }
+.timeline-lane-line { stroke:var(--gang-color); opacity:.3; }
+.timeline-lane .timeline-battle-span rect { fill:var(--gang-color); fill-opacity:.32; stroke:var(--gang-color); stroke-width:1.5; }
+.timeline-lane .timeline-battle-span.selected rect,.timeline-lane .timeline-battle-span:focus rect { fill-opacity:.7; stroke:#fff4c6; stroke-width:2.5; }
+.timeline-battle-span text { fill:#fff4dc; }
+.timeline-lane .timeline-downtime { fill:var(--gang-color); opacity:.24; }
+.timeline-lane .timeline-event-point { fill:var(--gang-color); stroke:#101915; stroke-width:2; transition:none; }
+.timeline-marker { cursor:pointer; }
+.timeline-marker text { fill:#101915; font:bold 11px sans-serif; pointer-events:none; }
+.timeline-marker:hover circle,.timeline-marker:focus circle { stroke:#fff; stroke-width:2; }
+.timeline-marker .timeline-event-point:hover,.timeline-marker .timeline-event-point:focus { r:5px; }
+.timeline-cluster .timeline-event-point:hover,.timeline-cluster .timeline-event-point:focus { r:12px; }
+.timeline-axis-tick .timeline-axis-imperial { fill:#d8cc9b; font:11px monospace; }
+.timeline-axis-tick text:not(.timeline-axis-imperial) { fill:#9babb9; font:10px sans-serif; }
+.timeline-diegetic { color:#e2d6ad; font-family:var(--serif,Georgia,serif); }
+.timeline-mechanical { color:#aebfcd; font-family:system-ui,sans-serif; font-size:.75rem; line-height:1.65; }
+.history-record-header { border-bottom:1px solid #566154; padding:6px 0 15px; }
+.history-record-id { font:.68rem/1.7 monospace; letter-spacing:.045em; overflow-wrap:anywhere; }
+.history-record-header h4 { margin:.7rem 0; font-size:1.15rem; }
+.history-imperial-window { padding:4px 0 10px; }
+.history-tabletop-time { display:flex; flex-direction:column; gap:4px; padding:10px 14px; background:#182229; border-left:2px solid #6f879a; }
+.history-tabletop-time>span { font-size:.6rem; letter-spacing:.08em; }
+.history-entity-link { padding:0; color:var(--entity-highlight); text-decoration:underline; text-underline-offset:3px; }
+.timeline-detail dl>div { align-items:start; padding:10px 0; }
+.timeline-detail dl dd { min-width:0; }
+.history-date { display:flex; flex-direction:column; gap:2px; margin-bottom:5px; }
+.history-date>.timeline-diegetic { font:.72rem monospace; }
+.history-date>.timeline-mechanical { font-size:.65rem; }
+.history-mechanical-panel { background:#182229; border-left:2px solid #6f879a; padding:14px; margin:16px 0; }
+.history-period { border-top:1px solid #465346; margin:12px 0; padding-top:12px; }
+.history-period>summary { color:#e5d499; font-size:.9rem; }
+.history-gang-group { border-left:2px solid var(--gang-color); margin:14px 0 12px 5px; padding:0 0 0 15px; }
+.history-gang-group>summary { color:var(--gang-color); }
+.history-fighter-group { margin:12px 0 12px 12px; }
+.history-fighter-group>summary { color:#dbdfd6; }
+.history-gang-group summary>span,.history-fighter-group summary>span { color:#97a698; font:.65rem sans-serif; padding-left:6px; }
+.timeline-detail .history-period ul,.timeline-cluster-panel ul,.history-fighter-events { padding:0; list-style:none; }
+.history-activity-entry { display:grid; grid-template-columns:24px minmax(0,1fr); gap:8px; width:100%; text-align:left; background:transparent; border:0; border-bottom:1px solid #303d3e; padding:12px 5px; border-radius:0; }
+.history-activity-entry:hover { background:#223035; }
+.history-event-icon { color:#a9c5cf; font:17px system-ui,sans-serif; padding-top:3px; }
+.history-event-description { display:block; overflow-wrap:anywhere; }
+.timeline-legend { flex-wrap:wrap; }
+.timeline-cluster-panel { max-height:460px; overflow:auto; }
+@media(max-width:760px) {
+ .timeline-navigation span { flex-basis:100%; margin-left:0; }
+ .history-gang-group { padding-left:9px; }
+ .history-fighter-group { margin-left:5px; }
+ .history-record-header h4 { font-size:1rem; }
+}

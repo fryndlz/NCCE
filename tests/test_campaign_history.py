@@ -225,6 +225,11 @@ def test_archive_import_is_idempotent_versioned_and_flags_same_version_conflicts
 
 
 if __name__ == "__main__":
+    from campaign_history import window_playtime
+    assert window_playtime([]) is None
+    assert window_playtime([{'start_at':'2026-10-25T10:00:00+00:00','end_at':'2026-10-25T11:00:00+00:00'},
+                            {'start_at':'2026-10-25T10:30:00+00:00','end_at':'2026-10-25T11:30:00+00:00'},
+                            {'start_at':'2026-10-25T13:00:00+00:00','end_at':'2026-10-25T14:00:00+00:00'}]) == 9000
     test_archive_parser_preserves_source_and_handles_bad_rows()
     test_timeline_joins_exactly_and_classifies_by_gang_window()
     test_session_join_is_exact_orphan_is_preserved_and_ally_xp_is_unknown()

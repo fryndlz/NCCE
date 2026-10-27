@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.1 - legible campaign timeline (2026-10-27)
+
+- **20:00 CET:** added Ctrl-wheel pointer-anchored zoom, zoom/fit/pan buttons, screen-distance event clusters with counts and expandable records, separate event/bar/downtime rows and stable gang colours.
+- Battle panels now include only actual session-window activity and following per-gang downtime before the next battle. Earlier events (including pre-battle deaths) cannot leak in through neighbouring-battle links. Battle/Downtime, gangs and fighters are collapsible; entries carry event-type icons.
+- Added Imperial dates separately from real Europe/Warsaw timing and mechanical descriptions. Added merged-session playtime, per-gang totals and filtered aggregate battle-hours. Overlapping sessions are counted once; breaks are excluded.
+- Reworked engagement/campaign-key metadata, Winner and territory links; removed the repeated source/session fields, candidate/proxy UI qualifiers, original JSON controls and the three lower registry/browse/notes sections. Source records and internal provenance remain intact. Updated technical design; see `docs/TIMELINE_0_12_1.md`.
+- Archive, timeline gesture/grouping/boundary, writing/date and authenticated app smoke checks pass without provider calls. Separate uncommitted frontend/theme work is excluded from the release.
+
 ## 0.12.0 - rulebook context and creative planning (2026-10-27)
 
 - **01:01 CET:** implemented shared planning across all fourteen writer forms, with compatible least-used focus selection for baselines/ambient accounts and fixed event/sequence anchoring elsewhere. Workshop exposes free focus pinning, variation and exact saved-plan inspection; one Generate request reuses the inspected packet.

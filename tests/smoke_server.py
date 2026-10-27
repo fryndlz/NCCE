@@ -41,7 +41,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.12.0'}
+                    assert read('/healthz') == {'ok':True,'version':'0.12.1'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
@@ -66,6 +66,8 @@ def main():
                 time.sleep(0.25)
             assert health['schema_version'] == 12 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
             dashboard = read('/api/dashboard')
+            timeline=read('/api/history')
+            assert all('playtime_seconds' in battle and 'local_territory_id' in battle for battle in timeline['battles'])
             assert dashboard['writing_policy']['date']['year'] == 998
             assert dashboard['battles'] and dashboard['battles'][0]['report_document']
             assert dashboard['battles'][0]['report_document']['writer_status'] in ('pending','unconfigured')

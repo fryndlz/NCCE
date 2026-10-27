@@ -166,13 +166,18 @@ class Store:
     normalized=re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(name)).strip().casefold())
     matches=roster.get((str(gang_id),normalized),[])
     fighter_names[(str(gang_id),str(fighter_id))]=matches[0] if len(matches)==1 else name
-  territories={}
-  for row in self.db.execute('SELECT mechanics_json,territory FROM territories'):
+  territories={}; territory_links={}
+  for row in self.db.execute('SELECT id,mechanics_json,territory FROM territories'):
    try: mechanics=json.loads(row['mechanics_json'] or '{}')
    except (TypeError,ValueError): mechanics={}
    territory_id=mechanics.get('territory_id') or mechanics.get('territoryId')
-   if territory_id: territories[str(territory_id)]=row['territory']
+   if territory_id:
+    territories[str(territory_id)]=row['territory']
+    territory_links.setdefault(str(territory_id),[]).append(row['id'])
   timeline=build_timeline(records,gang_names,fighter_names,territories)
+  for record in timeline['battles']+timeline['events']:
+   matches=territory_links.get(str(record.get('territory_id') or ''),[])
+   record['local_territory_id']=matches[0] if len(matches)==1 else None
   fighter_rows={}
   for row in self.db.execute('SELECT id,gang_id,name FROM fighters'):
    name_key=re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(row['name'] or '')).strip().casefold())

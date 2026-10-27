@@ -317,6 +317,19 @@ def _xp_participation(activity: dict, gang_id: str | None, battle: dict | None) 
             "confidence": "strong_inference" if explicit else "inference", "xp_before": before, "xp_after": after}
 
 
+def window_playtime(windows):
+    """Union complete session intervals; breaks and overlaps are not double-counted."""
+    intervals = sorted((datetime.fromisoformat(w['start_at']), datetime.fromisoformat(w['end_at']))
+                       for w in windows if w.get('start_at') and w.get('end_at') and w['end_at'] >= w['start_at'])
+    merged = []
+    for start, end in intervals:
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+        else:
+            merged.append((start, end))
+    return int(sum((end-start).total_seconds() for start, end in merged)) if intervals else None
+
+
 def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None,
                    fighter_names: dict[tuple[str, str], str] | None = None,
                    territories: dict[str, str] | None = None, now: str | None = None) -> dict:
@@ -397,6 +410,7 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
             "start_at": start_at, "end_at": end_at, "timing_basis": timing,
             "timing_warnings": warnings,
             "sessions": windows,
+            "playtime_seconds": window_playtime(windows),
             "gang_ids": participant_ids,
             "gangs": [{"gang_id": gang_id, "name": gang_names.get(gang_id, "Gang " + gang_id[:8])} for gang_id in participant_ids],
             "attacker": gang_names.get(str(battle_record.get("attacker_id") or battle_record.get("challenger_gang_id") or "")),

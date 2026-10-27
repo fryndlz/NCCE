@@ -1,44 +1,52 @@
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-
-const appRoot = {clientWidth: 1000, innerHTML: '', querySelectorAll: () => [], querySelector: () => null};
-const timelineRoot = {innerHTML: '', querySelectorAll: () => [], querySelector: () => null};
-const importLabel = {textContent: ''};
-const document = {querySelector(selector) {
-  if (selector === '#app') return appRoot;
-  if (selector === '#campaignTimeline') return timelineRoot;
-  if (selector === '#historyImportLabel') return importLabel;
-  return null;
-}};
-const source = fs.readFileSync('web/app.js', 'utf8');
-const renderer = source.slice(0, source.indexOf('function selectControl'));
-const context = vm.createContext({document, console, Intl, Date, Map, Set});
-vm.runInContext(renderer, context);
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const listeners={};
+const nav=['in','out','fit','earlier','later','cluster'].map(name=>({dataset:{historyNav:name},addEventListener:(type,fn)=>listeners[name+':'+type]=fn}));
+const viewport={scrollLeft:0,addEventListener:(type,fn,options)=>{listeners[type]=fn;if(type==='wheel')assert.equal(options.passive,false);},querySelector:()=>({getBoundingClientRect:()=>({left:0,width:960})})};
+const root={innerHTML:'',querySelectorAll:selector=>selector==='[data-history-nav]'?nav:[],querySelector:selector=>selector==='.campaign-timeline-scroll'?viewport:null};
+const document={querySelector:s=>s==='#app'?{clientWidth:1000}:s==='#campaignTimeline'?root:s==='#historyImportLabel'?{}:null};
+const ctx=vm.createContext({document,console,Intl,Date,Map,Set});
+vm.runInContext(fs.readFileSync('web/writing.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync(process.env.NCCE_APP_JS || 'web/app.js','utf8').split('function selectControl')[0],ctx);
 vm.runInContext(`
-  data = {gangs:[{gang_id:'gang-1',name:'House One'}]};
-  historyTimeline = {
-    battles:[{battle_id:'battle-1',scenario:'Takeover',status:'played',timing_basis:'session_timestamp_proxy',
-      start_at:'2026-10-25T10:00:00+00:00',end_at:'2026-10-25T11:00:00+00:00',gang_ids:['gang-1'],
-      gangs:[{gang_id:'gang-1',name:'House One'}],attacker:'House One',defender:'House Two',winner:'House One',
-      sessions:[{session_id:'session-1',status:'completed',start_at:'2026-10-25T10:00:00+00:00',end_at:'2026-10-25T11:00:00+00:00'}],raw_record:{id:'battle-1'}}],
-    events:[{event_id:'event-1',source_table:'gang_logs',source_row:2,recorded_at:'2026-10-25T10:30:00+00:00',
-      gang_id:'gang-1',gang_name:'House One',fighter_id:'fighter-1',fighter_name:'Mara Kel',entity_label:'Mara Kel',
-      action_type:'fighter_xp_changed',phase:'during_battle',confidence:'candidate_session_window',battle_id:'battle-1',
-      description:'Fighter "Mara Kel" XP changed from 2 to 3',participation:{status:'inferred',basis:'positive_xp_delta_in_battle_window',confidence:'inference'},raw_record:{id:'event-1'}}],
-    warnings:[],stats:{battle_records:1,activity_records:1,timed_battles:1},import:{available:true,last_imported_at:'2026-10-26T00:00:00+00:00'}
-  };
-  renderCampaignTimeline();
-`, context);
-
-assert.match(timelineRoot.innerHTML, /data-history-filter="battle"/);
-assert.match(timelineRoot.innerHTML, /candidate session window/i);
-assert.match(timelineRoot.innerHTML, /data-history-battle="battle-1"/);
-assert.match(timelineRoot.innerHTML, /data-history-event="event-1"/);
-assert.match(timelineRoot.innerHTML, /candidate window/);
-
-vm.runInContext(`selectedHistoryBattle='battle-1'; renderCampaignTimeline();`, context);
-assert.match(timelineRoot.innerHTML, /Activity and nearby downtime/);
-assert.match(timelineRoot.innerHTML, /Mara Kel/);
-assert.match(timelineRoot.innerHTML, /Original battle record/);
-console.log('ok (campaign timeline rendering and battle drilldown)');
+data={gangs:[{gang_id:'g1',name:'House One'},{gang_id:'g2',name:'House Two'}],territories:[{id:99,territory:'Shrine'}]};
+const b={battle_id:'battle-1',scenario:'Takeover',status:'played',timing_basis:'session_timestamp_proxy',start_at:'2026-10-25T10:00:00Z',end_at:'2026-10-25T11:00:00Z',gang_ids:['g1','g2'],gangs:[{gang_id:'g1',name:'House One'},{gang_id:'g2',name:'House Two'}],attacker:'House One',defender:'House Two',winner:'House One',winner_gang_id:'g1',territory:'Shrine',local_territory_id:99,cycle:1,sessions:[{start_at:'2026-10-25T10:00:00Z',end_at:'2026-10-25T11:00:00Z'}]};
+const e=(id,time,extra={})=>({event_id:id,recorded_at:time,gang_id:'g1',gang_name:'House One',fighter_name:'Mara Kel',fighter_id:'mara',action_type:'fighter_xp_changed',description:id,...extra});
+historyTimeline={battles:[b,{...b,battle_id:'battle-2',gang_ids:['g1'],start_at:'2026-10-25T13:00:00Z',end_at:'2026-10-25T14:00:00Z',sessions:[]}],events:[
+ e('OLD-DEATH','2026-10-25T09:00:00Z',{fighter_name:'Ethmet Griz',next_battle_id:'battle-1',description:'Earlier death',action_type:'fighter_killed'}),
+ e('at-start','2026-10-25T10:00:00Z'),e('during','2026-10-25T10:30:00Z'),e('nearby','2026-10-25T10:31:00Z'),e('at-end','2026-10-25T11:00:00Z'),
+ e('after','2026-10-25T11:01:00Z'),e('next-battle','2026-10-25T13:00:00Z'),e('too-late','2026-10-25T15:00:00Z'),
+ e('other-gang-later','2026-10-25T15:00:00Z',{gang_id:'g2',gang_name:'House Two'}),e('outsider','2026-10-25T10:30:00Z',{gang_id:'g3'})
+],import:{available:true}};
+renderCampaignTimeline();
+`,ctx);
+assert.match(root.innerHTML,/Ctrl \+ mouse wheel/);
+assert.match(root.innerHTML,/data-history-cluster=/);
+assert.match(root.innerHTML,/\.M41/);
+assert.match(root.innerHTML,/1h 00m|2h 00m/);
+assert.match(root.innerHTML,/--gang-color:#80d8be/);assert.match(root.innerHTML,/--gang-color:#ecba6a/);
+assert.doesNotMatch(root.innerHTML,/Candidate|candidate|Battle registry|Browse recorded changes|Timing and source notes/);
+const panel=vm.runInContext('timelineDetail(null,b)',ctx);
+assert.match(panel,/Time Window|Winner|Campaign Record/);
+assert.match(panel,/data-gang="g1"/);assert.match(panel,/data-territory="99"/);
+for(const name of ['period-battle','period-downtime','history-gang-group','history-fighter-group','timeline-diegetic','timeline-mechanical','✦'])assert.ok(panel.includes(name),name);
+assert.doesNotMatch(panel,/Earlier death|Ethmet Griz|next-battle|too-late|outsider|Window source|Linked sessions|Original battle record|session_timestamp_proxy/);
+for(const id of ['at-start','during','at-end','after','other-gang-later'])assert.ok(panel.includes(id),id);
+vm.runInContext(`historyFilters.battle='battle-1';`,ctx);
+const included=JSON.parse(vm.runInContext('JSON.stringify(timelineRows().map(e=>e.event_id))',ctx));
+assert.ok(!included.includes('OLD-DEATH')&&!included.includes('next-battle')&&!included.includes('too-late'));
+vm.runInContext(`historyFilters.battle=''; renderCampaignTimeline();`,ctx);
+const before=vm.runInContext('historyViewport.end-historyViewport.start',ctx);
+let prevented=false;
+listeners.wheel({ctrlKey:false,preventDefault:()=>prevented=true});
+assert.equal(prevented,false);assert.equal(vm.runInContext('historyViewport.end-historyViewport.start',ctx),before);
+listeners.wheel({ctrlKey:true,deltaY:-400,deltaMode:0,clientX:650,preventDefault:()=>prevented=true});
+assert.ok(prevented);assert.ok(vm.runInContext('historyViewport.end-historyViewport.start',ctx)<before);
+listeners['fit:click']();assert.equal(vm.runInContext('historyViewport.end-historyViewport.start',ctx),before);
+const counts=JSON.parse(vm.runInContext(`JSON.stringify([historyClusterEvents(historyTimeline.events.slice(1,5),t=>t/600000).length,historyClusterEvents(historyTimeline.events.slice(1,5),t=>t/1000).length])`,ctx));
+assert.ok(counts[0]<counts[1],'Zoom must split clusters');
+const positions=JSON.parse(vm.runInContext(`JSON.stringify(historyClusterEvents([0,29,30,59,60,88].map((v,i)=>({recorded_at:new Date(v*1000).toISOString(),event_id:i})),t=>t/1000).map(g=>({x:g.x,n:g.items.length})))`,ctx));
+for(let i=1;i<positions.length;i++)assert.ok(positions[i].x-positions[i-1].x>=30);
+const escaped=vm.runInContext(`timelineDetail({...historyTimeline.events[1],description:'<img src=x onerror=bad()>',entity_label:'<script>'},null)`,ctx);
+assert.ok(!escaped.includes('<img')&&!escaped.includes('<script>'));
+assert.equal(vm.runInContext(`historyPlaytime({sessions:[{start_at:'2026-10-25T10:00:00Z',end_at:'2026-10-25T11:00:00Z'},{start_at:'2026-10-25T10:30:00Z',end_at:'2026-10-25T11:30:00Z'},{start_at:'2026-10-25T13:00:00Z',end_at:'2026-10-25T14:00:00Z'}]})`,ctx),9000);
+console.log('ok (timeline zoom, clustering, geometry, strict per-gang intervals, links, dates, duration, escaping)');

@@ -1,6 +1,8 @@
-# NCCE 0.12.0 — current technical design
+# NCCE 0.12.1 — current technical design
 
-**Source release:** 0.12.0, rulebook context and shared creative planning. **Schema:** 12.
+**Source release:** 0.12.1, timeline readability and strict per-gang battle/downtime detail. **Schema:** 12.
+
+[Timeline 0.12.1](TIMELINE_0_12_1.md) specifies zoom, screen-distance clustering, gang colours, separate bar/marker rows, strict activity intervals, nested collapsible groups, source/Imperial date layers and merged-session playtime. This supersedes the older timeline presentation description below; source provenance and participation inference rules remain unchanged.
 **Checkpoint:** 2026-10-27 01:01 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
 
 [Writer creative planning](WRITER_CREATIVE_PLANNING.md) specifies the new shared modules and exact rules: 26 verified 2023 Core Rulebook territory cards, least-used compatible focus selection for baselines/ambient writing, event/sequence anchoring for other forms, frozen inspectable plans and compact heuristic recent-pattern memory. Plans/footprints are private derived data; they cannot establish facts or replace same-subject continuity. Workshop focus selection is free and pinnable. Saved instructions/edits remain intact; one provider call per draft, no automatic regeneration. Luna/medium and a 4,000-token total response allowance remain configured.

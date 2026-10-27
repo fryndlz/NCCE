@@ -1,4 +1,4 @@
-# Story Engine Architecture — NCCE 0.12.0
+# Story Engine Architecture — NCCE 0.12.1
 
 **Source schema:** 12. [Creative planning](WRITER_CREATIVE_PLANNING.md) adds verified rulebook type context, persistent free/pinned Workshop plans and compact heuristic repetition memory to all writing forms. Authored context and same-subject continuity remain separate; recorded events stay central. The [Writer Workshop](WRITER_WORKSHOP.md) retains private revisions, explicit activation, source-backed one-call trials and preserved edits. Existing runtime contracts and audits are specified in [WRITER_PIPELINE_0_10.md](WRITER_PIPELINE_0_10.md). Routine provider calls remain disabled. Hosted evidence is maintained in CHANGELOG.md.
 
@@ -66,7 +66,7 @@ Downtime is event/state-driven fiction between games. There is no simulation of 
 
 Schema 8 retains Munda Manager activity, documented battles and sessions as raw/versioned archive records. Sessions join battles only by `campaign_battle_id`; unresolved sessions, missing session windows, archive conflicts and parsing issues remain visible. `Created At` and `Updated At` are candidate time-window proxies, not confirmed game start/end facts. Activity classification is per gang and has explicit confidence/ambiguity states. Positive fighter XP increases inside an involved gang's candidate session window may support an inferred participation. XP loss, ally attendance and unsupported deployments remain unknown. `/api/history` serves the derived registry/timeline, and fighter details attach matching fighter-specific entries.
 
-The Chronicle renders a Gantt-style timeline with one lane per gang, separate session spans, campaign activity markers, a battle registry, filters, and expandable original source records. This archive does not currently feed the model writer or change the generated battle reports.
+The Chronicle renders a zoomable timeline with stable gang colours, separated session bars/activity markers, distance-based numbered clusters, filters and a battle detail panel. Battle/Downtime membership is strictly timestamp-bounded per gang; nested gang/fighter groups collapse. Imperial dates are separate from real tabletop dates/mechanics, and session-union duration supplies playtime. Routine source caveats, registry/browse/notes folds and raw JSON controls are removed from the view; internal source records remain. [Timeline 0.12.1](TIMELINE_0_12_1.md) specifies the rules. This archive does not currently feed the model writer or change generated battle reports.
 
 ## 9. Presentation and service
 
