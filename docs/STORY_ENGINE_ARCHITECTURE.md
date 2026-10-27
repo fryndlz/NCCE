@@ -1,4 +1,4 @@
-# Story Engine Architecture — NCCE 0.12.1
+# Story Engine Architecture — NCCE 0.12.2
 
 **Source schema:** 12. [Creative planning](WRITER_CREATIVE_PLANNING.md) adds verified rulebook type context, persistent free/pinned Workshop plans and compact heuristic repetition memory to all writing forms. Authored context and same-subject continuity remain separate; recorded events stay central. The [Writer Workshop](WRITER_WORKSHOP.md) retains private revisions, explicit activation, source-backed one-call trials and preserved edits. Existing runtime contracts and audits are specified in [WRITER_PIPELINE_0_10.md](WRITER_PIPELINE_0_10.md). Routine provider calls remain disabled. Hosted evidence is maintained in CHANGELOG.md.
 
@@ -63,6 +63,8 @@ Battle reports can use recent roster deltas as accompanying returns only under b
 Downtime is event/state-driven fiction between games. There is no simulation of meaningless continuous daily life. Repeated opponents can form a sourced gang relationship chronicle; the system does not yet model individualized social bonds.
 
 ## 8. Campaign chronology and presentation
+
+[Timeline 0.12.2](TIMELINE_0_12_2.md) adds two-axis Ctrl-drag navigation with stable-root pointer capture, scroll retention/click suppression, per-gang engagement counts and time, linked participants and the revised engagement metadata layout. Duration remains the sum of complete session unions; the hosted audit matched all per-battle values. This is deterministic UI/aggregation work and invokes no model.
 
 Schema 8 retains Munda Manager activity, documented battles and sessions as raw/versioned archive records. Sessions join battles only by `campaign_battle_id`; unresolved sessions, missing session windows, archive conflicts and parsing issues remain visible. `Created At` and `Updated At` are candidate time-window proxies, not confirmed game start/end facts. Activity classification is per gang and has explicit confidence/ambiguity states. Positive fighter XP increases inside an involved gang's candidate session window may support an inferred participation. XP loss, ally attendance and unsupported deployments remain unknown. `/api/history` serves the derived registry/timeline, and fighter details attach matching fighter-specific entries.
 

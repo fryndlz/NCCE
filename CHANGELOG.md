@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.2 - engagement navigation and record refinement (2026-10-27)
+
+- **20:31 CET:** added Ctrl-primary-drag navigation through time and vertically through gang lanes, stable-root pointer capture across chart redraws, retained vertical scrolling, drag threshold/cancellation and prevention of accidental battle/event selection after dragging. Ctrl-wheel and normal clicks remain available.
+- Added engagement counts below gang names on the battle-bar line, with engagement time underneath. Replaced playtime wording in the overview, lane labels, hover text and battle records.
+- Separated mission designation from clickable participant gang names; moved Cycle above Time Window; removed the timezone caption and framed real-date panel; renamed the activity heading to `+++ RECORDED EVENTS // CHRONOLOGICAL INDEX +++`.
+- Independently audited all 26 hosted battles: 23 timed engagements total 346,949 seconds (96h 22m), with zero per-battle mismatches against session-union durations. Three incomplete/untimed records are excluded. The source includes windows of approximately 24h 36m and 18h 16m; retained without trimming or editing campaign data.
+- Updated design and regressions; source schema remains 12 and writer settings/policies are untouched. See `docs/TIMELINE_0_12_2.md`.
+
 ## 0.12.1 - legible campaign timeline (2026-10-27)
 
 - **20:00 CET:** added Ctrl-wheel pointer-anchored zoom, zoom/fit/pan buttons, screen-distance event clusters with counts and expandable records, separate event/bar/downtime rows and stable gang colours.

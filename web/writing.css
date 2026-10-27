@@ -189,6 +189,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .campaign-timeline-svg { min-width:900px; }
 .timeline-lane .timeline-lane-label { fill:var(--gang-color); font-size:12px; }
 .timeline-lane-playtime { fill:#a8b1b8; font:10px sans-serif; }
+.timeline-lane-engagements { fill:var(--gang-color); font:11px monospace; }
+.campaign-timeline-scroll { max-height:70vh; overflow:auto; }
+.campaign-timeline-svg { user-select:none; }
+.history-dragging .campaign-timeline-scroll,.history-dragging .timeline-marker,.history-dragging .timeline-battle-span { cursor:grabbing; }
 .timeline-lane-line { stroke:var(--gang-color); opacity:.3; }
 .timeline-lane .timeline-battle-span rect { fill:var(--gang-color); fill-opacity:.32; stroke:var(--gang-color); stroke-width:1.5; }
 .timeline-lane .timeline-battle-span.selected rect,.timeline-lane .timeline-battle-span:focus rect { fill-opacity:.7; stroke:#fff4c6; stroke-width:2.5; }
@@ -207,6 +211,15 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .history-record-header { border-bottom:1px solid #566154; padding:6px 0 15px; }
 .history-record-id { font:.68rem/1.7 monospace; letter-spacing:.045em; overflow-wrap:anywhere; }
 .history-record-header h4 { margin:.7rem 0; font-size:1.15rem; }
+.history-mission { display:flex; align-items:baseline; flex-wrap:wrap; gap:12px; margin:12px 0 5px; }
+.history-mission>span { color:var(--admin-primary); font:.62rem/1.5 monospace; letter-spacing:.12em; }
+.history-mission h4 { margin:0; color:var(--entity-highlight); font-size:1.35rem; }
+.history-participants { display:flex; align-items:baseline; flex-wrap:wrap; gap:12px; margin:12px 0 16px; }
+.history-participants .history-entity-link { color:var(--text-primary); font:1.05rem/1.5 var(--serif,Georgia,serif); }
+.history-versus { color:var(--text-secondary); font:.62rem monospace; letter-spacing:.12em; }
+.history-real-window { display:flex; flex-direction:column; gap:6px; color:var(--text-primary); font:.75rem/1.7 var(--sans); }
+.history-real-window strong { font-weight:normal; }
+.history-events-heading { padding:10px 0; letter-spacing:.07em; }
 .history-imperial-window { padding:4px 0 10px; }
 .history-tabletop-time { display:flex; flex-direction:column; gap:4px; padding:10px 14px; background:#182229; border-left:2px solid #6f879a; }
 .history-tabletop-time>span { font-size:.6rem; letter-spacing:.08em; }

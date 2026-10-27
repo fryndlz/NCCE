@@ -1,6 +1,8 @@
-# NCCE 0.12.1 — current technical design
+# NCCE 0.12.2 — current technical design
 
-**Source release:** 0.12.1, timeline readability and strict per-gang battle/downtime detail. **Schema:** 12.
+**Source release:** 0.12.2, Ctrl-drag timeline navigation and engagement record refinement. **Schema:** 12.
+
+[Timeline 0.12.2](TIMELINE_0_12_2.md) adds two-axis Ctrl-drag with stable pointer capture, filtered engagement counts/time on gang lanes, linked participants, separated mission identity, Cycle-first metadata, neutral real-world timing and the independent hosted duration audit. Recorded campaign windows and existing writer policies remain unchanged.
 
 [Timeline 0.12.1](TIMELINE_0_12_1.md) specifies zoom, screen-distance clustering, gang colours, separate bar/marker rows, strict activity intervals, nested collapsible groups, source/Imperial date layers and merged-session playtime. This supersedes the older timeline presentation description below; source provenance and participation inference rules remain unchanged.
 **Checkpoint:** 2026-10-27 01:01 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.

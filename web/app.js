@@ -286,7 +286,7 @@ function historyDuration(seconds) {
   return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2,'0')}m` : `${minutes}m`;
 }
 const historyPhaseLabel = phase => ({during_battle:'Battle',downtime:'Downtime',current_downtime:'Downtime',pre_first_battle:'Before first battle',pre_battle:'Before first battle',inter_session_gap:'Intermission',unassigned:'Unassigned',unavailable:'Undated',ambiguous_overlap:'Overlapping engagements',open_battle_window:'Battle in progress'}[phase] || human(phase));
-let historyViewport = null, selectedHistoryCluster = null;
+let historyViewport = null, selectedHistoryCluster = null, historyDrag = null, historySuppressDragClick = false;
 const historyPalette = ['#80d8be','#ecba6a','#bf9ff4','#ed8fa8','#7ec5f0','#d3dc80','#f19b6d','#a6b8f2','#77ced4','#d3a1cb'];
 function timelineFilterOptions() {
   const gangs = new Map((data?.gangs || []).map(gang => [String(gang.gang_id), short(gang.name)]));
@@ -360,13 +360,17 @@ function historyActivityGroup(rows, period) {
 function timelineDetail(event, selectedBattle) {
   if (selectedBattle) {
     const b=selectedBattle;
-    const names=b.attacker && b.defender ? `${short(b.attacker)} vs ${short(b.defender)}` : list(b.gangs).map(g=>short(g.name)).join(' vs ');
+    const parties=b.attacker && b.defender ? [
+      {name:b.attacker,gang_id:b.attacker_gang_id || list(b.gangs).find(g=>g.name===b.attacker)?.gang_id},
+      {name:b.defender,gang_id:b.defender_gang_id || list(b.gangs).find(g=>g.name===b.defender)?.gang_id}
+    ] : list(b.gangs);
+    const participants=parties.map(g=>historyEntityLink('gang',g.gang_id,short(g.name))).join('<span class="history-versus">VS</span>');
     const related=timelineRows().slice().sort((a,b)=>Date.parse(a.recorded_at)-Date.parse(b.recorded_at));
     const battleRows=related.filter(e=>historyEventPeriod(e,b)==='battle'), downtimeRows=related.filter(e=>historyEventPeriod(e,b)==='downtime');
     const winnerId=b.winner_gang_id || list(data?.gangs).find(g=>g.name===b.winner)?.gang_id;
     const places=list(data?.territories).filter(t=>t.territory===b.territory);
     const placeId=b.local_territory_id || (places.length===1?places[0].id:null);
-    return `<article class="timeline-detail"><header class="timeline-diegetic history-record-header"><div class="eyebrow">+++ ENGAGEMENT ARCHIVE // RECORD RETRIEVED +++</div><h4>${esc(b.scenario || 'Battle')} · ${esc(names)}</h4><div class="history-record-id">REGISTRY: KRAK/ENG/${esc(b.battle_id)} // ${esc(String(b.status || 'registered').toUpperCase())}</div></header><dl><div><dt>Time Window</dt><dd><div class="timeline-diegetic history-imperial-window">${esc(historyImperial(b.start_at))} — ${esc(historyImperial(b.end_at))}</div><div class="timeline-mechanical history-tabletop-time"><span>TABLETOP · EUROPE/WARSAW</span>${esc(historyDate(b.start_at))} — ${esc(historyDate(b.end_at))}<strong>Playtime: ${historyDuration(historyPlaytime(b))}</strong></div></dd></div><div><dt>Winner</dt><dd>${historyEntityLink('gang',winnerId,b.winner || 'Unrecorded')}</dd></div><div><dt>Campaign Record</dt><dd class="timeline-diegetic history-record-id">RECORD-KEY // ${esc(b.battle_id)}</dd></div>${b.territory?`<div><dt>Territory</dt><dd>${historyEntityLink('territory',placeId,b.territory)}</dd></div>`:''}${b.cycle!==null && b.cycle!==undefined?`<div><dt>Cycle</dt><dd>${esc(b.cycle)}</dd></div>`:''}</dl><section class="timeline-battle-activity"><div class="evidence-label">Recorded changes · mechanical</div>${historyActivityGroup(battleRows,'battle')}${historyActivityGroup(downtimeRows,'downtime')}</section></article>`;
+    return `<article class="timeline-detail"><header class="timeline-diegetic history-record-header"><div class="eyebrow">+++ ENGAGEMENT ARCHIVE // RECORD RETRIEVED +++</div><div class="history-mission"><span>MISSION</span><h4>${esc(b.scenario || 'Battle')}</h4></div><div class="history-participants">${participants}</div><div class="history-record-id">REGISTRY: KRAK/ENG/${esc(b.battle_id)} // ${esc(String(b.status || 'registered').toUpperCase())}</div></header><dl>${b.cycle!==null && b.cycle!==undefined?`<div><dt>Cycle</dt><dd>${esc(b.cycle)}</dd></div>`:''}<div><dt>Time Window</dt><dd><div class="timeline-diegetic history-imperial-window">${esc(historyImperial(b.start_at))} — ${esc(historyImperial(b.end_at))}</div><div class="history-real-window">${esc(historyDate(b.start_at))} — ${esc(historyDate(b.end_at))}<strong>Engagement time: ${historyDuration(historyPlaytime(b))}</strong></div></dd></div><div><dt>Winner</dt><dd>${historyEntityLink('gang',winnerId,b.winner || 'Unrecorded')}</dd></div><div><dt>Campaign Record</dt><dd class="timeline-diegetic history-record-id">RECORD-KEY // ${esc(b.battle_id)}</dd></div>${b.territory?`<div><dt>Territory</dt><dd>${historyEntityLink('territory',placeId,b.territory)}</dd></div>`:''}</dl><section class="timeline-battle-activity"><div class="evidence-label history-events-heading">+++ RECORDED EVENTS // CHRONOLOGICAL INDEX +++</div>${historyActivityGroup(battleRows,'battle')}${historyActivityGroup(downtimeRows,'downtime')}</section></article>`;
   }
   if (!event) return `<div class="timeline-detail muted">Select a battle, event or numbered group.</div>`;
   return `<article class="timeline-detail"><div class="timeline-diegetic eyebrow">+++ ACTIVITY REGISTER // ${esc(event.event_id)} +++</div><h4>${historyIcon(event)} ${esc(event.entity_label || event.gang_name || 'Campaign event')}</h4>${historyStamp(event.recorded_at)}<div class="timeline-mechanical history-mechanical-panel"><div class="evidence-label">Mechanical record · ${esc(human(event.action_type))}</div><p>${esc(event.description || 'Change recorded')}</p></div>${event.gang_id?`<p>Gang: ${historyEntityLink('gang',event.gang_id,short(event.gang_name))}</p>`:''}${event.local_fighter_id?`<p>Fighter: ${historyEntityLink('fighter',event.local_fighter_id,event.fighter_name)}</p>`:''}</article>`;
@@ -393,6 +397,46 @@ function historySetViewport(start,end,bounds) {
   const minimum=Math.min(15*60000,bounds.end-bounds.start), span=Math.min(bounds.end-bounds.start,Math.max(minimum,end-start));
   start=Math.max(bounds.start,Math.min(start,bounds.end-span));
   historyViewport={start,end:start+span};
+}
+function historyBindDrag(root, viewport, bounds, start, end, plotWidth, width) {
+  if (!viewport) return;
+  if (!root.dataset.historyDragBound) {
+    root.dataset.historyDragBound='1';
+    const finish=event=>{
+      if (!historyDrag || (event.pointerId!==undefined && event.pointerId!==historyDrag.pointerId)) return;
+      const id=historyDrag.pointerId;historyDrag=null;root.classList.remove('history-dragging');
+      if(root.hasPointerCapture?.(id))root.releasePointerCapture(id);
+    };
+    root.addEventListener('pointermove',event=>{
+      const drag=historyDrag;
+      if (!drag || event.pointerId!==drag.pointerId) return;
+      if (event.ctrlKey===false) {finish(event);return;}
+      const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+      if (!drag.moved && Math.hypot(dx,dy)<4) return;
+      drag.moved=true;historySuppressDragClick=true;event.preventDefault();
+      root.classList.add('history-dragging');
+      const current=root.querySelector('.campaign-timeline-scroll');
+      if(current)current.scrollTop=drag.scrollTop-dy;
+      const shift=-dx*(drag.end-drag.start)/drag.plotPixels;
+      historySetViewport(drag.start+shift,drag.end+shift,drag.bounds);renderCampaignTimeline();
+    });
+    for (const name of ['pointerup','pointercancel','lostpointercapture']) root.addEventListener(name,finish);
+    root.addEventListener('click',event=>{
+      if(historySuppressDragClick && event.target.closest?.('.campaign-timeline-scroll')){
+        event.preventDefault();event.stopImmediatePropagation();historySuppressDragClick=false;
+      }
+    },true);
+  }
+  viewport.addEventListener('pointerdown',event=>{
+    historySuppressDragClick=false;
+    if(!event.ctrlKey || event.button!==0)return;
+    event.preventDefault();
+    const rect=viewport.querySelector('svg').getBoundingClientRect();
+    historyDrag={pointerId:event.pointerId,x:event.clientX,y:event.clientY,start,end,bounds,
+      plotPixels:plotWidth*rect.width/width,scrollTop:viewport.scrollTop || 0,moved:false};
+    // Capture on the stable root: chart children are replaced while panning.
+    root.setPointerCapture(event.pointerId);
+  });
 }
 function renderCampaignTimeline() {
   const root=document.querySelector('#campaignTimeline'), label=document.querySelector('#historyImportLabel');
@@ -431,7 +475,7 @@ function renderCampaignTimeline() {
     const gaps=ordered.slice(1).map((b,i)=>{const previous=ordered[i],a=Math.max(start,Date.parse(previous.end_at)),z=Math.min(end,Date.parse(b.start_at));return z>a?`<rect class="timeline-downtime" x="${x(a)}" y="${y+39}" width="${x(z)-x(a)}" height="6"><title>Downtime</title></rect>`:'';}).join('');
     const bars=gangBattles.flatMap(b=>historyIntervals(b).filter(s=>Date.parse(s.end_at)>=start && Date.parse(s.start_at)<=end).map(s=>{
       const a=Math.max(start,Date.parse(s.start_at)),z=Math.min(end,Date.parse(s.end_at)),w=Math.max(5,x(z)-x(a));
-      const title=`${b.scenario || 'Battle'} · ${list(b.gangs).map(g=>short(g.name)).join(' vs ')}\n${historyImperial(s.start_at)} — ${historyImperial(s.end_at)}\n${historyDate(s.start_at)} — ${historyDate(s.end_at)} · Playtime ${historyDuration(historyPlaytime(b))}`;
+      const title=`${b.scenario || 'Battle'} · ${list(b.gangs).map(g=>short(g.name)).join(' vs ')}\n${historyImperial(s.start_at)} — ${historyImperial(s.end_at)}\n${historyDate(s.start_at)} — ${historyDate(s.end_at)} · Engagement time ${historyDuration(historyPlaytime(b))}`;
       return `<g class="timeline-battle-span${String(selectedHistoryBattle)===String(b.battle_id)?' selected':''}" data-history-battle="${esc(b.battle_id)}" role="button" tabindex="0" aria-label="${esc(title)}"><rect x="${x(a)}" y="${y+6}" width="${w}" height="23" rx="3"><title>${esc(title)}</title></rect>${w>95?`<text x="${x(a)+6}" y="${y+22}">${esc(b.scenario || 'Battle')}</text>`:''}</g>`;
     })).join('');
     const noTime=gangBattles.filter(b=>(!b.start_at || !b.end_at) && Date.parse(b.documented_at)>=start && Date.parse(b.documented_at)<=end).map(b=>`<path class="timeline-unverified" data-history-battle="${esc(b.battle_id)}" tabindex="0" role="button" aria-label="${esc(b.scenario || 'Battle')} · time unrecorded" d="M ${x(Date.parse(b.documented_at))} ${y+10} l 6 6 -6 6 -6 -6 z"/>`).join('');
@@ -443,7 +487,7 @@ function renderCampaignTimeline() {
     }).join('');
     const nameParts=short(name).match(/.{1,26}(?:\s|$)|.{1,26}/g) || [name];
     const playtime=gangBattles.reduce((n,b)=>n+(historyPlaytime(b) || 0),0);
-    return `<g class="timeline-lane" style="--gang-color:${color}"><text class="timeline-lane-label" x="${left-18}" y="${y-11}" text-anchor="end">${nameParts.slice(0,3).map((part,i)=>`<tspan x="${left-18}" dy="${i?15:0}">${esc(part.trim())}</tspan>`).join('')}<title>${esc(name)}</title></text><text class="timeline-lane-playtime" x="${left-18}" y="${y+47}" text-anchor="end">${historyDuration(playtime)} played</text><line class="timeline-lane-line" x1="${left}" y1="${y+17}" x2="${width-right}" y2="${y+17}"/><g clip-path="url(#history-plot-clip)">${gaps}${dots}${bars}${noTime}</g></g>`;
+    return `<g class="timeline-lane" style="--gang-color:${color}"><text class="timeline-lane-label" x="${left-18}" y="${y-25}" text-anchor="end">${nameParts.slice(0,3).map((part,i)=>`<tspan x="${left-18}" dy="${i?15:0}">${esc(part.trim())}</tspan>`).join('')}<title>${esc(name)}</title></text><text class="timeline-lane-engagements" x="${left-18}" y="${y+20}" text-anchor="end">${gangBattles.length} engagements</text><text class="timeline-lane-playtime" x="${left-18}" y="${y+47}" text-anchor="end">${historyDuration(playtime)} engagement time</text><line class="timeline-lane-line" x1="${left}" y1="${y+17}" x2="${width-right}" y2="${y+17}"/><g clip-path="url(#history-plot-clip)">${gaps}${dots}${bars}${noTime}</g></g>`;
   }).join('');
   const visibleIds=new Set(rows.map(e=>String(e.event_id)));
   if (!visibleIds.has(String(selectedHistoryEvent))) selectedHistoryEvent=null;
@@ -452,11 +496,12 @@ function renderCampaignTimeline() {
   const clusterEvents=rows.filter(e=>list(selectedHistoryCluster).includes(String(e.event_id)));
   const clusterPanel=clusterEvents.length?`<section class="timeline-cluster-panel history-mechanical-panel"><h4>${clusterEvents.length} recorded changes</h4><button type="button" data-history-nav="cluster">Zoom to this group</button><ul>${clusterEvents.map(historyEventItem).join('')}</ul></section>`:'';
   const folds=new Map([...root.querySelectorAll('details[data-history-fold]')].map(f=>[f.dataset.historyFold,f.open]));
-  const scroll=root.querySelector('.campaign-timeline-scroll'), scrollLeft=scroll?.scrollLeft || 0;
-  root.innerHTML=`${filtersMarkup}<div class="timeline-summary"><span>${scoped.length} battles · ${rows.length} recorded changes · ${historyDuration(scoped.reduce((n,b)=>n+(historyPlaytime(b)||0),0))} playtime</span><span>Imperial datestamps / tabletop time</span></div><div class="timeline-navigation"><button data-history-nav="earlier" aria-label="Pan timeline earlier">← Earlier</button><button data-history-nav="out" aria-label="Zoom timeline out">−</button><button data-history-nav="fit">Full campaign</button><button data-history-nav="in" aria-label="Zoom timeline in">+</button><button data-history-nav="later" aria-label="Pan timeline later">Later →</button><span>Ctrl + mouse wheel to zoom · ${((max-min)/(end-start)).toFixed(1)}×</span></div><div class="campaign-timeline-scroll" role="region" aria-label="Campaign battle and downtime timeline" tabindex="0"><svg class="campaign-timeline-svg" viewBox="0 0 ${width} ${height}" role="group" aria-label="Chronological campaign activity grouped by gang"><defs><clipPath id="history-plot-clip"><rect x="${left-12}" y="60" width="${plotWidth+24}" height="${height-60}"/></clipPath></defs>${grid}${lanes}</svg></div><div class="timeline-legend"><span><i class="legend-battle"></i> Battle window</span><span><i class="legend-change"></i> Recorded change / numbered group</span><span><i class="legend-downtime"></i> Downtime</span><span>Colours identify gangs</span></div>${clusterPanel}<div id="historyEventDetail">${timelineDetail(selected,selectedBattle)}</div>`;
+  const scroll=root.querySelector('.campaign-timeline-scroll'), scrollLeft=scroll?.scrollLeft || 0, scrollTop=scroll?.scrollTop || 0;
+  root.innerHTML=`${filtersMarkup}<div class="timeline-summary"><span>${scoped.length} engagements · ${rows.length} recorded events · ${historyDuration(scoped.reduce((n,b)=>n+(historyPlaytime(b)||0),0))} engagement time</span><span>Imperial datestamps / real-world time</span></div><div class="timeline-navigation"><button data-history-nav="earlier" aria-label="Pan timeline earlier">← Earlier</button><button data-history-nav="out" aria-label="Zoom timeline out">−</button><button data-history-nav="fit">Full campaign</button><button data-history-nav="in" aria-label="Zoom timeline in">+</button><button data-history-nav="later" aria-label="Pan timeline later">Later →</button><span>Ctrl + mouse wheel to zoom · Ctrl + drag to pan · ${((max-min)/(end-start)).toFixed(1)}×</span></div><div class="campaign-timeline-scroll" role="region" aria-label="Campaign battle and downtime timeline" tabindex="0"><svg class="campaign-timeline-svg" viewBox="0 0 ${width} ${height}" role="group" aria-label="Chronological campaign activity grouped by gang"><defs><clipPath id="history-plot-clip"><rect x="${left-12}" y="60" width="${plotWidth+24}" height="${height-60}"/></clipPath></defs>${grid}${lanes}</svg></div><div class="timeline-legend"><span><i class="legend-battle"></i> Battle window</span><span><i class="legend-change"></i> Recorded change / numbered group</span><span><i class="legend-downtime"></i> Downtime</span><span>Colours identify gangs</span></div>${clusterPanel}<div id="historyEventDetail">${timelineDetail(selected,selectedBattle)}</div>`;
   for (const [key,open] of folds) {const fold=[...root.querySelectorAll('[data-history-fold]')].find(f=>f.dataset.historyFold===key);if(fold) fold.open=open;}
   const viewport=root.querySelector('.campaign-timeline-scroll');
-  if (viewport) viewport.scrollLeft=scrollLeft;
+  if (viewport) {viewport.scrollLeft=scrollLeft;viewport.scrollTop=scrollTop;}
+  historyBindDrag(root,viewport,bounds,start,end,plotWidth,width);
   root.querySelectorAll('[data-history-filter]').forEach(c=>c.addEventListener(c.matches('input[type="search"]')?'input':'change',event=>{
     historyFilters[event.target.dataset.historyFilter]=event.target.value;historyViewport=null;selectedHistoryCluster=null;
     if(event.target.dataset.historyFilter==='battle'){selectedHistoryBattle=event.target.value || null;selectedHistoryEvent=null;}
