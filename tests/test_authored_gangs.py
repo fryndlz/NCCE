@@ -16,6 +16,7 @@ def main():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
         store=Store(Path(directory)/'test.db')
         try:
+            store.db.execute('INSERT INTO snapshots(captured_at,payload_json) VALUES(?,?)',('2026-10-24','{"gangs":6}'))
             store.db.execute("INSERT INTO gangs(gang_id,name,backstory,backstory_source) VALUES('g1','A','THE PROSPECT old prose','player-authored / C-NINE story')")
             assert not store.gang('g1')['backstory']
             store.project_snapshot({'gangs':{'A':gang,'B':{'gang_id':'g2','name':'B'}}})

@@ -243,7 +243,9 @@ class Store:
       # The upstream workbook rebuild can omit the entire backstory section.
       # Recover only previously observed Sheet text, never old seeded fiction.
       for row in self.db.execute('SELECT payload_json FROM snapshots ORDER BY id DESC'):
-       observed=next((g for g in json.loads(row['payload_json']).get('gangs',{}).values() if str(g.get('gang_id'))==gang_id),None)
+       historical=json.loads(row['payload_json']).get('gangs',{})
+       if not isinstance(historical,dict):continue  # The original seed stores a count.
+       observed=next((g for g in historical.values() if isinstance(g,dict) and str(g.get('gang_id'))==gang_id),None)
        if observed and (observed.get('backstory_available') or observed.get('backstory')):
         backstory=str(observed.get('backstory') or '').strip()
         break
