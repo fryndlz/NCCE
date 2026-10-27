@@ -1,5 +1,6 @@
 """Queue ownership, cancellation, real-state handoff and companion dispatch without models."""
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -24,7 +25,7 @@ TOKEN='bridge-test-only-'*4
 
 def with_store(check):
     def run(store):
-        with patch.dict(os.environ,{'NCCE_REVIEW_BRIDGE_TOKEN':TOKEN}):check(store)
+        with patch.dict(os.environ,{'NCCE_REVIEW_BRIDGE_TOKEN_SHA256':hashlib.sha256(TOKEN.encode()).hexdigest()}):check(store)
     base_store(run)
 
 
@@ -34,6 +35,7 @@ def identity():return {'thread_id':cq.thread_id(),'worker_id':'worker-test-001'}
 def test_scoped_auth_offline_and_claim_result_ownership():
     def check(store):
         assert not cq.authenticated('Bearer wrong') and cq.authenticated('Bearer '+TOKEN)
+        assert not cq.authenticated('Bearer '+hashlib.sha256(TOKEN.encode()).hexdigest()), 'Verifier hash must not be usable as a credential'
         assert not cq.status(store)['online']
         request=body(store)
         with patch.object(writer,'API_KEY','mock'):rejects(lambda:opt.queue(store,request))

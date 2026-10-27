@@ -13,6 +13,7 @@ import writer_workshop as ws
 import workshop_optimizer as opt
 from test_writer_pipeline import with_store as base_with_store, draft
 import os
+import hashlib
 import codex_review_queue as cq
 from test_writer_workshop import seed
 from test_story_engine import mechanical_records
@@ -20,7 +21,7 @@ from test_story_engine import mechanical_records
 
 def with_store(check):
     def wrapped(store):
-        with patch.dict(os.environ, {'NCCE_REVIEW_BRIDGE_TOKEN':'test-bridge-token-'*4}):
+        with patch.dict(os.environ, {'NCCE_REVIEW_BRIDGE_TOKEN_SHA256':hashlib.sha256(('test-bridge-token-'*4).encode()).hexdigest()}):
             cq.heartbeat(store, {'thread_id':cq.thread_id(),'worker_id':'test-worker-0001'})
             check(store)
     base_with_store(wrapped)

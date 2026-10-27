@@ -13,13 +13,18 @@ THREAD_ID = '01a17f57-f5bb-7782-bce0-8b3b43dd367f'
 
 def packed(v): return json.dumps(v, ensure_ascii=False, sort_keys=True, allow_nan=False)
 def now(): return datetime.now(timezone.utc).isoformat()
-def configured(): return len(os.environ.get('NCCE_REVIEW_BRIDGE_TOKEN', '')) >= 32
+def configured():
+    value = os.environ.get('NCCE_REVIEW_BRIDGE_TOKEN_SHA256', '')
+    return len(value) == 64 and all(c in '0123456789abcdef' for c in value)
 def thread_id(): return os.environ.get('NCCE_CODEX_REVIEWER_THREAD_ID') or THREAD_ID
 
 
 def authenticated(header):
-    expected = os.environ.get('NCCE_REVIEW_BRIDGE_TOKEN', '')
-    return configured() and hmac.compare_digest((header or '').encode(), ('Bearer ' + expected).encode())
+    if not configured() or not isinstance(header, str) or not header.startswith('Bearer '): return False
+    token = header[7:]
+    if not 32 <= len(token) <= 300: return False
+    expected = os.environ['NCCE_REVIEW_BRIDGE_TOKEN_SHA256']
+    return hmac.compare_digest(hashlib.sha256(token.encode()).hexdigest(), expected)
 
 
 def status(store):

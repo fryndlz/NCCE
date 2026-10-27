@@ -1,5 +1,6 @@
 """Real HTTP boundary tests with a mocked worker: no external or paid requests."""
 import json,os,sys,tempfile,threading
+import hashlib
 from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -13,7 +14,8 @@ from access import make_session_token,effective_session_key
 def main():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
         db=Path(folder)/'test.db';seed=Store(db);before=campaign();apply(seed,before);apply(seed,latest_game(before));seed.close()
-        os.environ.update(NCCE_DB_PATH=str(db),NCCE_REQUIRE_AUTH='0',NCCE_OPENAI_API_KEY='',NCCE_REVIEW_BRIDGE_TOKEN='disposable-bridge-token-for-http-tests-000000')
+        bridge_token='disposable-bridge-token-for-http-tests-000000'
+        os.environ.update(NCCE_DB_PATH=str(db),NCCE_REQUIRE_AUTH='0',NCCE_OPENAI_API_KEY='',NCCE_REVIEW_BRIDGE_TOKEN_SHA256=hashlib.sha256(bridge_token.encode()).hexdigest())
         import server,writer_workshop as ws
         import codex_review_queue as bridge
         bridge.heartbeat(server.store,{'thread_id':bridge.thread_id(),'worker_id':'http-test-worker'})
@@ -36,7 +38,7 @@ def main():
                 assert call('/api/workshop/optimize',{})[0]==403
                 assert call('/api/reviewer-bridge/claim',{})[0]==401
                 bridge_body={'thread_id':bridge.thread_id(),'worker_id':'http-test-worker'}
-                bearer='Bearer '+os.environ['NCCE_REVIEW_BRIDGE_TOKEN']
+                bearer='Bearer '+bridge_token
                 assert call('/api/reviewer-bridge/claim',bridge_body,authorization=bearer)[0]==200
                 assert call('/api/workshop/activate',{},authorization=bearer)[0]==403
                 assert server.store.db.execute('SELECT count(*) FROM workshop_trials').fetchone()[0]==0
