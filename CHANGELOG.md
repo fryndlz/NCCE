@@ -364,6 +364,8 @@ Source completed: 2026-10-27 21:17 CET (Europe/Warsaw).
 - 2026-10-27 21:24 CET verification catch: a later live export omitted both previously present GANG BACKSTORY sections. Added an explicit section-presence flag: missing sections retain/recover the last observed authored Sheet text from snapshots; a present empty section still clears it. Regression verifies retention and recovery. No Sheet writes or generated substitutes.
 # 0.13.0 — visible writing-quality optimization
 
+Verified live 2026-10-27 22:24:43 CET: commit `06e1341`, deploy `dep-dbghco2jnfac739ctpcg`. Authenticated Workshop/health verified; schema 13, sync healthy, configured writer, zero post-restart writer calls. Verified pre-upgrade SQLite backup is retained on `/var/data`. No paid release-test run or active-policy change. Direct entry: https://ncce-private-preview.onrender.com/#workshop.
+
 - Integrated bounded JuniorWriter/JKSimmons optimization into Writer Workshop, with inactive candidate revisions and explicit activation of the exact tested setup for future NCCE writing.
 - Added live role portraits/speech bubbles and a highlighted context, drafting, review, revision-loop, human-approval and technical-escalation graph. Activity is persisted before execution; reduced-motion preferences are respected.
 - Added private schema-13 optimizer/reviewer audits, idempotent launches, cancellation boundaries, restart stops, source/policy conflict checks and automatic verified pre-upgrade SQLite backups.
