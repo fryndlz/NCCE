@@ -40,6 +40,35 @@ function inline(value) {
 function prose(value) {
   return String(value || '').trim().split(/\n\s*\n/).filter(Boolean).map(paragraph => `<p>${inline(paragraph).replaceAll('\n', '<br>')}</p>`).join('');
 }
+function authoredRecord(value) {
+  // Presentation only: every non-empty source line survives, with no rewriting,
+  // translation, invented metadata, or provider call.
+  const rows = String(value || '').replace(/\r/g, '').split('\n'), output = [];
+  const safe = text => esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  for (const raw of rows) {
+    const text = raw.trim();
+    if (!text) continue;
+    const plain = text.replace(/^\*\*(.*)\*\*$/, '$1');
+    if (/^[+=\-]+.*[+=\-]+$/.test(plain) && !/^\+\+\+/.test(plain)) output.push(`<div class="scene_divider">${safe(text)}</div>`);
+    else if (/^(?:\+\+\+|::|\[■\])/.test(plain)) output.push(`<div class="section-label">${safe(text)}</div>`);
+    else if (/^(?:\/\/|\[SYS\.|\[ERR::)/.test(plain)) output.push(`<div class="record_termination">${safe(text)}</div>`);
+    else if (/^(?:#{1,4}\s+|[\p{Extended_Pictographic}]\s*\S)/u.test(plain) || (plain.length < 100 && /[\p{L}]/u.test(plain) && plain === plain.toLocaleUpperCase() && !plain.includes(':'))) output.push(`<h4 class="section-label">${safe(text.replace(/^#{1,4}\s+/, ''))}</h4>`);
+    else {
+      const field = plain.match(/^([^:\n]{2,48}):\s+(.+)$/);
+      if (field) output.push(`<p class="authored-field"><span class="mark-admin_label">${safe(field[1])}:</span> ${safe(field[2])}</p>`);
+      else output.push(`<p>${safe(text)}</p>`);
+    }
+  }
+  return `<div class="authored-record">${output.join('')}</div>`;
+}
+function gangBackstory(g) {
+  return g.backstory && g.backstory_source === 'player-authored / campaign Sheet'
+    ? `<div class="eyebrow">Authored backstory</div>${authoredRecord(g.backstory)}<div class="authored-source">Campaign Sheet · GANG BACKSTORY</div>`
+    : empty('No authored gang backstory has been provided.');
+}
+function archiveStories(records) {
+  return list(records).map(record => `<details class="archive-story" data-key="archive-${esc(record.id)}"><summary>${esc(record.title)}</summary><div class="eyebrow">C-NINE · authored story</div>${authoredRecord(record.content)}<div class="authored-source">${esc(record.source_locator)} · <a href="${esc(record.source_url && /^https:\/\//.test(record.source_url) ? record.source_url : '#') }" target="_blank" rel="noopener noreferrer">Authored source</a></div></details>`).join('') || empty('No authored stories are available.');
+}
 function authoredDossier(value) {
   const lines = String(value || '').replace(/\r/g, '').split('\n');
   const output = [], fields = [], paragraph = [];
@@ -554,7 +583,8 @@ function fighterCard(f) {
   return `<article class="card fighter-card ${f.status === 'Killed' ? 'dead' : ''}"><div class="eyebrow">${esc(short(f.gang_name))}</div><h3><button class="card-title" data-fighter="${esc(f.id)}">${esc(f.name)}</button></h3><div class="card-subtitle">${esc(f.type)} · ${esc(f.class)}</div><div class="status-line"><span class="status-pill">${esc(fighterStatus(f))}</span>${f.listed_in_source === 0 ? '<span class="tag">Not currently listed</span>' : ''}</div><div class="card-excerpt">${prose(cut(f.backstory, 280))}</div>${authored(f.backstory_source) ? '' : evidence([`${f.class || 'Fighter'} · ${f.xp ?? 0} XP · ${f.kills ?? 0} recorded kills${f.effects ? ' · ' + f.effects : ''}`], {}, true)}<div class="card-foot">${esc(storySource(f.backstory_source))}</div></article>`;
 }
 function gangCard(g) {
-  return `<article class="card gang-card"><div class="eyebrow">${esc(g.gang_type)}</div><h3><button class="card-title" data-gang="${esc(g.gang_id)}">${esc(short(g.name))}</button></h3><div class="card-excerpt">${prose(cut(g.backstory, 400))}</div>${authored(g.backstory_source) ? '' : evidence([`Faction: ${g.gang_type || 'Unknown'}`, `${g.territories ?? 0} territories recorded`], {}, true)}<div class="card-foot">${esc(storySource(g.backstory_source))} · open history and evidence →</div></article>`;
+  const hasBackstory = g.backstory && g.backstory_source === 'player-authored / campaign Sheet';
+  return `<article class="card gang-card"><div class="eyebrow">${esc(g.gang_type)}</div><h3><button class="card-title" data-gang="${esc(g.gang_id)}">${esc(short(g.name))}</button></h3><div class="card-excerpt">${hasBackstory ? authoredRecord(cut(g.backstory, 400)) : '<p class="muted">No authored backstory provided.</p>'}</div><div class="card-foot">${hasBackstory ? 'Authored · campaign Sheet' : 'Gang record'} · open history and evidence →</div></article>`;
 }
 async function ensureFighters() {
   if (fightersCache) return fightersCache;
@@ -609,7 +639,12 @@ async function render(view, preserveScroll = false) {
     app.innerHTML = listShell('battles', 'Battle chronicle', 'Accounts inferred from recorded outcomes and their campaign consequences.', searchControl('battles', 'Scenario, territory, gang…') + selectControl('battles', 'gang', 'Gang', gangOptions('All gangs')));
     listResults('battles');
   } else if (activeView === 'chronicle') { app.innerHTML = chronicle(); loadCampaignTimeline(); }
-  else if (activeView === 'archive') app.innerHTML = '<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored records remain available in their own voice.</p><article class="card"><div class="eyebrow">C-NINE · campaign log and personnel files</div><h3><button class="card-title" data-lore="1">C-NINE Story</button></h3><p>Open the canonical story export and personnel dossiers.</p></article>';
+  else if (activeView === 'archive') {
+    app.innerHTML = '<div class="loading-state" role="status">Retrieving authored stories…</div>';
+    const archive = await api('/api/archive');
+    if (token !== renderToken) return;
+    app.innerHTML = `<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored stories, preserved in their own words.</p>${archiveStories(archive.stories)}`;
+  }
   else if (activeView === 'system') {
     const territoryRun = await api('/api/territory-writer-runs/latest').catch(() => null);
     const plan = territoryRun?.plan || {};
@@ -702,7 +737,7 @@ async function showGang(id, preserveScroll = false) {
   if (token !== renderToken) return;
   currentDetail = {type: 'gang', id};
   const holdings = list(g.territory_list);
-  app.innerHTML = `<button class="back" data-back="gangs">← Gangs</button><div class="eyebrow">${esc(g.gang_type)} · gang record</div><h2>${esc(short(g.name))}</h2><section class="region-intro">${narrative(g.backstory, g.backstory_source, g.evidence || [`Faction: ${g.gang_type}`, `${list(g.fighters).length} fighter records`, `Holdings: ${holdings.map(t => t.territory).join(', ') || 'None recorded'}`, `${list(g.battles).length} recorded battles`], g)}</section>${campaignAccount(g.campaign_account_document)}${storyStream(g.narrative_stream, 'gang')}<h3 class="section-title">Between engagements</h3>${list(g.downtime).slice(0, 1).map(downtime).join('') || empty('No downtime account is available.')}<div class="sectionhead"><h3>Fighters</h3><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Find this gang’s fighters →</button></div><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available for this gang.')}</div><h3 class="section-title">Holdings</h3><div class="holdings">${holdings.map(t => `<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span>→</span></button>`).join('') || '<p class="muted">No current holdings are recorded.</p>'}</div><h3 class="section-title">Campaign record</h3>${list(g.battles).map(b => battle(b)).join('')}<details class="mechanics-fold" data-key="gang-mechanics"><summary>Current mechanical evidence</summary><div class="card system-state">${[['Reputation', g.reputation], ['Rating', g.rating], ['Credits', g.credits], ['Territories recorded', g.territories], ['Source updated', g.updated_at]].map(([label, value]) => `<div class="row"><span>${esc(label)}</span><span>${label === 'Source updated' ? esc(date(value,true) || 'Not recorded') : esc(value ?? 'Not recorded')}</span></div>`).join('')}</div></details>`;
+  app.innerHTML = `<button class="back" data-back="gangs">← Gangs</button><div class="eyebrow">${esc(g.gang_type)} · gang record</div><h2>${esc(short(g.name))}</h2><section class="region-intro">${gangBackstory(g)}</section>${campaignAccount(g.campaign_account_document)}${storyStream(g.narrative_stream, 'gang')}<h3 class="section-title">Between engagements</h3>${list(g.downtime).slice(0, 1).map(downtime).join('') || empty('No downtime account is available.')}<div class="sectionhead"><h3>Fighters</h3><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Find this gang’s fighters →</button></div><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available for this gang.')}</div><h3 class="section-title">Holdings</h3><div class="holdings">${holdings.map(t => `<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span>→</span></button>`).join('') || '<p class="muted">No current holdings are recorded.</p>'}</div><h3 class="section-title">Campaign record</h3>${list(g.battles).map(b => battle(b)).join('')}<details class="mechanics-fold" data-key="gang-mechanics"><summary>Current mechanical evidence</summary><div class="card system-state">${[['Reputation', g.reputation], ['Rating', g.rating], ['Credits', g.credits], ['Territories recorded', g.territories], ['Source updated', g.updated_at]].map(([label, value]) => `<div class="row"><span>${esc(label)}</span><span>${label === 'Source updated' ? esc(date(value,true) || 'Not recorded') : esc(value ?? 'Not recorded')}</span></div>`).join('')}</div></details>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showTerritory(id, preserveScroll = false) {
@@ -717,7 +752,7 @@ async function showLore(id, preserveScroll = false) {
   const token = ++renderToken, record = await api('/api/lore/' + encodeURIComponent(id));
   if (token !== renderToken) return;
   currentDetail = {type: 'lore', id};
-  app.innerHTML = `<button class="back" data-back="archive">← Archive</button><div class="eyebrow">${esc(record.source_type)} · authored source</div><h2>${esc(record.title)}</h2><section class="archive-document">${prose(record.content)}</section>`;
+  app.innerHTML = `<button class="back" data-back="archive">← Archive</button><div class="eyebrow">${esc(record.source_type)} · authored source</div><h2>${esc(record.title)}</h2><section class="archive-document">${authoredRecord(record.content)}</section>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function openDetail(type, id, preserveScroll = false) {

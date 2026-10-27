@@ -1,13 +1,19 @@
-# NCCE 0.12.2 — current technical design
+# NCCE 0.12.3 — current technical design
 
-**Source release:** 0.12.2, Ctrl-drag timeline navigation and engagement record refinement. **Schema:** 12.
+**Source release:** 0.12.3, Sheet-authored gang baselines and separate authored story archive. **Schema:** 12.
 
 [Timeline 0.12.2](TIMELINE_0_12_2.md) adds two-axis Ctrl-drag with stable pointer capture, filtered engagement counts/time on gang lanes, linked participants, separated mission identity, Cycle-first metadata, neutral real-world timing and the independent hosted duration audit. Recorded campaign windows and existing writer policies remain unchanged.
 
 [Timeline 0.12.1](TIMELINE_0_12_1.md) specifies zoom, screen-distance clustering, gang colours, separate bar/marker rows, strict activity intervals, nested collapsible groups, source/Imperial date layers and merged-session playtime. This supersedes the older timeline presentation description below; source provenance and participation inference rules remain unchanged.
-**Checkpoint:** 2026-10-27 20:40 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
+**Checkpoint:** 2026-10-27 21:25 CET. Hosted deployment evidence is recorded in CHANGELOG.md and HANDOFF_STATUS.md.
 
 [Writer creative planning](WRITER_CREATIVE_PLANNING.md) specifies the new shared modules and exact rules: 26 verified 2023 Core Rulebook territory cards, least-used compatible focus selection for baselines/ambient writing, event/sequence anchoring for other forms, frozen inspectable plans and compact heuristic recent-pattern memory. Plans/footprints are private derived data; they cannot establish facts or replace same-subject continuity. Workshop focus selection is free and pinnable. Saved instructions/edits remain intact; one provider call per draft, no automatic regeneration. Luna/medium and a 4,000-token total response allowance remain configured.
+
+## Gang baselines and authored Archive — 0.12.3
+
+`GANG BACKSTORY` in each gang tab is the sole gang baseline source. `GANG NOTES` remains bookkeeping/context and is never substituted. `snapshot.parse_gang_tab` preserves the authored text; `Store.project_snapshot` refreshes the derived gang backstory and marks it player-authored. An explicitly present empty section clears that projection. If the entire section is omitted by a rebuilt export, retain the last observed Sheet-authored text; recover it from immutable snapshots after a lost projection/restart. Never recover generated or Google Doc baseline text. Gang reads hide legacy seeded/generated baselines even before refresh. Seed and story regeneration do not generate missing gang origins. Existing generated event/history accounts remain a separate layer; historical artifacts and full authored source documents are retained.
+
+`authored_archive.stories` exposes two read-only, source-located excerpts through authenticated `/api/archive`: The Prospect (up to Cycle 1) and The Deep Answers (up to the following Downtime). No source document is rewritten. Archive shows each as a closed-by-default native disclosure. The authored renderer maps paragraphs, administrative headings/fields, scene separators and termination syntax to existing semantic styles; escapes HTML and preserves original wording, language, redactions and authored dates. No LLM rephrasing, invented metadata, translation or provider calls are involved. The full combined document remains accessible through the existing lore API; personnel dossiers remain in fighter records. Schema remains 12.
 
 ## 0. Current writing implementation
 

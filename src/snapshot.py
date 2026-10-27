@@ -132,6 +132,8 @@ def parse_gang_tab(rows: list[list[Any]]) -> dict[str, Any]:
         return {}
     meta: dict[str, Any] = {"display_name": rows[0][0] if rows[0] else None}
     notes = None
+    backstory = None
+    backstory_available = False
     fighter_start = None
     for i, row in enumerate(rows):
         if row and row[0] == "FIGHTERS":
@@ -140,6 +142,11 @@ def parse_gang_tab(rows: list[list[Any]]) -> dict[str, Any]:
         if row and row[0] == "GANG NOTES":
             if i + 1 < len(rows) and rows[i + 1]:
                 notes = rows[i + 1][0]
+            continue
+        if row and row[0] == "GANG BACKSTORY":
+            backstory_available = True
+            if i + 1 < len(rows) and rows[i + 1]:
+                backstory = rows[i + 1][0]
             continue
         if len(row) >= 2 and row[0] in {"Gang ID","Gang Type","Credits","Reputation","Rating","Alignment","Gang Colour","Last Updated","Created"}:
             meta[str(row[0])] = row[1]
@@ -166,6 +173,8 @@ def parse_gang_tab(rows: list[list[Any]]) -> dict[str, Any]:
         "last_updated": meta.get("Last Updated"),
         "created": meta.get("Created"),
         "notes": notes,
+        "backstory": backstory,
+        "backstory_available": backstory_available,
         "fighters": fighters,
     }
 

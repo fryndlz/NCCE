@@ -243,15 +243,16 @@ def test_weapon_and_promotion_changes_are_memorable():
 def test_regeneration_versions_artifacts_and_preserves_authored_and_mechanical_records():
     def check(store):
         before = campaign()
+        gang_text = "+++ EXTRACT +++\nAuthored gang background; deliberate contradictions.\n+++ RECORD TERMINATES +++"
+        before['gangs'][C9]['backstory'] = gang_text
         ingest_snapshot(store, before)
         store.project_snapshot(before)
         fighter_text = "KEL, Mara\nWorkshop Audit — 781.M41\n‘It is one workshop.’\n[ERR::INDEX]"
-        gang_text = "THE PROSPECT\nAuthored canon; deliberate contradictions.\n+++ RECORD TERMINATES +++"
         store.db.execute("UPDATE fighters SET backstory=?,backstory_source='player-authored / C-NINE story' WHERE name='Mara Kel'", (fighter_text,))
-        store.db.execute("UPDATE gangs SET backstory=?,backstory_source='canon_authored' WHERE gang_id='g1'", (gang_text,))
         store.db.commit()
         mechanical_before = mechanical_records(store)
         regenerate(store)
+        assert not store.db.execute("SELECT 1 FROM story_artifacts WHERE scope_type='gang_origin'").fetchone()
         assert mechanical_records(store) == mechanical_before
         first_artifacts = store.db.execute("SELECT count(*) FROM story_artifacts").fetchone()[0]
         apply(store, latest_game(before))

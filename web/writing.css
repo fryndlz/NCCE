@@ -250,3 +250,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
  .history-fighter-group { margin-left:5px; }
  .history-record-header h4 { font-size:1rem; }
 }
+.authored-record { max-width: 78ch; color: var(--text-primary, #fff); font-family: 'Courier New', monospace; font-size: 15px; line-height: 1.55; }
+.authored-record > p { margin: 0 0 .8em; }
+.authored-record .section-label { margin: 1em 0 .4em; }
+.authored-record > .section-label + .section-label { margin-top: 0; }
+.authored-record .authored-field { margin-bottom: .2em; }
+.archive-story { margin: 1rem 0; border-bottom: 1px solid #465047; padding-bottom: 1rem; }
+.archive-story > summary { cursor: pointer; color: #f2ad1f; font-size: 1.2rem; font-weight: bold; padding: .6rem 0; }
+.archive-story > .eyebrow { margin: .8rem 0; }
+@media (min-width: 900px) { .authored-record > p:not(.authored-field) { text-align: justify; } }

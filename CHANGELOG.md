@@ -349,3 +349,16 @@ The opt-in `tests/smoke_server.py` check also passed against a disposable authen
 ### Current limits
 
 The runtime writer is deterministic local code; it does not call an LLM or charge for generation. Prose uses bounded variants and can repeat between similar profiles. Retrieval uses explicit topics rather than embeddings. Reflection is batch-based, social propagation is gang-level, and complete per-fighter attendance/action attribution depends on source information not currently provided. Free-host restarts can discard derived event history that is not recoverable from baseline/current state.
+
+
+## 0.12.3 — Sheet gang backstories and authored story archive
+
+Source completed: 2026-10-27 21:17 CET (Europe/Warsaw).
+
+- Import GANG BACKSTORY separately from notes/tactics for every gang. Authored Sheet text supersedes old seeded/generated gang baselines; missing text stays unfilled, and future seed/regeneration makes no gang origin.
+- Archive displays The Prospect and The Deep Answers as separate, initially collapsed stories; exact heading boundaries exclude campaign incident reports and personnel files. Original combined source remains intact.
+- Apply semantic authored formatting: compact administrative labels, narrative paragraphs, scene dividers and termination markers, escaped safely. Preserve original words, Polish/English, authored dates and redactions.
+- Add authenticated read-only /api/archive; schema remains 12. No authoritative Sheet edits or writer calls; no owner Workshop policies/edits changed.
+- Validation: source projection/removal and exact excerpt tests, 15 story-engine checks, writing/workshop/timeline UI regressions and disposable authenticated live-Sheet application smoke pass. Verified live at 2026-10-27 21:25:41 CET: source `3d5a7a0`, deploy `dep-dbggh2g473hc73dvh65g`. Hosted source recovery restored C-NINE (2,092 characters) and Kły (2,315 characters) from prior immutable Sheet snapshots after a later export omitted the sections. Other four gangs remain empty. Both Archive disclosures start closed, expand to the correct stories, and retain source wording. Schema 12, sync healthy, provider calls 0. No source Sheet, full lore export, fighter canon or Workshop edits/policies changed.
+
+- 2026-10-27 21:24 CET verification catch: a later live export omitted both previously present GANG BACKSTORY sections. Added an explicit section-presence flag: missing sections retain/recover the last observed authored Sheet text from snapshots; a present empty section still clears it. Regression verifies retention and recovery. No Sheet writes or generated substitutes.
