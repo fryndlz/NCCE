@@ -17,7 +17,7 @@ import codex_review_queue as cq
 import workshop_optimizer as opt
 import llm_writer as writer
 from test_writer_pipeline import with_store as base_store
-from test_workshop_optimizer import assessment,body,rejects
+from test_workshop_optimizer import assessment,body,rejects,ready_bridge
 spec=importlib.util.spec_from_file_location('companion',ROOT/'scripts'/'codex_review_bridge.py')
 companion=importlib.util.module_from_spec(spec);spec.loader.exec_module(companion)
 TOKEN='bridge-test-only-'*4
@@ -39,7 +39,8 @@ def test_scoped_auth_offline_and_claim_result_ownership():
         assert not cq.status(store)['online']
         request=body(store)
         with patch.object(writer,'API_KEY','mock'):rejects(lambda:opt.queue(store,request))
-        cq.heartbeat(store,identity());assert cq.status(store)['online']
+        cq.heartbeat(store,identity());assert not cq.status(store)['online'], 'Heartbeat is not proof the actual chat can review'
+        with patch.object(writer,'API_KEY','mock'):rejects(lambda:opt.queue(store,request))
         with patch('codex_review_queue.time.time',return_value=time.time()+100):assert not cq.status(store)['online']
         rejects(lambda:cq.heartbeat(store,{**identity(),'thread_id':'wrong'}))
         check_job=cq.self_test(store,{})
@@ -53,6 +54,7 @@ def test_scoped_auth_offline_and_claim_result_ownership():
         assert cq.heartbeat(store,{**lease,'state':'reviewing'})['job_status']=='reviewing'
         value={**lease,'review':assessment(),'turn_id':'turn-real'}
         assert cq.complete(store,value)['ok'];assert cq.complete(store,value)['ok']
+        assert cq.status(store)['online']
         changed=assessment(7);rejects(lambda:cq.complete(store,{**value,'review':changed}))
         result=json.loads(cq.get(store,check_job['job_id'])['result_json'])
         assert result['_codex']['thread_id']==cq.thread_id() and result['_codex']['turn_id']=='turn-real'
@@ -63,7 +65,7 @@ def test_scoped_auth_offline_and_claim_result_ownership():
 
 def test_waiter_lights_only_after_actual_codex_turn_start_and_returns_review():
     def check(store):
-        cq.heartbeat(store,identity());request=body(store)
+        ready_bridge(store);request=body(store)
         with patch.object(writer,'API_KEY','mock'):state,_=opt.queue(store,request)
         pair={'instructions':'protected','packet':{},'candidates':[]}
         observations=[]

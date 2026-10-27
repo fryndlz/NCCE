@@ -31,3 +31,11 @@ The stern, theatrical critic, anxious JuniorWriter and Mechanicus supervisor are
 ## Verification
 
 Offline checks cover scoped authentication, wrong thread/lease denial, real-turn identity, immutable completion, waiting versus working states, cancellation, no replay, changed guidance, no API fallback, and presentation immutability. A synthetic connection check should be verified against the actual Codex chat before claiming that the live queue is connected. It validates transport and structured assessment only, not literary calibration or broad quality consistency.
+
+## Live verification result — 2026-10-27
+
+Deployment `dep-dbgi931srm7s73ek5geg` is live from `4ef4842`; health reports 0.14.0. Startup verified `/var/data/pre-schema-13-to-14-20261027T222452866071Z.db`. The authenticated Workshop displays the three new portraits, optional banter and graph.
+
+The one-time diagnostic `connection-check-7f8e01fec4ee0c3a3342` FAILED before any model turn: `thread/resume` returned “already has an active writer” because the desktop app owns the actual reviewer chat. Desktop status was idle; idle does not release server ownership. Its process uses stdio, and the documented daemon proxy could not reach a managed daemon. Do not bypass the lock, kill the desktop process, archive the chat, silently fork another reviewer or advertise this as connected. A supported shared transport or a different owner-approved interaction design is still required.
+
+Readiness now requires a completed actual-thread diagnostic in addition to a fresh heartbeat. The UI exposes the bounded diagnostic error and disables automatic improvement while it is unresolved. The diagnostic is not automatically retried. No JuniorWriter call or Codex model review occurred, and no production guidance was activated. The existing manual Writer Workshop remains available.

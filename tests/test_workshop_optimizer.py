@@ -22,9 +22,19 @@ from test_story_engine import mechanical_records
 def with_store(check):
     def wrapped(store):
         with patch.dict(os.environ, {'NCCE_REVIEW_BRIDGE_TOKEN_SHA256':hashlib.sha256(('test-bridge-token-'*4).encode()).hexdigest()}):
-            cq.heartbeat(store, {'thread_id':cq.thread_id(),'worker_id':'test-worker-0001'})
+            ready_bridge(store)
             check(store)
     base_with_store(wrapped)
+
+
+def ready_bridge(store):
+    identity = {'thread_id':cq.thread_id(),'worker_id':'test-worker-0001'}
+    cq.self_test(store,{})
+    claim = cq.claim(store,identity)
+    lease = {**identity,'job_id':claim['job']['job_id'],'lease':claim['lease'],'turn_id':'test-diagnostic-turn'}
+    cq.started(store,lease)
+    cq.complete(store,{**lease,'review':assessment()})
+    cq.heartbeat(store,identity)
 
 
 def body(store, rounds=2):
@@ -171,7 +181,7 @@ def test_codex_wait_has_no_external_api_fallback():
                 except opt.ReviewCancelled:pass
                 else:raise AssertionError('Cancelled Codex wait continued')
                 assert network.call_count==0
-            assert store.db.execute("SELECT status FROM codex_review_jobs").fetchone()[0]=='cancelled'
+            assert store.db.execute("SELECT status FROM codex_review_jobs WHERE run_id != 'connection-check'").fetchone()[0]=='cancelled'
     with_store(check)
 
 

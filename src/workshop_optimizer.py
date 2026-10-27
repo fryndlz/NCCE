@@ -75,7 +75,7 @@ def queue(store, body):
     key = body.get('request_key')
     if not isinstance(key, str) or not 16 <= len(key) <= 100: raise ValueError('A unique request key is required')
     if not writer.API_KEY: raise ValueError('The server writing provider is not configured; no calls made')
-    if not codex_queue.status(store)['online']: raise ValueError('The JKSimmons Codex companion is offline. Start it on your computer before spending writer calls.')
+    if not codex_queue.status(store)['online']: raise ValueError('The actual JKSimmons connection is offline or unverified. Resolve its connection check before spending writer calls.')
     selected = ws.sample(store, body.get('sample_key'))
     # Two independent real contexts: duplicate A/B comparison packets do not count.
     samples = [selected]; seen = {hashed(selected['packet'])}
