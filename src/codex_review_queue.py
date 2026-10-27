@@ -31,9 +31,11 @@ def status(store):
     row = store.db.execute('SELECT info_json FROM codex_review_bridge WHERE singleton=1').fetchone()
     info = json.loads(row[0]) if row else {}
     seen = info.get('seen_epoch', 0)
-    diagnostic = store.db.execute('SELECT status,error FROM codex_review_jobs WHERE job_id=?', (connection_check_id(),)).fetchone()
+    diagnostic = latest_check(store)
     verified = bool(diagnostic and diagnostic['status'] == 'completed')
-    return {'configured': configured(), 'online': configured() and verified and time.time()-seen < 65 and info.get('state') != 'error',
+    ttl = max(65, info.get('poll_interval', 0) + 60)
+    return {'configured': configured(), 'online': configured() and verified and time.time()-seen < ttl and info.get('state') != 'error',
+            'transport': info.get('transport', 'stdio'), 'poll_interval': info.get('poll_interval', 0),
             'verified': verified, 'connection_error': diagnostic['error'] if diagnostic and diagnostic['error'] else ('' if verified else 'The actual Codex reviewer connection has not passed its test.'),
             'thread_id': thread_id(), 'last_seen': info.get('last_seen'),
             'state': info.get('state', 'offline'), 'name': 'JKSimmons — NCCE Writing Reviewer'}
@@ -45,7 +47,10 @@ def heartbeat(store, body):
     if not isinstance(worker, str) or not 8 <= len(worker) <= 100: raise ValueError('Worker identity required')
     state = body.get('state', 'idle')
     if state not in ('idle', 'reviewing', 'waiting_for_chat', 'error'): raise ValueError('Invalid companion state')
-    info = {'worker_id': worker, 'thread_id': thread_id(), 'last_seen': now(), 'seen_epoch': time.time(), 'state': state}
+    interval = body.get('poll_interval', 0)
+    if type(interval) is not int or not 0 <= interval <= 300: raise ValueError('Invalid polling interval')
+    info = {'worker_id': worker, 'thread_id': thread_id(), 'last_seen': now(), 'seen_epoch': time.time(), 'state': state,
+            'poll_interval': interval, 'transport': 'codex_chat' if body.get('transport') == 'codex_chat' else 'stdio'}
     with store._lock, store.db:
         store.db.execute('INSERT INTO codex_review_bridge VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET info_json=excluded.info_json', (packed(info),))
     result = status(store)
@@ -68,10 +73,18 @@ def connection_check_id():
     return 'connection-check-' + hashlib.sha256(thread_id().encode()).hexdigest()[:20]
 
 
+def latest_check(store):
+    return store.db.execute("SELECT * FROM codex_review_jobs WHERE run_id='connection-check' AND json_extract(payload_json,'$.thread_id')=? ORDER BY created_at DESC LIMIT 1", (thread_id(),)).fetchone()
+
+
 def self_test(store, body):
     """One connection-check job per reviewer thread; no writer call or policy change."""
     from workshop_optimizer import review_schema, RUBRIC
-    job_id = connection_check_id()
+    previous = latest_check(store)
+    job_id = previous['job_id'] if previous else connection_check_id()
+    if body.get('new_attempt'):
+        if previous and previous['status'] not in ('failed', 'cancelled'): raise ValueError('Existing connection check must finish; no replay')
+        job_id = connection_check_id() + '-' + uuid.uuid4().hex[:12]
     payload = {'job_id': job_id, 'run_id': 'connection-check', 'thread_id': thread_id(),
         'form': 'fighter_memory', 'diagnostic': True,
         'instructions': 'One first-person memory, 40–100 words, concrete lived experience. No application metadata, XP narration, invented injury mechanism or mechanical outcome.',

@@ -78,6 +78,22 @@ def test_failed_diagnostic_stays_offline_despite_fresh_heartbeat():
     with_store(check)
 
 
+def test_native_chat_retry_preserves_failed_attempt_and_poll_expiry():
+    def check(store):
+        first=cq.self_test(store,{})['job_id'];claimed=cq.claim(store,identity())
+        cq.fail(store,{**identity(),'job_id':first,'lease':claimed['lease'],'error':'Old transport failed'})
+        second=cq.self_test(store,{'new_attempt':True})['job_id']
+        assert second!=first and cq.get(store,first)['status']=='failed'
+        rejects(lambda:cq.self_test(store,{'new_attempt':True}))
+        claimed=cq.claim(store,identity());lease={**identity(),'job_id':second,'lease':claimed['lease'],'turn_id':'native-turn'}
+        cq.started(store,lease);cq.complete(store,{**lease,'review':assessment()})
+        cq.heartbeat(store,{**identity(),'transport':'codex_chat','poll_interval':300})
+        assert cq.status(store)['online'] and cq.status(store)['transport']=='codex_chat'
+        with patch('codex_review_queue.time.time',return_value=time.time()+301):assert cq.status(store)['online']
+        with patch('codex_review_queue.time.time',return_value=time.time()+361):assert not cq.status(store)['online']
+    with_store(check)
+
+
 def test_waiter_lights_only_after_actual_codex_turn_start_and_returns_review():
     def check(store):
         ready_bridge(store);request=body(store)
@@ -140,6 +156,28 @@ def test_companion_uses_actual_thread_no_model_override_and_durable_no_replay():
         try:worker.perform(rpc,job,'lease')
         except RuntimeError:pass
         else:raise AssertionError('Completed/uncertain job replayed')
+
+
+def test_native_helper_never_starts_model_or_discloses_lease_and_no_replay():
+    sys.path.insert(0,str(ROOT/'scripts'))
+    from codex_chat_worker import ChatWorker
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+        path=Path(folder)/'config.json'
+        path.write_text(json.dumps({'base_url':'http://localhost','worker_id':'native-test-worker','thread_id':cq.THREAD_ID,'token':TOKEN,'codex_executable':'codex'}))
+        worker=ChatWorker(path);sent=[]
+        def post(action,body=None):
+            sent.append((action,body))
+            return {'job':{'job_id':'native-job','output_schema':opt.review_schema()},'lease':'private-lease'} if action=='claim' else {'ok':True}
+        worker.post=post
+        with patch('subprocess.Popen',side_effect=AssertionError('Native chat must not spawn a model')):
+            reply=worker.claim('actual-native-turn')
+            assert 'private-lease' not in json.dumps(reply) and TOKEN not in json.dumps(reply)
+            try:worker.claim('another-turn')
+            except RuntimeError:pass
+            else:raise AssertionError('Unfinished native review replayed')
+            worker.finish(review=assessment())
+        complete=next(b for a,b in sent if a=='complete')
+        assert complete['turn_id']=='actual-native-turn' and complete['lease']=='private-lease'
 
 
 if __name__=='__main__':
