@@ -1,5 +1,7 @@
 # Handoff status
 
+**0.12.3 source update — 2026-10-27 21:17 CET:** Gang baselines now read explicit `GANG BACKSTORY` from the Sheet, separate from notes/tactics. C-NINE and Kły currently provide authored text; other gangs stay unfilled. Seed/regeneration no longer generates missing gang baselines. Legacy baseline artifacts are hidden, not erased. Archive has two collapsible authored excerpts, The Prospect and The Deep Answers; formatting-only semantic rendering preserves wording and full source documents. Authenticated `/api/archive`; schema 12, no paid calls. Hosted verification pending.
+
 **0.12.2 source update - 2026-10-27 20:31 CET:** Ctrl-drag timeline pan/vertical navigation; engagement counts and time; mission/participant separation and links; Cycle-first metadata; unframed real dates and cogitator event heading. Source timing audit found zero mismatches: 23 timed engagements / 346,949 seconds / 96h 22m, including two long source windows. No campaign-data, writer-policy or schema change. See [TIMELINE_0_12_2.md](TIMELINE_0_12_2.md).
 
 **0.12.2 verified - 2026-10-27 20:40:36 CET:** source `cc3cc81`, deploy `dep-dbgfru61egvs73a65mi0`, is live. Hosted checks confirmed layout, linked participants, Cycle-first order, plain timing text, event heading, lane counts/time and Ctrl-pointer capture/release; deterministic regressions cover two-axis movement and suppressed accidental clicks. Source duration sum is correct; the two unusually long recorded windows remain included unchanged. Zero writer calls for the release.
@@ -22,7 +24,7 @@ The owner has now reviewed all three comparison pairs: territory neither (lean A
 
 **0.10.0 checkpoint — 2026-10-26 20:55 CET:** shared runtime writing contract across all fourteen forms, positive examples, explicit creative permission, historical context, structured composition, retained responses and usage, and separate four-entry editorial preview. See `WRITER_PIPELINE_0_10.md`. Existing and new offline tests and authenticated live-Sheet HTTP smoke pass. Routine writing remains disabled. Source `e5b26ec` is live; four Bone Shrine previews completed with 8,809 input / 1,249 output tokens, 1,613 cached input tokens, no failures or retries. View System → Writing preview. The entries are not published campaign history. Literary approval remains pending; do not infer bulk-generation approval from this test. Full deployment, request and editorial evidence is in `../CHANGELOG.md`.
 
-**Current source implementation:** NCCE 0.12.2 — engagement navigation and record refinement; SQLite schema 12
+**Current source implementation:** NCCE 0.12.3 — engagement navigation and record refinement; SQLite schema 12
 
 **Hosted implementation:** 0.12.2 / schema 12, source `cc3cc81`, live 2026-10-27 20:40:36 CET via `dep-dbgfru61egvs73a65mi0`. Render Starter, 1 GB disk `/var/data`, database `/var/data/ncce-preview.db`. Latest consistent schema backup: `/var/data/pre-creative-plans-0.12.0.db` (43,655,168 bytes); 0.12.2 introduces no schema migration. Automatic writing remains off. Historical 0.12.0 verification preserved 14 owner revisions, 2 edits, source records and biographies at 123 audited provider requests; later user-triggered Workshop calls are independent of these zero-call implementation passes. Owner editor tabs were not reloaded.
 

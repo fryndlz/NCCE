@@ -75,3 +75,8 @@ The Chronicle renders a zoomable timeline with stable gang colours, separated se
 The existing HTTP/JSON API separates engine from browser. The browser renders narrative and mechanical evidence distinctly, supports structured/limited rich text, and provides Fighters/Gangs/Places/Battles searching and filtering. The browser is the current client; another client can consume the same factual/narrative API.
 
 Startup, scheduled and manual Sheet refreshes run through the same pipeline. Shared-passphrase hosted access protects campaign APIs. Hosted SQLite now resides on the service's 1 GB persistent disk at `/var/data/ncce-preview.db`, so it survives normal restarts and deployments. The disk is single-instance storage, and an application-consistent SQLite export/offsite backup workflow remains unimplemented.
+
+
+## Sheet-authored gang baselines and story archive (0.12.3)
+
+Gang baselines are temporarily authored-only: the explicit GANG BACKSTORY section is imported independently of GANG NOTES. Missing/removed backstories yield an empty baseline; no gang_origin is generated during seed or regeneration. Existing source documents and generated historical artifacts are retained. Campaign-event accounts remain independent. The authenticated read-only archive endpoint extracts The Prospect and The Deep Answers by exact source headings/boundaries. A shared safe authored-text renderer applies formatting without rewriting or model calls. See CURRENT_DESIGN.md for projection and source boundaries.

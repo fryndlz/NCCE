@@ -41,7 +41,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.12.2'}
+                    assert read('/healthz') == {'ok':True,'version':'0.12.3'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
@@ -82,6 +82,12 @@ def main():
                     assert any('critical' in m['tags'] for m in detail['mind'])
             gang_details=[read('/api/gangs/'+gang['gang_id']) for gang in dashboard['gangs']]
             assert any(gang['narrative_stream'] for gang in gang_details)
+            assert all(g['history_document'] is None for g in gang_details)
+            assert all(not g['backstory'] or g['backstory_source']=='player-authored / campaign Sheet' for g in gang_details)
+            archive=read('/api/archive')['stories']
+            assert [story['title'] for story in archive]==['The Prospect','The Deep Answers']
+            assert archive[0]['content'].endswith('Now, at last, the real work could begin.')
+            assert archive[1]['content'].endswith('He drew the line anyway.')
             workshop=read('/api/workshop')
             assert workshop['samples'] and len(workshop['forms'])==14
             source=next(s for s in workshop['samples'] if s['form']=='fighter_memory')

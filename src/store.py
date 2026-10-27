@@ -217,6 +217,8 @@ class Store:
  def project_snapshot(self,payload):
   """Refresh the app's current-state tables while preserving narrative/history fields."""
   gangs=payload.get('gangs') or {}; gang_index=payload.get('gang_index') or {}
+  if any(gang.get('backstory') for gang in gangs.values()):
+   self.record_source('player:campaign-sheet-gang-lore','authored_gang_backstory','player_authored','Player-authored gang backstories in the campaign Sheet',source_uri='https://docs.google.com/spreadsheets/d/1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00/edit',source_locator='Gang tabs / GANG BACKSTORY')
   if any(record.get('Backstory') for gang in gangs.values() for record in (gang.get('fighters') or {}).values()):
    self.record_source('player:campaign-sheet-lore','authored_fighter_backstory','player_authored','Player-authored fighter backstories in the campaign Sheet',source_uri='https://docs.google.com/spreadsheets/d/1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00/edit')
   with self._lock, self.db:
@@ -229,6 +231,12 @@ class Store:
     self.db.execute('''INSERT INTO gangs(gang_id,name,gang_type,player,rating,wealth,credits,reputation,territories,alignment,colour,updated_at,active)
       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(gang_id) DO UPDATE SET name=excluded.name,gang_type=excluded.gang_type,player=excluded.player,rating=excluded.rating,wealth=excluded.wealth,credits=excluded.credits,reputation=excluded.reputation,territories=excluded.territories,alignment=excluded.alignment,colour=excluded.colour,updated_at=excluded.updated_at,active=1''',
       (gang_id,name,gang.get('gang_type') or index.get('Type'),index.get('Player'),index.get('Rating',gang.get('rating')),index.get('Wealth'),gang.get('credits'),gang.get('reputation'),index.get('Territories'),gang.get('alignment'),gang.get('colour'),gang.get('last_updated')))
+    # Only the explicit Sheet section is a gang baseline. Notes are bookkeeping,
+    # and archived C-NINE fiction is not a substitute for a missing backstory.
+    backstory=str(gang.get('backstory') or '').strip()
+    self.db.execute('UPDATE gangs SET backstory=?,backstory_source=?,provenance_class=? WHERE gang_id=?',
+                    (backstory,'player-authored / campaign Sheet' if backstory else 'not-provided',
+                     'player_authored' if backstory else 'inference',gang_id))
     self.db.execute('UPDATE fighters SET listed_in_source=0 WHERE gang_id=?',(gang_id,))
     fighter_rows=self.db.execute('SELECT id,name FROM fighters WHERE gang_id=?',(gang_id,)).fetchall()
     existing={re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(row['name'] or '')).strip().casefold()):row['id'] for row in fighter_rows}
@@ -344,7 +352,7 @@ class Store:
   result['writer']=llm_writer.availability()
   from world_streams import association_notes
   result['place_association_notes']=association_notes(self,result['battles'])
-  for g in result['gangs']: g['history_document']=document_for(self,'gang_origin',g['gang_id']) or document_for(self,'gang_history',g['gang_id'])
+  for g in result['gangs']: self._gang_baseline(g)
   for b in result['battles']:
    b['report_document']=document_for(self,'battle_report',b['id'])
    if b['report_document']: b['chronicle_stale']=False
@@ -359,7 +367,7 @@ class Store:
   g=dict(r); name=g['name']; q=lambda sql,args=():[dict(x) for x in self.db.execute(sql,args)]
   g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['battles']=q('''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 AND (b.attacker=? OR b.defender=? OR b.winner=? OR b.territory_claimer=?) ORDER BY b.date DESC''',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,))
   from world_streams import read_stream
-  g['history_document']=document_for(self,'gang_origin',gid) or document_for(self,'gang_history',gid)
+  self._gang_baseline(g)
   g['campaign_account_document']=document_for(self,'gang_history',gid)
   g['campaign_history']=self.gang_history(gid)
   g['narrative_stream']=read_stream(self,'gang',gid)
@@ -368,6 +376,11 @@ class Store:
    if b['report_document']: b['chronicle_stale']=False
   for d in g['downtime']: d['document']=document_for(self,'downtime',gid)
   return g
+ def _gang_baseline(self,g):
+  # Hide legacy seeded/generated baselines even before the first live refresh.
+  if g.get('backstory_source')!='player-authored / campaign Sheet':
+   g['backstory']=''; g['backstory_source']='not-provided'
+  g['history_document']=None
  def fighter(self,fid):
   r=self.db.execute('SELECT * FROM fighters WHERE id=?',(fid,)).fetchone()
   if not r:return None

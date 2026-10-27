@@ -36,8 +36,8 @@ def main(path):
     lore_text=(ROOT/'data'/'lore'/'C-NINE Story.txt').read_text(encoding='utf-8-sig')
     gang_by_name={g['name']:g for g in GANGS}
     for g in GANGS:
-        g['backstory']=c9_gang_story(lore_text) if g['name']==C9 else generated_gang_backstory(g,battles,territories)
-        g['backstory_source']='player-authored / C-NINE story' if g['name']==C9 else 'mechanically-inferred'
+        g['backstory']=''
+        g['backstory_source']='not-provided'
     s.db.executemany('''INSERT INTO gangs(gang_id,name,gang_type,player,rating,wealth,credits,reputation,territories,alignment,colour,updated_at,backstory,backstory_source) VALUES(:gang_id,:name,:gang_type,:player,:rating,:wealth,:credits,:reputation,:territories,:alignment,:colour,:updated_at,:backstory,:backstory_source)''',GANGS)
     for t in territories: t['backstory']=territory_backstory(t,battles)
     s.db.executemany('''INSERT INTO territories(gang_id,gang_name,territory,card,is_default,ruined,backstory) VALUES(:gang_id,:gang_name,:territory,:card,:is_default,:ruined,:backstory)''',territories)

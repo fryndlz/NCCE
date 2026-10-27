@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.12.2'
+APP_VERSION='0.12.3'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -250,6 +250,9 @@ class H(BaseHTTPRequestHandler):
    return self.js(x if x else {'error':'not found'},200 if x else 404)
   if p=='/api/lore':
    with store.reader() as reader:return self.js(reader.lore())
+  if p=='/api/archive':
+   from authored_archive import stories
+   with store.reader() as reader:return self.js({'stories':stories(reader)})
   if p.startswith('/api/lore/'):
    try:
     with store.reader() as reader:x=reader.lore_source(int(p.rsplit('/',1)[1]))

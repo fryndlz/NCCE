@@ -521,16 +521,14 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
             for gang in gangs:
                 fs = [f for f in fighters if str(f["gang_id"]) == str(gang["gang_id"])]
                 if not _authored(gang):
-                    origin = document_for(store,'gang_origin',gang['gang_id'])
-                    if not origin:
-                        origin = _artifact(store,'gang_origin',gang['gang_id'],_document(gang['name'],prose._culture(gang),[f"Faction at first description: {gang.get('gang_type')}"]),fingerprint,generated_at)
                     text = prose.gang_history(gang,fs,battles,territories)
                     related = [b for b in battles if gang['name'] in (b.get('attacker'),b.get('defender'),b.get('winner'))]
                     holders = [t['territory'] for t in territories if str(t.get('gang_id')) == str(gang['gang_id'])]
                     evidence = [f"Faction: {gang.get('gang_type')}",f"Listed fighters: {sum(f.get('listed_in_source',1) for f in fs)}",f"Recorded battles: {len(related)}",f"Recorded wins: {sum(b.get('winner') == gang['name'] for b in related)}",f"Current holdings: {', '.join(holders) or 'None recorded'}"]
                     anchors = [_current_battle_event(b,events) for b in related]
                     doc = _artifact(store,"gang_history",gang["gang_id"],_document(gang["name"],text,evidence,[e['event_id'] for e in anchors if e]),fingerprint,generated_at)
-                    store.db.execute("UPDATE gangs SET backstory=?,backstory_source='mechanically-inferred',provenance_class='inference' WHERE gang_id=?", (_text(origin),gang["gang_id"]))
+                    # Gang baselines are Sheet-authored only for now. Campaign
+                    # event accounts remain a separate derived layer.
                 doc = prose.downtime_document(gang,fs,[m for m in all_memories if str(m["gang_id"]) == str(gang["gang_id"])],battles)
                 doc = _artifact(store,"downtime",gang["gang_id"],doc,fingerprint,generated_at)
                 existing = store.db.execute("SELECT id FROM downtime_reports WHERE gang_id=? ORDER BY id DESC LIMIT 1",(gang["gang_id"],)).fetchone()
