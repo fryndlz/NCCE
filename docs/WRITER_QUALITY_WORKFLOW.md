@@ -1,0 +1,76 @@
+# JuniorWriter / JKSimmons / StoryTechMan development prototype
+
+This opt-in local command-line prototype reuses NCCE's writer and context pipeline. It does not run from the server, alter the hosted app, activate Workshop policies or publish prose. No new SDK or account connection is required. Python's standard library is sufficient.
+
+## Project and connection
+
+The registered NCCE project is `C:\Codex\NCCE`. The actual Git repository is nested at `C:\Codex\NCCE\MCCE-PROJECT-CONTEXT\MCCE-personal-codex-handoff`, remote `https://github.com/fryndlz/NCCE.git`. Base commit for this prototype: `fbdef2a`. The isolated branch is `dev/writing-quality-workflow`. Existing unfinished frontend work in the original checkout is preserved.
+
+The local repository and campaign SQLite database are accessible from this machine; there is no need to reconnect GitHub to inspect or develop. Paid JuniorWriter execution requires the existing server-side `NCCE_OPENAI_API_KEY` in the local operator process, with `NCCE_WRITER_MODEL` / `NCCE_WRITER_REASONING_EFFORT` selecting the existing configuration. Secrets are never exported in review bundles. The hosted Render environment and its newer database are separate: no hosted credentials or database were downloaded. A consistent hosted backup would be needed to review hosted-only edits/context. Do not copy a live database file without SQLite backup support.
+
+## Existing generation and context
+
+`Sheet snapshot -> diff -> event ledger -> observations/stims -> memories/reactions/reflections -> documents/event streams -> llm_writer.write -> Responses API -> validation/cache/audit`.
+
+- `writer_workshop.sample/catalog/preview`: select a sourced sample and inspect exact context/instructions.
+- `narrative_context`: event-time identity/ownership, authored background, bounded same-subject continuity and provenance separation. The writer does not yet consume raw Munda Manager archive chronology.
+- `writer_contract`, `docs/writing_sources/WRITER_RUNTIME_CONTRACT.md`: protected authority/presentation sections, shared craft, fourteen form briefs, illustrative examples.
+- `writer_workshop.active`: selected active shared/form revisions from the database; this prototype uses them, without activating changes.
+- `writer_planning`: free frozen creative plans, verified territory-type references, bounded repetition hints. Hints are not campaign evidence.
+- `territory_reference`, `WRITER_IDENTITY_TAGS.md` and source documents: reference/identity constraints. Canonical C-NINE background comes from the frozen local lore export; live Google Doc sync is not implemented.
+- `llm_writer`, `writer_workshop.execute`: one-request execution, voice/format validation, request/response audit, usage and exact contract-sensitive cache.
+
+The referenced Writing Reviewer conversation exposes workflow requirements but not its full assistant reviews or attached image content. Its missing context cannot be assigned to a model implicitly. JKSimmons uses a versioned rubric in `src/writer_quality.py`, current protected contracts and saved NCCE editorial lessons: concrete consequences, physically intelligible actions, consistent narrator/audience and preserved place identity. A reviewer score is subjective, not a quality guarantee.
+
+## Roles and gates
+
+| Role | Implemented behavior |
+| --- | --- |
+| JuniorWriter | Existing OpenAI writer, at most two requests per human-granted pair. Exact source/policy/plan/model/effort/token allowance are frozen. Each alternative has a unique editorial marker; factual context and creative plan are otherwise identical. |
+| JKSimmons | Exportable review bundle containing both outputs, exact contract/context, rubric, hash and JSON template. A reviewer fills the template; importing it validates both scores and issues. No additional reviewer API calls are wired in this prototype. |
+| StoryTechMan | Immediate persisted escalation and technical handoff with audit/events. It cannot edit code, context, credentials or budget automatically. Its report is a procedural report, not a claim that a third model ran. |
+| Human | Grants each pair, resolves escalations with an attributed note, and explicitly approves/disapproves qualified forms. These are trusted local operator actions; `--actor` is attribution, not authentication. |
+
+Both drafts must score at least **8 overall and in every rubric criterion**, with no blocking writing issue. Any context/technical/permission issue pauses the entire run regardless of score. A writing-only shortfall retains feedback and awaits a fresh two-call grant. Bounded feedback enters the next pair as labelled editorial context; it cannot grant calls or activate a policy. Default cap: three pairs per form (configurable at initialization, 1–10). Exhaustion requires human reassessment and a separately initialized run; resolving an escalation cannot reset the counter.
+
+Provider errors, missing credentials and changed configuration stop before any further request. If candidate A fails, candidate B is not requested. No automatic retry/refill. Usage and failed outputs remain in the snapshot's existing writer audit. Calls are counted conservatively as two reserved opportunities even after an uncertain interruption; never replay that pair. An incomplete `running` state stops work until a human checks the audit and resolves it. The CLI holds an exclusive run-directory lock across provider operations; do not call the underlying module concurrently outside that interface. After a hard crash, verify no operator process is running before manually removing `operator.lock`, then use `resolve`; this does not replay the old pair.
+
+Qualified forms wait for human approval. Disapproval stops that form for discussion/new planning. Approval records only sample-quality acceptance. There is **no bulk-fill or publication command**; an approved form may later support a separately reviewed bulk plan with explicit targets and spending cap. Passing one sample pair per form is a prototype acceptance sample, not coverage of all events or subjects.
+
+## Operator walkthrough
+
+Run from the development checkout. `python` below means a working Python 3 executable. Use an absolute private run directory outside Git; it contains campaign context and audit data. Initialization uses SQLite's read-only-source backup API, including committed WAL data, then migrates only the copied database. The original campaign database is never opened with `Store` or modified by this tool.
+
+```powershell
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality init --campaign-db C:\path\to\chronicle.db --forms fighter_memory,place_event
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality catalog
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality inspect --form fighter_memory
+```
+
+Omit `--forms` to require all fourteen forms; initialization refuses missing sourced forms instead of silently omitting them. Use `--samples selections.json` to select explicit Workshop sample keys (`{"fighter_memory":"memory:..."}`); otherwise the first catalogue sample for each selected form is used. Inspect that choice before granting. A failed initialization leaves a private partial directory for inspection; use a fresh directory after correcting the selection. It cannot be operated on unless initialization completed.
+
+After actual human authorization for paid generation:
+
+```powershell
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality grant --form fighter_memory --actor Blazej
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality run-pair --form fighter_memory --allow-paid
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality review-bundle --form fighter_memory > review-bundle.json
+```
+
+Give the complete bundle to the reviewer. Save its filled `template` as a JSON object in `review.json`; keep the exact round/hash, supply all scores, issues, summary and craft suggestions. Copy an issue from `issue_schema` when needed. The reviewer cannot authorize the next pair. Then:
+
+```powershell
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality review --form fighter_memory --file review.json
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality status
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality approve --form fighter_memory --actor Blazej --note "I approve these samples"
+# Or disapprove with a note. For a technical stop, investigate first, then:
+python scripts/writer_quality.py --run-dir C:\private\ncce-quality resolve --form fighter_memory --actor Blazej --note "What was investigated and decided"
+```
+
+The status report retains every candidate, usage, reviewer assessment, event and human decision. `all_selected_forms_at_target` is separate from `all_fourteen_forms_selected`; a narrowed run cannot claim complete coverage. Review bundles and reports may contain private campaign content: keep them out of commits/public source.
+
+## Validation and local readiness
+
+Offline tests cover real Workshop integration with a mocked provider, pair/context identity, exactly two maximum requests, preserved mechanics/memories/active policies, invalid/stale/incomplete reviews, finite score validation, all non-writing issue categories, low-score retries requiring fresh grants, quota failures, crash recovery, configuration/credential stops, round caps, human approval/disapproval, consistent WAL snapshots and exclusive CLI locks. Existing Workshop/pipeline/planner tests and disposable authenticated HTTP checks are also run. No paid calls are required for verification.
+
+On 2026-10-27 the local `chronicle.db` offered sourced samples for **13 of 14** forms. `place_ambient` was absent; the separate `writer-preview.db` had a test ambient sample but lacks `relationship`. Do not mix a test sample into the live campaign qualification silently. A private copied 13-form run was initialized and all thirteen packets inspected, with **zero grants and zero provider calls**. Ambient coverage needs an explicitly selected real sample or a separately declared test scope. This is local readiness, not a hosted database audit or an 8/10 writing claim.
