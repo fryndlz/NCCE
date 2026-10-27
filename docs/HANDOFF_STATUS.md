@@ -16,7 +16,7 @@ The owner has now reviewed all three comparison pairs: territory neither (lean A
 
 **Current source implementation:** NCCE 0.12.0 — referenced context and shared creative planning, SQLite schema 12
 
-**Hosted implementation:** 0.11.0 / schema 11 on Render Starter with a 1 GB persistent disk mounted at `/var/data`; database path `/var/data/ncce-preview.db`. Latest pre-release backup: `/var/data/pre-workshop-0.11.0.db` (39,137,280 bytes). Earlier pre-0.10.0 backup remains.
+**Hosted implementation:** 0.12.0 / schema 12, source `9a18d62`, live 2026-10-27 01:08:37 CET via `dep-dbfumkqjnfac73enu1b0`. Render Starter, 1 GB disk `/var/data`, database `/var/data/ncce-preview.db`. Latest consistent backup: `/var/data/pre-creative-plans-0.12.0.db` (43,655,168 bytes). Earlier backups remain. Hosted comparison confirms prior owner revisions/edits/active pointers, campaign events/snapshots and fighter biographies unchanged. Audit remains 123 requests, automatic writing off. Free Needle Ways plan/reference/pin inspection was verified without calls or policy activation; owner editor tabs were not reloaded.
 
 **Checkpoint:** 2026-10-26 12:54 CET (Europe/Warsaw)
 
