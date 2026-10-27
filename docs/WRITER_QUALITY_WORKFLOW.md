@@ -1,6 +1,14 @@
 # JuniorWriter / JKSimmons / StoryTechMan development prototype
 
-This opt-in local command-line prototype reuses NCCE's writer and context pipeline. It does not run from the server, alter the hosted app, activate Workshop policies or publish prose. No new SDK or account connection is required. Python's standard library is sufficient.
+This opt-in local prototype has a native desktop GUI and a command-line interface. It reuses NCCE's writer and context pipeline. It does not run from the server, alter the hosted app, activate Workshop policies or publish prose. No new SDK or account connection is required. Python's standard library is sufficient.
+
+## Open the GUI
+
+Double-click **`C:\Codex\NCCE\OPEN WRITING LAB.vbs`**. The development checkout also includes its own `OPEN WRITING LAB.vbs`. The launcher uses the existing Codex Python runtime and opens a native window without a terminal. The development checkout now lives at `C:\Codex\NCCE\writing-quality-dev` on the same branch.
+
+On first opening, it creates a consistent private campaign copy at `C:\Codex\NCCE\.writing-quality-run` and selects the forms with available sourced samples. Missing forms remain visible as a coverage warning. Opening the window and inspecting context make zero provider calls. This is a fresh run; the earlier command-line run remains preserved in its original private folder. Use **Open run** to open another completed quality snapshot.
+
+Select a prose form on the left. Read **Context & instructions** before generation. Enter an API key in the masked field (memory only), then click **Generate two drafts** and confirm the two paid requests. Drafts appear side by side; **Export for reviewer** and **Import review** handle the existing manual JKSimmons handoff. **Approve this form**, **Reject this form**, and **Resolve stop** are enabled only at the corresponding workflow gate. **Save report** retains the complete run. No bulk generation or publication control is provided. Keep the window open while work is in progress.
 
 ## Project and connection
 
