@@ -46,6 +46,17 @@ def main():
                 assert server.store.db.execute('SELECT count(*) FROM workshop_trials').fetchone()[0]==0
                 server.AUTH_REQUIRED=True;server.SESSION_KEY=effective_session_key('disposable-password','disposable-test-secret')
                 cookie=make_session_token(server.SESSION_KEY)
+                # An idle event wait must not block owner reads or review callbacks.
+                entered=threading.Event(); event_result=[]; original_sleep=bridge.time.sleep
+                def waiting(delay):
+                    entered.set();original_sleep(delay)
+                with patch.object(bridge.time,'sleep',side_effect=waiting):
+                    waiter=threading.Thread(target=lambda:event_result.append(call('/api/reviewer-bridge/events',{**bridge_body,'wait_seconds':2},authorization=bearer)))
+                    waiter.start();assert entered.wait(2)
+                    assert call('/api/workshop/optimizations',cookie=cookie)[0]==200
+                    assert waiter.is_alive(), 'Idle listener held the shared database lock'
+                    waiter.join(4);assert event_result[0][0]==200
+
                 assert call('/api/workshop')[0]==401
                 assert call('/api/workshop/generate',{})[0]==401
                 assert call('/api/workshop/optimize',{})[0]==401

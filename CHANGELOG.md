@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.1 - review events without idle Codex calls (2026-10-28)
+
+- Paused the five-minute model checks. A lightweight local HTTPS listener wakes the actual JKSimmons chat via documented `codex queue` only after NCCE queues a draft-pair review.
+- Empty waiting never invokes a model. Persisted notification journals suppress duplicate/uncertain delivery; each event targets exactly one job. Human approval gates and writer-call budgets are unchanged.
+- Added auth, cancellation, exact-job claiming, duplicate/restart/no-idle-model tests and a concurrent HTTP check proving idle listeners do not block Workshop reads. No writer calls for connection verification.
+
 ## 0.14.0 - native reviewer connection follow-up (2026-10-27)
 
 - Connected the actual desktop JKSimmons chat directly to the Workshop queue, avoiding the second-process ownership conflict. The same conversation and saved owner standards now inform returned reviews.
