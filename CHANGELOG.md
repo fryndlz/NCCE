@@ -360,3 +360,5 @@ Source completed: 2026-10-27 21:17 CET (Europe/Warsaw).
 - Apply semantic authored formatting: compact administrative labels, narrative paragraphs, scene dividers and termination markers, escaped safely. Preserve original words, Polish/English, authored dates and redactions.
 - Add authenticated read-only /api/archive; schema remains 12. No authoritative Sheet edits or writer calls; no owner Workshop policies/edits changed.
 - Validation: source projection/removal and exact excerpt tests, 15 story-engine checks, writing/workshop/timeline UI regressions and disposable authenticated live-Sheet application smoke pass. Hosted verification pending.
+
+- 2026-10-27 21:24 CET verification catch: a later live export omitted both previously present GANG BACKSTORY sections. Added an explicit section-presence flag: missing sections retain/recover the last observed authored Sheet text from snapshots; a present empty section still clears it. Regression verifies retention and recovery. No Sheet writes or generated substitutes.

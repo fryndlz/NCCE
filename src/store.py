@@ -233,7 +233,20 @@ class Store:
       (gang_id,name,gang.get('gang_type') or index.get('Type'),index.get('Player'),index.get('Rating',gang.get('rating')),index.get('Wealth'),gang.get('credits'),gang.get('reputation'),index.get('Territories'),gang.get('alignment'),gang.get('colour'),gang.get('last_updated')))
     # Only the explicit Sheet section is a gang baseline. Notes are bookkeeping,
     # and archived C-NINE fiction is not a substitute for a missing backstory.
+    available=gang.get('backstory_available',gang.get('backstory') is not None)
     backstory=str(gang.get('backstory') or '').strip()
+    if not available:
+     prior=self.db.execute('SELECT backstory,backstory_source FROM gangs WHERE gang_id=?',(gang_id,)).fetchone()
+     if prior and prior['backstory_source']=='player-authored / campaign Sheet':
+      backstory=prior['backstory'] or ''
+     else:
+      # The upstream workbook rebuild can omit the entire backstory section.
+      # Recover only previously observed Sheet text, never old seeded fiction.
+      for row in self.db.execute('SELECT payload_json FROM snapshots ORDER BY id DESC'):
+       observed=next((g for g in json.loads(row['payload_json']).get('gangs',{}).values() if str(g.get('gang_id'))==gang_id),None)
+       if observed and (observed.get('backstory_available') or observed.get('backstory')):
+        backstory=str(observed.get('backstory') or '').strip()
+        break
     self.db.execute('UPDATE gangs SET backstory=?,backstory_source=?,provenance_class=? WHERE gang_id=?',
                     (backstory,'player-authored / campaign Sheet' if backstory else 'not-provided',
                      'player_authored' if backstory else 'inference',gang_id))

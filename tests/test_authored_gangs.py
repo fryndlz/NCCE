@@ -27,8 +27,17 @@ def main():
             changed={**gang,'backstory':'Revised by player.'}
             store.project_snapshot({'gangs':{'A':changed}})
             assert store.gang('g1')['backstory']=='Revised by player.'
-            store.project_snapshot({'gangs':{'A':{**gang,'backstory':None}}})
+            # Missing section in a rebuilt export preserves the last authored text.
+            store.project_snapshot({'gangs':{'A':{**gang,'backstory':None,'backstory_available':False}}})
+            assert store.gang('g1')['backstory']=='Revised by player.'
+            # An explicitly present empty section clears it.
+            store.project_snapshot({'gangs':{'A':{**gang,'backstory':None,'backstory_available':True}}})
             assert not store.gang('g1')['backstory']
+            # Recover a lost projection after restart from the immutable Sheet snapshot.
+            store.db.execute('INSERT INTO snapshots(captured_at,payload_json) VALUES(?,?)',
+                             ('2026-10-27',__import__('json').dumps({'gangs':{'A':gang}})))
+            store.project_snapshot({'gangs':{'A':{**gang,'backstory':None,'backstory_available':False}}})
+            assert store.gang('g1')['backstory']==raw
             text=(ROOT/'data/lore/C-NINE Story - canonical export.txt').read_text(encoding='utf-8-sig')
             store.db.execute('INSERT INTO lore_sources(title,content,source_type,source_url) VALUES(?,?,?,?)',
                              ('C-NINE Story',text,'authored','https://example.com/source'))
