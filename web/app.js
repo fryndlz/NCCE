@@ -236,13 +236,15 @@ function campaignAccount(document) {
 
 function captureUi() {
   const focused = document.activeElement;
-  return {key: focused?.dataset?.filter, selection: typeof focused?.selectionStart === 'number' ? [focused.selectionStart, focused.selectionEnd] : null, open: [...app.querySelectorAll('details[data-key][open]')].map(element => element.dataset.key), scroll: window.scrollY};
+  return {key: focused?.dataset?.filter, selection: typeof focused?.selectionStart === 'number' ? [focused.selectionStart, focused.selectionEnd] : null, open: [...app.querySelectorAll('details[data-key][open]')].map(element => element.dataset.key), scroll: window.scrollY, appScroll: app.scrollTop, panes: ['.fighter-history', '.mind-module', '.record-module'].map(selector => [selector, app.querySelector(selector)?.scrollTop || 0])};
 }
 function restoreUi(saved) {
   if (!saved) return;
-  for (const element of app.querySelectorAll('details[data-key]')) if (saved.open.includes(element.dataset.key)) element.open = true;
+  for (const element of app.querySelectorAll('details[data-key]')) element.open = saved.open.includes(element.dataset.key);
   const input = [...app.querySelectorAll('[data-filter]')].find(element => element.dataset.filter === saved.key);
   if (input) { input.focus({preventScroll: true}); if (saved.selection && input.setSelectionRange) input.setSelectionRange(...saved.selection); }
+  app.scrollTop = saved.appScroll || 0;
+  for (const [selector, top] of saved.panes || []) { const pane = app.querySelector(selector); if (pane) pane.scrollTop = top; }
   window.scrollTo(0, saved.scroll);
 }
 function syncLabel(status) {
@@ -617,11 +619,48 @@ function listResults(view) {
   if (view === 'places') results.innerHTML = `${placeAssociationNotes()}<div class="grid">${rows.map(t => `<article class="card place-card"><div class="eyebrow">Held by ${esc(short(t.gang_name))}</div><h3><button class="card-title" data-territory="${esc(t.id)}">${esc(t.territory)}</button></h3><div class="card-excerpt">${prose(t.backstory)}</div>${evidence([`Holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`], {}, true)}<div class="card-foot">Generated inference · territory record</div></article>`).join('')}</div>`;
   if (view === 'battles') results.innerHTML = rows.map((record, index) => battle(record, index === 0)).join('');
 }
+let screenLoadingTimer;
+function playScreenLoading() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const shell = document.querySelector('.machine-shell');
+  if (!shell) return;
+  shell.classList.remove('screen-loading');
+  void shell.offsetWidth;
+  shell.classList.add('screen-loading');
+  clearTimeout(screenLoadingTimer);
+  screenLoadingTimer = setTimeout(() => shell.classList.remove('screen-loading'), 420);
+}
+function setBreadcrumb(view, label = '') {
+  const path = document.querySelector('#machinePath');
+  if (!path) return;
+  activeView = view;
+  document.querySelectorAll('button[data-view]').forEach(button => {
+    const selected = button.dataset.view === view;
+    button.classList.toggle('active', selected);
+    if (selected) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+  const labels = {chronicle:'Chronicle', gangs:'Gangs', fighters:'Fighters', places:'Places', battles:'Battles', archive:'Archive', workshop:'Writer Workshop', system:'System'};
+  path.replaceChildren();
+  if (label) {
+    const parent = document.createElement('button');
+    parent.type = 'button'; parent.dataset.crumb = view; parent.textContent = labels[view] || view;
+    path.append(parent, document.createTextNode(' / ' + label));
+  } else path.textContent = labels[view] || view;
+}
 async function render(view, preserveScroll = false) {
+  if (!preserveScroll) { playScreenLoading(); app.scrollTop = 0; }
   const token = ++renderToken;
   activeView = view === 'people' ? 'fighters' : view;
+  app.dataset.view = activeView;
   currentDetail = null;
-  document.querySelectorAll('nav button').forEach(button => button.classList.toggle('active', button.dataset.view === activeView));
+  setBreadcrumb(activeView);
+  document.querySelectorAll('button[data-view]').forEach(button => {
+    const selected = button.dataset.view === activeView;
+    button.classList.toggle('active', selected);
+    if (selected) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
   if (activeView === 'workshop') { await window.NCCEWorkshop.open(app,api,blocks); return; }
   if (activeView === 'fighters') {
     if (!fightersCache) app.innerHTML = '<div class="loading-state" role="status">Opening fighter records…</div>';
@@ -666,16 +705,16 @@ async function render(view, preserveScroll = false) {
 function fighterEvidence(f) {
   return [`Role: ${f.class || 'Not recorded'} · ${f.type || 'Type not recorded'}`, `XP: ${f.xp ?? 0} · Recorded kills: ${f.kills ?? 0}`, `Status: ${fighterStatus(f)}`, ...(f.advancements ? ['Advancements: ' + f.advancements] : []), ...(f.effects ? ['Effects: ' + f.effects] : [])];
 }
-function memoryCard(memory) {
+function memoryCard(memory, index = 0) {
   const type = memory.memory_type === 'reflection' ? 'Reflection' : 'Observation';
   const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(memory.writer_message || (memory.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${memory.writer_status} · ${memory.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'an explicit writing run is required.'}`))}</p>` : '';
-  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${dateStamp(memory)}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}${status}<div class="memory-voice">${writtenProse(memory.content,memory.content_runs)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
+  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><details class="memory-record" name="fighter-memories" data-key="memory-${esc(memory.id)}"${index === 0 ? ' open' : ''}><summary aria-label="Open or close memory: ${esc(memory.title || type)}"><span class="memory-seq" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><span class="memory-summary"><time>${dateStamp(memory)}</time><strong>${esc(memory.title || type)}</strong></span></summary><div class="recovered-memory"><header class="memory-paper-header"><time class="memory-doc-date">${dateStamp(memory)}</time><h4 class="memory-trigger">${esc(memory.title || type)}</h4></header><div class="memory-voice">${writtenProse(memory.content,memory.content_runs)}</div></div><div class="memory-recorded-date"><time>${dateStamp(memory)}</time><span class="memory-kind">${type}</span></div>${status}<details class="memory-evidence"><summary>Evidence and provenance</summary>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}</details>${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</details></article>`;
 }
 function mindCard(thought) {
   const memoryId = thought.memory_id || thought.id;
   const label = thought.label || thought.title || thought.name || list(thought.tags)[0] || 'Current concern';
   const status = thought.writer_status && thought.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(thought.writer_message || (thought.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${thought.writer_status} · ${thought.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'an explicit writing run is required.'}`))}</p>` : '';
-  return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div>${status}<div class="thought">${writtenProse(thought.content || thought.thought,thought.content_runs)}</div>${evidence(thought.evidence || [], thought, true)}${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
+  return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div>${status}<div class="thought">${writtenProse(thought.content || thought.thought,thought.content_runs)}</div><details class="mind-basis"><summary>Basis & source</summary>${evidence(thought.evidence || [], thought, true)}</details>${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
 }
 function voiceDetails(profile) {
   if (!profile || !Object.keys(profile).length) return '';
@@ -722,20 +761,25 @@ async function showFighter(id, preserveScroll = false) {
   }
   if (token !== renderToken) return;
   currentDetail = {type: 'fighter', id};
+  setBreadcrumb('fighters', f.name);
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const mind = Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead').slice(0, 4);
   const deceased = /killed|dead/i.test(f.status || '');
+  const biographyText = String(f.backstory || 'No biography has been recorded.');
+  const biographyExcerpt = biographyText.split(/\n\s*\n/).find(part => part.trim().length > 100 && !/^(?:KEL,|Designation:|Labour Grade:)/i.test(part.trim())) || biographyText;
   const maraWriterPending = ['queued','running'].includes(maraWriterRun?.status) || Boolean(sessionStorage.getItem('ncce-mara-writer-check') && !maraWriterRun);
   const maraWriterCanStart = (!maraWriterRun && !maraWriterPending) || maraWriterRun?.can_retry === true || maraWriterRun?.can_final_run === true || maraWriterRun?.can_medium_run === true;
   const maraWriterCheck = isMara
     ? `<section class="writer-check"><div><strong>Mara-only writer run</strong><p class="muted compact">This final sample uses medium reasoning effort and at most 5 model requests. It regenerates only Mara’s generated memories and reflection. Her player-authored biography is preserved; other fighters and campaign reports are untouched. Any entries not reached within the five calls keep their previous draft.</p></div><button data-writer-check="${esc(f.id)}"${maraWriterCanStart ? '' : ' disabled'}>${maraWriterRun?.can_medium_run ? 'Try Mara at medium effort (5 calls)' : maraWriterRun?.can_final_run ? 'Regenerate Mara’s memories' : maraWriterRun?.can_retry ? 'Run revised Mara check' : maraWriterRun?.status === 'complete' ? 'Mara check complete' : maraWriterRun?.status === 'error' ? 'Mara check ended with an error' : maraWriterPending ? 'Mara check is running' : 'Test the writer on Mara'}</button><div class="writer-check-status" role="status">${maraWriterRun ? writerRunMarkup(maraWriterRun) : ''}</div><hr><div><strong>One-call diagnostic</strong><p class="muted compact">Asks for one injury memory with a larger output allowance; displays the response and API completion details. Does not save prose to the campaign or change Mara’s record.</p></div><button data-writer-diagnostic="true"${writerDiagnostic?.used ? ' disabled' : ''}>${writerDiagnostic?.used ? 'Diagnostic used' : 'Ask the writer for one sample'}</button><div class="writer-diagnostic-status" role="status">${writerDiagnostic?.used ? writerDiagnosticMarkup(writerDiagnostic) : ''}</div></section>` : '';
-  app.innerHTML = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}${maraWriterCheck}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}</aside></div>`;
+  app.dataset.view = 'fighter';
+  app.innerHTML = `<div class="fighter-layout"><section class="fighter-history machine-screen"><button class="back" data-back="fighters">← Fighters / personnel archive</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2 style="--fighter-name-scale:${Math.max(.55, Math.min(1, 14 / String(f.name || 'Unknown').length))}">${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(short(f.gang_name))} · ${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><section class="biography"><h3>Backstory</h3><p class="biography-preview">${esc(cut(biographyExcerpt, 350))}</p><details class="biography-record" data-key="fighter-biography"><summary>Read full biography & source</summary>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}</details></section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><section class="mind-module machine-screen"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><span class="mind-signal" aria-hidden="true"><svg viewBox="0 0 120 30"><polyline points="0,16 17,16 21,13 25,20 31,16 39,16 44,7 48,23 53,14 61,16 70,16 75,3 81,26 87,13 93,17 99,16 120,16"/></svg></span><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}</section><section class="record-module machine-screen"><h3>Record evidence</h3>${mechanicsPanel(f)}${voiceDetails(f.voice_profile)}${identityEditor(f)}${maraWriterCheck ? `<details class="maintenance-access" data-key="writer-maintenance"><summary>Writer diagnostics & previous runs</summary>${maraWriterCheck}</details>` : ''}</section></aside></div>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showGang(id, preserveScroll = false) {
   const token = ++renderToken, g = await api('/api/gangs/' + encodeURIComponent(id));
   if (token !== renderToken) return;
   currentDetail = {type: 'gang', id};
+  setBreadcrumb('gangs', short(g.name));
   const holdings = list(g.territory_list);
   app.innerHTML = `<button class="back" data-back="gangs">← Gangs</button><div class="eyebrow">${esc(g.gang_type)} · gang record</div><h2>${esc(short(g.name))}</h2><section class="region-intro">${gangBackstory(g)}</section>${campaignAccount(g.campaign_account_document)}${storyStream(g.narrative_stream, 'gang')}<h3 class="section-title">Between engagements</h3>${list(g.downtime).slice(0, 1).map(downtime).join('') || empty('No downtime account is available.')}<div class="sectionhead"><h3>Fighters</h3><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Find this gang’s fighters →</button></div><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available for this gang.')}</div><h3 class="section-title">Holdings</h3><div class="holdings">${holdings.map(t => `<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span>→</span></button>`).join('') || '<p class="muted">No current holdings are recorded.</p>'}</div><h3 class="section-title">Campaign record</h3>${list(g.battles).map(b => battle(b)).join('')}<details class="mechanics-fold" data-key="gang-mechanics"><summary>Current mechanical evidence</summary><div class="card system-state">${[['Reputation', g.reputation], ['Rating', g.rating], ['Credits', g.credits], ['Territories recorded', g.territories], ['Source updated', g.updated_at]].map(([label, value]) => `<div class="row"><span>${esc(label)}</span><span>${label === 'Source updated' ? esc(date(value,true) || 'Not recorded') : esc(value ?? 'Not recorded')}</span></div>`).join('')}</div></details>`;
   if (!preserveScroll) window.scrollTo(0, 0);
@@ -744,6 +788,7 @@ async function showTerritory(id, preserveScroll = false) {
   const token = ++renderToken, t = await api('/api/territories/' + encodeURIComponent(id));
   if (token !== renderToken) return;
   currentDetail = {type: 'territory', id};
+  setBreadcrumb('places', t.territory);
   const related = data.battles.filter(b => b.territory === t.territory);
   app.innerHTML = `<button class="back" data-back="places">← Places</button><div class="eyebrow">Territory · held by ${esc(short(t.gang_name))}</div><h2>${esc(t.territory)}</h2><section class="region-intro">${narrative(t.backstory, t.backstory_source || 'inference', t.evidence || [`Current holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`, `Default holding: ${t.is_default ? 'Yes' : 'No'}`, `${related.length} related battle records`], t)}</section>${campaignAccount(t.campaign_account_document)}${storyStream(t.narrative_stream, 'territory')}<h3 class="section-title">Fighting over this ground</h3>${related.map(b => battle(b)).join('') || empty('No battle over this territory is recorded.')}`;
   if (!preserveScroll) window.scrollTo(0, 0);
@@ -752,6 +797,7 @@ async function showLore(id, preserveScroll = false) {
   const token = ++renderToken, record = await api('/api/lore/' + encodeURIComponent(id));
   if (token !== renderToken) return;
   currentDetail = {type: 'lore', id};
+  setBreadcrumb('archive', record.title);
   app.innerHTML = `<button class="back" data-back="archive">← Archive</button><div class="eyebrow">${esc(record.source_type)} · authored source</div><h2>${esc(record.title)}</h2><section class="archive-document">${authoredRecord(record.content)}</section>`;
   if (!preserveScroll) window.scrollTo(0, 0);
 }
@@ -792,6 +838,11 @@ app.addEventListener('submit', async event => {
   } catch (error) { status.textContent = error.message; button.disabled = false; }
 });
 app.addEventListener('click', event => {
+  const memoryLink = event.target.closest('a.memory-link');
+  if (memoryLink?.hash?.startsWith('#memory-')) {
+    const record = document.getElementById(memoryLink.hash.slice(1))?.querySelector('.memory-record');
+    if (record) record.open = true;
+  }
   const target = event.target.closest('button');
   if (!target) return;
   let task;
@@ -865,7 +916,12 @@ async function runTerritoryWriter(button) {
     await render('system', true);
   } catch (error) { status.textContent = error.message; button.disabled = false; }
 }
-document.querySelectorAll('nav button').forEach(button => button.addEventListener('click', () => render(button.dataset.view).catch(handleError)));
+document.querySelector('[data-home]')?.addEventListener('click', () => render('chronicle').catch(handleError));
+document.querySelector('#machinePath')?.addEventListener('click', event => {
+  const parent = event.target.closest('[data-crumb]');
+  if (parent) render(parent.dataset.crumb).catch(handleError);
+});
+document.querySelectorAll('button[data-view]').forEach(button => button.addEventListener('click', () => render(button.dataset.view).catch(handleError)));
 syncNow.addEventListener('click', async () => {
   syncNow.disabled = true; syncNow.textContent = 'Requesting…';
   try { await api('/api/sync', {method: 'POST'}); await refreshStatus(); }

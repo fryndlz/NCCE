@@ -1,0 +1,19 @@
+{
+  "generator": "Built-in image_gen",
+  "reference": "Original C approved by user, preserved as a physical background plate",
+  "assets": [
+    {
+      "file": "cogitator-plate-v2.png",
+      "prompt": "EDIT TARGET: attached approved NCCE screenshot. Create its production background plate for a working website. Preserve the image's exact physical art direction and composition, landscape 1.6:1 ratio. This is NOT a redesign. Keep the exact weathered parchment NCCE / DOMINION KRAKAMUNDA nameplate, dark heavy iron construction, close-connected nav rail, pointed gothic screen arches, full hooded bronze saint statue in central divider, skull vent in right lower pane, amber counters and lights, lower-left large candles and lower-right small candle, cables, scratched glass, faint green gridded displays, and the dark hive-city silhouettes within the large left screen. Preserve all shadows, wear, outlines, material scales, proportions and muted dark palette. \nChanges ONLY to make art reusable underneath real HTML:\n- ERASE ALL LIVE CONTENT from the large left glass display: title Mara Kel, subtitle, breadcrumb text, backstory heading/body, memory heading/list/text, numbered memory medallions, entire parchment memory card and its wax seal. Fill removed content continuously with matching empty green glass and very faint existing hive silhouettes and scan traces. Keep the screen's outer arch, bezel and thin instrument registration marks. No huge bright patches. \n- ERASE all live content inside the top-right MIND glass display: MIND heading, prose, portrait, metadata and diagrams. Replace with matching dark glass with very subtle ghost circuitry. Keep frame and glass corner registration brackets.\n- ERASE all text from bottom-right mechanical evidence glass and from the small physical bottom-right archive paper plaque. Preserve its skull fitting/vent and aged paper material.\n- NAV: keep exact close-connected ROW of metal rectangular electromechanical switches. It must have EIGHT contiguous equal-width switches instead of seven occupying the same top navigation rail between nameplate and top-right skull shrine. Empty label faceplates and empty tiny circular number sockets. NO gaps between switches; shared vertical hardware edges. None selected: neutral dark metal. No painted labels/numbers on any switch. Real HTML labels go over them.\n- ERASE footer text and all other text EXCEPT the weathered logo NCCE / DOMINION KRAKAMUNDA, which must remain exactly as beautiful distressed print on old paper.\nOutput complete original machine, not a modular asset sheet. No added frames, no thicker cables, no glowing gold treatment, no flat minimalist simplification. The result should look exactly like the original machine before any records have been loaded. Highest detailed game UI material quality. Keep all four sides visible and original aspect ratio."
+    },
+    {
+      "file": "glass-v2.png",
+      "prompt": "Use attached image as STYLE AND MATERIAL REFERENCE. Generate one seamless dark green glass screen texture for real HTML text. Landscape 3:2. No framing, no words, no letters, no portrait, no UI marks, no metal. ONLY the dark green glass interior of the left screen: deep almost-black bottle green, very faint scanlines and ghost circuit traces, an atmospheric Necromunda hive skyline in the lower right quarter, subdued layered industrial spires and gantries. Text will be placed over this so keep tonal contrast low and most of surface dark. The upper half is quiet near-black green, the bottom right architectural silhouettes remain visible but very faint. Original approved image's moody dense glass quality, not bright emerald or neon. Edge-to-edge screen surface."
+    }
+  ],
+  "font": {
+    "file": "im-fell-english-sc.ttf",
+    "license": "FONT-LICENSE.txt",
+    "source": "https://fonts.google.com/specimen/IM+Fell+English+SC"
+  }
+}

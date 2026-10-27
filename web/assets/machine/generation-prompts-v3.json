@@ -1,0 +1,26 @@
+{
+  "generator": "Built-in image_gen",
+  "assets": [
+    {
+      "file": "selected-key-v3.png",
+      "prompt": "Use the attached approved original C NCCE image as exact MATERIAL AND SHAPE REFERENCE. Generate a single reusable SELECTED NAVIGATION KEY asset. This is the golden selected FIGHTERS rectangular key in the top rail, isolated and copied faithfully in construction, except remove the word FIGHTERS and the number. Front-on orthographic, 4:3-ish rectangular shape matching the original key (about 125 wide by 92 tall). Aged ochre brass/old gold flat inset metal face, blackened thick beveled outer frame, tiny corner rivets, worn lighter bevel highlights, darker scratches, subtle recessed inner border. Small round brass EMPTY number socket at top left, partly overhanging upper lip exactly like source. Tall central clean gold blank faceplate ready for live black typography. This should look like a tactile physical selected key with a gold face and blackened edges, NOT a translucent yellow overlay. No words, no letters, no digits, no logos, no symbols. No new design elements, no giant bolts, no protruding top central medallion, no pilot lamp. Full key visible with 1% safe margin on transparent background. Match source's very dark muted gold and sharp rectangular fitting, not shiny jewelry gold. The attached screenshot is only a style/material reference; output ONLY the single blank selected metal key, not the whole interface."
+    }
+  ],
+  "fonts": [
+    {
+      "file": "grenze-semibold.ttf",
+      "family": "Grenze",
+      "weight": 600,
+      "license": "GRENZE-LICENSE.txt",
+      "source": "https://fonts.google.com/specimen/Grenze"
+    },
+    {
+      "file": "crimson-text.ttf",
+      "family": "Crimson Text",
+      "weight": 400,
+      "license": "CRIMSON-LICENSE.txt",
+      "source": "https://fonts.google.com/specimen/Crimson+Text"
+    }
+  ],
+  "implementation": "Animated flames and amber light are CSS layers aligned to the source candles. The Mind trace is decorative SVG. Both obey prefers-reduced-motion."
+}

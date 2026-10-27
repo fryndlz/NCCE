@@ -1,0 +1,13 @@
+{
+  "generator": "Built-in image_gen",
+  "file": "navigation-atlas-v4.png",
+  "prompt": "Production game UI sprite atlas, not screenshot. Use reference image for exact old Necromunda cogitator top navigation construction. Generate precisely 7 COLUMNS and 2 ROWS of contiguous rectangular metal navigation keys. Every cell exactly same dimensions, complete key inside cell; no space/gutter between cells. Entire canvas aspect 7:2 (very wide). TOP ROW: dark black iron neutral keys with engraved pale bone labels and a tiny round brass number socket at UPPER LEFT. BOTTOM ROW: same seven keys SELECTED, old golden brass faceplates, dark lettering, blackened heavy edge bevel and tiny corner screws. Labels and numerals are permanently engraved/printed into the material, ALL text safely INSIDE each faceplate, not touching edges.\nColumn labels left to right in BOTH rows: number '01' label 'CHRONICLE'; number '02' label 'GANGS'; number '03' label 'FIGHTERS'; number '04' label 'PLACES'; number '05' label 'BATTLES'; number '06' label 'ARCHIVE'; number '07' label on two centered lines 'WRITER' 'WORKSHOP'.\nNumbers must appear in their small upper-left round sockets in both rows. Typography matches reference: narrow strong gothic Roman capitals, restrained, engraved worn ink, not calligraphy. CHRONICLE and WRITER WORKSHOP must have enough safe padding and fit comfortably. Identical same-size cells so CSS background-position can select each of 14 keys. No title, no surrounding interface, no extras, no floating medallions outside cells, no gaps, no perspective, no empty margins. Muted reference metal values, not shiny orange jewelry. Flat straight-on orthographic. Original detailed texture.",
+  "static": {
+    "file": "screen-static.gif",
+    "kind": "8-frame transparent procedural GIF, 64 by 64 pixels",
+    "frame_duration_ms": 110,
+    "opacity": 0.035,
+    "reduced_motion": "disabled"
+  },
+  "presentation": "Labels and numbers are baked into both atlas states; accessible HTML names remain visually hidden."
+}
