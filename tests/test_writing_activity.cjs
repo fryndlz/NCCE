@@ -17,5 +17,7 @@ run.activity={phase:'revise',actor:'JKSimmons',message:'Save candidate'};
 assert.equal(activity.model(run).people[0].expression,'sad');assert.equal(activity.model(run).people[1].expression,'angry');
 const neutral=activity.render(run,{personas:false});assert.ok(!neutral.includes('Enough fog'));assert.match(neutral,/Save candidate/);
 const original=JSON.stringify(run);activity.render(run);assert.equal(JSON.stringify(run),original,'Personas cannot mutate grades or run state');
+run.dialogue=[{from:'JKSimmons',to:'JuniorWriter',phase:'evaluate',text:'Long <unsafe> assessment. '+('Keep all evidence. '.repeat(30))}];
+const readable=activity.render(run);assert.match(readable,/handoff-card/);assert.match(readable,/Read full message/);assert.ok(!readable.includes('<unsafe>'));assert.match(readable,/Keep all evidence/);
 assert.match(fs.readFileSync('web/writing.css','utf8'),/prefers-reduced-motion/);
 console.log('PASS live agent heads and workflow: one working actor, escaped speech, review transition, human escalation, approval, idle and reduced motion');

@@ -47,9 +47,30 @@ window.NCCEWorkshop = (() => {
       <details><summary>Saved edit history · ${t.edits?.length || 0}</summary>${(t.edits || []).map(e=>`<button data-ws="load-edit" data-edit="${esc(e.edit_id)}">Load edit ${esc(e.created_at)}</button>`).join('') || '<p>No saved edits yet.</p>'}</details>`}
       <details><summary>Exact instructions used for this sample</summary><pre>${esc(t.instructions)}</pre></details></section>`;
   }
+  const formNames={fighter_memory:'Fighter memories',fighter_reflection:'Fighter reflections',fighter_biography:'Fighter biographies',gang_history:'Gang histories',gang_event:'Gang events',gang_origin:'Gang origins',place_event:'Territory events',place_ambient:'Territory scenes',territory_history:'Territory histories',territory_origin:'Territory origins',region_history:'Region histories',battle_report:'Battle reports',downtime:'Downtime reports',relationship:'Relationships'};
+  const formName=form=>formNames[form] || String(form || '').replaceAll('_',' ');
+  const short=(text,limit=230)=>{text=String(text || '');if(text.length<=limit)return text;const cut=text.lastIndexOf(' ',limit);return text.slice(0,cut>limit/2?cut:limit)+'…';};
+  const paragraphs=text=>String(text || '').split(/\n\s*\n/).map(p=>`<p>${esc(p)}</p>`).join('');
+  function readable(text,label='Read full assessment',limit=230) {
+    return `<div class="ws-readable"><p>${esc(short(text,limit))}</p>${String(text || '').length>limit?`<details><summary>${label}</summary>${paragraphs(text)}</details>`:''}</div>`;
+  }
+  function reviewPair(pair) {
+    const review=pair.review;
+    return `<section class="ws-result-entry"><h4>${esc(pair.label)}</h4>${review?`<div class="ws-review-verdict"><span class="ws-kicker">JKSimmons’s assessment</span>${readable(review.summary)}</div>`:'<p class="muted">Waiting for review.</p>'}<div class="ws-draft-grid">${(pair.candidates || []).map((candidate,index)=>{
+      const c=review?.candidates?.find(c=>c.index===index), issues=c?.issues || [], pass=c && c.overall>=8 && Object.values(c.scores || {}).every(v=>v>=8) && !issues.some(i=>i.blocking);
+      return `<article class="ws-draft-card"><header><h5>Draft ${index?'B':'A'}</h5>${c?`<strong class="ws-score ${pass?'is-pass':'is-below'}">${esc(c.overall)}<small> / 10</small></strong>`:`<span>${esc(candidate.status)}</span>`}</header>${c?`<p class="ws-score-caption">${pass?'Meets the target':'Below the target'}${issues.some(i=>i.blocking)?' · blocking issue':''}</p><dl class="ws-score-list">${Object.entries(c.scores || {}).map(([k,v])=>`<div><dt>${esc(k.replaceAll('_',' '))}</dt><dd>${esc(v)}<small> / 10</small></dd></div>`).join('')}</dl>`:''}<details class="ws-read-draft"><summary>Read draft ${index?'B':'A'}</summary>${drawDocument(candidate.document)}</details>${issues.length?`<h6>${issues.length} ${issues.length===1?'issue':'issues'} to address</h6><div class="ws-issue-list">${issues.map(issue=>`<details class="ws-review-issue${issue.blocking?' is-blocking':''}"><summary><span class="ws-issue-category">${esc(issue.category)}${issue.blocking?' · blocking':''}</span><span>${esc(short(issue.explanation,140))}</span></summary>${paragraphs(issue.explanation)}<blockquote><span>Evidence</span>${esc(issue.evidence)}</blockquote></details>`).join('')}</div>`:c?'<p class="muted">No issues reported.</p>':''}</article>`;
+    }).join('')}</div></section>`;
+  }
+  function draftFocus() {
+    const options=S.home.focus_options?.[S.sample.form] || [];
+    if(options.length<=1)return '<p class="ws-focus-fixed"><strong>Draft focus: the recorded event.</strong> The next single draft stays centred on this entry’s event or sequence. There is no extra focus setting for this prose type.</p>';
+    return `<details class="ws-focus-options"><summary>Optional focus for the next single draft</summary><p>Choose what the next draft below should emphasise. Automatic selection favours a compatible focus used less recently. This affects “Generate one draft”, not the improvement test or saved writing instructions.</p><label>Emphasis<select data-ws-focus><option value="auto">Choose automatically</option>${options.map(o=>`<option value="${esc(o.value)}"${o.value===S.focus?' selected':''}>${esc(o.label)}</option>`).join('')}</select></label><button data-ws="variation">Choose another automatic focus · free</button></details>`;
+  }
   function optimizationPanel() {
     const config=S.optimizations?.configuration || {}, run=S.optimization;
     const bridge=S.optimizations?.bridge, available=!bridge || bridge.online;
+    const forms=S.home.forms || [...new Set(S.home.samples.map(s=>s.form))], form=S.optForm || S.sample?.form;
+    const hasSample=S.home.samples.some(s=>s.form===form);
     return `<section class="workshop-optimization"><h3>Improve NCCE's writing setup</h3>
       <p class="codex-connection ${available?'is-online':'is-offline'}">${available?'● Codex reviewer connected':'○ Codex reviewer offline'} · JKSimmons — NCCE Writing Reviewer</p><p class="muted">${available?'Reviews go to your actual Codex chat, using its context and saved standards. The local listener wakes JKSimmons only when drafts are ready. Empty waiting uses no Codex allowance; keep Codex and the listener open.':'Automated writing is paused until the actual reviewer connection passes its test. Start START JKSIMMONS.vbs in your NCCE folder. Your computer and Codex must remain on for reviews.'} No reviewer API fallback.</p>${!available && bridge?.connection_error?`<p class="muted">Connection check: ${esc(bridge.connection_error)}</p>`:''}
       <div class="workshop-actions"><button data-ws="opt-connection">Check Codex connection</button><button data-ws="opt-personas">${S.personas===false?'Enable':'Disable'} character banter</button></div>
@@ -57,13 +78,13 @@ window.NCCEWorkshop = (() => {
       <p>JuniorWriter tries two drafts on each of two independent entries. JKSimmons reviews both pairs and revises the form guidance between rounds. Context or pipeline problems stop the run for you and StoryTechMan.</p>
       <p>Writer: ${esc(config.writer_model || S.home.model)} · Reviewer: ${esc(config.reviewer_model || S.home.model)}. Candidate instructions remain inactive until you approve the tested setup.</p>
       <label>Maximum rounds<select data-ws-opt-rounds${optimizing()?' disabled':''}>${[1,2,3].map(n=>`<option value="${n}"${n===(S.optRounds || 1)?' selected':''}>${n} · up to ${n*4} writing calls + ${n*2} Codex reviews</option>`).join('')}</select></label>
-      <div class="workshop-actions"><button data-ws="opt-start"${!available || !S.sample || !S.home.configured || S.busy || running() || optimizing()?' disabled':''}>${S.optBody?'Check submitted run':'Improve this prose form'}</button>${optimizing()?'<button data-ws="opt-stop">Stop after current request</button>':''}</div>
+      <div class="workshop-actions ws-improve-controls"><label>Prose type to improve<select data-ws-opt-form${S.busy || optimizing() || S.optBody?' disabled':''}>${forms.map(f=>`<option value="${esc(f)}"${f===form?' selected':''}${!S.home.samples.some(s=>s.form===f)?' disabled':''}>${esc(formName(f))}${!S.home.samples.some(s=>s.form===f)?' · no entries available':''}</option>`).join('')}</select></label><button data-ws="opt-start"${!available || !hasSample || !S.home.configured || S.busy || running() || optimizing()?' disabled':''}>${S.optBody?'Check submitted run':'Improve '+esc(formName(form).toLowerCase())}</button>${optimizing()?'<button data-ws="opt-stop">Stop after current request</button>':''}</div><p class="ws-control-help">Tests two independent entries of this type. The sample editor below is separate; changing this selector keeps your edits.</p>
       <label>Previous improvement runs<select data-ws-opt-history><option value="">Choose run…</option>${(S.optimizations?.runs || []).map(r=>`<option value="${esc(r.run_id)}">${esc(r.form.replaceAll('_',' '))} · ${esc(r.status)} · ${esc(r.created_at)}</option>`).join('')}</select></label>
-      ${run?`<p role="status"><strong>${esc(run.status.replaceAll('_',' '))}</strong> · ${esc(run.form.replaceAll('_',' '))}<br>${esc(run.message)}</p><p>Reserved request slots: ${run.writer_reserved}/${run.writer_limit} writer, ${run.reviewer_reserved}/${run.reviewer_limit} reviewer.</p>
+      ${run?`<p role="status"><strong>${esc(run.status.replaceAll('_',' '))}</strong> · ${esc(run.form.replaceAll('_',' '))}</p><div>${readable(run.message,'Read full run update')}</div><p>Reserved request slots: ${run.writer_reserved}/${run.writer_limit} writer, ${run.reviewer_reserved}/${run.reviewer_limit} reviewer.</p>
       <details><summary>Tested form instructions</summary><pre>${esc(run.specific.instructions)}</pre><p>Shared revision: ${esc(run.shared.label)}</p><pre>${esc(run.shared.instructions)}</pre></details>
-      ${(run.rounds || []).map(round=>`<details${round===run.rounds.at(-1)?' open':''}><summary>Round ${round.number}</summary>${round.pairs.map(pair=>`<h4>${esc(pair.label)}</h4>${pair.candidates.map((candidate,i)=>`<details><summary>Draft ${i?'B':'A'} · ${esc(candidate.status)}</summary>${drawDocument(candidate.document)}</details>`).join('')}${pair.review?`<p><strong>JKSimmons:</strong> ${esc(pair.review.summary)}</p>${pair.review.candidates.map(c=>`<p>Draft ${c.index?'B':'A'}: ${esc(c.overall)}/10 · ${Object.entries(c.scores).map(([k,v])=>`${esc(k.replaceAll('_',' '))}: ${esc(v)}`).join(' · ')}</p>${c.issues.map(issue=>`<p role="alert"><strong>${esc(issue.category)}:</strong> ${esc(issue.explanation)}<br>Evidence: ${esc(issue.evidence)}</p>`).join('')}`).join('')}`:''}`).join('')}</details>`).join('')}
+      <div class="ws-results">${(run.rounds || []).map(round=>`<details class="ws-round"${round===run.rounds.at(-1)?' open':''}><summary>Round ${round.number} · ${round.pairs.length} test ${round.pairs.length===1?'entry':'entries'}</summary>${round.pairs.map(reviewPair).join('')}</details>`).join('')}</div>
       ${run.status==='awaiting_approval'?'<div class="workshop-actions"><button data-ws="opt-approve">Approve tested setup for future NCCE writing</button><button data-ws="opt-reject">Reject this setup</button></div>':''}
-      <details><summary>StoryTechMan handoff and run history</summary><p>${esc(run.coverage)}</p><p>${esc(run.reviewer_context)}</p>${run.events.map(e=>`<p>${esc(e.at)} · ${esc(e.message)}</p>`).join('')}</details><details><summary>Complete run report · exact prompts, context and results</summary><pre>${esc(JSON.stringify(run,null,2))}</pre></details>`:''}</section>`;
+      <details><summary>StoryTechMan handoff and run history</summary><p>${esc(run.coverage)}</p><p>${esc(run.reviewer_context)}</p><ol class="ws-run-events">${run.events.map(e=>`<li><time>${esc(e.at)}</time>${readable(e.message,'Read full update',180)}</li>`).join('')}</ol></details><details><summary>Complete run report · exact prompts, context and results</summary><pre>${esc(JSON.stringify(run,null,2))}</pre></details>`:''}</section>`;
   }
   async function pollOptimization() {
     try {
@@ -79,17 +100,18 @@ window.NCCEWorkshop = (() => {
     root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Editorial desk</div><h2>Writer Workshop</h2><p>Shape the writer directly: edit instructions, test one entry, revise the prose and save examples you approve.</p><p class="muted">Saving, importing, editing and inspecting are free. Generate sends one request. Activating a revision affects future writing; it does not rewrite existing entries.</p>
       <p role="status" id="ws-status">${esc(S.message)}</p><p>${esc(h.model)} · ${esc(h.effort)} effort · one-call limit per generation</p>
       ${optimizationPanel()}
-      <details><summary>Your comparison feedback and prompt identities</summary>${h.review.map(r=>`<p><strong>${esc(r.label)}</strong>: ${esc(r.note)}<br>A: ${esc(r.versions.A)}; B: ${esc(r.versions.B)}. ${r.verdict==='neither'?'Neither approved.':'A preferred; not automatically added as an example.'}</p>`).join('')}</details>
+
       <div class="workshop-source"><label>Find an entry<input type="search" data-ws-search value="${esc(S.search || '')}" placeholder="Fighter, gang, place, writing form…"></label><label>Sample<select data-ws-sample>${list.map(item=>`<option value="${esc(item.key)}"${item.key===S.sample?.key?' selected':''}>${esc(item.label)} · ${esc(item.form.replaceAll('_',' '))}</option>`).join('')}</select></label><button data-ws="sources">Refresh source list · free</button></div>
       ${S.sample?`<p><strong>${esc(S.sample.label)}</strong> · ${esc(S.sample.form.replaceAll('_',' '))}</p><details><summary>Read-only evidence and context for the next request</summary><pre>${esc(JSON.stringify(S.sample.packet,null,2))}</pre></details>
       <fieldset class="workshop-policies"${S.busy || running()?' disabled':''}>${policyEditor('shared','Shared writing craft · all forms')}${policyEditor('specific','This writing form')}</fieldset>
-      <fieldset${S.busy || running()?' disabled':''}><legend>Creative plan · free</legend><label>Focus for this entry<select data-ws-focus><option value="auto">${(h.focus_options?.[S.sample.form] || []).length>1?'Choose a less-used compatible focus':'Keep the recorded event or sequence central'}</option>${(h.focus_options?.[S.sample.form] || []).map(o=>`<option value="${esc(o.value)}"${o.value===S.focus?' selected':''}>${esc(o.label)} · pin for this entry</option>`).join('')}</select></label><p class="muted">A focus is inspiration. Recorded events stay central. It changes no facts or saved writing instructions.</p>${(h.focus_options?.[S.sample.form] || []).length>1?'<button data-ws="variation">Try another plan · free</button>':''}</fieldset>
+      ${draftFocus()}
       <div class="workshop-actions"><button data-ws="inspect">Inspect exact next instructions and plan · free</button><button data-ws="import">Import selected sample for editing · free</button><button data-ws="generate"${!h.configured || S.busy || running()?' disabled':''}>${S.busy || running()?'Generation in progress…':'Generate one draft · 1 API call'}</button></div>
       ${S.inspection?`<details open><summary>Next request · saved draft instructions</summary><p>Approximately ${Math.ceil((S.inspection.instructions.length+JSON.stringify(S.inspection.packet).length)/4)} input tokens before API overhead; estimate only.</p><p><strong>${esc(S.inspection.packet.creative_plan?.focus_label || 'Recorded event')}</strong> · this plan is saved for the next request.</p>${S.inspection.packet.rulebook_context?`<p>Rulebook: ${esc(S.inspection.packet.rulebook_context.source?.title || 'Unverified type')} ${esc(S.inspection.packet.rulebook_context.source?.printed_page ? '· p. '+S.inspection.packet.rulebook_context.source.printed_page : '')}</p>`:''}<pre>${esc(S.inspection.instructions)}</pre><details><summary>Exact context, reference and recent-pattern hints</summary><pre>${esc(JSON.stringify(S.inspection.packet,null,2))}</pre></details></details>`:''}`:'<p>No generated entries are available to test.</p>'}
       <section class="workshop-history"><h3>Workshop samples</h3><label>Open a previous trial or imported sample<select data-ws-trial><option value="">Choose saved sample…</option>${h.trials.map(t=>`<option value="${esc(t.trial_id)}"${t.trial_id===S.trial?.trial_id?' selected':''}>${esc(t.label)} · ${esc(t.status)} · ${esc(t.created_at)}</option>`).join('')}</select></label></section>${trialPanel()}</section>`;
   }
   async function selectSample(key) {
     S.sample=await request('/api/workshop/sample?key='+encodeURIComponent(key));
+    if(!S.optForm)S.optForm=S.sample.form;
     const meta=await request('/api/workshop/policy?scope='+encodeURIComponent(S.sample.form));
     S.specificMeta=meta; S.specific=clone(meta.draft); S.inspection=null; S.planKey=null; S.focus='auto'; S.variation=0;
     paint();
@@ -104,6 +126,16 @@ window.NCCEWorkshop = (() => {
   }
   async function prepared() {
     return {sample_key:S.sample.key,packet_hash:S.sample.packet_hash,shared_revision_id:await savePolicy('shared'),form_revision_id:await savePolicy('specific'),focus:S.focus || 'auto',variation:S.variation || 0,plan_key:S.planKey || null};
+  }
+  async function preparedOptimization() {
+    const form=S.optForm || S.sample?.form;
+    if(form===S.sample?.form)return {...await prepared(),focus:'auto',variation:0,plan_key:null};
+    const entry=S.home.samples.find(s=>s.form===form);
+    if(!entry)throw new Error('No sourced entries are available for this prose type.');
+    const sample=await request('/api/workshop/sample?key='+encodeURIComponent(entry.key));
+    const meta=await request('/api/workshop/policy?scope='+encodeURIComponent(form));
+    const specific=meta.draft.revision_id?meta.draft:await post('save-policy',meta.draft);
+    return {sample_key:sample.key,packet_hash:sample.packet_hash,shared_revision_id:await savePolicy('shared'),form_revision_id:specific.revision_id,focus:'auto',variation:0,plan_key:null};
   }
   async function pollTrial() {
     try {
@@ -121,10 +153,10 @@ window.NCCEWorkshop = (() => {
       case 'opt-start': {
         if(S.busy || optimizing() || running()) return;
         const rounds=S.optRounds || 1;
-        if(!S.optBody && !window.confirm(`Improve this prose form with up to ${rounds*4} paid JuniorWriter calls and ${rounds*2} reviews in your JKSimmons Codex chat? Codex usage limits apply. There are no external reviewer API calls. The run stops on technical issues and never activates instructions automatically.`)) {paint();return;}
+        if(!S.optBody && !window.confirm(`Improve ${formName(S.optForm || S.sample?.form).toLowerCase()} with up to ${rounds*4} paid JuniorWriter calls and ${rounds*2} reviews in your JKSimmons Codex chat? Codex usage limits apply. There are no external reviewer API calls. The run stops on technical issues and never activates instructions automatically.`)) {paint();return;}
         S.busy=true;paint();
         try {
-          if(!S.optBody) S.optBody={...await prepared(),request_key:crypto.randomUUID(),max_rounds:rounds,allow_paid:true};
+          if(!S.optBody) S.optBody={...await preparedOptimization(),request_key:crypto.randomUUID(),max_rounds:rounds,allow_paid:true};
           S.optimization=await post('optimize',S.optBody);
           S.busy=false;if(!optimizing())S.optBody=null;paint();if(optimizing())setTimeout(pollOptimization,1000);
         } catch(error) {S.busy=false;if(error.status>=400 && error.status<500 && ![408,429].includes(error.status))S.optBody=null;throw error;}
@@ -137,7 +169,7 @@ window.NCCEWorkshop = (() => {
         if(approve && !window.confirm('Activate the exact tested shared and form instructions for future NCCE generation? Existing campaign prose stays unchanged.'))break;
         S.optimization=await post('optimization-decide',{run_id:S.optimization.run_id,approve});
         S.optimizations=await request('/api/workshop/optimizations');
-        if(approve){S.sharedMeta=await request('/api/workshop/policy?scope=shared');S.home=await request('/api/workshop');await selectSample(S.sample.key);}
+        if(approve){const specific=S.specific,shared=S.shared;S.sharedMeta=await request('/api/workshop/policy?scope=shared');S.home=await request('/api/workshop');await selectSample(S.sample.key);if(specific?.dirty)S.specific=specific;if(shared?.dirty)S.shared=shared;}
         S.message=approve?'Tested setup activated for future NCCE writing.':'Candidate rejected. Active setup unchanged.';break;
       }
       case 'preset': S[which]={...clone(S[which+'Meta'][button.dataset.preset]),dirty:true}; S.inspection=null; S.message='Preset loaded as a draft. Future writing is unchanged.'; break;
@@ -216,6 +248,7 @@ window.NCCEWorkshop = (() => {
       const t=event.target;
       let task;
       if(t.hasAttribute('data-ws-focus')) {S.focus=t.value;S.planKey=null;S.inspection=null;paint();}
+      if(t.hasAttribute('data-ws-opt-form') && !S.optBody && !optimizing()) {S.optForm=t.value;paint();}
       if(t.hasAttribute('data-ws-opt-rounds')) {S.optRounds=Number(t.value);paint();}
       if(t.hasAttribute('data-ws-opt-history') && t.value) task=request('/api/workshop/optimization?run_id='+encodeURIComponent(t.value)).then(run=>{S.optimization=run;paint();if(optimizing())setTimeout(pollOptimization,1000);});
       if(t.hasAttribute('data-ws-sample') && t.value) task=selectSample(t.value);
