@@ -19,6 +19,14 @@ class ChatWorker:
         tmp = self.active.with_suffix('.tmp')
         tmp.write_text(json.dumps(value), encoding='utf-8'); tmp.replace(self.active)
 
+    def heartbeat(self):
+        active = json.loads(self.active.read_text(encoding='utf-8')) if self.active.exists() else {}
+        pending = active.get('status') in ('claimed', 'reviewing')
+        result = self.post('heartbeat', {**(active if pending else {}), 'state': 'reviewing' if pending else 'idle'})
+        if pending and result.get('job_status') in ('completed', 'cancelled', 'failed'):
+            self.save({**active, 'status': result['job_status']})
+        return result
+
     def claim(self, turn_id):
         if not turn_id.strip(): raise ValueError('Read the actual current Codex turn identity first')
         with single_instance(self.client.folder / 'chat-lock'):
@@ -62,7 +70,7 @@ def main():
     elif args.action == 'complete': result = worker.finish(review=json.loads(Path(args.file).read_text(encoding='utf-8-sig')))
     elif args.action == 'fail': result = worker.finish(error=args.message or 'Human attention required')
     elif args.action == 'self-test': result = worker.post('self-test', {'new_attempt': args.new_attempt})
-    else: result = worker.post('heartbeat', {'state': 'idle'})
+    else: result = worker.heartbeat()
     print(json.dumps(result, ensure_ascii=True, allow_nan=False))
 
 

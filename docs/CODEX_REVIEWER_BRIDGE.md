@@ -1,5 +1,11 @@
 # Actual Codex reviewer connection
 
+**Current transport: native reviewer chat (verified 2026-10-27).** The failed independent stdio design below is retained as history. The existing desktop-owned chat now runs the queue helper itself; it does not try to resume its thread in another process. Follow [CODEX_CHAT_REVIEWER.md](CODEX_CHAT_REVIEWER.md). An ACTIVE heartbeat automation targets this exact chat every five minutes and applies the current conversation plus private owner standards. Unlike the former companion's idle network polling, native scheduled checks consume Codex usage even when the queue is empty. Keep the computer and Codex open. The old START JKSIMMONS.vbs now explains this change instead of launching the conflicting companion.
+
+Live native diagnostic: `connection-check-7f8e01fec4ee0c3a3342-b30181225109`, completed by actual thread `01a17f57-f5bb-7782-bce0-8b3b43dd367f`, native turn `01a17f8e-9202-7d20-a4ca-ae62f477947a`. Server-accepted scores: 7.5 and 1. No JuniorWriter calls or policy activation. A new explicit diagnostic attempt preserves the old failed record; queued/running/completed checks cannot silently be retried. Native heartbeat TTL is the declared five-minute poll interval plus one minute; the independent transport keeps its shorter TTL. Transport credentials/leases stay private in the helper, and results remain lease-bound and immutable.
+
+## Earlier independent stdio prototype
+
 NCCE 0.14.0 replaces the optimizer's external reviewer API call with a scoped queue for the existing **JKSimmons — NCCE Writing Reviewer** Codex chat (`01a17f57-f5bb-7782-bce0-8b3b43dd367f`). JuniorWriter still uses the existing writing provider. There is no reviewer API fallback.
 
 ## Transport and context

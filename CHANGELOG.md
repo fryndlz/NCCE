@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0 - native reviewer connection follow-up (2026-10-27)
+
+- Connected the actual desktop JKSimmons chat directly to the Workshop queue, avoiding the second-process ownership conflict. The same conversation and saved owner standards now inform returned reviews.
+- Verified a genuine native-chat synthetic assessment (7.5/10 versus 1/10), accepted by NCCE with actual thread/turn identities. No JuniorWriter calls or policy changes.
+- Enabled five-minute same-chat checks via a native heartbeat automation. Requires Codex/computer online; checks consume Codex allowance. Readiness still requires a successful diagnostic and fresh worker heartbeat. Scoped helper preserves leases privately and refuses uncertain replays.
+
 ## 0.14.0 - reviewer bridge prototype and expressive team (2026-10-27)
 
 - Added a private review queue and local Codex companion, exact-thread/turn result identities, cancellation and no-replay safeguards. Removed external reviewer API fallback.
