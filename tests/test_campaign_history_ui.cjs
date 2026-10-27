@@ -43,7 +43,7 @@ vm.runInContext('renderCampaignTimeline();',ctx);
 assert.match(root.innerHTML,/1 engagement</);assert.doesNotMatch(root.innerHTML,/1 engagements/);
 const included=JSON.parse(vm.runInContext('JSON.stringify(timelineRows().map(e=>e.event_id))',ctx));
 assert.ok(!included.includes('OLD-DEATH')&&!included.includes('next-battle')&&!included.includes('too-late'));
-vm.runInContext(`historyFilters.battle=''; renderCampaignTimeline();`,ctx);
+vm.runInContext(`historyFilters.battle=''; historyViewport=null; renderCampaignTimeline();`,ctx);
 const before=vm.runInContext('historyViewport.end-historyViewport.start',ctx);
 let prevented=false;
 listeners.wheel({ctrlKey:false,preventDefault:()=>prevented=true});
