@@ -71,6 +71,9 @@ def main():
                 server._writer_pipeline_guard.acquire()
                 assert call('/api/workshop/optimize',optimization,cookie)[0]==409
                 server._writer_pipeline_guard.release()
+                assert call('/api/workshop/optimize',optimization,cookie)[0]==400, 'Heartbeat without actual review must block spending'
+                from test_workshop_optimizer import ready_bridge
+                ready_bridge(server.store)
                 launched.clear(); optimizer_launches=[]
                 def optimizer_worker(run_id):
                     optimizer_launches.append(run_id);server._writer_pipeline_guard.release();launched.set()
