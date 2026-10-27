@@ -648,12 +648,37 @@ function setBreadcrumb(view, label = '') {
     path.append(parent, document.createTextNode(' / ' + label));
   } else path.textContent = labels[view] || view;
 }
+let terminalContextRecord = null;
+function renderTerminalContext(record = terminalContextRecord) {
+  const side = document.querySelector('.terminal-context');
+  const register = document.querySelector('.terminal-register');
+  if (!side || !register || !data) return;
+  const fighter = currentDetail?.type === 'fighter';
+  side.hidden = fighter; register.hidden = fighter;
+  if (fighter) return;
+  const heading = text => `<h3>${esc(text)}</h3>`;
+  const link = (kind, id, label) => `<button type="button" class="terminal-record" data-${kind}="${esc(id)}">${esc(label)}</button>`;
+  const gangs = list(data.gangs);
+  if (activeView === 'chronicle') side.innerHTML = heading('Between games') + list(data.downtime).slice(0, 3).map(downtime).join('');
+  else if (activeView === 'gangs') side.innerHTML = heading(record?.fighters ? 'Personnel register' : 'Gang register') + (record?.fighters ? list(record.fighters).slice(0, 10).map(f => link('fighter', f.id, f.name)) : gangs.map(g => link('gang', g.gang_id, short(g.name)))).join('');
+  else if (activeView === 'fighters') {
+    const fighters = list(fightersCache);
+    const mara = fighters.find(f => f.name === 'Mara Kel');
+    side.innerHTML = heading('Personnel retrieval') + (mara ? link('fighter', mara.id, mara.name) : '') + fighters.filter(f => f !== mara).slice(0, 8).map(f => link('fighter', f.id, f.name)).join('');
+  } else if (activeView === 'places') side.innerHTML = heading('Territory register') + list(data.territories).slice(0, 10).map(t => link('territory', t.id, t.territory)).join('');
+  else if (activeView === 'archive') side.innerHTML = heading('Authored records') + list(record?.stories).map(item => `<p>${esc(item.title)}</p>`).join('') + '<p>Original records retain their voice and provenance.</p>';
+  else if (activeView === 'workshop') side.innerHTML = heading('Editorial access') + '<p>Inspect evidence, edit guidance and revise saved samples.</p><p>Generation is explicit. Existing campaign prose is preserved.</p>';
+  else if (activeView === 'system') side.innerHTML = heading('Archive state') + '<p>Mechanical facts, authored canon and generated interpretations remain distinct.</p>';
+  else side.innerHTML = heading('Campaign participants') + gangs.map(g => link('gang', g.gang_id, short(g.name))).join('');
+  register.innerHTML = heading('Campaign register') + `<p>${gangs.length} gangs${fightersCache ? ` · ${fightersCache.length} fighters` : ''}</p><p>${list(data.territories).length} places · ${list(data.battles).length} engagements</p>`;
+}
 async function render(view, preserveScroll = false) {
   if (!preserveScroll) { playScreenLoading(); app.scrollTop = 0; }
   const token = ++renderToken;
   activeView = view === 'people' ? 'fighters' : view;
   app.dataset.view = activeView;
   currentDetail = null;
+  terminalContextRecord = null;
   setBreadcrumb(activeView);
   document.querySelectorAll('button[data-view]').forEach(button => {
     const selected = button.dataset.view === activeView;
@@ -661,7 +686,7 @@ async function render(view, preserveScroll = false) {
     if (selected) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
-  if (activeView === 'workshop') { await window.NCCEWorkshop.open(app,api,blocks); return; }
+  if (activeView === 'workshop') { await window.NCCEWorkshop.open(app,api,blocks); renderTerminalContext(); return; }
   if (activeView === 'fighters') {
     if (!fightersCache) app.innerHTML = '<div class="loading-state" role="status">Opening fighter records…</div>';
     await ensureFighters();
@@ -681,6 +706,7 @@ async function render(view, preserveScroll = false) {
   else if (activeView === 'archive') {
     app.innerHTML = '<div class="loading-state" role="status">Retrieving authored stories…</div>';
     const archive = await api('/api/archive');
+    terminalContextRecord = archive;
     if (token !== renderToken) return;
     app.innerHTML = `<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored stories, preserved in their own words.</p>${archiveStories(archive.stories)}`;
   }
@@ -700,6 +726,7 @@ async function render(view, preserveScroll = false) {
       : 'Could not read territory writer status.';
     app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2>${editorialComparison(data.state)}${editorialPreview(data.state)}<section class="card writer-check"><div><strong>One-time territory writing pass</strong><p class="muted compact">${esc(territorySummary)}</p></div><button data-territory-writer="true"${!data.writer?.configured || runUsed || runLive ? ' disabled' : ''}>${runUsed ? runStatus === 'complete' ? 'Territory pass complete' : runLive ? 'Territory pass running…' : 'Territory pass already used' : 'Write all territory entries once'}</button><div class="territory-writer-status" role="status">${esc(territoryRun?.error || '')}</div></section><section class="card system-state"><div class="row"><span>Writing provider</span><span class="muted">${esc(data.writer?.status || 'unknown')}${data.writer?.model ? ' · '+esc(data.writer.model) : ''}</span></div>${data.writer?.configured ? `<div class="row"><span>Model calls this refresh</span><span class="muted">${esc(data.writer.calls_used)} / ${esc(data.writer.call_budget)}</span></div>` : ''}${Object.entries(data.state).filter(([key]) => !key.startsWith('writer_preview:') && !key.startsWith('writer_comparison:')).map(([key, value]) => `<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(value)}</span></div>`).join('')}</section>`;
   }
+  renderTerminalContext();
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 function fighterEvidence(f) {
@@ -773,6 +800,8 @@ async function showFighter(id, preserveScroll = false) {
     ? `<section class="writer-check"><div><strong>Mara-only writer run</strong><p class="muted compact">This final sample uses medium reasoning effort and at most 5 model requests. It regenerates only Mara’s generated memories and reflection. Her player-authored biography is preserved; other fighters and campaign reports are untouched. Any entries not reached within the five calls keep their previous draft.</p></div><button data-writer-check="${esc(f.id)}"${maraWriterCanStart ? '' : ' disabled'}>${maraWriterRun?.can_medium_run ? 'Try Mara at medium effort (5 calls)' : maraWriterRun?.can_final_run ? 'Regenerate Mara’s memories' : maraWriterRun?.can_retry ? 'Run revised Mara check' : maraWriterRun?.status === 'complete' ? 'Mara check complete' : maraWriterRun?.status === 'error' ? 'Mara check ended with an error' : maraWriterPending ? 'Mara check is running' : 'Test the writer on Mara'}</button><div class="writer-check-status" role="status">${maraWriterRun ? writerRunMarkup(maraWriterRun) : ''}</div><hr><div><strong>One-call diagnostic</strong><p class="muted compact">Asks for one injury memory with a larger output allowance; displays the response and API completion details. Does not save prose to the campaign or change Mara’s record.</p></div><button data-writer-diagnostic="true"${writerDiagnostic?.used ? ' disabled' : ''}>${writerDiagnostic?.used ? 'Diagnostic used' : 'Ask the writer for one sample'}</button><div class="writer-diagnostic-status" role="status">${writerDiagnostic?.used ? writerDiagnosticMarkup(writerDiagnostic) : ''}</div></section>` : '';
   app.dataset.view = 'fighter';
   app.innerHTML = `<div class="fighter-layout"><section class="fighter-history machine-screen"><button class="back" data-back="fighters">← Fighters / personnel archive</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2 style="--fighter-name-scale:${Math.max(.55, Math.min(1, 14 / String(f.name || 'Unknown').length))}">${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(short(f.gang_name))} · ${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><section class="biography"><h3>Backstory</h3><p class="biography-preview">${esc(cut(biographyExcerpt, 350))}</p><details class="biography-record" data-key="fighter-biography"><summary>Read full biography & source</summary>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}</details></section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><section class="mind-module machine-screen"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><span class="mind-signal" aria-hidden="true"><svg viewBox="0 0 120 30"><polyline points="0,16 17,16 21,13 25,20 31,16 39,16 44,7 48,23 53,14 61,16 70,16 75,3 81,26 87,13 93,17 99,16 120,16"/></svg></span><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : mind.length ? mind.map(mindCard).join('') : empty('There are not enough supported memories to select a current thought.')}</section><section class="record-module machine-screen"><h3>Record evidence</h3>${mechanicsPanel(f)}${voiceDetails(f.voice_profile)}${identityEditor(f)}${maraWriterCheck ? `<details class="maintenance-access" data-key="writer-maintenance"><summary>Writer diagnostics & previous runs</summary>${maraWriterCheck}</details>` : ''}</section></aside></div>`;
+  terminalContextRecord = f;
+  renderTerminalContext(f);
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showGang(id, preserveScroll = false) {
@@ -782,6 +811,8 @@ async function showGang(id, preserveScroll = false) {
   setBreadcrumb('gangs', short(g.name));
   const holdings = list(g.territory_list);
   app.innerHTML = `<button class="back" data-back="gangs">← Gangs</button><div class="eyebrow">${esc(g.gang_type)} · gang record</div><h2>${esc(short(g.name))}</h2><section class="region-intro">${gangBackstory(g)}</section>${campaignAccount(g.campaign_account_document)}${storyStream(g.narrative_stream, 'gang')}<h3 class="section-title">Between engagements</h3>${list(g.downtime).slice(0, 1).map(downtime).join('') || empty('No downtime account is available.')}<div class="sectionhead"><h3>Fighters</h3><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Find this gang’s fighters →</button></div><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available for this gang.')}</div><h3 class="section-title">Holdings</h3><div class="holdings">${holdings.map(t => `<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span>→</span></button>`).join('') || '<p class="muted">No current holdings are recorded.</p>'}</div><h3 class="section-title">Campaign record</h3>${list(g.battles).map(b => battle(b)).join('')}<details class="mechanics-fold" data-key="gang-mechanics"><summary>Current mechanical evidence</summary><div class="card system-state">${[['Reputation', g.reputation], ['Rating', g.rating], ['Credits', g.credits], ['Territories recorded', g.territories], ['Source updated', g.updated_at]].map(([label, value]) => `<div class="row"><span>${esc(label)}</span><span>${label === 'Source updated' ? esc(date(value,true) || 'Not recorded') : esc(value ?? 'Not recorded')}</span></div>`).join('')}</div></details>`;
+  terminalContextRecord = g;
+  renderTerminalContext(g);
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showTerritory(id, preserveScroll = false) {
@@ -791,6 +822,8 @@ async function showTerritory(id, preserveScroll = false) {
   setBreadcrumb('places', t.territory);
   const related = data.battles.filter(b => b.territory === t.territory);
   app.innerHTML = `<button class="back" data-back="places">← Places</button><div class="eyebrow">Territory · held by ${esc(short(t.gang_name))}</div><h2>${esc(t.territory)}</h2><section class="region-intro">${narrative(t.backstory, t.backstory_source || 'inference', t.evidence || [`Current holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`, `Default holding: ${t.is_default ? 'Yes' : 'No'}`, `${related.length} related battle records`], t)}</section>${campaignAccount(t.campaign_account_document)}${storyStream(t.narrative_stream, 'territory')}<h3 class="section-title">Fighting over this ground</h3>${related.map(b => battle(b)).join('') || empty('No battle over this territory is recorded.')}`;
+  terminalContextRecord = t;
+  renderTerminalContext(t);
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function showLore(id, preserveScroll = false) {
@@ -799,6 +832,8 @@ async function showLore(id, preserveScroll = false) {
   currentDetail = {type: 'lore', id};
   setBreadcrumb('archive', record.title);
   app.innerHTML = `<button class="back" data-back="archive">← Archive</button><div class="eyebrow">${esc(record.source_type)} · authored source</div><h2>${esc(record.title)}</h2><section class="archive-document">${authoredRecord(record.content)}</section>`;
+  terminalContextRecord = record;
+  renderTerminalContext(record);
   if (!preserveScroll) window.scrollTo(0, 0);
 }
 async function openDetail(type, id, preserveScroll = false) {
@@ -916,6 +951,15 @@ async function runTerritoryWriter(button) {
     await render('system', true);
   } catch (error) { status.textContent = error.message; button.disabled = false; }
 }
+document.querySelector('.terminal-context')?.addEventListener('click', event => {
+  const target = event.target.closest('button');
+  if (!target) return;
+  let task;
+  if (target.dataset.fighter) task = showFighter(target.dataset.fighter);
+  if (target.dataset.gang) task = showGang(target.dataset.gang);
+  if (target.dataset.territory) task = showTerritory(target.dataset.territory);
+  task?.catch(handleError);
+});
 document.querySelector('[data-home]')?.addEventListener('click', () => render('chronicle').catch(handleError));
 document.querySelector('#machinePath')?.addEventListener('click', event => {
   const parent = event.target.closest('[data-crumb]');

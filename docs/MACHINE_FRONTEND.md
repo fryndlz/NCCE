@@ -26,6 +26,14 @@ Presentation and client-side disclosure behavior only. Campaign state, authored 
 
 ## Review
 
+### Real application branch preview
+
+The `codex/cogitator-frontend` branch is based on main's NCCE 0.13.0 release. Run `python scripts/run_cogitator_preview.py`, then open `http://127.0.0.1:8877/`. The server stays in the foreground until stopped. It creates an isolated SQLite backup of the local campaign database on first launch and uses the normal read-only Sheet synchronization. Existing preview data is retained on subsequent launches. No production database is modified.
+
+This launcher binds only to loopback and grants a local browser session automatically. It disables model credentials and automatic writing; Workshop edits affect the preview database only. The hosted application and main branch are unchanged.
+
+The actual application now fills the secondary screen and register from campaign records across the section tabs. Fighter dossiers retain their own Mind/evidence panels. Chrome verification used real HTTP responses, visited all eight sections, opened Mara Kel's dossier, inspected the 0.13.0 Workshop, and checked widths of 1280, 1024, 736 and 390 pixels. No JavaScript errors or horizontal overflow were found. Live Sheet synchronization succeeded with 6 gangs, 92 fighters, 24 territories and 26 battles. Local screenshots and the health report are under `output/cogitator-preview/`.
+
 ### Fifth-pass panel correction
 
 The utility controls are compact and contained within the lower-right illustrated plaque again; no prototype footer or toolbar consumes height below the desktop machine. Internal panels now have semi-transparent green fills, and neutral navigation faces receive a pale green material tint while the active key remains brass. Browser checks confirm the utility bounds, translucency, green key tint and unchanged navigation/record interactions.

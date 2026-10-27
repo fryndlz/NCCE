@@ -3,6 +3,7 @@ data/chronicle*.db
 data/chronicle*.db-shm
 data/chronicle*.db-wal
 data/writer-preview.db*
+data/pre-schema-*.db*
 
 # Python tooling
 __pycache__/

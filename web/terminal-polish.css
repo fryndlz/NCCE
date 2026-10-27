@@ -1,4 +1,13 @@
 /* Engraved keys, protected glass apertures and semantic document presentation. */
+.terminal-context { position: absolute; left: 65%; top: 22.2%; width: 29%; height: 31%; overflow: auto; contain: paint; padding-right: 8px; color: var(--text-primary); }
+.terminal-register { position: absolute; left: 70.8%; top: 57.5%; width: 23.3%; height: 16.5%; overflow: auto; contain: paint; color: var(--text-secondary); }
+.terminal-context h3 { font-size: 24px; }
+.terminal-register h3 { font-size: 17px; }
+.terminal-register p { font: 12px/1.6 var(--sans); }
+.terminal-record { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #436c4b70; background: transparent; padding: 9px 0; box-shadow: none; font: 15px/1.4 var(--machine-reading); }
+.terminal-context .downtime-report { border: 1px solid #436c4b80; background: rgba(9,32,21,.4); padding: 10px; }
+.terminal-context p { font-family: var(--machine-reading); font-size: 15px; }
+[hidden] { display: none !important; }
 .site-header nav button, .site-header nav button:hover, .site-header nav button.active {
   background-image: url('/assets/machine/navigation-atlas-v4.png');
   background-size: 700% 200%; background-repeat: no-repeat; background-position-y: 0;
@@ -76,6 +85,7 @@ main :is(.card,.filters,.evidence,.processing-panel,.testimony-note,.archive-doc
 @keyframes terminal-load { 0% { opacity: .13; transform: translateX(-.45%); } 20% { opacity: .075; transform: translateX(.3%); } 44% { opacity: .12; transform: translateX(-.2%); } 70% { opacity: .055; transform: translateX(.1%); } 100% { opacity: .035; transform: none; } }
 @media(min-width:1100px) { .record-body p, .authored-record p { text-align: justify; } }
 @media(max-width:1000px) {
+  .terminal-context, .terminal-register { display: none; }
   main, .fighter-history { width: 100%; }
   .machine-breadcrumb { position: relative; inset: auto; width: 100%; height: 30px; margin: 0 0 12px; }
   .machine-breadcrumb .terminal-home { width: 24px; height: 24px; }
