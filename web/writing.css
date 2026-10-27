@@ -111,7 +111,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .timeline-detail h4 { color:var(--entity-highlight); margin:5px 0 10px; }
 .timeline-detail-description { color:var(--text-primary); font-size:.9rem; }
 .timeline-detail dl { display:grid; gap:5px; margin:12px 0 0; font:.66rem/1.5 var(--sans); }
-.timeline-detail dl div { display:grid; grid-template-columns:minmax(90px,.5fr) minmax(0,2fr); gap:10px; border-top:1px solid #354038; padding-top:5px; }
+.timeline-detail dl > div { display:grid; grid-template-columns:minmax(90px,.5fr) minmax(0,2fr); gap:10px; border-top:1px solid #354038; padding-top:5px; }
 .timeline-detail dt { color:var(--admin-primary); }
 .timeline-detail dd { margin:0; overflow-wrap:anywhere; color:var(--text-secondary); }
 .timeline-detail dd small { display:block; color:var(--text-secondary); margin-top:3px; }
@@ -144,7 +144,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
  .campaign-timeline-svg { min-width:760px; }
  .timeline-event-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
  .timeline-event-text { grid-column:1/-1; }
- .timeline-detail dl div { grid-template-columns:1fr; gap:2px; }
+ .timeline-detail dl > div { grid-template-columns:1fr; gap:2px; }
 }
 @media (min-width: 1100px) { .record-body p { text-align: justify; } }
 @media (max-width: 640px) {
