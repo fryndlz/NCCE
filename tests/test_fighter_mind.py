@@ -37,7 +37,7 @@ def test_pending_is_not_a_thought_and_ready_is_independent_persistent_prose():
         with store.reader() as reader:assert mind.read(reader,f,[m],AT)[0][0]['content']==text
     with_store(check)
 
-def test_condition_resolves_death_clears_and_battle_expires():
+def test_condition_resolves_death_clears_and_calendar_never_expires_thoughts():
     def check(store):
         f=fighter();m=memory();g={'name':'Test gang'}
         with patch.object(writer,'write',return_value=([{'runs':[{'text':'I need rest.'}]}],{'status':'ready'})):
@@ -50,7 +50,7 @@ def test_condition_resolves_death_clears_and_battle_expires():
         new=memory('new',['defeat','battle'],'2026-10-27T12:00:00+00:00')
         assert len(mind.candidates({**f,'status':'Active'},[old,new],AT))==1
         assert mind.candidates({**f,'status':'Active'},[old,new],AT)[0]['source_memory_id']=='new'
-        assert not mind.candidates({**f,'status':'Active'},[new],'2026-11-10T12:00:00+00:00')
+        assert mind.candidates({**f,'status':'Active'},[new],'2099-11-10T12:00:00+00:00') == mind.candidates({**f,'status':'Active'},[new],AT)
     with_store(check)
 
 def test_workshop_reflection_matches_production_packet_and_mind_is_selectable():

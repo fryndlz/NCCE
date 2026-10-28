@@ -130,8 +130,6 @@ def sample(store,key):
     if kind=='mind':
         row=store.db.execute("SELECT * FROM fighter_thoughts WHERE thought_id=? AND lifecycle='active'",(ident,)).fetchone()
         if not row:raise ValueError('Current thought not found')
-        import fighter_mind
-        if row['expires_at'] and fighter_mind.instant(row['expires_at'])<=fighter_mind.instant(now()):raise ValueError('This thought has expired; refresh the campaign before selecting another sample')
         return {'key':key,'form':'fighter_mind','label':row['label'],'packet':json.loads(row['packet_json']),
                 'document':{'title':row['label'],'provenance_class':'inference','blocks':[{'type':'body_paragraph','text':row['content']}]},'at':row['created_at']}
     if kind=='comparison':

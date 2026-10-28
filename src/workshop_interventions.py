@@ -67,10 +67,11 @@ def save(store,state,message):
 
 
 def submit(store,state,kind,note='',approval=None):
+    from fighter_event_clock import policy as cognitive_policy
     job_id='tech-'+uuid.uuid4().hex
     packet={'run_id':state['run_id'],'form':state['form'],'status':state['status'],'message':state['message'],
         'environment_hash':state.get('environment_hash'),'configuration':state['configuration'],'shared':state['shared'],'specific':state['specific'],'rounds':state['rounds'],'prompt_history':state.get('prompt_history',[]),
-        'note':note,'proposal':state.get('tech',{}).get('proposal'),'repair_report':state.get('tech',{}).get('report')}
+        'note':note,'proposal':state.get('tech',{}).get('proposal'),'repair_report':state.get('tech',{}).get('report'),'cognitive_design':cognitive_policy()}
     payload={'job_id':job_id,'run_id':state['run_id'],'thread_id':TECH_THREAD_ID,'kind':kind,
         'objective':'Improve reusable category prompts, guardrails and NCCE context; do not rewrite one draft.',
         'packet':packet,'approval':approval,'output_schema':schema(kind)}

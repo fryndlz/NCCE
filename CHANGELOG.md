@@ -458,3 +458,16 @@ Verified live 2026-10-27 22:24:43 CET: commit `06e1341`, deploy `dep-dbghco2jnfa
 - Dated battle outcomes use recorded battle occurrence dates instead of import timestamps in the derived memory layer.
 - Schema 15 adds derived fighter_thoughts; old seeded moodlets retained as legacy data. Startup takes a verified consistent pre-upgrade backup.
 - No paid generation, bulk replacement, authoritative data edits or owner guidance activation during implementation. See docs/FIGHTER_NARRATIVE_LIFECYCLE.md for exact defaults, verification and limitations. Verified live 2026-10-28 16:08:58 CET: source `e5ec697`, deployment `dep-dbh0vjei0phs73aei7n0`, app 0.16.0 / schema 15. Startup verified consistent backup `/var/data/pre-schema-14-to-15-20261028T150832415224Z.db`. Hosted health/sync are healthy; writer calls 0. Mara’s 853-character authored biography is byte-for-byte unchanged; four independent thoughts await writing, with no stale/full-memory paragraphs shown as thoughts. Legacy moodlets remain separately exposed. Workshop lists 15 forms including Fighter current thoughts, with 162 current-thought source samples; Mara’s packet contains current state and cause links without copied old Mind prose. The browser DOM confirms the selectable current-thought study and the dossier pending state. No paid study, production policy activation or bulk regeneration was performed.
+
+
+## 0.17.0 — Fighter-relevant event time
+
+Source completed: 2026-10-28 19:19 CET (Europe/Warsaw).
+
+- Owner decisions implemented: one step per distinct meaningful fighter-relevant change, 10 subsequent events halve recency, no fixed day/count expiry. Dates only order facts and provide UI/audit metadata.
+- New fighter_event_clock derives logical time from distinct causal observations. Duplicate imports/versions and correction chains count once; unrelated gangs, baseline states, access, prose calls, reflections and drafts add no steps. Historical resolved experiences remain counted.
+- Observations/reflections/thought causes expose formation positions and subsequent relevant event counts; rendering and retrieval do not change with real-world waiting. No app-access reinforcement. Legacy expiry metadata is ignored/cleared; ready prose and original request audit remain preserved.
+- JuniorWriter context, JKSimmons review jobs and StoryTechMan intervention jobs carry the same versioned cognition policy. The environment fingerprint includes cognition modules; role docs identify the current contract. No agents were proactively invoked or messaged.
+- Reconciled CURRENT_DESIGN.md with implemented behavior, including source scope, model-generated reflection, stable biographies, current-thought persistence and actual Workshop roles. Added FIGHTER_EVENT_CLOCK.md with algorithm/examples, explicit Generative Agents adaptations/gaps and executable test map; updated lifecycle/architecture docs.
+- Schema remains 15. Source/canon and active owner revisions are untouched. Automatic writing remains paused; no paid generation, bulk regeneration or model training.
+- Targeted event-clock/lifecycle tests, 21 offline Python files, four JavaScript suites and disposable authenticated application/Workshop HTTP checks pass. Hosted verification pending.

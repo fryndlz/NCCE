@@ -284,6 +284,7 @@ def reflection_observations(memories):
 
 def memory_packet(store,fighter,gang,title,evidence,identity,prior=(),form='fighter_memory',event=None):
  import narrative_context
+ import fighter_event_clock
  identity=identity if isinstance(identity,dict) else {}
  facets=identity.get('inferred_identity',[])
  # Only a few elevated stimulus topics enter the model packet. Their weights
@@ -298,6 +299,7 @@ def memory_packet(store,fighter,gang,title,evidence,identity,prior=(),form='figh
          'knowledge_boundary':identity.get('knowledge_boundary')}
  packet['authored_background']=narrative_context.authored(fighter)
  packet['background_instruction']='Background establishes voice and prior life only; none of its incidents are happening again in this event.'
+ packet['cognitive_design']=fighter_event_clock.policy()
  if form=='fighter_reflection':
   packet['event_boundary']='Interpret connections among the cited observations. They remain separate past experiences; do not invent another incident.'
   packet['narrative_task']='Reflect on how the cited experiences connect, change an expectation, or shape an intention. Use only their supported relationships, not an unrelated life lesson.'

@@ -67,11 +67,12 @@ def heartbeat(store, body):
 
 
 def enqueue(store, state, pair, preceding, schema, rubric):
+    from fighter_event_clock import policy as cognitive_policy
     job_id = 'review-' + uuid.uuid4().hex
     payload = {'job_id': job_id, 'run_id': state['run_id'], 'thread_id': thread_id(),
                'form': state['form'], 'instructions': pair['instructions'], 'packet': pair['packet'],
                'candidates': pair['candidates'], 'preceding_reviews': preceding,
-               'rubric': rubric, 'output_schema': schema,
+               'rubric': rubric, 'output_schema': schema, 'cognitive_design':cognitive_policy(),
                'objective':'Improve the reusable category setup, never rewrite the candidate texts. Propose complete general form instructions; flag context/system defects for StoryTechMan. In your summary name the prose category and explain concretely what you propose changing in its reusable guidelines and why. A proposal does not activate instructions; the application records saved candidates separately.',
                'round_kind':state.get('rounds',[{}])[-1].get('kind','learning') if state.get('rounds') else 'learning'}
     with store._lock, store.db:

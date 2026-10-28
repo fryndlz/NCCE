@@ -41,7 +41,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.16.0'}
+                    assert read('/healthz') == {'ok':True,'version':'0.17.0'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
@@ -75,6 +75,8 @@ def main():
             for name in ('Mara Kel','Maex'):
                 fighter = next(f for f in fighters if f['name'] == name)
                 detail = read('/api/fighters/'+str(fighter['id']))
+                assert detail['event_clock']['basis']=='fighter_relevant_events' and detail['event_clock']['half_life_events']==10
+                assert detail['mind_policy']['fixed_expiry'] is False
                 assert detail['memories'] and all(m['writer_status'] in ('ready','unconfigured','error','pending') for m in detail['memories'])
                 assert all(m['evidence'] for m in detail['memories'])
                 assert all(m['date_display']['imperialDisplay'] for m in detail['memories'])

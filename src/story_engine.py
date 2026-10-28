@@ -23,7 +23,7 @@ import llm_writer
 VERSION = "0.8.2"
 GENERATION = "story-0.8.2"
 REFLECTION_THRESHOLD = 12.0
-RECENCY_HALF_LIFE_DAYS = 14.0
+from fighter_event_clock import HALF_LIFE_EVENTS
 
 # Importance is narrative salience on a documented 0–10 scale, not psychological certainty.
 RULES = {
@@ -352,7 +352,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
         events = _all_events(store)
         source_fields = ("id","gang_id","gang_name","name","type","class","xp","kills","advancements","effects","status","notes","mechanics_json","listed_in_source","writer_identity_json")
         source_fighters = [{**{k:f.get(k) for k in source_fields}, "authored_backstory":f.get("backstory") if _authored(f) else None} for f in fighters]
-        code_hash = digest([Path(module.__file__).read_text(encoding='utf-8') for module in (prose,director,world_streams,llm_writer,fighter_mind)] + [Path(__file__).read_text(encoding='utf-8'),director.policy_hash()])
+        import fighter_event_clock
+        code_hash = digest([Path(module.__file__).read_text(encoding='utf-8') for module in (prose,director,world_streams,llm_writer,fighter_mind,fighter_event_clock)] + [Path(__file__).read_text(encoding='utf-8'),director.policy_hash()])
         fingerprint = digest([GENERATION,code_hash,llm_writer.availability(), source_fighters,
                               [{k:v for k,v in g.items() if k not in {"backstory","provenance_class","backstory_source"}} for g in gangs],
                               [{k:v for k,v in b.items() if k not in {"chronicle","chronicle_provenance_class"}} for b in battles],
@@ -619,11 +620,13 @@ def _timestamp(value):
         return None
 
 
-def select_mind(fighter, memories, at=None, limit=4):
+def select_mind(fighter, memories, at=None, limit=4, clock=None):
     if normal(fighter.get("status")) in {"killed","dead"}:
         return []
-    at = _timestamp(at) if at else datetime.now(timezone.utc)
-    at = at or datetime.now(timezone.utc)
+    # `at` remains accepted for old clients/tests, but wall time has no cognitive
+    # effect. Only supported changes relevant to this fighter advance recency.
+    import fighter_event_clock
+    clock=clock or fighter_event_clock.build(memories,fighter_id=fighter.get('id'))
     active = set()
     condition = normal(str(fighter.get("effects") or "")+" "+str(fighter.get("status") or ""))
     for keyword, tag in (("critical injury","critical"),("recovery","recovery"),("convalescence","recovery"),("captur","captivity"),("injur","injury"),("humiliat","humiliation"),("enmity","grudge"),("scar","scars")):
@@ -660,11 +663,8 @@ def select_mind(fighter, memories, at=None, limit=4):
             continue
         if "injury" in tags and not active & {"injury","critical","recovery","scars","grudge","humiliation"} and "return" not in tags:
             continue
-        date = _timestamp(memory.get("occurred_at") or memory.get("observed_at"))
-        age = max(0,(at-date).total_seconds()/86400) if date else 180
-        recency = 2 ** (-age / RECENCY_HALF_LIFE_DAYS)
-        if memory.get("baseline") and not memory.get("occurred_at"):
-            recency = min(recency,0.15)
+        timing=fighter_event_clock.measure(memory,clock)
+        recency=timing['recency']
         relevance = 1.0 if tags & active else 0.65 if tags & {"battle","equipment","promotion","advancement","return"} else 0.25
         if "return" in tags and normal(fighter.get("status")) == "active":
             relevance = 1.0
@@ -673,7 +673,8 @@ def select_mind(fighter, memories, at=None, limit=4):
             relevance = 0.05
         bias = 1.0 if tags & preferences else 0.5 if tags & active else 0.0
         score = round(0.4*(memory["importance"]/10)+0.3*recency+0.25*relevance+0.05*bias,5)
-        scored.append((score,memory,{"importance":round(memory["importance"]/10,3),"recency":round(recency,3),"relevance":relevance,"character_bias":bias}))
+        scored.append((score,memory,{"importance":round(memory["importance"]/10,3),"recency":round(recency,3),"relevance":relevance,"character_bias":bias,
+                                     "event_position":timing['event_position'],"subsequent_relevant_events":timing['subsequent_relevant_events']}))
     scored.sort(key=lambda x:(-x[0],x[1]["memory_key"]))
     selected, used_events, primary = [], set(), set()
     for score, memory, details in scored:
@@ -682,7 +683,7 @@ def select_mind(fighter, memories, at=None, limit=4):
         # Keep the small view varied and avoid showing a reflection beside the very same event.
         if source_ids & used_events or tag in primary:
             continue
-        selected.append({**memory,"memory_id":memory.get("id"),"label":LABELS.get(tag,"A current concern"),"selection_score":score,"score_details":details})
+        selected.append({**memory,"memory_id":memory.get("id"),"label":LABELS.get(tag,"A current concern"),"selection_score":score,"score_details":details,"event_clock_head":clock['head']})
         used_events.update(source_ids); primary.add(tag)
         if len(selected) == limit:
             break
@@ -696,10 +697,14 @@ def fighter_story(store, fighter):
     except ValueError:
         voice = {}
     import fighter_mind
-    thoughts,status=fighter_mind.read(store,fighter,memories)
+    import fighter_event_clock
+    clock=fighter_event_clock.build(memories,store,fighter['id'])
+    for memory in memories:memory['event_clock']=fighter_event_clock.measure(memory,clock)
+    thoughts,status=fighter_mind.read(store,fighter,memories,clock=clock)
     return {"memories":memories,"mind":thoughts,"mind_status":status,"voice_profile":voice,
+            "event_clock":{"basis":clock['basis'],"policy_version":clock['policy_version'],"head":clock['head'],"half_life_events":HALF_LIFE_EVENTS},
             "biography_document":document_for(store,"fighter_biography",fighter["id"]),
-            "mind_policy":{"count":"Up to four ready current thoughts; none for deceased fighters","separate_prose":True,"recency_half_life_days":RECENCY_HALF_LIFE_DAYS,"expiry_days":{"battle":7,"equipment":14,"progress":14,"return":7,"grief":28,"social":14},"weights":{"importance":0.4,"recency":0.3,"relevance":0.25,"character_bias":0.05}}}
+            "mind_policy":{"count":"Up to four ready current thoughts; none for deceased fighters","separate_prose":True,"recency_basis":"fighter_relevant_events","recency_half_life_events":HALF_LIFE_EVENTS,"fixed_expiry":False,"weights":{"importance":0.4,"recency":0.3,"relevance":0.25,"character_bias":0.05}}}
 
 
 def territory_writing_plan(store):

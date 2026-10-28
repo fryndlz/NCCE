@@ -1,8 +1,8 @@
-> **0.16.0 / schema 15:** [Fighter narrative lifecycle](FIGHTER_NARRATIVE_LIFECYCLE.md) supersedes the older Mind retrieval/biography description below. Independent current thoughts have persisted causes, resolution/expiry, ready-only display and their own Workshop form. Reflection packets match production; dated outcomes use battle dates. Existing source records and owner guidance remain intact.
+> **0.17.0 / schema 15:** fighter cognition uses relevant event distance, a 10-event half-life and no fixed expiry. [Current design](CURRENT_DESIGN.md), [event clock](FIGHTER_EVENT_CLOCK.md) and [narrative lifecycle](FIGHTER_NARRATIVE_LIFECYCLE.md) describe implemented behavior and paper adaptations.
 
-# Story Engine Architecture — NCCE 0.12.2
+# Story Engine Architecture — NCCE 0.17.0
 
-**Source schema:** 12. [Creative planning](WRITER_CREATIVE_PLANNING.md) adds verified rulebook type context, persistent free/pinned Workshop plans and compact heuristic repetition memory to all writing forms. Authored context and same-subject continuity remain separate; recorded events stay central. The [Writer Workshop](WRITER_WORKSHOP.md) retains private revisions, explicit activation, source-backed one-call trials and preserved edits. Existing runtime contracts and audits are specified in [WRITER_PIPELINE_0_10.md](WRITER_PIPELINE_0_10.md). Routine provider calls remain disabled. Hosted evidence is maintained in CHANGELOG.md.
+**Source schema:** 15. [Creative planning](WRITER_CREATIVE_PLANNING.md) adds verified rulebook type context, persistent free/pinned Workshop plans and compact heuristic repetition memory to all writing forms. Authored context and same-subject continuity remain separate; recorded events stay central. The [Writer Workshop](WRITER_WORKSHOP.md) retains private revisions, explicit activation, source-backed one-call trials and preserved edits. Existing runtime contracts and audits are specified in [WRITER_PIPELINE_0_10.md](WRITER_PIPELINE_0_10.md). Routine provider calls remain disabled. Hosted evidence is maintained in CHANGELOG.md.
 
 ## 1. Source boundary
 
@@ -36,7 +36,7 @@ Authored backstory and gang conventions constrain the voice. Explicit role/vocab
 
 Narrative prose is drafted through the OpenAI Responses API when the server key is configured. Source parsing, factual outcomes, salience, IDs and persistence remain deterministic. Generated prose is cached by its structured form/fact/context packet. Missing credentials or provider errors are visible and never silently fall back to the old bounded phrase variants.
 
-Fighter detail includes evidence-labelled identity facets and bounded per-topic stimulus-attention weights. They are inferred from recorded designations, authored cues, current condition and supported voice tendencies; unsupported identity fields remain unknown. Weights start at 1.00, receive +0.15 per matching voice tendency and +0.30 for a matching active condition/role, and cap at 1.50. They affect prompt attention only, not mechanical truth, importance or Mind scoring. Fighter observation prompts isolate one recorded event and omit the full biography and earlier generated prose; reflections receive cited observation summaries/evidence. All forms use the reviewed shared runtime contract and form-specific examples. Fighter background is explicitly separated from the current event; historical roster context avoids borrowing future injuries/rank. New-policy generated background/earlier stories can supply fictional continuity, never mechanical evidence. The writer returns prose and optional document composition; the app renders dates, evidence and provenance separately. Objective leak checks preserve rejected output in the audit and make no second attempt. The configured default allowance is 4,000 total response tokens for every form, including reasoning and visible prose; form briefs control prose length. Stored prose is not bulk-regenerated on deployment.
+Fighter detail includes evidence-labelled identity facets and bounded per-topic stimulus-attention weights. They are inferred from recorded designations, authored cues, current condition and supported voice tendencies; unsupported identity fields remain unknown. Weights start at 1.00, receive +0.15 per matching voice tendency and +0.30 for a matching active condition/role, and cap at 1.50. They affect prompt attention only, not mechanical truth, importance or Mind scoring. Fighter observation prompts isolate one recorded event and use authored background as a separated prior-life lens, not an event replay; observations do not receive earlier generated memory prose; reflections receive cited observation summaries/evidence. All forms use the reviewed shared runtime contract and form-specific examples. Fighter background is explicitly separated from the current event; historical roster context avoids borrowing future injuries/rank. New-policy generated background/earlier stories can supply fictional continuity, never mechanical evidence. The writer returns prose and optional document composition; the app renders dates, evidence and provenance separately. Objective leak checks preserve rejected output in the audit and make no second attempt. The configured default allowance is 4,000 total response tokens for every form, including reasoning and visible prose; form briefs control prose length. Stored prose is not bulk-regenerated on deployment.
 
 ## 5. Memory, reflection, and revision
 
@@ -46,15 +46,11 @@ Reflection is batch-based: at least two observations of importance 4 or above, w
 
 Regeneration fingerprints source state, authored context, event IDs and story code/version. An unchanged input is idempotent. Changed semantic narratives create new IDs and deactivate earlier generated versions. Authored lore and mechanical facts are not rewritten by inference.
 
-## 6. Current Mind retrieval
+## 6. Current Mind and event-clock retrieval
 
-Mind displays up to four supported memories/reflections as current preoccupations. The selection score is:
+[CURRENT_DESIGN.md](CURRENT_DESIGN.md) and [FIGHTER_EVENT_CLOCK.md](FIGHTER_EVENT_CLOCK.md) are the current algorithm specifications. Distinct factual changes supporting a fighter's observations establish that fighter's event sequence. Corrections/duplicates count once. Reflections and thoughts cite the sequence without advancing it. Recency is `2 ** (-subsequent_relevant_events / 10)`; no real-world duration, app-access reinforcement or fixed expiry applies.
 
-`0.40 × normalized importance + 0.30 × recency + 0.25 × current relevance + 0.05 × character bias`
-
-Recency has a 14-day half-life; unknown dates and undated baseline entries are penalized. Relevance uses current conditions and role. Voice traits supply explicit topic preferences. Duplicate primary labels and overlapping event evidence are suppressed; closed critical/recovery/captivity concerns yield to the current condition. `history_only` amended social news stays in history but is excluded from Mind. Every thought links to its source memory and exposes component scores.
-
-The complete 28-label mapping and exact rules are in `CURRENT_DESIGN.md`.
+The existing weighted importance/relevance/profile retrieval selects causes. `fighter_mind.py` stores separate current-thought prose, not copied memory paragraphs. Only ready, nonempty prose appears; pending/error counts are explicit. Conditions resolve through source changes; displaced thoughts are superseded and may resurface if relevant. Memories remain history. The API exposes event positions and distances for inspection. This is an event-driven adaptation of the paper; semantic-query retrieval, recursive/cross-batch reflection and autonomous action planning remain unimplemented.
 
 ## 7. Narrative artifacts
 

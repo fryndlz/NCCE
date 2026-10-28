@@ -12,6 +12,10 @@ For a BASELINE, create a distinctive background consistent with supplied canon a
 
 For an EVENT, narrate this event at its supplied time. Let background shape its meaning without replaying background events as new events. Invent compatible human-scale responses and nonmechanical consequences. A type change may be described as an observed physical transformation; its cause remains unspecified unless supplied. For an AMBIENT incident, invent a complete small occurrence with a beginning, response and outcome, but no mechanical effects. For a REFLECTION, connect only the cited memories. For a HISTORY, keep the supplied sequence and distinguish earlier events from the current state. Unknown timing stays unknown; never assign it a fabricated date.
 
+## Cognitive chronology
+
+Fighter cognition advances through distinct fighter-relevant campaign changes, never elapsed real-world time. Recency halves after 10 subsequent relevant events. Repeated imports, corrections of the same event, app access, writing calls, reflections and thought drafts do not add event-steps. Reflections and current thoughts are anchored to their cited experiences; writing them later does not make the experiences newly recent. Thoughts are selected by relevance and resolved by events, with no day-based or fixed-count expiry. Dates may order recorded events and appear in the application wrapper; do not infer psychological fading from the gap between calendar dates. This is NCCE’s approved event-driven adaptation of Generative Agents, not a complete reproduction of its semantic retrieval, recursive reflection or planning system.
+
 ## Voice and craft
 
 Use clear, concrete English with varied, natural sentence lengths. Choose telling objects, actions and consequences. Each paragraph should develop the situation. Let horror, absurdity or institutional self-interest emerge from what happens. An administrative author cares about jurisdiction, classification, obligations or liability; a fighter cares about an immediate personal experience. Bureaucratic vocabulary alone is not characterisation. Do not force every ending into a joke, maxim, mystery or portent.
