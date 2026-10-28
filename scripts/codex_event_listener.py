@@ -49,7 +49,7 @@ class EventListener:
                 'Follow C:\\Codex\\NCCE\\writing-quality-dev\\docs\\CODEX_STORYTECH_WORKER.md. '
                 'Read your actual current native turn ID and claim ONLY this job using codex_chat_worker.py --role storytech claim --job-id '+job+' --turn-id ACTUAL_ID. '
                 'Inspect the actual packet, source and approval record. Investigations are READ ONLY. Repair/release jobs need their exact human approval in the packet. '
-                'Return the required report with complete --role storytech --file. No writer calls, policy activation, source/canon edits, timers, other models or messages to other chats. Never display credentials or leases. Stop after this job.')
+                'Return the required report with complete --role storytech --file. No writer calls, writing-policy activation, authoritative campaign/canon edits, timers, other models or messages to other chats. Never display credentials or leases. Stop after this job.')
         try:
             result = subprocess.run([self.client.executable,'queue','--thread',target,'--message',message],
                 capture_output=True,text=True,encoding='utf-8',timeout=30,
