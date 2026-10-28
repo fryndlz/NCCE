@@ -434,3 +434,16 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .ws-guideline-text { max-width:85ch; white-space:pre-wrap; }.ws-guideline-text p { margin:12px 0; }
 .ws-guideline-diff { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:16px 0; }.ws-guideline-diff>div { min-width:0; }.ws-guideline-diff pre { font:14px/1.65 system-ui,sans-serif; max-height:none; padding:12px; border-radius:6px; }.ws-guideline-diff .is-removed { background:#3b2828; }.ws-guideline-diff .is-added { background:#233c2b; }
 @media(max-width:700px) { .ws-guideline-diff { grid-template-columns:1fr; } }
+
+/* Reference history is a full-width chronology, not a prompt table. */
+.ws-guideline-content { min-width:0; width:100%; }.ws-guideline-timeline { display:grid; gap:12px; margin:20px 0; }
+.ws-guideline-timeline .ws-guideline-event { margin:0; border:1px solid #44584a; border-radius:8px; background:#18251d; }
+.ws-guideline-event>summary { display:flex; align-items:center; gap:18px; padding:16px; list-style:none; font:14px/1.5 system-ui,sans-serif; }
+.ws-guideline-event>summary::-webkit-details-marker { display:none; }.ws-guideline-event>summary::before { content:'▸'; color:#9ab29b; }.ws-guideline-event[open]>summary::before { content:'▾'; }
+.ws-guideline-event time { flex:0 0 215px; color:#c6ccb8; font-variant-numeric:tabular-nums; }.ws-guideline-event-title { flex:1; min-width:0; font-weight:600; }.ws-guideline-event-title small { display:block; color:#aebead; font-weight:400; margin-top:5px; }
+.ws-guideline-event-body { padding:4px 20px 20px; border-top:1px solid #364c3d; }.ws-guideline-event-body>h5 { font:600 16px/1.5 system-ui,sans-serif; margin:20px 0 10px; }
+.ws-guideline-status-note { padding:12px 16px; border-left:3px solid #a99a6d; background:#242e23; font:14px/1.7 system-ui,sans-serif; }
+.ws-guideline-badge.is-proposal { background:#35394b; color:#d8dcee; }
+.ws-guideline-document { width:100%; max-width:none; font:16px/1.8 system-ui,sans-serif; overflow-wrap:anywhere; }.ws-guideline-document h5 { font:650 18px/1.5 system-ui,sans-serif; margin:26px 0 12px; color:#e5d6a2; }.ws-guideline-document p { margin:14px 0; }.ws-guideline-document li { margin:9px 0; }.ws-guideline-document code { font-size:14px; }
+.ws-guidelines-active { border-top:1px solid #485b4b; padding-top:16px; }
+@media(max-width:800px) { .ws-guideline-event>summary { flex-wrap:wrap; gap:8px 12px; }.ws-guideline-event time { flex:auto; }.ws-guideline-event-title { flex-basis:100%; }.ws-guideline-event-body { padding:4px 12px 16px; } }

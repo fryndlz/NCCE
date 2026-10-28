@@ -1,6 +1,7 @@
 """Read-only guideline library and exact changes; never activates a revision."""
 import difflib
 import json
+from datetime import datetime
 import writer_workshop as ws
 
 
@@ -56,7 +57,13 @@ def library(store, scope):
                 change = changes(tested, instructions)
                 if not change['edits'] or instructions.strip() in seen_proposals: continue
                 seen_proposals.add(instructions.strip())
-                proposals.append({'run_id':run['run_id'], 'round':round_['number'], 'entry':pair['label'],
+                job = store.db.execute('SELECT finished_at FROM codex_review_jobs WHERE job_id=? AND run_id=?', (pair.get('codex_job_id'), run['run_id'])).fetchone()
+                recorded = [e['at'] for e in run.get('events', []) if e.get('message','').startswith('JKSimmons: '+review.get('summary',''))]
+                timestamp = job['finished_at'] if job and job['finished_at'] else recorded[0] if len(recorded)==1 else run.get('created_at')
+                basis = 'Review completed' if job and job['finished_at'] else 'Review recorded' if len(recorded)==1 else 'Study started; exact review time unavailable'
+                proposals.append({'event_id':'proposal-'+run['run_id']+'-'+str(round_['number'])+'-'+str(index),
+                                  'created_at':timestamp,'time_basis':basis,'entry_number':index+1,'round_kind':round_.get('kind','learning'),
+                                  'run_id':run['run_id'], 'round':round_['number'], 'entry':pair['label'],
                                   'instructions':instructions, 'reason':review.get('summary', ''),
                                   'change':change})
     history = []
@@ -72,5 +79,12 @@ def library(store, scope):
             previous = dict(row) if row else meta['builtin']
         history.append({**revision, 'source':source, 'change':changes(previous['instructions'], revision['instructions']),
                         'comparison': 'Previous instructions tested in this study' if source else 'Previous saved version (built-in if first)'})
-    return {'scope':scope, 'active':meta['active'] or meta['builtin'], 'latest':history[0] if history else meta['builtin'],
-            'history':history, 'proposals':proposals[:10], 'history_limit':40}
+    active = meta['active'] or meta['builtin']
+    timeline = [{**r, 'event_id':'revision-'+r['revision_id'], 'kind':'saved', 'is_active':r['revision_id']==active.get('revision_id'), 'time_basis':'Version saved'} for r in history]
+    timeline += [{**p, 'kind':'proposal', 'is_active':False} for p in proposals[:10]]
+    def order(item):
+        try: return datetime.fromisoformat(item['created_at']).timestamp()
+        except (TypeError, ValueError, KeyError): return float('-inf')
+    timeline.sort(key=order, reverse=True)
+    return {'scope':scope, 'active':active, 'latest':history[0] if history else meta['builtin'],
+            'history':history, 'proposals':proposals[:10], 'timeline':timeline, 'history_limit':40}

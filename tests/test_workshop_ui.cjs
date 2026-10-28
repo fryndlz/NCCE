@@ -14,7 +14,7 @@ async function api(url,options){
   if(url.startsWith('/api/workshop/guidelines?')){
     const scope=url.split('scope=')[1], change={summary:'Added 1 instruction lines; removed 1.',edits:[{before:'Old guidance',after:'New <unsafe> guidance'}]};
     const latest={revision_id:'guide-new',created_at:'2026-10-28',instructions:'New <unsafe> guidance',examples:'',change,comparison:'Previous tested instructions',source:{author:'JKSimmons'}};
-    return {scope,latest,active:{revision_id:'guide-active',instructions:'Active safe guidance',examples:''},history:[latest,{...latest,revision_id:'guide-old',instructions:'Historic guidelines'}],proposals:[{run_id:'old-run',round:1,entry:'Prior entry',instructions:'Proposed guidelines',reason:'Review reason',change}],history_limit:40};
+    return {scope,latest,active:{revision_id:'guide-active',instructions:'# Active heading\n\nActive safe guidance',examples:''},history:[latest],proposals:[{}],timeline:[{event_id:'proposal-one',kind:'proposal',created_at:'2026-10-28T12:10:00Z',time_basis:'Review completed',run_id:'old-study-A',round:1,entry_number:1,entry:'Prior entry',instructions:'# Proposed heading\n\n**Useful** guidance\n\n1. First rule\n2. Second rule',reason:'Review reason',change},{...latest,event_id:'saved-one',kind:'saved',is_active:false}],history_limit:40};
   }
   if(url==='/api/workshop/optimizations')return {configuration:{},runs:[]};
   if(url.startsWith('/api/workshop/policy')){const scope=decodeURIComponent(url.split('scope=')[1]);return {draft:{scope,revision_id:scope+'-existing',label:'Current',instructions:'Some <unsafe> instructions',examples:'Example'},active:null,history:[],builtin:{},candidate:{}};}
@@ -40,12 +40,15 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   assert.equal(calls.filter(c=>c[1]?.method==='POST').length,0,'Opening must not write or spend');
   assert.match(root.innerHTML,/Improve a whole prose category/);
   assert.match(root.innerHTML,/<details class="ws-guidelines" data-ws-detail="guidelines-library">/);
-  assert.match(root.innerHTML,/What changed/);assert.match(root.innerHTML,/New &lt;unsafe&gt; guidance/);
+  assert.match(root.innerHTML,/Suggested changes · not applied/);assert.match(root.innerHTML,/New &lt;unsafe&gt; guidance/);
+  assert.ok(root.innerHTML.indexOf('workshop-optimization')<root.innerHTML.indexOf('class="ws-guidelines"'),'Reference belongs after the study');
+  assert.equal((root.innerHTML.match(/Active instructions · full reference/g)||[]).length,1);
+  assert.match(root.innerHTML,/<h5>Proposed heading<\/h5>/);assert.match(root.innerHTML,/<ol><li>First rule/);
+  assert.match(root.innerHTML,/Study/);assert.match(root.innerHTML,/28 Oct 2026/);
+  assert.match(root.innerHTML,/It did not replace saved guidelines or activate anything/);
   const readOnlyPostCount=calls.filter(c=>c[1]?.method==='POST').length;
-  callbacks.change({target:{dataset:{},value:'guide-old',hasAttribute:n=>n==='data-ws-guide-revision'}});
-  assert.match(root.innerHTML,/Historic guidelines/);
   callbacks.change({target:{dataset:{},value:'shared',hasAttribute:n=>n==='data-ws-guide-scope'}});await settle();
-  assert.match(root.innerHTML,/Latest saved guidelines/);
+  assert.match(root.innerHTML,/Guideline timeline · newest first/);
   click('guidelines-refresh');await settle();
   assert.equal(calls.filter(c=>c[1]?.method==='POST').length,readOnlyPostCount,'Browsing and refreshing guidelines must be read-only');
   click('opt-start');await settle();

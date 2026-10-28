@@ -16,12 +16,43 @@ window.NCCEWorkshop = (() => {
     if(!change)return '<p class="muted">No earlier comparison is recorded.</p>';
     return `<p>${esc(change.summary)}</p>${change.edits.map(edit=>`<div class="ws-guideline-diff">${edit.before?`<div><strong>Removed / replaced</strong><pre class="is-removed">${esc(edit.before)}</pre></div>`:''}${edit.after?`<div><strong>Added</strong><pre class="is-added">${esc(edit.after)}</pre></div>`:''}</div>`).join('')}`;
   }
+  function guidelineTime(value) {
+    if(!value || !Number.isFinite(new Date(value).getTime()))return 'Time not recorded';
+    return new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Europe/Warsaw',timeZoneName:'short'}).format(new Date(value));
+  }
+  function guidelineText(text) {
+    const inline=t=>esc(t).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>');
+    const out=[];let paragraph=[],list=[],type='';
+    const flush=()=>{if(paragraph.length){out.push('<p>'+inline(paragraph.join(' '))+'</p>');paragraph=[];}if(list.length){out.push('<'+type+'>'+list.map(t=>'<li>'+inline(t)+'</li>').join('')+'</'+type+'>');list=[];type='';}};
+    for(const line of String(text || '').split(/\r?\n/)){
+      const heading=line.match(/^#{1,6}\s+(.+)$/), item=line.match(/^\s*(?:([-*])|\d+[.)])\s+(.+)$/);
+      if(!line.trim()){flush();continue;}
+      if(heading){flush();out.push('<h5>'+inline(heading[1])+'</h5>');}
+      else if(item){const next=item[1]?'ul':'ol';if(paragraph.length || type && type!==next)flush();type=next;list.push(item[2]);}
+      else {if(list.length)flush();paragraph.push(line);}
+    }
+    flush();return '<div class="ws-guideline-document">'+out.join('')+'</div>';
+  }
   function guidelinesPanel() {
-    const g=S.guidelines, selected=g?.history.find(r=>r.revision_id===S.guidelineRevision) || g?.latest;
-    return `<details class="ws-guidelines" data-ws-detail="guidelines-library"><summary data-ws="guidelines-refresh">Writing guidelines · browse by prose type</summary><div class="ws-guideline-content"><div class="ws-guideline-controls"><label>Guidelines for<select data-ws-guide-scope>${['shared',...(S.home.forms || [])].map(f=>`<option value="${esc(f)}"${f===(S.guidelineScope || 'shared')?' selected':''}>${esc(f==='shared'?'Shared craft · all prose':formName(f))}</option>`).join('')}</select></label><button data-ws="guidelines-refresh">Refresh guidelines</button></div>${S.guidelineError?`<p role="status">${esc(S.guidelineError)}</p>`:''}<p class="muted">Read-only. Saved candidates and review proposals are separate from the instructions active in future NCCE writing.</p>
-      ${g?`<label>Saved version<select data-ws-guide-revision><option value="">Latest saved version · updates automatically</option>${g.history.map(r=>`<option value="${esc(r.revision_id)}"${r.revision_id===S.guidelineRevision?' selected':''}>${esc(r.created_at)} · ${esc(r.source?.author || r.label)}</option>`).join('')}</select></label><article class="ws-guideline-version"><header><h4>${S.guidelineRevision?'Selected saved guidelines':'Latest saved guidelines'}</h4><span class="ws-guideline-badge">${selected.revision_id===g.active.revision_id?'Active':'Saved candidate · not active'}</span></header><p class="muted">${selected.revision_id?esc(selected.source?.author || 'Saved revision')+' · '+esc(selected.created_at):'Built-in guidelines · no saved revision yet'}</p><div class="ws-guideline-text">${paragraphs(selected.instructions)}</div>${selected.source?.reason?`<details><summary>Why JKSimmons changed it</summary>${paragraphs(selected.source.reason)}</details>`:''}${selected.examples?`<details data-ws-detail="guideline-examples"><summary>Style examples</summary><div class="ws-guideline-text">${paragraphs(selected.examples)}</div></details>`:''}${selected.change?`<details data-ws-detail="guideline-changes-${esc(selected.revision_id)}"><summary>What changed · ${esc(selected.change.summary)}</summary><p class="muted">${esc(selected.comparison)}</p>${guidelineChanges(selected.change)}</details>`:''}</article>
-      <details data-ws-detail="guidelines-active"><summary>Instructions active for future writing</summary><p class="muted">${g.active.revision_id?'Approved saved version · '+esc(g.active.created_at):'Built-in instructions'}</p><div class="ws-guideline-text">${paragraphs(g.active.instructions)}</div>${g.active.examples?`<details><summary>Active style examples</summary>${paragraphs(g.active.examples)}</details>`:''}</details>
-      ${g.proposals.length?`<details data-ws-detail="guideline-proposals"><summary>Recent review proposals · ${g.proposals.length}</summary><p class="muted">Recommendations from individual reviews. These have not been adopted as that round’s saved candidate and do not change active instructions.</p>${g.proposals.map((p,i)=>`<details data-ws-detail="proposal-${esc(p.run_id)}-${p.round}-${i}"><summary>Round ${p.round} · ${esc(p.entry)}</summary><div class="ws-guideline-text">${paragraphs(p.instructions)}</div><details><summary>Exact proposed changes</summary>${guidelineChanges(p.change)}</details><details><summary>Reviewer’s reasoning</summary>${paragraphs(p.reason)}</details></details>`).join('')}</details>`:''}<p class="muted">Showing up to ${g.history_limit} saved versions and 10 recent review proposals. Stored history is preserved.</p>`:'<p>Open a category to read its saved guidelines.</p>'}</div></details>`;
+    const g=S.guidelines;
+    const entries=g?.timeline || [];
+    const timeline=entries.map(e=>{
+      const proposal=e.kind==='proposal', source=e.source, run=e.run_id || source?.run_id;
+      const title=proposal?'JKSimmons proposed a change':source?.author==='JKSimmons'?'JKSimmons saved candidate guidelines':'Guidelines saved';
+      const badge=proposal?'Proposal · not applied':e.is_active?'Currently active version':'Saved version · not active';
+      const reason=e.reason || source?.reason;
+      return `<details class="ws-guideline-event" data-ws-detail="${esc(e.event_id)}"><summary><time datetime="${esc(e.created_at || '')}">${esc(guidelineTime(e.created_at))}</time><span class="ws-guideline-event-title">${esc(title)}<small>${esc(e.time_basis || 'Version saved')}${run?' · Study '+esc(run.slice(-8))+' · '+esc(e.round_kind || 'learning')+' round '+esc(e.round || source?.round)+(e.entry_number?' · entry '+e.entry_number:''):''}</small></span><span class="ws-guideline-badge${proposal?' is-proposal':''}">${badge}</span></summary><div class="ws-guideline-event-body">${e.entry?`<p><strong>Test entry:</strong> ${esc(e.entry)}</p>`:''}
+      <p class="ws-guideline-status-note">${proposal?'Suggested changes only. This comparison is against the instructions tested in that study. It did not replace saved guidelines or activate anything.':e.is_active?'This saved version is still active. Newer proposals in this timeline have not replaced it.':'This is a saved historical or test version. Saving a version does not activate it.'}</p>
+      ${e.change?`<h5>${proposal?'Suggested changes · not applied':'Changes saved in this version'}</h5>${guidelineChanges(e.change)}`:''}
+      ${reason?`<details><summary>Reviewer’s reasoning</summary>${paragraphs(reason)}</details>`:''}
+      ${e.is_active?'<p class="muted">Read the full text once in “Active instructions” below.</p>':`<details data-ws-detail="full-${esc(e.event_id)}"><summary>${proposal?'Full proposed guidelines':'Full saved guidelines'}</summary>${guidelineText(e.instructions)}</details>`}
+      ${e.examples?`<details><summary>Style examples for this version</summary>${guidelineText(e.examples)}</details>`:''}</div></details>`;
+    }).join('');
+    return `<details class="ws-guidelines" data-ws-detail="guidelines-library"><summary data-ws="guidelines-refresh">Writing guidelines · reference &amp; history</summary><div class="ws-guideline-content"><div class="ws-guideline-controls"><label>Guidelines for<select data-ws-guide-scope>${['shared',...(S.home.forms || [])].map(f=>`<option value="${esc(f)}"${f===(S.guidelineScope || 'shared')?' selected':''}>${esc(f==='shared'?'Shared craft · all prose':formName(f))}</option>`).join('')}</select></label><button data-ws="guidelines-refresh">Refresh guidelines</button></div>${S.guidelineError?`<p role="status">${esc(S.guidelineError)}</p>`:''}
+      ${g?`<p class="ws-guideline-status-note">${g.proposals.length?'Newer reviewer proposals may appear above the active version. A proposal is a suggestion, not an applied replacement.':'Saved versions remain separate from approval to use them.'} Active instructions: ${g.active.created_at?'version saved '+esc(guidelineTime(g.active.created_at)):'built-in guidelines'}. No instructions are changed by reading this section.</p>
+      <h4>Guideline timeline · newest first</h4><p class="muted">Times are shown in Warsaw time. Study IDs distinguish separate runs; round numbering restarts in each study.</p><div class="ws-guideline-timeline">${timeline || '<p>No saved guideline changes or review proposals yet.</p>'}</div>
+      <details class="ws-guidelines-active" data-ws-detail="guidelines-active"><summary>Active instructions · full reference</summary><p class="muted">${g.active.created_at?'Version saved '+esc(guidelineTime(g.active.created_at)):'Built-in instructions. No saved version is activated.'}</p>${guidelineText(g.active.instructions)}${g.active.examples?`<details><summary>Active style examples</summary>${guidelineText(g.active.examples)}</details>`:''}</details>
+      <p class="muted">Read-only reference: up to ${g.history_limit} saved versions and 10 recent distinct review proposals. Older stored records are preserved.</p>`:'<p>Choose a category to read its guideline history.</p>'}</div></details>`;
   }
   async function loadGuidelines() {
     const scope=S.guidelineScope || 'shared', ticket=(S.guidelineLoad || 0)+1;S.guidelineLoad=ticket;
@@ -103,7 +134,7 @@ window.NCCEWorkshop = (() => {
     const openDetails=new Map([...(root?.querySelectorAll?.('details') || [])].map(d=>[detailKey(d),d.open]));
 
     if (!visible()) return;
-    root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Category writing lab</div><h2>Writer Workshop</h2><p>Develop the writing setup for a whole prose category. Read the fresh drafts first, then their assessment and your next decision.</p><p class="muted">Opening studies and reading results makes no model calls. Starting or continuing a writing test requires your confirmation.</p><p role="status" id="ws-status">${esc(S.message)}</p>${guidelinesPanel()}${optimizationPanel()}</section>`;
+    root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Category writing lab</div><h2>Writer Workshop</h2><p>Develop the writing setup for a whole prose category. Read the fresh drafts first, then their assessment and your next decision.</p><p class="muted">Opening studies and reading results makes no model calls. Starting or continuing a writing test requires your confirmation.</p><p role="status" id="ws-status">${esc(S.message)}</p>${optimizationPanel()}${guidelinesPanel()}</section>`;
     for(const d of root.querySelectorAll?.('details') || []){const key=detailKey(d);if(openDetails.has(key))d.open=openDetails.get(key);}
     if(focusedFlow && /^[a-z-]+$/.test(focusedFlow))root.querySelector('.flow-node[data-flow-node="'+focusedFlow+'"] .flow-node-button')?.focus({preventScroll:true});
     S.pendingPaint=false;
@@ -190,8 +221,7 @@ window.NCCEWorkshop = (() => {
     root.addEventListener('change',event=>{
       const t=event.target;
       let task;
-      if(t.hasAttribute('data-ws-guide-scope')) {S.guidelineScope=t.value;S.guidelineRevision='';S.guidelines=null;paint(true);task=loadGuidelines().then(()=>paint(true));}
-      if(t.hasAttribute('data-ws-guide-revision')) {S.guidelineRevision=t.value;paint(true);}
+      if(t.hasAttribute('data-ws-guide-scope')) {S.guidelineScope=t.value;S.guidelines=null;paint(true);task=loadGuidelines().then(()=>paint(true));}
       if(t.hasAttribute('data-ws-opt-rounds')) {S.optRounds=Number(t.value);paint(true);}
       if(t.hasAttribute('data-ws-opt-form') && !S.optBody && !optimizing()) {S.optForm=t.value;S.repairSeed=null;paint(true);}
       if(t.hasAttribute('data-ws-opt-history') && t.value) task=request('/api/workshop/optimization?run_id='+encodeURIComponent(t.value)).then(run=>{if(S.optimization?.run_id!==run.run_id){S.continueBody=null;S.repairSeed=null;}S.optimization=run;paint();if(watching())setTimeout(pollOptimization,1000);});

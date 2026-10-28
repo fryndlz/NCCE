@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.5 - chronological guideline reference (2026-10-28)
+
+- Move the collapsed guidelines reference below all study results. Replace separate saved/proposal stacks with one newest-first timestamped timeline. Identify each study, round and entry; use real review completion/audit times and explicitly label unavailable exact times.
+- Keep full guideline documents collapsed and render headings, paragraphs, lists and inline emphasis safely at full width. Preserve the readable red/green change comparison.
+- Explain that proposal diffs compare against that study’s tested instructions and were not applied. Present the active full instructions once in a separate reference disclosure; an old active version can coexist with newer unapplied proposals.
+- Preserve saved data, prompt selection, model behavior and activation gates.
+
 ## 0.15.4 - writing guidelines library and change reports (2026-10-28)
 
 - Add a collapsed read-only Writing guidelines library in the Workshop, grouped by prose type and shared craft. Show full saved guidelines/examples, historical versions, exact added/removed instructions, reviewer reasoning and separately labelled active instructions and unadopted review proposals.
