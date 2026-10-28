@@ -1,5 +1,17 @@
 # Writer context and creative planning - NCCE 0.12.0
 
+## Approved development follow-up — editorial memory, 2026-10-28
+
+New category studies and learning rounds now freeze a fresh, private set of repetition reminders and prior review observations. The final validation round reuses the learning setup's reminders, including its ordinary repetition hints, without consulting later trials or reviews. Explicitly inspected plans and duplicate submissions retain their original packets. Existing plans are never rewritten.
+
+The new `creative_plan.editorial_memory` channel contains short names, mechanism tags and up to four writing-review observations with saved source IDs. It may describe earlier experimental alternatives for the same subject; it is explicitly separate from accepted continuity, canon, source evidence and the selected writing instructions. Context/technical review hypotheses and full proposed briefs are excluded. This follow-up does not edit or activate shared/form revisions.
+
+Selection filters by exact writing form before scanning up to 80 footprints and 80 saved trials. Linked trial/footprint records for the same provider request count once, with trial text re-extracted using current tags. Where a legacy record has no request link, it retains its own source identity rather than guessing that matching prose is the same response. The result includes at most 16 attempts and four review observations, bounded to 6,000 characters before its snapshot identifier. This deliberately does not load the entire archive. Co-occurrence checks recognize refreshment-based clerk favor, queue assistance and official-exclusion endings; these are advisory heuristics, not prohibitions or literary guarantees.
+
+The new refresh path is scoped to category studies. Existing routine/manual planning preserves its inspected-plan behavior. No schema change, additional model call, retry, policy activation or campaign/canon write is introduced. New tests inspect actual mocked writer audit packets and reviewer queue packets, and check that validation cannot read live editorial history.
+
+The earlier local/hosted environment-hash discrepancy was reproduced before editing: normalizing Windows CRLF source bytes to LF changed local `28ffa7d…` to the saved hosted `de090bb…`. The fingerprint algorithm was not changed; existing environment-change guards remain in force. Release and real literary testing require separate approvals.
+
 Implemented 2026-10-27, Europe/Warsaw. SQLite schema 12. This is application-side context assembly, not model training or a second model reviewer.
 
 ## Problem and pipeline

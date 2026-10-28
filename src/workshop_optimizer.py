@@ -13,6 +13,7 @@ from pathlib import Path
 
 import llm_writer as writer
 import writer_workshop as ws
+import writer_planning as planning
 from writer_quality import CRITERIA, RUBRIC
 import codex_review_queue as codex_queue
 
@@ -100,15 +101,21 @@ def queue(store, body):
     shared = ws.revision(store, body['shared_revision_id'], 'shared') if body.get('shared_revision_id') else ws.defaults('shared')
     if not specific.get('revision_id'): specific = ws.save_revision(store, specific)
     if not shared.get('revision_id'): shared = ws.save_revision(store, shared)
+    editorial = planning.editorial_snapshot(store, selected['form'])
     prepared = []
     for sample in samples:
         options = {**body, 'sample_key': sample['key'], 'shared_revision_id': shared['revision_id'], 'form_revision_id': specific['revision_id']}
         if sample['key'] != selected['key']:
             options.pop('packet_hash', None); options.pop('plan_key', None)
-        prepared.append(ws.preview(store, options))
+        prepared.append(ws.preview(store, options, editorial=editorial))
+        if len(prepared)==1 and body.get('plan_key'):
+            # Honor the inspected packet; reuse its reminders for the held-out
+            # setup when available. Legacy plans remain byte-for-byte intact.
+            editorial = prepared[0]['packet']['creative_plan'].get('editorial_memory', editorial)
     state = {'run_id': 'opt-' + uuid.uuid4().hex, 'status': 'queued', 'form': selected['form'],
              'created_at': ws.now(), 'configuration': configuration(), 'max_rounds': rounds,
              'environment_hash':environment_fingerprint(), 'workflow_version':2, 'validation_pending':False, 'grants':[], 'prompt_history':[],
+             'editorial_snapshot':editorial,
              'writer_limit': rounds * 4, 'reviewer_limit': rounds * 2,
              'writer_reserved': 0, 'reviewer_reserved': 0, 'shared': shared, 'specific': specific,
              'expected_active': {scope: (ws.active(store, scope) or {}).get('revision_id') for scope in ('shared', selected['form'])},
@@ -129,6 +136,8 @@ def pause(store,state,status,message):
 
 def round_samples(store,state):
     if not state['rounds']:return state['samples']
+    if not state.get('validation_pending'):
+        state['editorial_snapshot'] = planning.editorial_snapshot(store, state['form'], state['run_id'])
     used={p.get('packet_hash') for r in state['rounds'] for p in r['pairs']}
     used.update(p['packet_hash'] for p in state['samples'])
     used_keys={p['sample_key'] for r in state['rounds'] for p in r['pairs']}
@@ -139,7 +148,8 @@ def round_samples(store,state):
         if fingerprint in used:continue
         used.add(fingerprint)
         result.append(ws.preview(store,{'sample_key':entry['key'],'shared_revision_id':state['shared']['revision_id'],
-            'form_revision_id':state['specific']['revision_id'],'focus':'auto','variation':len(state['rounds'])}))
+            'form_revision_id':state['specific']['revision_id'],'focus':'auto','variation':len(state['rounds'])},
+            editorial=state.get('editorial_snapshot')))
         if len(result)==2:break
     return result
 

@@ -198,14 +198,14 @@ def home(store):
             'focus_options':{form:[{'value':key,'label':planning.FOCUSES.get(key,('Recorded events',))[0]} for key in planning.options(form)] for form in contract.BRIEFS},
             'trials':[dict(r) for r in store.db.execute('SELECT trial_id,label,form,status,created_at FROM workshop_trials ORDER BY created_at DESC LIMIT 40')]}
 
-def preview(store,body):
+def preview(store,body,editorial=None):
     selected=sample(store,body.get('sample_key'))
     shared=revision(store,body['shared_revision_id'],'shared') if body.get('shared_revision_id') else defaults('shared')
     specific=revision(store,body['form_revision_id'],selected['form']) if body.get('form_revision_id') else defaults(selected['form'])
     packet_hash=hashlib.sha256(packed(selected['packet']).encode()).hexdigest()
     if body.get('packet_hash') and body['packet_hash']!=packet_hash:raise ValueError('This entry context changed. Select it again to inspect the updated facts before generating.')
     selected['packet']=planning.prepare(store,selected['form'],selected['packet'],selected['key'],
-        focus=body.get('focus','auto'),variant=body.get('variation',0),plan_key=body.get('plan_key'))
+        focus=body.get('focus','auto'),variant=body.get('variation',0),plan_key=body.get('plan_key'),editorial=editorial)
     return {**selected,'packet_hash':packet_hash,'instructions':compose(selected['form'],shared,specific),
             'plan_key':selected['packet']['creative_plan']['plan_key'],
             'shared_revision_id':shared['revision_id'],'form_revision_id':specific['revision_id']}
