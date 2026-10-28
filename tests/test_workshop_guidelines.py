@@ -64,9 +64,44 @@ def test_proposal_does_not_replace_saved_or_active_instructions():
     with_store(check)
 
 
+def test_owner_activation_exact_proposal_idempotency_and_stale_rejection():
+    def check(store):
+        with patch.object(writer,'API_KEY','mock'):
+            state,_=opt.queue(store,body(store,1))
+            opt.execute(store,state['run_id'],generator=lambda *a:{'status':'ready','document':{},'usage':{},'error':''},reviewer=lambda *a:assessment(7,'context'))
+        before=guides.library(store,'fighter_memory'); proposal=next(e for e in before['timeline'] if e['kind']=='proposal')
+        request={'scope':'fighter_memory','event_id':proposal['event_id'],'content_hash':proposal['content_hash'],'expected_active':before['active']['revision_id'],'request_key':'activation-request-0001'}
+        count=store.db.execute('SELECT count(*) FROM workshop_revisions').fetchone()[0]
+        bad={**request,'content_hash':'wrong'}
+        try:guides.activate(store,bad)
+        except ValueError:pass
+        else:raise AssertionError('Stale content accepted')
+        assert store.db.execute('SELECT count(*) FROM workshop_revisions').fetchone()[0]==count
+        after=guides.activate(store,request)
+        assert after['active']['instructions']==proposal['instructions']
+        assert after['active']['examples']==proposal['examples']
+        assert sum(e['is_active'] for e in after['timeline'])==1
+        assert next(e for e in after['timeline'] if e['event_id']==proposal['event_id'])['is_active']
+        assert proposal['instructions'] in ws.active_contract(store,'fighter_memory')
+        assert store.db.execute('SELECT count(*) FROM workshop_revisions').fetchone()[0]==count+1
+        assert guides.activate(store,request)['active']['revision_id']==after['active']['revision_id']
+        assert store.db.execute('SELECT count(*) FROM workshop_revisions').fetchone()[0]==count+1
+        saved=next(e for e in after['timeline'] if e['kind']=='saved')
+        switch={'scope':'fighter_memory','event_id':saved['event_id'],'content_hash':saved['content_hash'],'expected_active':after['active']['revision_id'],'request_key':'activation-request-0002'}
+        final=guides.activate(store,switch)
+        assert final['active']['revision_id']==saved['revision_id']
+        assert not next(e for e in final['timeline'] if e['event_id']==proposal['event_id'])['is_active']
+        stale={**switch,'request_key':'activation-request-0003'}
+        try:guides.activate(store,stale)
+        except ValueError:pass
+        else:raise AssertionError('Stale active pointer accepted')
+        assert ws.active(store,'fighter_memory')['revision_id']==saved['revision_id']
+    with_store(check)
+
+
 if __name__=='__main__':
     assert guides.changes('Same\r\ntext','Same\ntext')['edits']==[]
     assert 'reviewed' in guides.announcement('fighter_memory',guides.changes('same','same'))
     assert 'specific NEW ending' in guides.announcement('fighter_memory',guides.changes('Repeated prefix '*80+'old ending','Repeated prefix '*80+'specific NEW ending'))
-    for test in [test_saved_update_and_read_only_history,test_proposal_does_not_replace_saved_or_active_instructions]:
+    for test in [test_saved_update_and_read_only_history,test_proposal_does_not_replace_saved_or_active_instructions,test_owner_activation_exact_proposal_idempotency_and_stale_rejection]:
         test();print('PASS',test.__name__)

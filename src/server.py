@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.15.5'
+APP_VERSION='0.15.6'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -330,6 +330,13 @@ class H(BaseHTTPRequestHandler):
     if length<1 or length>128000:return self.js({'error':'Workshop request is too long'},413)
     body=json.loads(self.rfile.read(length).decode('utf-8'))
     if not isinstance(body,dict):raise ValueError('Expected an object')
+    if p=='/api/workshop/guidelines-activate':
+     if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'Writing is in progress. Wait for the current study to finish before switching active guidelines.'},409)
+     try:
+      import workshop_guidelines
+      result=workshop_guidelines.activate(store,body)
+     finally:_writer_pipeline_guard.release()
+     return self.js(result)
     if p=='/api/workshop/optimization-stop':
      run_id=body.get('run_id')
      flag=_optimizer_stops.get(run_id)

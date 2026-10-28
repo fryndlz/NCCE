@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.6 - owner guideline activation (2026-10-28)
+
+- Promote the guideline reference title and make timeline badges explicit activation buttons. Give the server-confirmed active item a thicker border and distinct background.
+- Show an inline saving spinner while activation is pending; keep the old active highlight until the server commits and returns the current selection. Preserve confirmed state on failures.
+- Add owner-only exact-content activation with active-pointer checks, idempotency and atomic proposal materialization/audit. Deduplicate its saved row from the original proposal so only one item is highlighted. Manual activation is distinct from passing automated validation; no model may activate policies itself.
+- Block switching during in-flight writing and preserve source data, existing prose, frozen requests and reviewer history. No real policy activation or model calls during implementation.
+
 ## 0.15.5 - chronological guideline reference (2026-10-28)
 
 - Move the collapsed guidelines reference below all study results. Replace separate saved/proposal stacks with one newest-first timestamped timeline. Identify each study, round and entry; use real review completion/audit times and explicitly label unavailable exact times.

@@ -39,20 +39,21 @@ window.NCCEWorkshop = (() => {
     const timeline=entries.map(e=>{
       const proposal=e.kind==='proposal', source=e.source, run=e.run_id || source?.run_id;
       const title=proposal?'JKSimmons proposed a change':source?.author==='JKSimmons'?'JKSimmons saved candidate guidelines':'Guidelines saved';
-      const badge=proposal?'Proposal · not applied':e.is_active?'Currently active version':'Saved version · not active';
+      const pending=S.guidelineActivation?.event_id===e.event_id && S.guidelineActivation.scope===g.scope;
+      const badge=e.is_active?(proposal?'Active proposal ✓':'Active version ✓'):pending?'Activating…':proposal?'Activate proposal':'Activate version';
       const reason=e.reason || source?.reason;
-      return `<details class="ws-guideline-event" data-ws-detail="${esc(e.event_id)}"><summary><time datetime="${esc(e.created_at || '')}">${esc(guidelineTime(e.created_at))}</time><span class="ws-guideline-event-title">${esc(title)}<small>${esc(e.time_basis || 'Version saved')}${run?' · Study '+esc(run.slice(-8))+' · '+esc(e.round_kind || 'learning')+' round '+esc(e.round || source?.round)+(e.entry_number?' · entry '+e.entry_number:''):''}</small></span><span class="ws-guideline-badge${proposal?' is-proposal':''}">${badge}</span></summary><div class="ws-guideline-event-body">${e.entry?`<p><strong>Test entry:</strong> ${esc(e.entry)}</p>`:''}
-      <p class="ws-guideline-status-note">${proposal?'Suggested changes only. This comparison is against the instructions tested in that study. It did not replace saved guidelines or activate anything.':e.is_active?'This saved version is still active. Newer proposals in this timeline have not replaced it.':'This is a saved historical or test version. Saving a version does not activate it.'}</p>
-      ${e.change?`<h5>${proposal?'Suggested changes · not applied':'Changes saved in this version'}</h5>${guidelineChanges(e.change)}`:''}
+      return `<details class="ws-guideline-event${e.is_active?' is-active-version':''}" data-ws-detail="${esc(e.event_id)}"><summary><time datetime="${esc(e.created_at || '')}">${esc(guidelineTime(e.created_at))}</time><span class="ws-guideline-event-title">${esc(title)}<small>${esc(e.time_basis || 'Version saved')}${run?' · Study '+esc(run.slice(-8))+' · '+esc(e.round_kind || 'learning')+' round '+esc(e.round || source?.round)+(e.entry_number?' · entry '+e.entry_number:''):''}</small></span><button type="button" class="ws-guideline-badge ws-guideline-activate${proposal?' is-proposal':''}" data-ws="guidelines-activate" data-event-id="${esc(e.event_id)}"${e.is_active || S.guidelineActivation || watching()?' disabled':''} aria-label="${esc(badge)} · ${esc(guidelineTime(e.created_at))}"${pending?' aria-busy="true"':''}>${pending?'<span class="ws-activation-spinner" aria-hidden="true"></span>':''}${badge}</button></summary><div class="ws-guideline-event-body">${e.entry?`<p><strong>Test entry:</strong> ${esc(e.entry)}</p>`:''}
+      <p class="ws-guideline-status-note">${proposal && e.is_active?'You activated this proposal for future writing. Its original review comparison is shown below.':proposal && e.activation?.revision_id?'You activated this proposal previously, but a different version is active now.':proposal?'Suggested changes only. This comparison is against the instructions tested in that study. It did not replace saved guidelines or activate anything.':e.is_active?'This saved version is still active. Newer proposals in this timeline have not replaced it.':'This is a saved historical or test version. Saving a version does not activate it.'}</p>
+      ${e.change?`<h5>${proposal?(e.is_active?'Changes in this activated proposal':'Suggested changes · not applied'):'Changes saved in this version'}</h5>${guidelineChanges(e.change)}`:''}
       ${reason?`<details><summary>Reviewer’s reasoning</summary>${paragraphs(reason)}</details>`:''}
       ${e.is_active?'<p class="muted">Read the full text once in “Active instructions” below.</p>':`<details data-ws-detail="full-${esc(e.event_id)}"><summary>${proposal?'Full proposed guidelines':'Full saved guidelines'}</summary>${guidelineText(e.instructions)}</details>`}
       ${e.examples?`<details><summary>Style examples for this version</summary>${guidelineText(e.examples)}</details>`:''}</div></details>`;
     }).join('');
-    return `<details class="ws-guidelines" data-ws-detail="guidelines-library"><summary data-ws="guidelines-refresh">Writing guidelines · reference &amp; history</summary><div class="ws-guideline-content"><div class="ws-guideline-controls"><label>Guidelines for<select data-ws-guide-scope>${['shared',...(S.home.forms || [])].map(f=>`<option value="${esc(f)}"${f===(S.guidelineScope || 'shared')?' selected':''}>${esc(f==='shared'?'Shared craft · all prose':formName(f))}</option>`).join('')}</select></label><button data-ws="guidelines-refresh">Refresh guidelines</button></div>${S.guidelineError?`<p role="status">${esc(S.guidelineError)}</p>`:''}
-      ${g?`<p class="ws-guideline-status-note">A proposal is a suggestion. Its red/green comparison does not mean the active instructions were replaced. This reference is read-only.</p>
+    return `<details class="ws-guidelines" data-ws-detail="guidelines-library"><summary data-ws="guidelines-refresh">Writing guidelines · reference &amp; history</summary><div class="ws-guideline-content"><div class="ws-guideline-controls"><label>Guidelines for<select data-ws-guide-scope${S.guidelineActivation?' disabled':''}>${['shared',...(S.home.forms || [])].map(f=>`<option value="${esc(f)}"${f===(S.guidelineScope || 'shared')?' selected':''}>${esc(f==='shared'?'Shared craft · all prose':formName(f))}</option>`).join('')}</select></label><button data-ws="guidelines-refresh">Refresh guidelines</button></div>${S.guidelineActivationMessage?`<p class="ws-guideline-activation-message" role="status">${esc(S.guidelineActivationMessage)}</p>`:''}${S.guidelineError?`<p role="status">${esc(S.guidelineError)}</p>`:''}
+      ${g?`<p class="ws-guideline-status-note">Click Activate on a proposal or saved version to use it for future writing. This is your manual approval, separate from passing a study’s validation. Existing prose stays unchanged.${watching()?' Finish the current writing study before switching versions.':''}</p>
       <h4>Guideline timeline · newest first</h4><p class="muted">Times are shown in Warsaw time. Study IDs distinguish separate runs; round numbering restarts in each study.</p><div class="ws-guideline-timeline">${timeline || '<p>No saved guideline changes or review proposals yet.</p>'}</div>
       <details class="ws-guidelines-active" data-ws-detail="guidelines-active"><summary>Active instructions · full reference</summary><p class="muted">${g.active.created_at?'Version saved '+esc(guidelineTime(g.active.created_at)):'Built-in instructions. No saved version is activated.'}</p>${guidelineText(g.active.instructions)}${g.active.examples?`<details><summary>Active style examples</summary>${guidelineText(g.active.examples)}</details>`:''}</details>
-      <p class="muted">Read-only reference: up to ${g.history_limit} saved versions and 10 recent distinct review proposals. Older stored records are preserved.</p>`:'<p>Choose a category to read its guideline history.</p>'}</div></details>`;
+      <p class="muted">History: up to ${g.history_limit} saved versions and 10 recent distinct review proposals. Older stored records are preserved.</p>`:'<p>Choose a category to read its guideline history.</p>'}</div></details>`;
   }
   async function loadGuidelines() {
     const scope=S.guidelineScope || 'shared', ticket=(S.guidelineLoad || 0)+1;S.guidelineLoad=ticket;
@@ -152,7 +153,21 @@ window.NCCEWorkshop = (() => {
   }
   async function action(button) {
     switch(button.dataset.ws) {
-      case 'guidelines-refresh': await loadGuidelines();break;
+      case 'guidelines-refresh': if(!S.guidelineActivation)await loadGuidelines();break;
+      case 'guidelines-activate': {
+        if(S.guidelineActivation || watching())return;
+        const scope=S.guidelines.scope, item=S.guidelines.timeline.find(e=>e.event_id===button.dataset.eventId);
+        if(!item || item.is_active)return;
+        S.guidelineActivation={scope,event_id:item.event_id};S.guidelineActivationMessage='Saving your selection…';S.guidelineLoad=(S.guidelineLoad || 0)+1;paint(true);
+        try {
+          const updated=await post('guidelines-activate',{scope,event_id:item.event_id,content_hash:item.content_hash,expected_active:S.guidelines.active.revision_id || null,request_key:crypto.randomUUID()});
+          S.guidelineLoad=(S.guidelineLoad || 0)+1;S.guidelines=updated;
+          S.guidelineActivationMessage=updated.timeline.some(e=>e.event_id===item.event_id && e.is_active)?'Active guidelines updated. Future writing will use this version.':'The server returned a different current selection. Review the active highlight.';
+        } catch(error) {
+          await loadGuidelines();S.guidelineActivationMessage='Activation was not confirmed: '+error.message+' The highlight shows the last server-confirmed active version.';
+        } finally {S.guidelineActivation=null;paint(true);}
+        break;
+      }
       case 'opt-connection': S.optimizations=await request('/api/workshop/optimizations');S.message=S.optimizations.bridge?.online?'Codex companion is connected.':'Codex companion is offline; no writer calls will start.';break;
       case 'opt-personas': S.personas=S.personas===false;break;
       case 'opt-start': {
@@ -216,7 +231,7 @@ window.NCCEWorkshop = (() => {
     if (root.dataset.workshopBound) return;
     root.dataset.workshopBound='1';
     root.addEventListener('focusout',()=>{if(S.pendingPaint)setTimeout(()=>paint(),0);});
-    root.addEventListener('click',event=>{const b=event.target.closest('[data-ws]');if(b){b.disabled=true;action(b).catch(error=>{S.message=error.message;paint();});}});
+    root.addEventListener('click',event=>{const b=event.target.closest('[data-ws]');if(b){if(b.dataset.ws==='guidelines-activate'){event.preventDefault();event.stopPropagation();}b.disabled=true;action(b).catch(error=>{S.message=error.message;paint();});}});
     root.addEventListener('input',event=>{if(event.target.hasAttribute('data-ws-tech-note'))S.techNote=event.target.value;});
     root.addEventListener('change',event=>{
       const t=event.target;

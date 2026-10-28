@@ -7,11 +7,13 @@ const home={model:'same-model',effort:'low',configured:true,review:[{label:'Obso
 const sample={key:'test',form:'fighter_memory',label:'Mara',packet:{evidence:['Critical Injury']},document:bodyDoc};
 const optimization={run_id:'opt-test',form:'fighter_memory',status:'queued',message:'<unsafe>',writer_reserved:0,writer_limit:4,reviewer_reserved:0,reviewer_limit:2,specific:{instructions:'Candidate <unsafe>'},shared:{label:'Shared',instructions:'Protected'},rounds:[],events:[],coverage:'Two source contexts',reviewer_context:'Saved review brief'};
 optimization.rounds=[{number:1,pairs:[{label:'Review entry',candidates:[{status:'ready',document:bodyDoc},{status:'ready',document:bodyDoc}],review:{summary:'A complete assessment. '+('Evidence and reasoning. '.repeat(25)),candidates:[0,1].map(index=>({index,overall:6,scores:{factual_fidelity:9,distinctiveness:5},issues:[{category:'context',blocking:true,explanation:'Inspect this context. '+('More explanation. '.repeat(20)),evidence:'Exact <unsafe> evidence'}]}))}}]}];
-let ids=0,historyRun=null;
+let ids=0,historyRun=null,activationResolve=null,activationReject=null,guidelinesFail=false;
 async function api(url,options){
   calls.push([url,options]);
   if(url==='/api/workshop')return home;
+  if(url.endsWith('/guidelines-activate'))return new Promise((resolve,reject)=>{activationResolve=resolve;activationReject=reject;});
   if(url.startsWith('/api/workshop/guidelines?')){
+    if(guidelinesFail)throw new Error('Connection lost');
     const scope=url.split('scope=')[1], change={summary:'Added 1 instruction lines; removed 1.',edits:[{before:'Old guidance',after:'New <unsafe> guidance'}]};
     const latest={revision_id:'guide-new',created_at:'2026-10-28',instructions:'New <unsafe> guidance',examples:'',change,comparison:'Previous tested instructions',source:{author:'JKSimmons'}};
     return {scope,latest,active:{revision_id:'guide-active',instructions:'# Active heading\n\nActive safe guidance',examples:''},history:[latest],proposals:[{}],timeline:[{event_id:'proposal-one',kind:'proposal',created_at:'2026-10-28T12:10:00Z',time_basis:'Review completed',run_id:'old-study-A',round:1,entry_number:1,entry:'Prior entry',instructions:'# Proposed heading\n\n**Useful** guidance\n\n1. First rule\n2. Second rule',reason:'Review reason',change},{...latest,event_id:'saved-one',kind:'saved',is_active:false}],history_limit:40};
@@ -33,7 +35,7 @@ async function api(url,options){
 }
 const context={window:{confirm:()=>false},console,setTimeout:fn=>timers.push(fn),crypto:{randomUUID:()=> 'same-request-key'}};
 vm.createContext(context);vm.runInContext(fs.readFileSync('web/workshop.js','utf8'),context);
-function click(action){const button={dataset:{ws:action},disabled:false};callbacks.click({target:{closest:()=>button}});}
+function click(action,extra={}){const button={dataset:{ws:action,...extra},disabled:false};callbacks.click({target:{closest:()=>button},preventDefault(){},stopPropagation(){}});}
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 (async()=>{
   await context.window.NCCEWorkshop.open(root,api,doc=>escaped(JSON.stringify(doc)));
@@ -51,6 +53,17 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   assert.match(root.innerHTML,/Guideline timeline · newest first/);
   click('guidelines-refresh');await settle();
   assert.equal(calls.filter(c=>c[1]?.method==='POST').length,readOnlyPostCount,'Browsing and refreshing guidelines must be read-only');
+  click('guidelines-activate',{eventId:'proposal-one'});click('guidelines-activate',{eventId:'proposal-one'});await settle();
+  assert.match(root.innerHTML,/ws-activation-spinner/);assert.match(root.innerHTML,/Activating…/);
+  assert.doesNotMatch(root.innerHTML,/ws-guideline-event is-active-version/,'No optimistic highlight while activation is pending');
+  assert.equal(calls.filter(c=>c[0].endsWith('/guidelines-activate')).length,1,'Double activation click sends one request');
+  const confirmed=await api('/api/workshop/guidelines?scope=shared');confirmed.timeline[0].is_active=true;confirmed.active={revision_id:'approved-proposal',instructions:'Proposed guidelines'};
+  activationResolve(confirmed);await settle();
+  assert.doesNotMatch(root.innerHTML,/ws-activation-spinner/);assert.match(root.innerHTML,/ws-guideline-event is-active-version/);
+  assert.match(root.innerHTML,/Active proposal ✓/);assert.match(root.innerHTML,/You activated this proposal/);
+  guidelinesFail=true;click('guidelines-activate',{eventId:'saved-one'});await settle();activationReject(new Error('Connection lost'));await settle();guidelinesFail=false;
+  assert.doesNotMatch(root.innerHTML,/ws-activation-spinner/);assert.match(root.innerHTML,/Activation was not confirmed/);
+  assert.match(root.innerHTML,/Active proposal ✓/,'Failure preserves the last confirmed active selection');
   click('opt-start');await settle();
   assert.equal(calls.filter(c=>c[0].endsWith('/optimize')).length,0,'Declining paid optimization must not queue it');
   for(const legacy of ['Generate one draft','Find an entry','Shared writing craft','Workshop samples','Complete study report','Your comparison feedback','Obsolete comparison'])assert.ok(!root.innerHTML.includes(legacy),legacy+' must be absent');

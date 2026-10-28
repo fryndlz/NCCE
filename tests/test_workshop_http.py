@@ -131,6 +131,21 @@ def main():
                 assert call('/api/workshop/optimization-technical-decision',approve,cookie)[1]['tech']['status']=='repair_queued'
                 assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==0
 
+                # Manual library activation is owner-authenticated and excluded from in-flight writing.
+                import workshop_guidelines as guidelines
+                library=guidelines.library(server.store,'fighter_memory')
+                event=next(e for e in library['timeline'] if e['kind']=='saved')
+                selection={'scope':'fighter_memory','event_id':event['event_id'],'content_hash':event['content_hash'],'expected_active':library['active']['revision_id'],'request_key':'http-manual-activation-0001'}
+                assert call('/api/workshop/guidelines-activate',selection)[0]==401
+                assert call('/api/workshop/guidelines-activate',selection,cookie,'https://foreign.invalid')[0]==403
+                server._writer_pipeline_guard.acquire()
+                assert call('/api/workshop/guidelines-activate',selection,cookie)[0]==409
+                server._writer_pipeline_guard.release()
+                code,updated=call('/api/workshop/guidelines-activate',selection,cookie)
+                assert code==200 and updated['active']['revision_id']==event['revision_id']
+                assert call('/api/workshop/guidelines-activate',selection,cookie)[0]==200
+                assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==0
+
             print('HTTP workshop passed: auth mandatory, cross-origin denied, busy rejected, duplicate key queued once, no paid calls')
         finally:http.shutdown();http.server_close();thread.join();server.store.close()
 
