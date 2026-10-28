@@ -82,7 +82,9 @@ Reference: Park et al., [Generative Agents: Interactive Simulacra of Human Behav
 | Distinct changes within one import count separately; stable ordering | `test_individual_changes_count_even_when_imported_together` |
 | Reflection formation derives from citations, not prose timestamp | `test_reflection_formation_is_latest_cited_cause_not_generation_time` |
 | Corrections resolve to one identity; unrelated ledger rows do not tick | `test_corrections_are_one_underlying_event_and_unrelated_ledger_rows_do_not_tick` |
+| Malformed correction cycles retain a stable identity in either input order | `test_malformed_correction_cycle_is_order_independent` |
 | No calendar expiry; new fact changes distance without forcing prose rewrite | `test_no_fixed_expiry_and_clock_advances_only_with_another_relevant_fact` |
+| Writer, reviewer and technical intervention jobs receive the same policy | `test_three_roles_receive_the_same_versioned_cognitive_policy` |
 | Independent prose/persistence/ready-only display and condition resolution | `tests/test_fighter_mind.py` |
 | Actual authenticated application/Workshop packets and event policy | `tests/smoke_server.py`, Workshop/bridge HTTP and unit suites |
 

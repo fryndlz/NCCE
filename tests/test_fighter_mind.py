@@ -26,8 +26,15 @@ def test_pending_is_not_a_thought_and_ready_is_independent_persistent_prose():
         with patch.object(writer,'write',return_value=([{'runs':[{'text':text}]}],{'status':'ready'})) as call:
             mind.refresh(store,f,g,[m],AT)
             assert call.call_count==1
+            # Upgrade a stored pre-policy packet without buying replacement prose.
+            saved=store.db.execute('SELECT thought_id,packet_json FROM fighter_thoughts').fetchone()
+            legacy=json.loads(saved['packet_json']);legacy.pop('cognitive_design',None)
+            store.db.execute('UPDATE fighter_thoughts SET packet_json=? WHERE thought_id=?',(json.dumps(legacy),saved['thought_id']))
             mind.refresh(store,f,g,[m],AT)
             assert call.call_count==1
+            updated=json.loads(store.db.execute('SELECT packet_json FROM fighter_thoughts').fetchone()[0])
+            import fighter_event_clock
+            assert updated['cognitive_design']==fighter_event_clock.policy()
         thoughts,status=mind.read(store,f,[m],AT)
         assert thoughts[0]['content']==text and thoughts[0]['content']!=m['content']
         assert thoughts[0]['memory_id']==m['id'] and thoughts[0]['source_event_ids']==m['source_event_ids']

@@ -55,7 +55,7 @@ def packet(store,fighter,gang,candidate):
     return result
 
 def refresh(store,fighter,gang,memories,at=None):
-    import llm_writer
+    import llm_writer, fighter_event_clock
     at=at or datetime.now(timezone.utc).isoformat()
     selected=candidates(fighter,memories,store=store); ids={c['id'] for c in selected}
     for row in store.db.execute("SELECT thought_id,family,packet_json FROM fighter_thoughts WHERE fighter_id=? AND lifecycle='active'",(fighter['id'],)).fetchall():
@@ -67,6 +67,7 @@ def refresh(store,fighter,gang,memories,at=None):
     for candidate in selected:
         saved=store.db.execute('SELECT * FROM fighter_thoughts WHERE thought_id=?',(candidate['id'],)).fetchone()
         context=json.loads(saved['packet_json']) if saved else packet(store,fighter,gang,candidate)
+        context['cognitive_design']=fighter_event_clock.policy()
         context['lifecycle']={'family':candidate['family'],'fixed_expiry':False,'condition_bound':candidate['condition_bound']}
         context['event_clock']=candidate['event_clock']
         # Accepted wording survives guidance updates. A change to the causes
