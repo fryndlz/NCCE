@@ -69,7 +69,7 @@ window.NCCEWorkshop = (() => {
   }
   const techWorking=()=>['queued','investigating','repair_queued','repairing','release_queued','releasing'].includes(S.optimization?.tech?.status);
   const watching=()=>optimizing() || techWorking();
-  const techBlocking=()=>techWorking() || ['proposal_ready','repair_ready','needs_input'].includes(S.optimization?.tech?.status);
+  const techBlocking=()=>techWorking() || ['proposal_ready','repair_ready','released','needs_input'].includes(S.optimization?.tech?.status);
   function techPanel(run) {
     const t=run.tech || {}, proposal=t.proposal, report=t.report, release=t.release_report;
     const list=(title,items)=>items?.length?`<h5>${title}</h5><ul>${items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
@@ -340,7 +340,7 @@ window.NCCEWorkshop = (() => {
         S.home=await request('/api/workshop'); S.sharedMeta=await request('/api/workshop/policy?scope=shared');S.shared=clone(S.sharedMeta.draft);
         S.optimizations=await request('/api/workshop/optimizations');
         const active=S.optimizations.runs.find(r=>['queued','running'].includes(r.status) || ['queued','investigating','repair_queued','repairing','release_queued','releasing'].includes(r.tech?.status));
-        const pending=active || S.optimizations.runs.find(r=>['awaiting_next_round','budget_exhausted','awaiting_samples','escalated'].includes(r.status) || ['proposal_ready','repair_ready','needs_input'].includes(r.tech?.status));
+        const pending=active || S.optimizations.runs.find(r=>['awaiting_next_round','budget_exhausted','awaiting_samples','escalated'].includes(r.status) || ['proposal_ready','repair_ready','released','needs_input'].includes(r.tech?.status));
         if(pending){S.optimization=pending;S.optForm=pending.form;}
         if(active)setTimeout(pollOptimization,1000);
         const initial=S.home.samples.find(s=>s.key==='comparison:1:0') || S.home.samples[0];

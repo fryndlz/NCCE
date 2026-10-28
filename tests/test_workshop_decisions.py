@@ -111,6 +111,8 @@ def test_context_handoff_real_proposal_and_separate_repair_release_approvals():
    opt.recover(store);assert cq.get(store,job['job_id'])['status']=='reviewing','Approved release must retain its lease across its own restart'
    cq.complete(store,{**lease,'review':report()});assert opt.get(store,rid)['tech']['status']=='released'
    assert ws.active(store,'fighter_memory') is None and provider.call_count==2
+   closed=opt.get(store,rid);closed['status']='awaiting_next_round';opt.save(store,closed)
+   rejects(lambda:opt.continue_run(store,{'run_id':rid,'request_key':'must-start-new-study-0001','allow_paid':True,'additional_rounds':1}))
  with_store(check)
 
 

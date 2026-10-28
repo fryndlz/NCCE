@@ -151,6 +151,7 @@ def continue_run(store,body):
     if previous:
         if previous['request_hash']!=hashed(body):raise ValueError('Decision key belongs to different settings')
         return state,False
+    if state.get('tech',{}).get('status')=='released':raise ValueError('A systemic repair was released. Start a fresh category study to test the repaired setup.')
     if state.get('tech',{}).get('status') in ('queued','investigating','proposal_ready','repair_queued','repairing','repair_ready','release_queued','releasing','needs_input'):raise ValueError('Resolve or reject the technical proposal before more writing')
     if state.get('environment_hash') and state['environment_hash']!=environment_fingerprint():raise ValueError('The generation environment changed; start a new category study')
     if state['status'] not in ('awaiting_next_round','budget_exhausted'):raise ValueError('This run is not waiting for more test rounds')
