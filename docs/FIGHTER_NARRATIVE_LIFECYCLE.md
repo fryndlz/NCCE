@@ -41,3 +41,10 @@ Biography, observation and reflection retain their separate categories. Authored
 ## Verification
 
 Mocked regressions cover independent prose and reuse, pending suppression, read-only persistence, condition resolution/death/expiry, newest outcome, stable biographies, battle dates, exact reflection packet parity and Mind Workshop selection. Existing story, writer, planner, optimizer, bridge, guideline, frontend and authenticated disposable HTTP suites remain required. No live literary quality claim follows from mocked generation; owner review of a paid sample remains separate.
+
+
+## Hosted release verification
+
+Verified live 2026-10-28 16:08:58 CET: source `e5ec697`, deployment `dep-dbh0vjei0phs73aei7n0`, app 0.16.0 / schema 15. Startup verified consistent backup `/var/data/pre-schema-14-to-15-20261028T150832415224Z.db`. Hosted health/sync are healthy; writer calls 0. Mara’s 853-character authored biography is byte-for-byte unchanged; four independent thoughts await writing, with no stale/full-memory paragraphs shown as thoughts. Legacy moodlets remain separately exposed. Workshop lists 15 forms including Fighter current thoughts, with 162 current-thought source samples; Mara’s packet contains current state and cause links without copied old Mind prose. The browser DOM confirms the selectable current-thought study and the dossier pending state. No paid study, production policy activation or bulk regeneration was performed.
+
+All 20 offline Python regression files and all four JavaScript UI suites pass, including the new lifecycle checks. Authenticated disposable live-Sheet smoke and Workshop HTTP gates pass. Model calls were mocked in writing tests. A real new literary sample has not been generated or judged as part of this release.
