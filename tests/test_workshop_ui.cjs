@@ -103,5 +103,14 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   context.window.confirm=()=>false;click('tech-approve');await settle();assert.equal(calls.filter(c=>c[0].endsWith('/optimization-technical-decision')).length,0);
   context.window.confirm=()=>true;click('tech-approve');await settle();
   const repair=JSON.parse(calls.find(c=>c[0].endsWith('/optimization-technical-decision'))[1].body);assert.equal(repair.proposal_hash,'exact-proposal');assert.equal(repair.action,'approve_repair');
+  // Reopening a paused study must prompt a decision without authorizing work.
+  const pendingContext={window:{confirm:()=>false},console,setTimeout:()=>{},crypto:{randomUUID:()=> 'unused'}};
+  vm.createContext(pendingContext);vm.runInContext(fs.readFileSync('web/workshop.js','utf8'),pendingContext);
+  const pendingRoot={dataset:{},innerHTML:'',addEventListener:()=>{},querySelector(){return this.innerHTML.includes('writer-workshop')?{}:null;}};
+  const postCount=calls.filter(c=>c[1]?.method==='POST').length;
+  await pendingContext.window.NCCEWorkshop.open(pendingRoot,(url,options)=>url==='/api/workshop/optimizations'?Promise.resolve({configuration:{},runs:[{...optimization,status:'budget_exhausted'}]}):api(url,options),doc=>escaped(JSON.stringify(doc)));
+  assert.match(pendingRoot.innerHTML,/This test allowance is complete/);
+  assert.match(pendingRoot.innerHTML,/Authorize another learning round/);
+  assert.equal(calls.filter(c=>c[1]?.method==='POST').length,postCount,'Opening an owner decision must not queue work');
   console.log('Workshop UI passed: free opening/inspection, escaping, one-call double-click protection, completion rendering');
 })().catch(error=>{console.error(error);process.exitCode=1;});
