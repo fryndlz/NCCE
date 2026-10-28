@@ -188,6 +188,9 @@ def _retained_writer_content(store,fighter_id,memory_key,writer_status):
 def _memory(store, fighter, gang, key, et, payload, event=None, context=None, baseline=False, evidence=None, prior=()):
     import narrative_context
     event = event or {}
+    if et=='gang_battle_outcome' and not event.get('occurred_at') and payload.get('date'):
+        # The dated battle record is better evidence than its later import time.
+        if _timestamp(payload['date']):event={**event,'occurred_at':payload['date']}
     importance, title, tags = classify(et, payload)
     context = context or {}
     if et == "gang_battle_outcome":
@@ -330,6 +333,7 @@ def _current_battle_event(battle, events):
 
 def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_ids=None, call_budget=None, writer_run_id=None):
     """Regenerate all views, or only selected fighters when fighter_ids is supplied."""
+    import fighter_mind
     target_fighter_ids = None if fighter_ids is None else {int(value) for value in fighter_ids}
     if target_fighter_ids is not None and len(target_fighter_ids) != 1:
         raise ValueError("A scoped writer run must target exactly one fighter")
@@ -348,7 +352,7 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
         events = _all_events(store)
         source_fields = ("id","gang_id","gang_name","name","type","class","xp","kills","advancements","effects","status","notes","mechanics_json","listed_in_source","writer_identity_json")
         source_fighters = [{**{k:f.get(k) for k in source_fields}, "authored_backstory":f.get("backstory") if _authored(f) else None} for f in fighters]
-        code_hash = digest([Path(module.__file__).read_text(encoding='utf-8') for module in (prose,director,world_streams,llm_writer)] + [Path(__file__).read_text(encoding='utf-8'),director.policy_hash()])
+        code_hash = digest([Path(module.__file__).read_text(encoding='utf-8') for module in (prose,director,world_streams,llm_writer,fighter_mind)] + [Path(__file__).read_text(encoding='utf-8'),director.policy_hash()])
         fingerprint = digest([GENERATION,code_hash,llm_writer.availability(), source_fighters,
                               [{k:v for k,v in g.items() if k not in {"backstory","provenance_class","backstory_source"}} for g in gangs],
                               [{k:v for k,v in b.items() if k not in {"chronicle","chronicle_provenance_class"}} for b in battles],
@@ -480,10 +484,7 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     cited = sorted(candidates,key=lambda m:(-m["importance"],m["memory_key"]))[:4]
                     ref_text,ref_status=llm_writer.write_memory(store,fighter,gang,'What stays with me',
                            list(dict.fromkeys(x for m in cited for x in m['evidence'])),voice['writer_context'],
-                           prior=[{'title':m['title'],'tags':m['tags'],'importance':m['importance'],
-                                   'occurred_at':m.get('occurred_at'),'observed_at':m.get('observed_at'),
-                                   'experience':m['content'] if m.get('writer_status')=='ready' else None,
-                                   'evidence':m['evidence'],'source_event_ids':m['source_event_ids']} for m in cited],
+                           prior=llm_writer.reflection_observations(cited),
                            form='fighter_reflection')
                     ref_content="\n\n".join(llm_writer.paragraph_text(p) for p in ref_text)
                     ref_runs=[llm_writer.paragraph_runs(p) for p in ref_text]
@@ -503,7 +504,13 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                            "provenance_class":"inference", "confidence":0.6, "baseline":all(m["baseline"] for m in cited)}
                     saved.append(_save_memory(store,fighter["id"],ref,generated_at))
                 all_memories.extend({**m,"fighter_id":fighter["id"],"gang_id":fighter["gang_id"]} for m in saved)
-                if not _authored(fighter):
+                existing_biography=document_for(store,'fighter_biography',fighter['id'])
+                if not _authored(fighter) and not (existing_biography and existing_biography.get('writer_status') in {'ready','stale'} and existing_biography.get('blocks')):
+                    # Build the baseline from the first known roster. Later XP,
+                    # injuries and promotions belong in the experience ledger.
+                    import narrative_context
+                    fighter,gang=narrative_context.fighter_at_event(store,fighter,gang,{},baseline=True)
+                    voice=prose.voice_profile(fighter,gang)
                     text = prose.fighter_biography(fighter,gang)
                     facts = [f"Role: {fighter.get('class')}",f"Type: {fighter.get('type')}",f"XP: {fighter.get('xp')}",f"Kills: {fighter.get('kills')}",f"Status: {fighter.get('status')}",f"Effects: {display(fighter.get('effects'))}",f"Advancements: {display(fighter.get('advancements'))}"]
                     facts.extend(voice.get('evidence',[]))
@@ -512,6 +519,9 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     document['writer_context']=voice['writer_context']
                     doc = _artifact(store,"fighter_biography",fighter["id"],document,fingerprint,generated_at)
                     store.db.execute("UPDATE fighters SET backstory=?,backstory_source='mechanically-inferred',provenance_class='inference' WHERE id=?", (_text(doc),fighter["id"]))
+                import fighter_mind
+                current_fighter=dict(store.db.execute('SELECT * FROM fighters WHERE id=?',(fighter['id'],)).fetchone())
+                fighter_mind.refresh(store,current_fighter,by_gang.get(str(current_fighter['gang_id']),gang),saved,generated_at)
             if target_fighter_ids is not None:
                 return {"changed":True,"revision":fingerprint[:16],"memories":len(all_memories),
                         "fighters":len(target_fighter_ids),"generated_at":generated_at,
@@ -609,7 +619,7 @@ def _timestamp(value):
         return None
 
 
-def select_mind(fighter, memories, at=None):
+def select_mind(fighter, memories, at=None, limit=4):
     if normal(fighter.get("status")) in {"killed","dead"}:
         return []
     at = _timestamp(at) if at else datetime.now(timezone.utc)
@@ -674,7 +684,7 @@ def select_mind(fighter, memories, at=None):
             continue
         selected.append({**memory,"memory_id":memory.get("id"),"label":LABELS.get(tag,"A current concern"),"selection_score":score,"score_details":details})
         used_events.update(source_ids); primary.add(tag)
-        if len(selected) == 4:
+        if len(selected) == limit:
             break
     return selected
 
@@ -685,9 +695,11 @@ def fighter_story(store, fighter):
         voice = json.loads(fighter.get("voice_profile_json") or "{}")
     except ValueError:
         voice = {}
-    return {"memories":memories,"mind":select_mind(fighter,memories),"voice_profile":voice,
+    import fighter_mind
+    thoughts,status=fighter_mind.read(store,fighter,memories)
+    return {"memories":memories,"mind":thoughts,"mind_status":status,"voice_profile":voice,
             "biography_document":document_for(store,"fighter_biography",fighter["id"]),
-            "mind_policy":{"count":"2–4 when supported; no current thoughts for deceased fighters","recency_half_life_days":RECENCY_HALF_LIFE_DAYS,"weights":{"importance":0.4,"recency":0.3,"relevance":0.25,"character_bias":0.05}}}
+            "mind_policy":{"count":"Up to four ready current thoughts; none for deceased fighters","separate_prose":True,"recency_half_life_days":RECENCY_HALF_LIFE_DAYS,"expiry_days":{"battle":7,"equipment":14,"progress":14,"return":7,"grief":28,"social":14},"weights":{"importance":0.4,"recency":0.3,"relevance":0.25,"character_bias":0.05}}}
 
 
 def territory_writing_plan(store):

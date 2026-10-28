@@ -445,3 +445,16 @@ Verified live 2026-10-27 22:24:43 CET: commit `06e1341`, deploy `dep-dbghco2jnfa
 - Added live role portraits/speech bubbles and a highlighted context, drafting, review, revision-loop, human-approval and technical-escalation graph. Activity is persisted before execution; reduced-motion preferences are respected.
 - Added private schema-13 optimizer/reviewer audits, idempotent launches, cancellation boundaries, restart stops, source/policy conflict checks and automatic verified pre-upgrade SQLite backups.
 - Preserved campaign/source/canon and existing prose. No bulk filling or automatic production-policy activation. Full offline regression, authenticated HTTP, UI gate and activity renderer checks pass; no paid release-test calls.
+
+
+## 0.16.0 — Fighter narrative lifecycle completed
+
+2026-10-28 16:04 CET (Europe/Warsaw).
+
+- Stable completed generated biographies; unfinished baselines use first-known roster/voice. Authored biographies preserved.
+- Reflection packets consistently connect cited observations, with matching production/Workshop structure and no false single-event instruction.
+- Independent persisted current thoughts, factual cause links, bounded temporary lifetimes and condition resolution. Ready-only Mind display; pending/errors explained without copying old memory paragraphs.
+- Fighter current thoughts becomes the fifteenth Workshop form, with exact frozen sample packets and the existing generation/review/approval safeguards.
+- Dated battle outcomes use recorded battle occurrence dates instead of import timestamps in the derived memory layer.
+- Schema 15 adds derived fighter_thoughts; old seeded moodlets retained as legacy data. Startup takes a verified consistent pre-upgrade backup.
+- No paid generation, bulk replacement, authoritative data edits or owner guidance activation during implementation. See docs/FIGHTER_NARRATIVE_LIFECYCLE.md for exact defaults, verification and limitations. Hosted verification pending.

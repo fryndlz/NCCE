@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -844,4 +844,19 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute('PRAGMA user_version=14'); db.commit()
         except Exception:
             db.rollback(); raise
+    if current < 15:
+        try:
+            db.executescript('''
+                CREATE TABLE IF NOT EXISTS fighter_thoughts(
+                    thought_id TEXT PRIMARY KEY, fighter_id INTEGER NOT NULL,
+                    family TEXT NOT NULL,label TEXT NOT NULL,source_memory_id TEXT NOT NULL,
+                    source_json TEXT NOT NULL,packet_json TEXT NOT NULL,content TEXT NOT NULL DEFAULT '',
+                    writer_status TEXT NOT NULL,lifecycle TEXT NOT NULL,expires_at TEXT,
+                    created_at TEXT NOT NULL,ended_at TEXT);
+                CREATE INDEX IF NOT EXISTS fighter_thoughts_by_fighter ON fighter_thoughts(fighter_id,lifecycle);
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(15,?,?)',('separate traceable current fighter thoughts',_now()))
+            db.execute('PRAGMA user_version=15');db.commit()
+        except Exception:
+            db.rollback();raise
     return SCHEMA_VERSION

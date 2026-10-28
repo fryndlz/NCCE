@@ -281,7 +281,9 @@ def test_disabled_writer_keeps_prior_drafts_visible_as_stale():
                     artifact=store.db.execute("SELECT document_json FROM story_artifacts WHERE active=1 AND scope_type=? AND scope_key=? ORDER BY generated_at DESC LIMIT 1",(previous_artifact['scope_type'],previous_artifact['scope_key'])).fetchone()
                     assert artifact
                     doc=json.loads(artifact[0])
-                    assert doc.get('writer_status')=='stale'
+                    # A completed baseline is stable, not invalidated by an
+                    # unrelated campaign refresh or formatting revision.
+                    assert doc.get('writer_status')=='ready'
                     assert doc.get('blocks')==previous_artifact['document'].get('blocks')
             finally: store.close()
     finally:

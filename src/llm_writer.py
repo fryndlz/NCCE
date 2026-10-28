@@ -276,6 +276,12 @@ def write(store,form,packet,trace=None,contract_override=None):
  writer_planning.remember(store,signature,form,packet,paragraphs,composition)
  return paragraphs,{'status':'ready','cached':False,'composition':composition,'revision':FORMATTING_REVISION,'contract_hash':_contract_fingerprint(form,contract_override)}
 
+def reflection_observations(memories):
+ return [{'id':m.get('id') or m.get('memory_id'),'title':m['title'],'tags':m['tags'],'importance':m['importance'],
+          'occurred_at':m.get('occurred_at'),'observed_at':m.get('observed_at'),
+          'experience':m['content'] if m.get('writer_status')=='ready' else None,
+          'evidence':m['evidence'],'source_event_ids':m['source_event_ids']} for m in memories]
+
 def memory_packet(store,fighter,gang,title,evidence,identity,prior=(),form='fighter_memory',event=None):
  import narrative_context
  identity=identity if isinstance(identity,dict) else {}
@@ -292,9 +298,13 @@ def memory_packet(store,fighter,gang,title,evidence,identity,prior=(),form='figh
          'knowledge_boundary':identity.get('knowledge_boundary')}
  packet['authored_background']=narrative_context.authored(fighter)
  packet['background_instruction']='Background establishes voice and prior life only; none of its incidents are happening again in this event.'
+ if form=='fighter_reflection':
+  packet['event_boundary']='Interpret connections among the cited observations. They remain separate past experiences; do not invent another incident.'
+  packet['narrative_task']='Reflect on how the cited experiences connect, change an expectation, or shape an intention. Use only their supported relationships, not an unrelated life lesson.'
+  packet['source_observation_ids']=[item.get('id') for item in prior if isinstance(item,dict) and item.get('id')]
  if store:
   packet['generated_background']=narrative_context.origin(store,'fighter_biography',fighter.get('id'),(event or {}).get('occurred_at') or (event or {}).get('observed_at')) if event else None
- if event:
+ if event and form!='fighter_reflection':
   packet['event']={k:event.get(k) for k in ('event_id','event_type','occurred_at','observed_at','payload')}
  if gang.get('name'):
   packet['gang_context']={'name':gang.get('name'),'affiliation':gang.get('gang_type')}

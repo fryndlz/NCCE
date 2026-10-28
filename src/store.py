@@ -407,6 +407,8 @@ class Store:
   f['campaign_events']=self.events(limit=500,entity_id=entity['entity_id']) if entity else []
   from story_engine import fighter_story
   f.update(fighter_story(self,f))
+  f['legacy_moodlets']=f['moodlets']
+  f['moodlets']=f['mind']
   f['campaign_history']=self.fighter_history(fid)
   f['mechanics']=json.loads(f.get('mechanics_json') or '{}')
   f['writer_identity']=json.loads(f.get('writer_identity_json') or '{}')

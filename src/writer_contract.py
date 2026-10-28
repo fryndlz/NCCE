@@ -3,8 +3,9 @@ from pathlib import Path
 
 REVISION = 'narrative-contract-v6'
 RUNTIME_PATH = Path(__file__).resolve().parents[1] / 'docs/writing_sources/WRITER_RUNTIME_CONTRACT.md'
-PERSONAL = {'fighter_memory', 'fighter_reflection'}
+PERSONAL = {'fighter_memory', 'fighter_reflection', 'fighter_mind'}
 BRIEFS = {
+    'fighter_mind': 'CURRENT THOUGHT. First person, one or two sentences, 12–40 words. Express one immediate concern, feeling or intention caused by the supplied experiences and current condition. Use this fighter’s identity and voice. Do not retell a memory, announce a status update, quote mechanics, or invent an incident. No heading, date, documentary wrapper or generic moral.',
     'fighter_memory': 'EVENT. One short first-person memory, 40–100 words. Start with this experience and develop a specific reaction. Background is a lens, never a recap. No document heading or institutional voice.',
     'fighter_reflection': 'REFLECTION. First person, 60–130 words. Connect the cited experiences into a particular present concern or intention. No generic life lesson or document heading.',
     'fighter_biography': 'BASELINE. A distinctive third-person life sketch, 140–240 words. Separate formative fictional background from undated current recorded condition. Respect authored history and embodiment.',
@@ -67,7 +68,9 @@ Notice: ownership loss expressed through a compatible small civilian aftermath. 
 def example_for(form):
     if form not in BRIEFS:
         raise ValueError(f'Unsupported narrative form: {form}')
-    if form in PERSONAL:
+    if form=='fighter_mind':
+        example='STYLE DEMONSTRATION — CURRENT THOUGHT, not campaign evidence: "I want that shaking to stop before anyone asks me to lift the cutter again." A brief present reaction, not an injury report or a replay of treatment.'
+    elif form in PERSONAL:
         example = PERSONAL_EXAMPLE
     elif form == 'fighter_biography':
         example = PERSONNEL_EXAMPLE

@@ -1,6 +1,8 @@
-# NCCE 0.12.3 — current technical design
+# NCCE 0.16.0 — current technical design
 
-**Source release:** 0.12.3, Sheet-authored gang baselines and separate authored story archive. **Schema:** 12.
+**Source release:** 0.16.0, complete fighter narrative roles and persistent current thoughts. **Schema:** 15.
+
+[Fighter narrative lifecycle](FIGHTER_NARRATIVE_LIFECYCLE.md) is the current specification for stable biography, event observations, consistent reflection packets and independently written Mind thoughts. It supersedes older Mind-as-memory descriptions below. Fifteen Workshop forms now include Fighter current thoughts. Routine writing remains paused; this release performs no paid/bulk generation.
 
 [Timeline 0.12.2](TIMELINE_0_12_2.md) adds two-axis Ctrl-drag with stable pointer capture, filtered engagement counts/time on gang lanes, linked participants, separated mission identity, Cycle-first metadata, neutral real-world timing and the independent hosted duration audit. Recorded campaign windows and existing writer policies remain unchanged.
 

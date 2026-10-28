@@ -212,7 +212,7 @@ def test_server_upgrade_backup_includes_committed_wal_without_changing_source():
             assert db.execute("SELECT value FROM system_state WHERE key='backup-test'").fetchone()[0] == 'preserved'
             assert db.execute('PRAGMA quick_check').fetchone()[0] == 'ok'
         assert store.db.execute('PRAGMA user_version').fetchone()[0] == 12
-        with store.db: store.db.execute('PRAGMA user_version=14')
+        with store.db: store.db.execute('PRAGMA user_version=15')
         assert backup_before_upgrade(store.path) is None
     with_store(check)
 

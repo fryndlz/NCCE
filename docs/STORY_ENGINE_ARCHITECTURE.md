@@ -1,3 +1,5 @@
+> **0.16.0 / schema 15:** [Fighter narrative lifecycle](FIGHTER_NARRATIVE_LIFECYCLE.md) supersedes the older Mind retrieval/biography description below. Independent current thoughts have persisted causes, resolution/expiry, ready-only display and their own Workshop form. Reflection packets match production; dated outcomes use battle dates. Existing source records and owner guidance remain intact.
+
 # Story Engine Architecture — NCCE 0.12.2
 
 **Source schema:** 12. [Creative planning](WRITER_CREATIVE_PLANNING.md) adds verified rulebook type context, persistent free/pinned Workshop plans and compact heuristic repetition memory to all writing forms. Authored context and same-subject continuity remain separate; recorded events stay central. The [Writer Workshop](WRITER_WORKSHOP.md) retains private revisions, explicit activation, source-backed one-call trials and preserved edits. Existing runtime contracts and audits are specified in [WRITER_PIPELINE_0_10.md](WRITER_PIPELINE_0_10.md). Routine provider calls remain disabled. Hosted evidence is maintained in CHANGELOG.md.

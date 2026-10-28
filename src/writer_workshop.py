@@ -104,6 +104,8 @@ def comparison_review(store):
 
 def catalog(store):
     samples=[]
+    for row in store.db.execute("SELECT t.thought_id,t.label,f.name FROM fighter_thoughts t JOIN fighters f ON f.id=t.fighter_id WHERE t.lifecycle='active' ORDER BY f.name,t.thought_id"):
+        samples.append({'key':'mind:'+row['thought_id'],'form':'fighter_mind','label':row['name']+' · '+row['label']})
     import writer_comparison
     saved=store.get_state(writer_comparison.STATE_KEY)
     if saved:
@@ -125,6 +127,13 @@ def catalog(store):
 def sample(store,key):
     if not isinstance(key,str) or len(key)>160: raise ValueError('Invalid sample')
     kind,_,ident=key.partition(':')
+    if kind=='mind':
+        row=store.db.execute("SELECT * FROM fighter_thoughts WHERE thought_id=? AND lifecycle='active'",(ident,)).fetchone()
+        if not row:raise ValueError('Current thought not found')
+        import fighter_mind
+        if row['expires_at'] and fighter_mind.instant(row['expires_at'])<=fighter_mind.instant(now()):raise ValueError('This thought has expired; refresh the campaign before selecting another sample')
+        return {'key':key,'form':'fighter_mind','label':row['label'],'packet':json.loads(row['packet_json']),
+                'document':{'title':row['label'],'provenance_class':'inference','blocks':[{'type':'body_paragraph','text':row['content']}]},'at':row['created_at']}
     if kind=='comparison':
         import writer_comparison
         saved=json.loads(store.get_state(writer_comparison.STATE_KEY,'{}'))
@@ -162,10 +171,17 @@ def sample(store,key):
         historical,historical_gang=context.fighter_at_event(store,fighter,gang,event or {},bool(row['baseline']))
         prior=[]
         for mid in json.loads(row['source_observation_ids_json']):
-            cited=store.db.execute('SELECT title,content,occurred_at,observed_at FROM story_memories WHERE memory_id=?',(mid,)).fetchone()
-            if cited:prior.append(dict(cited))
+            cited=store.db.execute('SELECT * FROM story_memories WHERE memory_id=?',(mid,)).fetchone()
+            if cited:
+                item=dict(cited)
+                for field in ('tags','evidence','source_event_ids'):item[field]=json.loads(item[field+'_json'])
+                prior.append(item)
         form='fighter_reflection' if row['memory_type']=='reflection' else 'fighter_memory'
         import llm_writer as writer
+        if form=='fighter_reflection':
+            historical,historical_gang=fighter,gang
+            prior=writer.reflection_observations(prior)
+            event=None
         packet=writer.memory_packet(store,historical,historical_gang,row['title'],json.loads(row['evidence_json']),json.loads(row['writer_context_json']),prior,form,event)
         document=director.direct_document(form,'WORKSHOP-SOURCE',{'title':row['title'],'provenance_class':'inference'},dict(row))
         document['blocks']=[{'type':'body_paragraph','text':row['content']}]

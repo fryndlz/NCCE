@@ -41,7 +41,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.15.6'}
+                    assert read('/healthz') == {'ok':True,'version':'0.16.0'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
@@ -64,7 +64,7 @@ def main():
                 if time.monotonic()>deadline:
                     raise AssertionError('Sheet sync did not finish')
                 time.sleep(0.25)
-            assert health['schema_version'] == 14 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
+            assert health['schema_version'] == 15 and health['story_revision'] and health['writer']['status'] in ('ready','unconfigured')
             dashboard = read('/api/dashboard')
             timeline=read('/api/history')
             assert all('playtime_seconds' in battle and 'local_territory_id' in battle for battle in timeline['battles'])
@@ -79,7 +79,7 @@ def main():
                 assert all(m['evidence'] for m in detail['memories'])
                 assert all(m['date_display']['imperialDisplay'] for m in detail['memories'])
                 if name == 'Mara Kel' and 'Critical Injury' in str(detail.get('effects')):
-                    assert any('critical' in m['tags'] for m in detail['mind'])
+                    assert detail['mind_status']['separate_prose'] and detail['mind_status']['pending'] >= 1
             gang_details=[read('/api/gangs/'+gang['gang_id']) for gang in dashboard['gangs']]
             assert any(gang['narrative_stream'] for gang in gang_details)
             assert all(g['history_document'] is None for g in gang_details)
@@ -89,7 +89,10 @@ def main():
             assert archive[0]['content'].endswith('Now, at last, the real work could begin.')
             assert archive[1]['content'].endswith('He drew the line anyway.')
             workshop=read('/api/workshop')
-            assert workshop['samples'] and len(workshop['forms'])==14
+            assert workshop['samples'] and len(workshop['forms'])==15
+            mind_sample=next(s for s in workshop['samples'] if s['form']=='fighter_mind')
+            thought_context=read('/api/workshop/sample?key='+mind_sample['key'])
+            assert thought_context['packet']['causes'] and thought_context['packet']['source_memory_ids']
             source=next(s for s in workshop['samples'] if s['form']=='fighter_memory')
             selected=read('/api/workshop/sample?key='+source['key'])
             policy=read('/api/workshop/policy?scope=fighter_memory')
