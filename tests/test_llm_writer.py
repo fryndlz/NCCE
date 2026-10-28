@@ -376,6 +376,33 @@ def test_mara_writer_check_is_scoped_and_preserves_authored_biography():
     finally: llm_writer.API_KEY=old_key; llm_writer._call=old_call
 
 
+def test_timeout_and_network_errors_are_distinct_without_retry_or_secret_leaks():
+    from unittest.mock import patch
+    from urllib.error import URLError
+    from test_writer_pipeline import with_store
+    failures=[TimeoutError('private detail'),URLError(TimeoutError('private detail')),
+              URLError('timed out'),URLError(OSError('private detail'))]
+    for failure in failures:
+        def check(store):
+            with patch.object(llm_writer,'API_KEY','mock-secret'),patch.object(llm_writer,'TIMEOUT',90), \
+                 patch.object(llm_writer,'urlopen',side_effect=failure) as provider:
+                llm_writer.reset_budget(1);llm_writer.set_enabled(True)
+                packet={'subject':'Timeout test','event_title':'An unchanged saved event'}
+                first=llm_writer.write(store,'fighter_memory',packet)
+                second=llm_writer.write(store,'fighter_memory',packet)
+                assert first==second and first[1]['status']=='error'
+                assert provider.call_count==1 and provider.call_args.kwargs['timeout']==90
+                message=first[1]['message']
+                assert 'not retried' in message and 'private detail' not in message and 'mock-secret' not in message
+                assert ('within 90 seconds' in message)==(failure is not failures[-1])
+                assert ('connection failed' in message)==(failure is failures[-1])
+                assert store.db.execute('SELECT count(*) FROM writer_result_cache').fetchone()[0]==0
+                audit=store.db.execute('SELECT status,error_text FROM writer_requests').fetchall()
+                assert len(audit)==1 and audit[0]['status']=='failed' and audit[0]['error_text']==message
+                assert llm_writer.availability()['request_timeout_seconds']==90
+        with_store(check)
+
+
 if __name__=='__main__':
     tests=[value for name,value in sorted(globals().items()) if name.startswith('test_')]
     for test in tests: test(); print('PASS',test.__name__)

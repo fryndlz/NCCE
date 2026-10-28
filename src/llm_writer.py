@@ -12,7 +12,7 @@ API_KEY=os.environ.get('NCCE_OPENAI_API_KEY','')
 API_URL='https://api.openai.com/v1/responses'
 MAX_CALLS=max(1,min(200,int(os.environ.get('NCCE_WRITER_CALL_BUDGET','80'))))
 MAX_OUTPUT_TOKENS=max(128,min(4000,int(os.environ.get('NCCE_WRITER_MAX_OUTPUT_TOKENS','4000'))))
-TIMEOUT=max(5,min(90,int(os.environ.get('NCCE_WRITER_TIMEOUT_SECONDS','35'))))
+TIMEOUT=max(5,min(90,int(os.environ.get('NCCE_WRITER_TIMEOUT_SECONDS','90'))))
 _calls=0
 _failure=''
 WRITER_ENABLED=True
@@ -71,7 +71,7 @@ def availability():
  return {'configured':bool(API_KEY),'provider':'openai-responses' if API_KEY else None,'model':MODEL if API_KEY else None,
          'status':'ready' if API_KEY else 'unconfigured','call_budget':_run_limit,'calls_used':_calls,
          'reasoning_effort':DEFAULT_REASONING_EFFORT,'contract_revision':FORMATTING_REVISION,
-         'response_token_limit':MAX_OUTPUT_TOKENS}
+         'response_token_limit':MAX_OUTPUT_TOKENS,'request_timeout_seconds':TIMEOUT}
 
 def reset_budget(limit=None,run_id=None):
  global _calls,_failure,_run_id,_run_limit,_run_stats,_last_response,_attempted,_last_prompt
@@ -132,7 +132,11 @@ def _call(form,packet,output_token_limit=None,reasoning_effort=None,contract_ove
   detail=' '.join(detail.split())[:240]
   suffix=f': {detail}' if detail else ''
   raise RuntimeError(f'Writing provider returned HTTP {exc.code}{suffix}') from None
- except (URLError,TimeoutError,OSError): raise RuntimeError('Writing provider could not be reached') from None
+ except (URLError,TimeoutError,OSError) as exc:
+  reason=exc.reason if isinstance(exc,URLError) else exc
+  if isinstance(reason,TimeoutError) or str(reason).lower() in ('timed out','the read operation timed out'):
+   raise RuntimeError(f'Writing provider did not respond within {TIMEOUT} seconds. The request was not retried.') from None
+  raise RuntimeError('Writing provider connection failed. The request was not retried.') from None
  output=next((c.get('text','') for item in result.get('output',[]) for c in item.get('content',[]) if c.get('type')=='output_text'),'')
  usage=result.get('usage') or {}
  output_details=usage.get('output_tokens_details') or {}
