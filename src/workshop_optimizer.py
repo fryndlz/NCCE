@@ -25,7 +25,7 @@ def hashed(value): return hashlib.sha256(packed(value).encode()).hexdigest()
 def environment_fingerprint():
     root=Path(__file__).parent
     import writer_contract
-    sources=[root/name for name in ('writer_contract.py','narrative_context.py','writer_planning.py','writer_workshop.py','territory_reference.py','llm_writer.py','story_engine.py','fighter_mind.py','fighter_event_clock.py')]
+    sources=[root/name for name in ('writer_contract.py','narrative_context.py','writer_planning.py','writer_workshop.py','territory_reference.py','llm_writer.py','story_engine.py','fighter_mind.py','fighter_event_clock.py','editorial_quality.py','workshop_experiments.py')]
     sources.append(writer_contract.RUNTIME_PATH)
     return hashlib.sha256(b''.join(p.name.encode()+p.read_bytes() for p in sources if p.exists())).hexdigest()
 
@@ -64,9 +64,10 @@ def activity(store, state, phase, actor, message, **position):
 
 
 def home(store):
+    from workshop_experiments import public_run
     return {'configuration': configuration(), 'configured': bool(writer.API_KEY),
             'bridge': codex_queue.status(store),
-            'runs': [json.loads(r[0]) for r in store.db.execute('SELECT state_json FROM workshop_optimization_runs ORDER BY rowid DESC LIMIT 12')]}
+            'runs': [public_run(store,json.loads(r[0])) for r in store.db.execute('SELECT state_json FROM workshop_optimization_runs ORDER BY rowid DESC LIMIT 12')]}
 
 
 def existing(store, body):
@@ -124,6 +125,8 @@ def queue(store, body):
              'activity': {'phase': 'queued', 'actor': 'StoryTechMan', 'message': 'Your bounded run is queued. Preparing the source checks.', 'at': ws.now()},
              'visited_steps': [],
              'reviewer_context': 'Actual persistent JKSimmons Codex chat, with its conversation, saved standards and corrections. Reviews are not external reviewer API calls.'}
+    from workshop_experiments import start_fields
+    start_fields(store, state, body)
     with store._lock, store.db:
         store.db.execute('INSERT INTO workshop_optimization_runs VALUES(?,?,?,?)', (state['run_id'], key, hashed(body), packed(state)))
     return state, True
@@ -156,6 +159,9 @@ def round_samples(store,state):
 
 def continue_run(store,body):
     state=get(store,body.get('run_id'));key=body.get('request_key')
+    if state.get('workflow_version',1)>=3:
+        from workshop_experiments import ensure_current
+        ensure_current(store,state)
     if not isinstance(key,str) or not 16<=len(key)<=100:raise ValueError('Unique decision identity required')
     previous=next((g for g in state.get('grants',[]) if g['request_key']==key),None)
     if previous:
@@ -165,13 +171,20 @@ def continue_run(store,body):
     if state.get('tech',{}).get('status') in ('queued','investigating','proposal_ready','repair_queued','repairing','repair_ready','release_queued','releasing','needs_input'):raise ValueError('Resolve or reject the technical proposal before more writing')
     if state.get('environment_hash') and state['environment_hash']!=environment_fingerprint():raise ValueError('The generation environment changed; start a new category study')
     if state['status'] not in ('awaiting_next_round','budget_exhausted'):raise ValueError('This run is not waiting for more test rounds')
+    if state.get('workflow_version',1)>=3:
+        import editorial_quality as quality
+        last=state['rounds'][-1] if state['rounds'] else None
+        if last:
+            votes=[quality.verdict_for(store,state['run_id'],last['number'],i) for i in range(len(last['pairs']))]
+            if all(votes) and any(not v['acceptable'][p['candidate_index']] or v['preference'] not in ('tie','AB'[p['candidate_index']]) for p,v in zip(last['pairs'],votes)):
+                state['validation_pending']=False
     rounds=body.get('additional_rounds',1)
     if type(rounds) is not int or not 1<=rounds<=3 or body.get('allow_paid') is not True:raise ValueError('Explicit authorization for 1–3 complete rounds is required')
     if not codex_queue.status(store)['online']:raise ValueError('Reconnect the event listener before authorizing more writing')
     if configuration()!=state['configuration']:raise ValueError('Writer configuration changed; start a new study')
     for scope,expected in state['expected_active'].items():
         if (ws.active(store,scope) or {}).get('revision_id')!=expected:raise ValueError('Active instructions changed; start a new study')
-    state['workflow_version']=2;state['environment_hash']=environment_fingerprint()
+    state['workflow_version']=max(2,state.get('workflow_version',1));state['environment_hash']=environment_fingerprint()
     if state['status']=='budget_exhausted':
         reviews=[p['review'] for r in state['rounds'] for p in r['pairs'] if p.get('review')]
         if reviews:
@@ -259,7 +272,8 @@ class ReviewCancelled(Exception): pass
 def review_pair(store, state, pair, preceding_reviews, cancelled=lambda: False):
     """Wait for the actual Codex chat; there is deliberately no API fallback."""
     if not codex_queue.configured(): raise ValueError('Codex reviewer bridge is not configured')
-    job_id = codex_queue.enqueue(store, state, pair, preceding_reviews, review_schema(), RUBRIC)
+    from workshop_experiments import schema
+    job_id = codex_queue.enqueue(store, state, pair, preceding_reviews, schema() if state.get('workflow_version',1)>=3 else review_schema(), RUBRIC)
     pair['codex_job_id'] = job_id
     activity(store, state, 'awaiting_reviewer', 'StoryTechMan', 'Review packet sealed. Awaiting JKSimmons in Codex. No external reviewer API request will be made.')
     deadline = time.monotonic() + 1800
@@ -285,7 +299,8 @@ def review_pair(store, state, pair, preceding_reviews, cancelled=lambda: False):
 
 def generate(store, state, prepared, instructions, token):
     tid = 'opt-trial-' + token
-    packet = {**prepared['packet'], 'editorial_evaluation_run': token}
+    marker = state['run_id']+'-'+hashed(prepared['key'])[:16] if state.get('workflow_version',1)>=3 else token
+    packet = {**prepared['packet'], 'editorial_evaluation_run': marker}
     with store.db:
         store.db.execute('''INSERT INTO workshop_trials
             (trial_id,request_key,sample_key,form,label,packet_json,instructions,model,effort,status,created_at)
@@ -298,6 +313,9 @@ def generate(store, state, prepared, instructions, token):
 def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=None):
     state = get(store, run_id)
     if state['status'] != 'queued': return state
+    if state.get('workflow_version',1)>=3:
+        from workshop_experiments import execute as experiment
+        return experiment(store,state,cancelled,generator,reviewer)
     state['status'] = 'running'; activity(store, state, 'context', 'StoryTechMan', 'Checking the writer configuration and source context before any calls.')
     try:
         if configuration() != state['configuration'] or not writer.API_KEY: raise ValueError('Writer/reviewer configuration changed or credentials unavailable')
@@ -378,6 +396,20 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
 def decide(store, body):
     state = get(store, body.get('run_id'))
     if state['status'] != 'awaiting_approval': raise ValueError('Only a completed qualified run may be approved or rejected')
+    if body.get('approve') is True:
+        import editorial_quality as quality
+        quality.require_calibrated(store,state['form'])
+        if state.get('workflow_version',1)<3:raise ValueError('This legacy study did not compare a candidate against current instructions. Start a controlled study before qualification.')
+        from workshop_experiments import ensure_current, candidate_passes
+        ensure_current(store,state)
+        validation=state.get('validated',{})
+        if validation.get('quality_fingerprint')!=quality.fingerprint() or validation.get('revision_id')!=state['specific']['revision_id']:
+            raise ValueError('Validation does not match the current standards and exact candidate')
+        last=state['rounds'][-1]
+        for i,pair in enumerate(last['pairs']):
+            vote=quality.verdict_for(store,state['run_id'],last['number'],i)
+            if not vote or not vote['acceptable'][pair['candidate_index']] or vote['preference'] not in ('tie','AB'[pair['candidate_index']]) or not candidate_passes(pair):
+                raise ValueError('Record blind owner verdicts confirming the validation candidate is acceptable and does not lose to current instructions')
     if state.get('environment_hash') and state['environment_hash']!=environment_fingerprint():raise ValueError('Generation environment changed; validate a new study')
     if state.get('workflow_version',1)>=2 and not state.get('validated'):raise ValueError('Fresh-entry validation is required before activation')
     if type(body.get('approve')) is not bool: raise ValueError('Explicit approval or rejection required')

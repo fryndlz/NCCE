@@ -4,6 +4,8 @@ The owner authorized connecting this actual Codex chat to NCCE's Workshop. Run o
 
 ## Each NCCE REVIEW READY event
 
+**Controlled comparisons (workflow_version 3):** the packet's explicit owner editorial contract supersedes earlier inferred literary preferences. Apply subject, first-read clarity, direct register and useful-or-empty closing checks. An empty closing is permitted; never require an administrative flourish. `comparison_instructions` corresponds to blinded drafts A/B. Do not infer which is current or candidate. Scores are advisory. Return the exact new schema, including acceptance/checks per draft, preference and the four-part experiment finding. Prior owner corrections are historical training evidence; do not inspect the current study's hidden owner verdicts. If exposed to them, fail the job rather than claim independence. On entry two consolidate reusable instructions across both entries. Never rewrite individual drafts, activate policies, claim calibration or authorize more spending. The server measures prospective agreement and controls qualification.
+
 Use Python `C:\Users\Blazej\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe` and helper `C:\Codex\NCCE\writing-quality-dev\scripts\codex_chat_worker.py`. Credentials remain inside the helper's private config; never display them or leases. Network access to the owner's existing NCCE app is authorized solely for these scoped review endpoints. Request required tool permissions normally; never weaken security settings.
 
 1. Read this chat with the first-party read_thread tool, turnLimit 1, to obtain the actual current in-progress turn ID. Never invent it or use another chat's ID.

@@ -39,6 +39,8 @@ def main():
                 assert call('/api/reviewer-bridge/claim',{})[0]==401
                 assert call('/api/reviewer-bridge/events',{})[0]==401
                 bridge_body={'thread_id':bridge.thread_id(),'worker_id':'http-test-worker'}
+                assert call('/api/workshop/quality?scope=territory_origin')[0]==403
+                assert call('/api/workshop/owner-verdict',{})[0]==403
                 bearer='Bearer '+bridge_token
                 assert call('/api/reviewer-bridge/claim',bridge_body,authorization=bearer)[0]==200
                 assert call('/api/reviewer-bridge/events',{**bridge_body,'wait_seconds':0},authorization=bearer)[1]=={'job_id':None}
@@ -83,7 +85,10 @@ def main():
                     assert code==200 and first['trial_id']==second['trial_id'] and len(launches)==1
                 assert server.store.db.execute('SELECT count(*) FROM workshop_trials').fetchone()[0]==1
                 assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==0
-                optimization={'sample_key':source['key'],'request_key':'http-optimizer-00000000','max_rounds':1,'allow_paid':True}
+                import editorial_quality
+                candidate=ws.save_revision(server.store,{**ws.defaults(source['form']),'instructions':editorial_quality.seed_brief(source['form'])})
+                optimization={'sample_key':source['key'],'request_key':'http-optimizer-00000000','max_rounds':1,'allow_paid':True,
+                              'form_revision_id':candidate['revision_id'],'hypothesis':'Test clearer subject focus against current instructions.'}
                 assert call('/api/workshop/optimize',{**optimization,'allow_paid':False},cookie)[0]==400
                 server._writer_pipeline_guard.acquire()
                 assert call('/api/workshop/optimize',optimization,cookie)[0]==409
@@ -115,6 +120,25 @@ def main():
                     code,next_run=call('/api/workshop/optimization-continue',grant,cookie);assert code==202 and launched.wait(2)
                     assert call('/api/workshop/optimization-continue',grant,cookie)[0]==200 and len(optimizer_launches)==1
                 next_run['status']='awaiting_next_round';server.workshop_optimizer.save(server.store,next_run)
+                # A real v3 execution with fake providers: owner sees blind prose
+                # before reviews, then a durable reveal. No model invocation.
+                from test_editorial_quality import fake_generator,review
+                next_run['status']='queued';next_run['max_rounds']=1;server.workshop_optimizer.save(server.store,next_run)
+                compared=server.workshop_optimizer.execute(server.store,next_run['run_id'],generator=fake_generator,reviewer=lambda s,t,p,h:review(p))
+                assert compared['status']=='awaiting_owner'
+                visible=call('/api/workshop/optimization?run_id='+compared['run_id'],cookie=cookie)[1]
+                assert visible['rounds'][0]['pairs'][0]['review'] is None
+                assert 'candidate_index' not in visible['rounds'][0]['pairs'][0]
+                assert call('/api/workshop/quality?scope=fighter_memory',cookie=cookie)[1]['calibration']['fresh_pairs']==0
+                for i,pair in enumerate(compared['rounds'][0]['pairs']):
+                    ballot={'run_id':compared['run_id'],'round':1,'pair':i,'preference':pair['review']['preference'],'acceptable':[True,True]}
+                    assert call('/api/workshop/owner-verdict',ballot)[0]==401
+                    assert call('/api/workshop/owner-verdict',ballot,cookie,'https://foreign.invalid')[0]==403
+                    assert call('/api/workshop/owner-verdict',ballot,cookie)[0]==200
+                    assert call('/api/workshop/owner-verdict',ballot,cookie)[0]==200
+                visible=call('/api/workshop/optimization?run_id='+compared['run_id'],cookie=cookie)[1]
+                assert visible['rounds'][0]['pairs'][0]['review']['preference']
+                assert call('/api/workshop/optimization-checkpoint',{'run_id':compared['run_id']},cookie)[1]['status']=='awaiting_next_round'
                 investigation={'run_id':state['run_id'],'request_key':'http-tech-investigation-0001','note':'Investigate the reusable input setup'}
                 assert call('/api/workshop/optimization-investigate',investigation,authorization=bearer)[0]==401
                 assert call('/api/workshop/optimization-investigate',investigation,cookie,'https://foreign.invalid')[0]==403

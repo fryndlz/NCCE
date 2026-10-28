@@ -103,7 +103,7 @@ def library(store, scope):
         try: return datetime.fromisoformat(item['created_at']).timestamp()
         except (TypeError, ValueError, KeyError): return float('-inf')
     timeline.sort(key=order, reverse=True)
-    return {'scope':scope, 'active':active, 'latest':history[0] if history else meta['builtin'],
+    return {'scope':scope, 'activation_mode':'manual_owner_selection', 'active':active, 'latest':history[0] if history else meta['builtin'],
             'history':history, 'proposals':proposals[:10], 'timeline':timeline, 'history_limit':40}
 
 

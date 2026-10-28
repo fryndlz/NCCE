@@ -19,14 +19,15 @@ async function api(url,options){
     return {scope,latest,active:{revision_id:'guide-active',instructions:'# Active heading\n\nActive safe guidance',examples:''},history:[latest],proposals:[{}],timeline:[{event_id:'proposal-one',kind:'proposal',created_at:'2026-10-28T12:10:00Z',time_basis:'Review completed',run_id:'old-study-A',round:1,entry_number:1,entry:'Prior entry',instructions:'# Proposed heading\n\n**Useful** guidance\n\n1. First rule\n2. Second rule',reason:'Review reason',change},{...latest,event_id:'saved-one',kind:'saved',is_active:false}],history_limit:40};
   }
   if(url==='/api/workshop/optimizations')return {configuration:{},runs:[]};
-  if(url.startsWith('/api/workshop/policy')){const scope=decodeURIComponent(url.split('scope=')[1]);return {draft:{scope,revision_id:scope+'-existing',label:'Current',instructions:'Some <unsafe> instructions',examples:'Example'},active:null,history:[],builtin:{},candidate:{}};}
+  if(url.startsWith('/api/workshop/quality'))return {calibration:{calibrated:false,message:'Reviewer scores are advisory.',fresh_pairs:0,agreements:0,has_rejection_check:false},suggested_instructions:'Test direct subject focus.',contract:{rules:[],historical_examples:[],limitations:[]},scope_note:'Historical examples are not fresh tests.'};
+  if(url.startsWith('/api/workshop/policy')){const scope=decodeURIComponent(url.split('scope=')[1]),revision={scope,revision_id:scope+'-existing',label:'Current',instructions:'Some <unsafe> instructions',examples:'Example'};return {draft:revision,active:revision,history:[],builtin:{},candidate:{}};}
   if(url.startsWith('/api/workshop/sample'))return url.includes('territory')?{...sample,key:'territory',form:'place_ambient',label:'Mine'}:sample;
   const data=options?.body?JSON.parse(options.body):{};
   if(url.endsWith('save-policy'))return {...data,revision_id:'r'+(++ids)};
   if(url.endsWith('preview'))return {...sample,plan_key:'frozen-plan',packet:{...sample.packet,creative_plan:{focus_label:'Recorded event'}},instructions:'Exact inspected instructions'};
   if(url.endsWith('generate'))return {trial_id:'once',status:'queued',form:'fighter_memory',label:'Mara',document:{},edits:[],packet:sample.packet,usage:{},instructions:'Saved instructions'};
   if(url.endsWith('/optimize'))return optimization;
-  if(url.includes('/optimization?'))return historyRun || {...optimization,status:'awaiting_approval'};
+  if(url.includes('/optimization?'))return historyRun || {...optimization,workflow_version:3,status:'awaiting_approval'};
   if(url.endsWith('/optimization-continue'))return {...optimization,status:'queued'};
   if(url.endsWith('/optimization-technical-decision'))return {...historyRun,tech:{...historyRun.tech,status:data.action==='approve_repair'?'repair_queued':data.action==='approve_release'?'release_queued':'rejected'}};
   if(url.endsWith('/optimization-decide'))return {...optimization,status:data.approve?'approved':'rejected'};
@@ -53,6 +54,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   assert.match(root.innerHTML,/Guideline timeline · newest first/);
   click('guidelines-refresh');await settle();
   assert.equal(calls.filter(c=>c[1]?.method==='POST').length,readOnlyPostCount,'Browsing and refreshing guidelines must be read-only');
+  context.window.confirm=()=>true;
   click('guidelines-activate',{eventId:'proposal-one'});click('guidelines-activate',{eventId:'proposal-one'});await settle();
   assert.match(root.innerHTML,/ws-activation-spinner/);assert.match(root.innerHTML,/Activating…/);
   assert.doesNotMatch(root.innerHTML,/ws-guideline-event is-active-version/,'No optimistic highlight while activation is pending');
@@ -66,12 +68,13 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   activationReject(new Error('Connection lost'));await settle();guidelinesFail=false;
   assert.doesNotMatch(root.innerHTML,/ws-activation-spinner/);assert.match(root.innerHTML,/Activation was not confirmed/);
   assert.match(root.innerHTML,/Active proposal ✓/,'Failure preserves the last confirmed active selection');
-  click('opt-start');await settle();
+  context.window.confirm=()=>false;click('opt-start');await settle();
   assert.equal(calls.filter(c=>c[0].endsWith('/optimize')).length,0,'Declining paid optimization must not queue it');
   for(const legacy of ['Generate one draft','Find an entry','Shared writing craft','Workshop samples','Complete study report','Your comparison feedback','Obsolete comparison'])assert.ok(!root.innerHTML.includes(legacy),legacy+' must be absent');
   assert.ok(!root.innerHTML.includes('<unsafe>'));
   assert.match(root.innerHTML,/data-ws-opt-form/);
   callbacks.change({target:{dataset:{},value:'place_ambient',hasAttribute:name=>name==='data-ws-opt-form'}});
+  await settle();
   assert.match(root.innerHTML,/Start territory scenes study/);
 
   context.window.confirm=()=>true;
@@ -80,8 +83,9 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   const optBody=JSON.parse(calls.find(c=>c[0].endsWith('/optimize'))[1].body);
   assert.equal(optBody.allow_paid,true);assert.equal(optBody.max_rounds,1);
   assert.equal(optBody.sample_key,'territory','Improvement must use the selected prose type, not the manual sample');
-  assert.equal(optBody.shared_revision_id,'shared-existing');assert.equal(optBody.form_revision_id,'place_ambient-existing');
-  assert.equal(calls.filter(c=>c[0].endsWith('/save-policy')).length,0,'Starting a study must preserve existing saved guidance');
+  assert.equal(optBody.shared_revision_id,'shared-existing');assert.equal(optBody.form_revision_id,'r1');
+  assert.equal(calls.filter(c=>c[0].endsWith('/save-policy')).length,1,'Starting saves one explicit candidate, while using the active shared guidance as control');
+  assert.equal(JSON.parse(calls.find(c=>c[0].endsWith('/save-policy'))[1].body).instructions,'Test direct subject focus.');
   assert.equal(optBody.focus,'auto');assert.equal(optBody.plan_key,null);
   assert.match(root.innerHTML,/ws-draft-grid/);assert.match(root.innerHTML,/ws-score-list/);
   assert.match(root.innerHTML,/Full assessment/);assert.match(root.innerHTML,/Exact &lt;unsafe&gt; evidence/);
@@ -164,6 +168,15 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   }
   const finished=await savedView({...optimization,status:'finished'});
   assert.doesNotMatch(finished,/This test batch is complete|data-ws="opt-continue"/);
+  const controlledPair={label:'Blind precinct',experiment:true,candidates:[{status:'ready',document:bodyDoc},{status:'ready',document:bodyDoc}],review:null,review_pending_reveal:true};
+  const blind=await savedView({...optimization,workflow_version:3,status:'awaiting_owner',rounds:[{number:1,pairs:[controlledPair]}]});
+  assert.match(blind,/Your blind verdicts are needed/);assert.match(blind,/Seal verdict and reveal comparison/);
+  assert.doesNotMatch(blind,/Draft A assessment|Candidate: A|Candidate: B|Independent hidden assessment/);
+  assert.match(blind,/Strong neither/);assert.match(blind,/scores alone cannot qualify/);
+  const revealedPair={...controlledPair,review_pending_reveal:false,candidate_index:1,owner_verdict:{preference:'A',agrees:false,critical_miss:true},review:{...optimization.rounds[0].pairs[0].review,preference:'B',experiment:{changed:'Shorter instructions',addresses:'Drift',observed_effect:'Still drifted',regressions:'Subject lost'}}};
+  const revealed=await savedView({...optimization,workflow_version:3,status:'awaiting_owner',rounds:[{number:1,pairs:[revealedPair]}]});
+  assert.match(revealed,/Candidate: B; current setup: A/);assert.match(revealed,/Reviewer disagrees with you/);
+  assert.match(revealed,/calibration revoked/);assert.match(revealed,/What this experiment changed/);
   const css=fs.readFileSync('web/writing.css','utf8');
   assert.match(css,/\.ws-decision\.is-batch-complete\s*\{/);
   console.log('Workshop UI passed: draft-first layout, legacy removal, free opening, escaping, human gates, duplicate protection and saved-state rendering');

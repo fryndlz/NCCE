@@ -456,3 +456,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .ws-activation-spinner { display:inline-block; width:13px; height:13px; border:2px solid #7f8c79; border-top-color:#f8df98; border-radius:50%; animation:agent-work-turn .8s linear infinite; }
 .ws-guideline-activation-message { padding:12px 16px; background:#243427; border-left:3px solid #b4c78b; }
 @media(prefers-reduced-motion:reduce) { .ws-activation-spinner { animation:none; } }
+.ws-quality-reference { margin: 2rem 0; padding: 1rem; border: 1px solid #536455; border-radius: 8px; }
+.ws-quality-reference details { margin-top: .8rem; }
+.ws-quality-reference li { margin: .65rem 0; line-height: 1.65; }
+.ws-calibration-status, .ws-owner-reveal { padding: .8rem 1rem; border-left: 3px solid #e7b85c; background: #283029; line-height: 1.6; }
+.ws-blind-verdict { padding: 1rem; margin-top: 1rem; border: 1px solid #758d7b; border-radius: 8px; }
+.ws-blind-verdict label, [data-ws-hypothesis] { display: block; margin: .8rem 0; }
+[data-ws-candidate], [data-ws-hypothesis], [data-ws-verdict-choice], [data-ws-verdict-note] { width: 100%; box-sizing: border-box; }
+.ws-blind-verdict button[disabled] { opacity: .5; }

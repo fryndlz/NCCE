@@ -75,6 +75,18 @@ def enqueue(store, state, pair, preceding, schema, rubric):
                'rubric': rubric, 'output_schema': schema, 'cognitive_design':cognitive_policy(),
                'objective':'Improve the reusable category setup, never rewrite the candidate texts. Propose complete general form instructions; flag context/system defects for StoryTechMan. In your summary name the prose category and explain concretely what you propose changing in its reusable guidelines and why. A proposal does not activate instructions; the application records saved candidates separately.',
                'round_kind':state.get('rounds',[{}])[-1].get('kind','learning') if state.get('rounds') else 'learning'}
+    if state.get('workflow_version',1)>=3:
+        import editorial_quality
+        payload.update(workflow_version=3, editorial_contract=state['editorial_contract'],
+            hypothesis=state['hypothesis'], comparison_instructions=pair['comparison_instructions'],
+            prior_owner_corrections=editorial_quality.training_feedback(store,state['form']))
+        payload.pop('instructions',None)
+        payload['objective'] = ('Blindly compare A and B. Both use the same model, source context and response limits; only the instructions differ. '
+            'Do not infer which is current or candidate. Apply the explicit owner editorial contract before scoring: subject, first-read clarity, direct register and useful-or-empty closing. '
+            'Scores are advisory, never proof of qualification. Explain changed/addresses/observed_effect/regressions. '
+            'On entry two, consolidate reusable proposed_form_instructions across BOTH entries and preceding reviews. '
+            'Never rewrite a candidate text or activate anything. Historical owner examples are training data, not fresh calibration evidence. '
+            'Do not inspect owner verdicts for the current study or infer them from this chat. If already exposed to them, fail the job instead of claiming independence.')
     with store._lock, store.db:
         store.db.execute("INSERT INTO codex_review_jobs(job_id,run_id,status,payload_json,created_at) VALUES(?,?,'queued',?,?)", (job_id, state['run_id'], packed(payload), now()))
     return job_id
@@ -156,7 +168,11 @@ def complete(store, body):
     from workshop_optimizer import assess
     result = body.get('review')
     row=owned(store,body);payload=json.loads(row['payload_json'])
-    if payload.get('kind','review')=='review':assess(result)
+    if payload.get('kind','review')=='review':
+        if payload.get('workflow_version',1)>=3:
+            from workshop_experiments import validate_review
+            validate_review(result)
+        else:assess(result)
     else:
         from workshop_interventions import validate
         validate(payload['kind'],result)

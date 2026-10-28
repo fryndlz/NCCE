@@ -1,0 +1,136 @@
+{
+  "version": "owner-editorial-contract-2026-10-29-v1",
+  "source": "Owner blind feedback, 29 October 2026; editorial interpretation explicitly requested for implementation.",
+  "rules": [
+    {
+      "id": "subject",
+      "rule": "Keep the requested subject and its actual role central. Personal detail supports it; a precinct of Helmawr's enforcers must not become a bootmaker or stairway story."
+    },
+    {
+      "id": "clarity",
+      "rule": "The idea must be understandable on first reading. Prefer one clear development over convoluted mechanisms. Complexity is not an achievement by itself."
+    },
+    {
+      "id": "register",
+      "rule": "Prefer direct, concrete, rough industrial language. The owner wants more punk and closer to Necromunda manuals, not ornamental sophistication. Use the page-referenced style anchors, without copying them or importing facts from them. A short sample is not proof of an exact official voice."
+    },
+    {
+      "id": "closing",
+      "rule": "An institutional remark earns its place only by contributing a useful, clearly connected observation. No compulsory administrative flourish, artificial drama, legal gotcha or unexplained consequence."
+    },
+    {
+      "id": "evidence",
+      "rule": "Retain factual fidelity, authored canon, viewpoint and form requirements. These preferences do not authorize campaign facts, fabricated official lore or mechanical outcomes."
+    }
+  ],
+  "historical_examples": [
+    {
+      "territory": "Palanite Precinct",
+      "owner": {
+        "territory": "Palanite Precinct",
+        "verdict": "strong_neither",
+        "A": "Miss: a precinct of Helmawr's enforcers is wanted, not a bootmaker story.",
+        "B": "Miss: same issue.",
+        "owner_preference": "Strong aversion to invented stories about random characters the owner does not care about."
+      },
+      "drafts": [
+        [
+          "THE HEEL",
+          "Hive Primus, Gannet Rise, Lower Pump Housing",
+          "The Heel rests inside a disused pump housing, with its charge room above the dry intake. Civilian bootmaker Mara Pell occupies the narrow room beneath the barrack stairs; the bench and sleeping pallets leave no standing space for customers. Pell repairs patrol boots in exchange for lodging for herself and two children, but must purchase leather from her own earnings. Both children now cut soles after their lessons. Officers leave spare boots hanging from the stair rail, where Pell can examine the wear without admitting them into the room.",
+          "The proposed stair enclosure would remove the householdâ€™s ventilation. Replacement quarters must be included in the works estimate."
+        ],
+        [
+          "THE KNOTTED RAIL",
+          "Underhive, Cinderhook Ward, Gannet Lift Lower Landing Service Block",
+          "The precinct occupies a riveted service block above the Gannet Liftâ€™s lower landing; its public door opens onto a grated iron stair, narrow enough that two people must turn sideways to pass. Locals call it the Knotted Rail. Nera Vale began wrapping short lengths of waxed cord around the handrail so her father, whose sight is failing, can count the turns to the entrance by touch. Neighbours now add a knot beside a loose tread or flooded landing, making the cord a warning line as well as his guide.",
+          "The porter checks the cord before issuing a stair-repair slip."
+        ]
+      ],
+      "calibration_credit": false
+    },
+    {
+      "territory": "Mine Workings",
+      "owner": {
+        "territory": "Mine Workings",
+        "verdict": "prefer_A",
+        "A": "Cute; liked.",
+        "B": "Almost as good, but too convoluted."
+      },
+      "drafts": [
+        [
+          "THE LANTERN BITE",
+          "Underhive, Halvern Open Cut, Lower Strata, West Bench",
+          "The designation covers an open cut in the lower strata, where stepped benches descend to a mineral face and spoil climbs a switchback ramp. Locals call the lowest working the Lantern Bite; pale gem seams are easiest to see there beneath the sorting lamps. A loose screen at the drain lets small stones collect in a sump pocket below the tally tables. Whoever controls its latch can skim them unseen, so sorting crews compete for that post instead of the better-paid work at the face.",
+          "The drainage crew answers to the shift office, not the sorting foreman."
+        ],
+        [
+          "THE SHAKING FLOOR",
+          "Hestrel Crushing Yard, Lower Conveyor Excavation",
+          "The Shaking Floor occupies an open-cast pit beneath the severed conveyor galleries of Hestrel Crushing Yard, where stepped cuts expose ore and small garnets. Its common name derives from the sprung iron platform on which workers stamp their boots before leaving. Dust and fragments fall through to a locked collection tray, whose contents are sold to small refiners. These buyers now offer workers advances for wearing deep-tread soles into the workings. The pit superintendent has consequently ordered boot scraping at the cutting benches, diverting labour from extraction to recovery before each shift ends.",
+          "Collection trays are to be weighed before removal; the refinersâ€™ own containers are unsuitable for this purpose."
+        ]
+      ],
+      "calibration_credit": false
+    },
+    {
+      "territory": "Bone Shrine",
+      "owner": {
+        "territory": "Bone Shrine",
+        "verdict": "qualified_B",
+        "A": "The owner does not understand it; rejected.",
+        "B": "Cute; pass with reservation about the Administratum remark."
+      },
+      "drafts": [
+        [
+          "THE RIB GATE",
+          "Varn Sluice Upper Hoist Chapel, East Suspension Gallery",
+          "The Rib Gate occupies a disused hoist chapel above the Varn Sluice, its bone arches threaded with hanging ropes. Lift workers bring their harnesses beneath the ribs and offer lamp oil for a blessing before descending. The attendant draws each rope through a polished breastbone, leaving an ash mark beside the buckle. Frayed harnesses are refused: the faithful hold that asking the Emperor to preserve a neglected rope is an insult. Workers unable to afford replacements sometimes present a borrowed harness, then exchange it outside before reporting for their shift.",
+          "The rite includes no load test. Transport overseers should not accept the ash mark as proof of serviceability."
+        ],
+        [
+          "THE KNOT CHAPEL",
+          "Underhive, Ash Conveyor Fork, Lower Haulway Abutment",
+          "The Knot Chapel stands at the fork of the old ash-conveyor, its retaining wall packed with bones and a crossbeam hung with ropes. Petitioners leave coins, teeth or folded scraps in the ropes for blessings; they tie each offering in an open loop, believing a closed knot would bind the blessing to the shrine. Carriers taking loads down the steep haulway pause there to name someone waiting at home. Their cart track bends around the standing space, adding a turn to every descent. The route remains unaltered.",
+          "Freight schedules use the eastern ramp, which holds fewer carts at once."
+        ]
+      ],
+      "calibration_credit": false
+    }
+  ],
+  "limitations": [
+    "Three historical pairs are teaching examples, not unseen evaluation.",
+    "The selected source passages ground tone guidance; the owner has not yet approved an exact style match.",
+    "Reviewer agreement requires separate fresh owner-labelled comparisons; historical examples cannot establish it."
+  ],
+  "style_references": [
+    {
+      "source": "Necromunda: Core Rulebook (2023)",
+      "printed_page": 175,
+      "pdf_page": 176,
+      "section": "Corpse Farm",
+      "excerpt": "Everyone must eat",
+      "lesson": "Direct opening; grim material needs without ornamental framing.",
+      "authority": "Style reference only; no campaign occurrence."
+    },
+    {
+      "source": "Necromunda: Core Rulebook (2023)",
+      "printed_page": 179,
+      "pdf_page": 180,
+      "section": "Mine Workings",
+      "excerpt": "all waiting to be ripped from the ground",
+      "lesson": "Forceful physical verbs and an immediately recognisable territory function.",
+      "authority": "Style reference only; no campaign occurrence."
+    },
+    {
+      "source": "Necromunda: Core Rulebook (2023)",
+      "printed_page": 175,
+      "pdf_page": 176,
+      "section": "Bone Shrine",
+      "excerpt": "even the most cold-blooded ganger",
+      "lesson": "Setting-specific people and attitude in plain language.",
+      "authority": "Style reference only; no campaign occurrence."
+    }
+  ],
+  "source_pdf_sha256": "4db99cde10e8819aa589af9a275c9a624614161d48b76878a0e77e9d3d69cbc7"
+}

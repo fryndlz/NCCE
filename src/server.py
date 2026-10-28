@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.17.0'
+APP_VERSION='0.18.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -154,6 +154,11 @@ def _sync_scheduler():
 
 class H(BaseHTTPRequestHandler):
  def js(self,o,status=200):
+  if self.path.startswith('/api/workshop') and isinstance(o,dict):
+   from workshop_experiments import public_run
+   with store.reader() as reader:
+    if 'run_id' in o and 'rounds' in o:o=public_run(reader,o)
+    elif isinstance(o.get('run'),dict):o={**o,'run':public_run(reader,o['run'])}
   b=json.dumps(o,ensure_ascii=False).encode(); self.send_response(status); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
  def _authenticated(self):
   if not AUTH_REQUIRED:return True
@@ -194,6 +199,9 @@ class H(BaseHTTPRequestHandler):
      elif p=='/api/workshop/guidelines':
       import workshop_guidelines
       result=workshop_guidelines.library(reader,query.get('scope',['shared'])[0])
+     elif p=='/api/workshop/quality':
+      import editorial_quality
+      result=editorial_quality.home(reader,query.get('scope',['territory_origin'])[0])
      elif p=='/api/workshop/policy':result=workshop.editor(reader,query.get('scope',['shared'])[0])
      elif p=='/api/workshop/sample':
       result=workshop.sample(reader,query.get('key',[''])[0])
@@ -343,6 +351,18 @@ class H(BaseHTTPRequestHandler):
      if flag:flag.set()
      with store.reader() as reader:result=workshop_optimizer.get(reader,run_id)
      return self.js({'stop_requested':bool(flag),'run':result})
+    if p=='/api/workshop/optimization-checkpoint':
+     if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'Writing is already in progress.'},409)
+     try:
+      import workshop_experiments
+      with store._lock:item,fresh=workshop_experiments.checkpoint(store,body)
+      if fresh:
+       _optimizer_stops[item['run_id']]=threading.Event()
+       threading.Thread(target=_run_optimization,args=(item['run_id'],),name='ncce-workshop-optimizer',daemon=True).start()
+      else:_writer_pipeline_guard.release()
+     except Exception:
+      _writer_pipeline_guard.release();raise
+     return self.js(item,202 if fresh else 200)
     if p=='/api/workshop/optimization-continue':
      with store.reader() as reader:
       old=workshop_optimizer.get(reader,body.get('run_id'))
@@ -392,6 +412,9 @@ class H(BaseHTTPRequestHandler):
      elif p=='/api/workshop/import':result=workshop.import_sample(store,body)
      elif p=='/api/workshop/edit':result=workshop.save_edit(store,body)
      elif p=='/api/workshop/optimization-decide':result=workshop_optimizer.decide(store,body)
+     elif p=='/api/workshop/owner-verdict':
+      import editorial_quality
+      result=editorial_quality.record_verdict(store,body)
      elif p=='/api/workshop/optimization-investigate':
       import workshop_interventions
       result=workshop_interventions.investigate(store,body)

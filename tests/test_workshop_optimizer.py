@@ -20,8 +20,9 @@ from test_story_engine import mechanical_records
 
 
 def with_store(check):
+    """Historical v2 fixtures; new v3 behavior lives in test_editorial_quality."""
     def wrapped(store):
-        with patch.dict(os.environ, {'NCCE_REVIEW_BRIDGE_TOKEN_SHA256':hashlib.sha256(('test-bridge-token-'*4).encode()).hexdigest()}):
+        with patch.dict(os.environ, {'NCCE_REVIEW_BRIDGE_TOKEN_SHA256':hashlib.sha256(('test-bridge-token-'*4).encode()).hexdigest()}), patch('workshop_experiments.start_fields'):
             ready_bridge(store)
             check(store)
     base_with_store(wrapped)
@@ -38,7 +39,11 @@ def ready_bridge(store):
 
 
 def body(store, rounds=3):
-    return {'sample_key': seed(store)['key'], 'request_key': 'optimizer-request-000000001', 'max_rounds': rounds, 'allow_paid': True}
+    import editorial_quality
+    source=seed(store)
+    candidate=ws.save_revision(store,{**ws.defaults(source['form']),'instructions':editorial_quality.seed_brief(source['form'])})
+    return {'sample_key': source['key'], 'request_key': 'optimizer-request-000000001', 'max_rounds': rounds, 'allow_paid': True,
+            'form_revision_id':candidate['revision_id'],'hypothesis':'Test clearer subject focus against current instructions.'}
 
 
 def assessment(score=8, category=None):
@@ -82,7 +87,7 @@ def test_live_activity_is_persisted_before_each_provider_role_runs():
     with_store(check)
 
 
-def test_loop_revises_real_prompt_and_explicit_approval_changes_future_ncce_generation():
+def test_legacy_loop_retains_findings_but_cannot_qualify_uncalibrated_activation():
     def check(store):
         request = body(store); before = mechanical_records(store)
         memories = [tuple(r) for r in store.db.execute('SELECT * FROM story_memories')]
@@ -99,12 +104,9 @@ def test_loop_revises_real_prompt_and_explicit_approval_changes_future_ncce_gene
             assert memories == [tuple(r) for r in store.db.execute('SELECT * FROM story_memories')]
             assert opt.execute(store, state['run_id'], reviewer=reviewer)['status'] == 'awaiting_approval'
             assert provider.call_count == 12
-            opt.decide(store, {'run_id': state['run_id'], 'approve': True})
-            assert 'physically intelligible' in ws.active_contract(store, 'fighter_memory')
-            writer.reset_budget(1)
-            writer.write(store, 'fighter_memory', {'subject': 'A new production context'})
-            assert provider.call_count == 13
-            assert 'physically intelligible' in provider.call_args.kwargs['contract_override']
+            rejects(lambda:opt.decide(store, {'run_id': state['run_id'], 'approve': True}))
+            assert ws.active_contract(store, 'fighter_memory') is None
+            assert provider.call_count == 12
         assert mechanical_records(store) == before
     with_store(check)
 

@@ -111,6 +111,11 @@ assert.equal(activity.workflow({...validation,status:'queued',validation_pending
 assert.match(historyGraph,/Separate approval of the exact tested repair/);
 assert.match(historyGraph,/Validation falls short/);assert.match(historyGraph,/do not call the StoryTechMan model/);
 const css=fs.readFileSync('web/writing.css','utf8');
+const controlledGraph=activity.render({...validation,workflow_version:3,status:'awaiting_owner'});
+assert.match(controlledGraph,/Your blind verdicts are needed/);
+assert.match(controlledGraph,/Scores are advisory/);
+assert.match(controlledGraph,/current versus candidate/i);
+assert.doesNotMatch(controlledGraph,/all four drafts need every score/);
 assert.match(css,/prefers-reduced-motion/);
 assert.match(css,/\.flow-tip\s*\{\s*display:none/,'Descriptions must be hidden by default');
 assert.match(css,/\.flow-node:hover>\.flow-tip,\.flow-node:focus-within>\.flow-tip/,'Hover and keyboard/touch focus reveal descriptions');

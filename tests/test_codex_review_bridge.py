@@ -98,6 +98,7 @@ def test_waiter_lights_only_after_actual_codex_turn_start_and_returns_review():
     def check(store):
         ready_bridge(store);request=body(store)
         with patch.object(writer,'API_KEY','mock'):state,_=opt.queue(store,request)
+        state['workflow_version']=2  # Historical transport-only fixture; v3 payloads have dedicated tests.
         pair={'instructions':'protected','packet':{},'candidates':[]}
         observations=[]
         def poll_delay(_seconds):

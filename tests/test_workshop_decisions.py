@@ -62,7 +62,7 @@ def test_whole_round_grants_candidate_saved_and_fresh_validation_before_activati
    assert final['writer_reserved']==12 and final['reviewer_reserved']==6
    assert ws.active(store,'fighter_memory') is None
    with patch.object(opt,'environment_fingerprint',return_value='changed'):rejects(lambda:opt.decide(store,{'run_id':rid,'approve':True}))
-   opt.decide(store,{'run_id':rid,'approve':True});assert ws.active(store,'fighter_memory')
+   rejects(lambda:opt.decide(store,{'run_id':rid,'approve':True}));assert ws.active(store,'fighter_memory') is None
  with_store(check)
 
 
