@@ -335,7 +335,11 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
                 assessment = reviewer(store, state, pair, preceding) if reviewer else review_pair(store, state, pair, preceding, cancelled)
                 pair['review'] = assessment
                 passed, technical = assess(assessment); all_pass = all_pass and passed
-                activity(store, state, 'evaluate', 'JKSimmons', assessment['summary'], round=round_index + 1, sample=sample_index + 1)
+                from workshop_guidelines import changes, announcement
+                proposal_change = changes(state['specific']['instructions'], assessment['proposed_form_instructions'])
+                review_message = assessment['summary']
+                if proposal_change['edits']: review_message += '\n\n'+announcement(state['form'], proposal_change, proposed=True)
+                activity(store, state, 'evaluate', 'JKSimmons', review_message, round=round_index + 1, sample=sample_index + 1)
                 if technical:
                     stop(store, state, 'The writing loop is paused because the generation setup needs investigation. StoryTechMan will propose a repair; nothing will be changed without your approval.')
                     import workshop_interventions as interventions
@@ -354,10 +358,12 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
             else:
                 state['validation_pending'] = False
                 previous = state['specific']['revision_id']
+                from workshop_guidelines import changes, announcement
+                guideline_change = changes(state['specific']['instructions'], assessment['proposed_form_instructions'])
                 state['specific'] = ws.save_revision(store,{**state['specific'],'instructions':assessment['proposed_form_instructions'],
                     'label':'Category candidate '+state['run_id'][-8:]+' after round '+str(round_index+1)})
-                state.setdefault('prompt_history',[]).append({'after_round':round_index+1,'from_revision':previous,'to_revision':state['specific']['revision_id'],'instructions':state['specific']['instructions']})
-                activity(store,state,'revise','JKSimmons','Saved reusable category instructions for the next test. The next drafts will be generated from scratch on fresh source entries; earlier prose is not rewritten.',round=round_index+1)
+                state.setdefault('prompt_history',[]).append({'after_round':round_index+1,'from_revision':previous,'to_revision':state['specific']['revision_id'],'instructions':state['specific']['instructions'],'change':guideline_change,'at':ws.now()})
+                activity(store,state,'revise','JKSimmons',announcement(state['form'], guideline_change),round=round_index+1)
         pause(store,state,'awaiting_next_round',
             'This test batch is complete. The rounds you authorized have finished. Drafts and reviews are saved. Choose whether to continue testing or finish here.')
     except ReviewCancelled as exc:

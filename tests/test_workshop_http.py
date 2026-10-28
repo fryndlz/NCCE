@@ -57,6 +57,7 @@ def main():
                     assert waiter.is_alive(), 'Idle listener held the shared database lock'
                     waiter.join(4);assert event_result[0][0]==200
 
+                assert call('/api/workshop/guidelines?scope=fighter_memory')[0]==401
                 assert call('/api/workshop')[0]==401
                 assert call('/api/workshop/generate',{})[0]==401
                 assert call('/api/workshop/optimize',{})[0]==401
@@ -64,6 +65,9 @@ def main():
                 assert call('/api/workshop/generate',{},cookie,'https://foreign.invalid')[0]==403
                 assert call('/api/workshop/generate',{},cookie,'')[0]==403
                 status,home=call('/api/workshop',cookie=cookie);assert status==200 and home['samples']
+                assert call('/api/workshop/guidelines?scope=unknown',cookie=cookie)[0]==400
+                status,library=call('/api/workshop/guidelines?scope=fighter_memory',cookie=cookie)
+                assert status==200 and library['scope']=='fighter_memory' and library['active']['instructions']
                 source=next(s for s in home['samples'] if s['form']=='fighter_memory')
                 body={'sample_key':source['key'],'request_key':'http-once-000000000000'}
                 server._writer_pipeline_guard.acquire()

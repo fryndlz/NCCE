@@ -423,3 +423,14 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 
 .flow-mobile-condition { display:none; }
 @media(max-width:700px) { .flow-mobile-condition { display:block; color:#c8b983; font:11px/1.4 system-ui,sans-serif; margin-bottom:4px; } }
+
+.ws-guidelines { margin:20px 0; border:1px solid #485c4c; border-radius:9px; padding:14px 18px; }
+.ws-guidelines>summary { cursor:pointer; color:#e0d3a5; font:600 15px/1.5 system-ui,sans-serif; }
+.ws-guideline-content { padding-top:16px; font:15px/1.65 system-ui,sans-serif; }
+.ws-guideline-content details { margin:14px 0; }.ws-guideline-content summary { cursor:pointer; line-height:1.6; }
+.ws-guideline-controls { display:flex; align-items:end; gap:16px; flex-wrap:wrap; }.ws-guideline-controls label { flex:1; min-width:220px; }
+.ws-guideline-version { border-top:1px solid #405244; margin-top:18px; padding-top:16px; }.ws-guideline-version header { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }.ws-guideline-version h4 { margin:0; }
+.ws-guideline-badge { padding:3px 9px; border-radius:20px; background:#334332; color:#ded7ac; font-size:12px; }
+.ws-guideline-text { max-width:85ch; white-space:pre-wrap; }.ws-guideline-text p { margin:12px 0; }
+.ws-guideline-diff { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:16px 0; }.ws-guideline-diff>div { min-width:0; }.ws-guideline-diff pre { font:14px/1.65 system-ui,sans-serif; max-height:none; padding:12px; border-radius:6px; }.ws-guideline-diff .is-removed { background:#3b2828; }.ws-guideline-diff .is-added { background:#233c2b; }
+@media(max-width:700px) { .ws-guideline-diff { grid-template-columns:1fr; } }

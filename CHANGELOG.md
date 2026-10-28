@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.4 - writing guidelines library and change reports (2026-10-28)
+
+- Add a collapsed read-only Writing guidelines library in the Workshop, grouped by prose type and shared craft. Show full saved guidelines/examples, historical versions, exact added/removed instructions, reviewer reasoning and separately labelled active instructions and unadopted review proposals.
+- Refresh on opening, revisiting and actual loop updates; preserve a selected historical version. Browsing uses no model calls, saves nothing and cannot activate a policy.
+- Ask JKSimmons to name the category and explain proposed changes in each review summary. Persist exact candidate changes and report the prose type plus added/replaced excerpts in handoffs after updates; older histories reconstruct changes from immutable saved revisions.
+- Keep proposed, saved/tested and activated instructions distinct. No schema migration, writing generation, activation or campaign/source changes during implementation.
+
 ## 0.15.3 - compact graph with on-demand explanations (2026-10-28)
 
 - Replace explanation cards with a compact connected graph and short labels. Hide descriptions until hover, keyboard focus or touch focus; retain keyboard focus through live repaint.

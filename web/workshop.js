@@ -12,6 +12,25 @@ window.NCCEWorkshop = (() => {
   function disclosure(title,text,key='',label='Full explanation') {
     return `<details class="ws-disclosure"${key?` data-ws-detail="${esc(key)}"`:''}><summary><span class="ws-closed-title">${esc(title)}</span><span class="ws-open-title">${esc(label)}</span><small class="ws-disclosure-hint">Show details</small></summary><div class="ws-full-text">${paragraphs(text)}</div></details>`;
   }
+  function guidelineChanges(change) {
+    if(!change)return '<p class="muted">No earlier comparison is recorded.</p>';
+    return `<p>${esc(change.summary)}</p>${change.edits.map(edit=>`<div class="ws-guideline-diff">${edit.before?`<div><strong>Removed / replaced</strong><pre class="is-removed">${esc(edit.before)}</pre></div>`:''}${edit.after?`<div><strong>Added</strong><pre class="is-added">${esc(edit.after)}</pre></div>`:''}</div>`).join('')}`;
+  }
+  function guidelinesPanel() {
+    const g=S.guidelines, selected=g?.history.find(r=>r.revision_id===S.guidelineRevision) || g?.latest;
+    return `<details class="ws-guidelines" data-ws-detail="guidelines-library"><summary data-ws="guidelines-refresh">Writing guidelines · browse by prose type</summary><div class="ws-guideline-content"><div class="ws-guideline-controls"><label>Guidelines for<select data-ws-guide-scope>${['shared',...(S.home.forms || [])].map(f=>`<option value="${esc(f)}"${f===(S.guidelineScope || 'shared')?' selected':''}>${esc(f==='shared'?'Shared craft · all prose':formName(f))}</option>`).join('')}</select></label><button data-ws="guidelines-refresh">Refresh guidelines</button></div>${S.guidelineError?`<p role="status">${esc(S.guidelineError)}</p>`:''}<p class="muted">Read-only. Saved candidates and review proposals are separate from the instructions active in future NCCE writing.</p>
+      ${g?`<label>Saved version<select data-ws-guide-revision><option value="">Latest saved version · updates automatically</option>${g.history.map(r=>`<option value="${esc(r.revision_id)}"${r.revision_id===S.guidelineRevision?' selected':''}>${esc(r.created_at)} · ${esc(r.source?.author || r.label)}</option>`).join('')}</select></label><article class="ws-guideline-version"><header><h4>${S.guidelineRevision?'Selected saved guidelines':'Latest saved guidelines'}</h4><span class="ws-guideline-badge">${selected.revision_id===g.active.revision_id?'Active':'Saved candidate · not active'}</span></header><p class="muted">${selected.revision_id?esc(selected.source?.author || 'Saved revision')+' · '+esc(selected.created_at):'Built-in guidelines · no saved revision yet'}</p><div class="ws-guideline-text">${paragraphs(selected.instructions)}</div>${selected.source?.reason?`<details><summary>Why JKSimmons changed it</summary>${paragraphs(selected.source.reason)}</details>`:''}${selected.examples?`<details data-ws-detail="guideline-examples"><summary>Style examples</summary><div class="ws-guideline-text">${paragraphs(selected.examples)}</div></details>`:''}${selected.change?`<details data-ws-detail="guideline-changes-${esc(selected.revision_id)}"><summary>What changed · ${esc(selected.change.summary)}</summary><p class="muted">${esc(selected.comparison)}</p>${guidelineChanges(selected.change)}</details>`:''}</article>
+      <details data-ws-detail="guidelines-active"><summary>Instructions active for future writing</summary><p class="muted">${g.active.revision_id?'Approved saved version · '+esc(g.active.created_at):'Built-in instructions'}</p><div class="ws-guideline-text">${paragraphs(g.active.instructions)}</div>${g.active.examples?`<details><summary>Active style examples</summary>${paragraphs(g.active.examples)}</details>`:''}</details>
+      ${g.proposals.length?`<details data-ws-detail="guideline-proposals"><summary>Recent review proposals · ${g.proposals.length}</summary><p class="muted">Recommendations from individual reviews. These have not been adopted as that round’s saved candidate and do not change active instructions.</p>${g.proposals.map((p,i)=>`<details data-ws-detail="proposal-${esc(p.run_id)}-${p.round}-${i}"><summary>Round ${p.round} · ${esc(p.entry)}</summary><div class="ws-guideline-text">${paragraphs(p.instructions)}</div><details><summary>Exact proposed changes</summary>${guidelineChanges(p.change)}</details><details><summary>Reviewer’s reasoning</summary>${paragraphs(p.reason)}</details></details>`).join('')}</details>`:''}<p class="muted">Showing up to ${g.history_limit} saved versions and 10 recent review proposals. Stored history is preserved.</p>`:'<p>Open a category to read its saved guidelines.</p>'}</div></details>`;
+  }
+  async function loadGuidelines() {
+    const scope=S.guidelineScope || 'shared', ticket=(S.guidelineLoad || 0)+1;S.guidelineLoad=ticket;
+    try {
+      const result=await request('/api/workshop/guidelines?scope='+encodeURIComponent(scope));
+      if(ticket===S.guidelineLoad){S.guidelines=result;S.guidelineError='';}
+    } catch(error) {if(ticket===S.guidelineLoad)S.guidelineError='Guidelines could not refresh. Use Refresh guidelines to try again. Previously loaded text may be out of date.';}
+  }
+  const guidelineStamp=run=>JSON.stringify([run?.specific?.revision_id,run?.shared?.revision_id,run?.status,run?.tech?.status,(run?.rounds || []).map(r=>r.pairs.filter(p=>p.review).length)]);
   function reviewPair(pair,pairKey='entry') {
     const review=pair.review;
     const issueNames={writing:'Writing needs revision',context:'Source context needs attention',technical:'The generation setup needs attention',permission:'Your authorization is needed'};
@@ -61,7 +80,10 @@ window.NCCEWorkshop = (() => {
   }
   async function pollOptimization() {
     try {
-      S.optimization=await request('/api/workshop/optimization?run_id='+encodeURIComponent(S.optimization.run_id)); paint();
+      const previousStamp=guidelineStamp(S.optimization);
+      S.optimization=await request('/api/workshop/optimization?run_id='+encodeURIComponent(S.optimization.run_id));
+      if(previousStamp!==guidelineStamp(S.optimization))await loadGuidelines();
+      paint();
       if(watching()) setTimeout(pollOptimization,1500);
       else {S.optBody=null;S.continueBody=null; S.optimizations=await request('/api/workshop/optimizations'); paint();}
     } catch(error) {S.message=error.message+' Reopen the saved improvement run to check it; no new calls were made.';paint();}
@@ -81,7 +103,7 @@ window.NCCEWorkshop = (() => {
     const openDetails=new Map([...(root?.querySelectorAll?.('details') || [])].map(d=>[detailKey(d),d.open]));
 
     if (!visible()) return;
-    root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Category writing lab</div><h2>Writer Workshop</h2><p>Develop the writing setup for a whole prose category. Read the fresh drafts first, then their assessment and your next decision.</p><p class="muted">Opening studies and reading results makes no model calls. Starting or continuing a writing test requires your confirmation.</p><p role="status" id="ws-status">${esc(S.message)}</p>${optimizationPanel()}</section>`;
+    root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Category writing lab</div><h2>Writer Workshop</h2><p>Develop the writing setup for a whole prose category. Read the fresh drafts first, then their assessment and your next decision.</p><p class="muted">Opening studies and reading results makes no model calls. Starting or continuing a writing test requires your confirmation.</p><p role="status" id="ws-status">${esc(S.message)}</p>${guidelinesPanel()}${optimizationPanel()}</section>`;
     for(const d of root.querySelectorAll?.('details') || []){const key=detailKey(d);if(openDetails.has(key))d.open=openDetails.get(key);}
     if(focusedFlow && /^[a-z-]+$/.test(focusedFlow))root.querySelector('.flow-node[data-flow-node="'+focusedFlow+'"] .flow-node-button')?.focus({preventScroll:true});
     S.pendingPaint=false;
@@ -99,6 +121,7 @@ window.NCCEWorkshop = (() => {
   }
   async function action(button) {
     switch(button.dataset.ws) {
+      case 'guidelines-refresh': await loadGuidelines();break;
       case 'opt-connection': S.optimizations=await request('/api/workshop/optimizations');S.message=S.optimizations.bridge?.online?'Codex companion is connected.':'Codex companion is offline; no writer calls will start.';break;
       case 'opt-personas': S.personas=S.personas===false;break;
       case 'opt-start': {
@@ -152,6 +175,7 @@ window.NCCEWorkshop = (() => {
         S.optimization=await post('optimization-decide',{run_id:S.optimization.run_id,approve});
         S.optimizations=await request('/api/workshop/optimizations');
         if(approve)S.home=await request('/api/workshop');
+        await loadGuidelines();
         S.message=approve?'Tested setup activated for future NCCE writing.':'Candidate rejected. Active setup unchanged.';break;
       }
     }
@@ -166,6 +190,8 @@ window.NCCEWorkshop = (() => {
     root.addEventListener('change',event=>{
       const t=event.target;
       let task;
+      if(t.hasAttribute('data-ws-guide-scope')) {S.guidelineScope=t.value;S.guidelineRevision='';S.guidelines=null;paint(true);task=loadGuidelines().then(()=>paint(true));}
+      if(t.hasAttribute('data-ws-guide-revision')) {S.guidelineRevision=t.value;paint(true);}
       if(t.hasAttribute('data-ws-opt-rounds')) {S.optRounds=Number(t.value);paint(true);}
       if(t.hasAttribute('data-ws-opt-form') && !S.optBody && !optimizing()) {S.optForm=t.value;S.repairSeed=null;paint(true);}
       if(t.hasAttribute('data-ws-opt-history') && t.value) task=request('/api/workshop/optimization?run_id='+encodeURIComponent(t.value)).then(run=>{if(S.optimization?.run_id!==run.run_id){S.continueBody=null;S.repairSeed=null;}S.optimization=run;paint();if(watching())setTimeout(pollOptimization,1000);});
@@ -185,7 +211,9 @@ window.NCCEWorkshop = (() => {
         if(active)setTimeout(pollOptimization,1000);
         const initial=S.home.samples.find(s=>s.key==='comparison:1:0') || S.home.samples[0];
         if(!S.optForm)S.optForm=initial?.form || S.home.forms?.[0];
+        S.guidelineScope=S.optForm || 'shared';
       }
+      await loadGuidelines();
       paint();
     } catch(error) {if(visible())root.innerHTML='<section class="writer-workshop"><h2>Writer Workshop</h2><p role="alert">'+esc(error.message)+'</p></section>';}
   }

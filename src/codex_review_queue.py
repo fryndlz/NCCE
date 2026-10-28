@@ -72,7 +72,7 @@ def enqueue(store, state, pair, preceding, schema, rubric):
                'form': state['form'], 'instructions': pair['instructions'], 'packet': pair['packet'],
                'candidates': pair['candidates'], 'preceding_reviews': preceding,
                'rubric': rubric, 'output_schema': schema,
-               'objective':'Improve the reusable category setup, never rewrite the candidate texts. Propose complete general form instructions; flag context/system defects for StoryTechMan.',
+               'objective':'Improve the reusable category setup, never rewrite the candidate texts. Propose complete general form instructions; flag context/system defects for StoryTechMan. In your summary name the prose category and explain concretely what you propose changing in its reusable guidelines and why. A proposal does not activate instructions; the application records saved candidates separately.',
                'round_kind':state.get('rounds',[{}])[-1].get('kind','learning') if state.get('rounds') else 'learning'}
     with store._lock, store.db:
         store.db.execute("INSERT INTO codex_review_jobs(job_id,run_id,status,payload_json,created_at) VALUES(?,?,'queued',?,?)", (job_id, state['run_id'], packed(payload), now()))

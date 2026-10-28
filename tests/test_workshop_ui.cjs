@@ -11,6 +11,11 @@ let ids=0,historyRun=null;
 async function api(url,options){
   calls.push([url,options]);
   if(url==='/api/workshop')return home;
+  if(url.startsWith('/api/workshop/guidelines?')){
+    const scope=url.split('scope=')[1], change={summary:'Added 1 instruction lines; removed 1.',edits:[{before:'Old guidance',after:'New <unsafe> guidance'}]};
+    const latest={revision_id:'guide-new',created_at:'2026-10-28',instructions:'New <unsafe> guidance',examples:'',change,comparison:'Previous tested instructions',source:{author:'JKSimmons'}};
+    return {scope,latest,active:{revision_id:'guide-active',instructions:'Active safe guidance',examples:''},history:[latest,{...latest,revision_id:'guide-old',instructions:'Historic guidelines'}],proposals:[{run_id:'old-run',round:1,entry:'Prior entry',instructions:'Proposed guidelines',reason:'Review reason',change}],history_limit:40};
+  }
   if(url==='/api/workshop/optimizations')return {configuration:{},runs:[]};
   if(url.startsWith('/api/workshop/policy')){const scope=decodeURIComponent(url.split('scope=')[1]);return {draft:{scope,revision_id:scope+'-existing',label:'Current',instructions:'Some <unsafe> instructions',examples:'Example'},active:null,history:[],builtin:{},candidate:{}};}
   if(url.startsWith('/api/workshop/sample'))return url.includes('territory')?{...sample,key:'territory',form:'place_ambient',label:'Mine'}:sample;
@@ -34,6 +39,15 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   await context.window.NCCEWorkshop.open(root,api,doc=>escaped(JSON.stringify(doc)));
   assert.equal(calls.filter(c=>c[1]?.method==='POST').length,0,'Opening must not write or spend');
   assert.match(root.innerHTML,/Improve a whole prose category/);
+  assert.match(root.innerHTML,/<details class="ws-guidelines" data-ws-detail="guidelines-library">/);
+  assert.match(root.innerHTML,/What changed/);assert.match(root.innerHTML,/New &lt;unsafe&gt; guidance/);
+  const readOnlyPostCount=calls.filter(c=>c[1]?.method==='POST').length;
+  callbacks.change({target:{dataset:{},value:'guide-old',hasAttribute:n=>n==='data-ws-guide-revision'}});
+  assert.match(root.innerHTML,/Historic guidelines/);
+  callbacks.change({target:{dataset:{},value:'shared',hasAttribute:n=>n==='data-ws-guide-scope'}});await settle();
+  assert.match(root.innerHTML,/Latest saved guidelines/);
+  click('guidelines-refresh');await settle();
+  assert.equal(calls.filter(c=>c[1]?.method==='POST').length,readOnlyPostCount,'Browsing and refreshing guidelines must be read-only');
   click('opt-start');await settle();
   assert.equal(calls.filter(c=>c[0].endsWith('/optimize')).length,0,'Declining paid optimization must not queue it');
   for(const legacy of ['Generate one draft','Find an entry','Shared writing craft','Workshop samples','Complete study report','Your comparison feedback','Obsolete comparison'])assert.ok(!root.innerHTML.includes(legacy),legacy+' must be absent');
