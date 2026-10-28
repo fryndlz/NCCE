@@ -1,6 +1,46 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const context={window:{}};vm.createContext(context);vm.runInContext(fs.readFileSync('web/writing_activity.js','utf8'),context);
 const activity=context.window.NCCEWritingActivity;
+// Cosmetic randomness belongs to an event, never to a polling redraw.
+let randomCalls=0;
+const controlledMath=Object.create(Math);controlledMath.random=()=>{randomCalls++;return [0,.95,.45,.2][randomCalls%4];};
+const banterContext={window:{},Math:controlledMath};vm.createContext(banterContext);
+vm.runInContext(fs.readFileSync('web/writing_activity.js','utf8'),banterContext);
+const varied=banterContext.window.NCCEWritingActivity;
+const fixture={run_id:'banter-study',status:'running',activity:{phase:'draft',actor:'JuniorWriter',at:'event-1',message:'Exact saved status'},rounds:[]};
+const saved=JSON.stringify(fixture), first=varied.model(fixture), choices=first.people.map(p=>p.banter), count=randomCalls;
+for(let i=0;i<8;i++)assert.deepEqual(varied.model(JSON.parse(saved)).people.map(p=>p.banter),choices,'Polling must retain each event’s line');
+assert.equal(randomCalls,count,'Polling must not consume more random choices');
+assert.equal(JSON.stringify(fixture),saved,'Banter must not write into the study');
+assert.ok(varied.model(fixture,{personas:false}).people.every(p=>p.banter===''));
+assert.doesNotMatch(varied.render(fixture,{personas:false}),/class="agent-banter"/);
+assert.equal(randomCalls,count,'Disabling banter must not pick lines');
+assert.equal(varied.model(fixture).people[0].message,'Exact saved status');
+const seen=new Set([choices[0]]);let previous=choices[0];
+for(let i=2;i<20;i++){
+  const next=varied.model({...fixture,activity:{...fixture.activity,at:'event-'+i}}).people[0].banter;
+  assert.notEqual(next,previous,'A new event must avoid the preceding line in the same situation');
+  seen.add(next);previous=next;
+}
+assert.ok(seen.size>=3,'The situation offers varied hand-written alternatives');
+assert.deepEqual(varied.model(fixture).people.map(p=>p.banter),choices,'Returning to a recent saved event retains its lines');
+for(const [status,phase,tech] of [
+  ['running','awaiting_reviewer',null],['running','revise',null],['awaiting_approval','approval',null],
+  ['approved','complete',null],['stopped','stopped',null],['escalated','escalated',null],
+  ['escalated','decision','queued'],['escalated','decision','investigating'],
+  ['escalated','decision','repairing'],['escalated','decision','releasing']
+]){
+  const r={...fixture,status,activity:{phase,actor:'JKSimmons',message:'Factual status',at:status+phase+tech},tech:tech?{status:tech}:null};
+  const before=JSON.stringify(r), m=varied.model(r);
+  assert.ok(m.people.every(p=>p.banter.length>0 && p.banter.length<100));
+  assert.equal(JSON.stringify(r),before);
+  if(status==='stopped')assert.doesNotMatch(m.people[2].banter,/ANOMALY|failure|authorisation required/i);
+  if(tech==='queued')assert.ok(m.people.every(p=>!p.active));
+  if(['investigating','repairing','releasing'].includes(tech))assert.equal(m.people[2].active,true);
+}
+// The event cache is bounded and needs no timer, persistent storage or requests.
+for(let i=0;i<100;i++)varied.model({...fixture,activity:{...fixture.activity,at:'bounded-'+i}});
+assert.doesNotMatch(fs.readFileSync('web/writing_activity.js','utf8'),/setInterval\(|setTimeout\(|localStorage|fetch\(/);
 const run={run_id:'opt-test',status:'running',writer_reserved:1,reviewer_reserved:0,visited_steps:['context','draft'],activity:{phase:'draft',actor:'JuniorWriter',message:'Writing draft A <unsafe>',sample:1}};
 let view=activity.model(run);assert.equal(view.people.filter(p=>p.active).length,1);assert.equal(view.people[0].active,true);
 let html=activity.render(run);assert.ok(!html.includes('<unsafe>'));assert.match(html,/Writing draft A &lt;unsafe&gt;/);assert.match(html,/agent-writer is-working/);assert.match(html,/aria-current="step"/);

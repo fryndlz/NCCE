@@ -6,6 +6,39 @@ window.NCCEWritingActivity = (() => {
     {name:'JKSimmons',role:'Reviews and improves guidance',kind:'critic'},
     {name:'StoryTechMan',role:'Investigates and repairs the environment',kind:'tech'}
   ];
+  const banterLines = {
+    writerIdle:['I’ve sharpened the pencil. Twice.','The blank page and I are negotiating.','I brought a spare pencil. For morale.','Standing by. Trying not to look at the reviewer.'],
+    writerWork:['Yes. Absolutely. Writing now. I can do this.','One sentence at a time. No sudden metaphors.','Right. Words first. Panic later.','The pencil has accepted its assignment.'],
+    writerHandoff:['Uh… both drafts are here, sir. Please go easy.','Two drafts. One nervous pencil.','I’ll just stand over here while you read.','Pages delivered. Breathing exercises underway.'],
+    writerRevise:['Right. Okay. I’ll take another pass.','The adjectives have been asked to leave.','I can work with that. Probably. Yes.','Back to the sentence. Less fog this time.'],
+    writerPaused:['Pencil down. Keeping my place.','I’ll leave the page exactly where it is.','Taking a breath. The draft can wait.','The pencil is observing a respectful pause.'],
+    writerHappy:['I may keep this pencil after all.','A small victory for words in the right order.','Trying very hard not to grin.','The pencil would like a modest medal.'],
+    criticIdle:['Bring me the pages, not excuses.','I can wait. The sentence can improve.','Keep the fog machine switched off.','A strong verb will do. No parade required.'],
+    criticWork:['Evidence first. Adjectives later.','Every sentence gets a seat. Not every sentence gets to stay.','Let’s see what the words actually do.','Quiet. I’m listening for the sentence that matters.'],
+    criticRevise:['Enough fog. Show me a consequence.','The metaphor has had its lunch. Back to work.','Less throat-clearing. More actual meaning.','A sentence needs a job, not a costume.'],
+    criticHappy:['Better. Now let the owner judge it.','There. Words earning their keep.','Keep that standard. Don’t embroider it.','Good. Resist the victory speech.'],
+    techIdle:['++ Machine-spirit attentive. Awaiting the next rite. ++','++ Incense budget conserved. Cogitator attentive. ++','++ The sacred spanner rests within reach. ++','++ Standing by. No ritual hammering required. ++'],
+    techWait:['++ Review offering queued. Awaiting the Codex cogitator. ++','++ The queue is sacred. So is waiting one’s turn. ++','++ Transmission pending. Incense optional. ++','++ Offering prepared. The cogitator has its own pace. ++'],
+    techCheck:['++ Context litany engaged. Verifying the sacred packet. ++','++ Consulting the small print of the Omnissiah. ++','++ Measuring twice. Invoking the spanner later. ++','++ Auspex attentive. Assumptions under examination. ++'],
+    techRepair:['++ Spanner consecrated. Small bolts deserve respect. ++','++ The maintenance litany has several useful footnotes. ++','++ Precision before percussion. ++','++ Applying the approved amount of mechanical sympathy. ++'],
+    techRelease:['++ Watching the launch gauges. No ceremonial shortcuts. ++','++ Deployment litany in progress. Eyes on the dials. ++','++ The final rite includes checking the result. ++','++ Keeping the incense clear of the status lamps. ++'],
+    techAttention:['++ Alarm noted. Fetching the small inspection lamp. ++','++ Anomaly register open. No speculative hammering. ++','++ The cogitator requests a closer look. ++','++ Pausing the rite. First, understand the noise. ++'],
+    techPaused:['++ Rite paused. Tools remain on the bench. ++','++ The sacred stop has been observed. ++','++ Holding position. No unattended incantations. ++','++ The machine-spirit may enjoy a quiet moment. ++']
+  };
+  const banterEvents = new Map(), lastBanter = new Map();
+  function pickBanter(event, bank) {
+    if(!banterEvents.has(event)) {
+      banterEvents.set(event,new Map());
+      if(banterEvents.size>64)banterEvents.delete(banterEvents.keys().next().value);
+    }
+    const choices=banterEvents.get(event), lines=banterLines[bank];
+    if(!choices.has(bank)) {
+      const previous=lastBanter.get(bank), pool=lines.map((_,i)=>i).filter(i=>i!==previous);
+      const index=pool[Math.floor(Math.random()*pool.length)];
+      choices.set(bank,index);lastBanter.set(bank,index);
+    }
+    return lines[choices.get(bank)];
+  }
   function portrait(kind,expression) {
     const tech=kind==='tech', critic=kind==='critic';
     const eyes=expression==='sad'?'<path d="M39 55Q45 52 51 55M63 55Q69 52 75 55" fill="none" stroke="#35383d" stroke-width="2"/>':'<circle cx="45" cy="54" r="3"/><circle cx="69" cy="54" r="3"/>';
@@ -30,9 +63,15 @@ window.NCCEWritingActivity = (() => {
     const reviews=(run?.rounds || []).flatMap(r=>r.pairs || []).flatMap(p=>p.review?.candidates || []);
     const disappointed=reviews.some(c=>c.overall<8 || Object.values(c.scores || {}).some(s=>s<8));
     const mood=p=>status==='approved' || status==='awaiting_approval'?'happy':p.name==='JuniorWriter' && (attention || a.phase==='revise' || status==='rejected')?'sad':p.name==='JKSimmons' && (a.phase==='revise' || (a.phase==='evaluate' && disappointed) || status==='rejected')?'angry':p.name==='JKSimmons' && a.phase==='evaluate'?'talking':attention && p.name==='StoryTechMan'?'angry':working && a.actor===p.name?'working':'neutral';
-    const banter=p=>options.personas===false?'':p.name==='JuniorWriter'?(a.phase==='awaiting_reviewer'?'Uh… both drafts are here, sir. Please go easy.':mood(p)==='sad'?'Right. Okay. I’ll take another pass.':p.active?'Yes. Absolutely. Writing now. I can do this.':'I’ve sharpened the pencil. Twice.'):
-      p.name==='JKSimmons'?(mood(p)==='angry'?'Enough fog. Show me a consequence.':p.active?'Evidence first. Adjectives later.':mood(p)==='happy'?'Better. Now let the owner judge it.':'Bring me the pages, not excuses.'):
-      attention?'++ ANOMALY DETECTED. Human authorisation required. ++':p.active?'++ Context litany engaged. Verifying the sacred packet. ++':a.phase==='awaiting_reviewer'?'++ Review offering queued. Awaiting the Codex cogitator. ++':'++ Machine-spirit attentive. Awaiting the next rite. ++';
+    const event=JSON.stringify([run?.run_id,status,a.phase,a.at,a.actor,a.message,a.round,a.sample,a.draft,run?.tech?.status,run?.tech?.job_id]);
+    const banter=p=>{
+      if(options.personas===false)return '';
+      let bank;
+      if(p.name==='JuniorWriter')bank=status==='stopped'?'writerPaused':mood(p)==='happy'?'writerHappy':a.phase==='awaiting_reviewer'?'writerHandoff':mood(p)==='sad'?'writerRevise':p.active?'writerWork':'writerIdle';
+      else if(p.name==='JKSimmons')bank=mood(p)==='angry'?'criticRevise':p.active?'criticWork':mood(p)==='happy'?'criticHappy':'criticIdle';
+      else bank=status==='stopped' && !technicalWorking?'techPaused':attention?'techAttention':p.active?({repairing:'techRepair',releasing:'techRelease'}[run?.tech?.status] || 'techCheck'):a.phase==='awaiting_reviewer' || ['queued','repair_queued','release_queued'].includes(run?.tech?.status)?'techWait':'techIdle';
+      return pickBanter(event,bank);
+    };
     const view={phase:a.phase,status,working,attention,activity:a,people:people.map(p=>({...p,
       active:working && a.actor===p.name,
       attention:attention && p.name==='StoryTechMan',
