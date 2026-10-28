@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.2 - faithful Workshop workflow graph (2026-10-28)
+
+- Replace crossing SVG shortcuts with an explicit shared learning/validation cycle: context, fresh A/B, pair review, second entry and whole-round outcomes. Validation repeats the full cycle with the setup frozen.
+- Show authorization before further rounds, writing-revision and validation-failure routes, exact activation approval, and the complete investigation/proposal/development/deployment/new-study branch.
+- Highlight only the current stage from persisted run, round and technical-job state. Do not infer completed arrows from visited nodes. Show learning/validation mode and current entry/draft; routine application checks no longer light up model activity.
+- Keep generation, limits, approvals, instructions and stored studies unchanged. UI/activity regressions and disposable authenticated application smoke pass without writer calls.
+
 ## 0.15.1 - draft-first Workshop (2026-10-28)
 
 - Show readable draft A/B prose above each pair assessment, with distinct category and issue-title spacing.

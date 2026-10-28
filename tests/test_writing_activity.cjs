@@ -4,7 +4,7 @@ const activity=context.window.NCCEWritingActivity;
 const run={run_id:'opt-test',status:'running',writer_reserved:1,reviewer_reserved:0,visited_steps:['context','draft'],activity:{phase:'draft',actor:'JuniorWriter',message:'Writing draft A <unsafe>',sample:1}};
 let view=activity.model(run);assert.equal(view.people.filter(p=>p.active).length,1);assert.equal(view.people[0].active,true);
 let html=activity.render(run);assert.ok(!html.includes('<unsafe>'));assert.match(html,/Writing draft A &lt;unsafe&gt;/);assert.match(html,/agent-writer is-working/);assert.match(html,/aria-current="step"/);
-assert.match(html,/Next independent entry/);assert.match(html,/Retest both entries/);
+assert.match(html,/Next independent entry/);assert.match(html,/4 writing calls \+ 2 pair reviews/);
 run.activity={phase:'review',actor:'JKSimmons',message:'Checking both drafts'};view=activity.model(run);assert.equal(view.people[1].active,true);assert.equal(view.people[0].active,false);
 assert.match(activity.render(run),/data-working-agent="JKSimmons"/);
 assert.match(activity.render(run),/agent-work-spinner/);
@@ -40,5 +40,35 @@ for(const status of ['awaiting_next_round','budget_exhausted']){
   assert.equal(waiting.attention,false);assert.equal(waiting.phase,'decision');
   assert.ok(waiting.people.every(p=>!p.active && !p.attention));
 }
+// The graph reads actual status, round kind, pair position and scoped technical state.
+function current(r){return activity.workflow(r).node;}
+const validation={...run,status:'running',tech:null,rounds:[{number:2,kind:'validation',pairs:[]}],activity:{phase:'draft',actor:'JuniorWriter',round:2,sample:2,draft:1}};
+assert.equal(activity.workflow(validation).mode,'Validation');assert.equal(current(validation),'draft');
+assert.match(activity.render(validation),/data-flow-mode="validation"/);
+assert.match(activity.render(validation),/Entry 2 of 2/);
+assert.equal(current({...validation,activity:{phase:'evaluate'}}),'pair','A pair review is not a whole-round pass');
+for(const phase of ['context','draft','review','awaiting_reviewer']){
+  const r={...validation,activity:{phase,actor:phase==='draft'?'JuniorWriter':phase==='review'?'JKSimmons':'StoryTechMan'}};
+  assert.equal(activity.workflow(r).mode,'Validation');
+  if(phase==='context')assert.ok(activity.model(r).people.every(p=>!p.active),'Routine context checks do not invoke a Codex agent');
+}
+assert.equal(current({...validation,status:'awaiting_next_round',validation_pending:true}),'allowance');
+assert.equal(current({...validation,status:'awaiting_approval'}),'approval');
+assert.equal(current({...validation,status:'approved'}),'activate');
+for(const [status,node] of Object.entries({queued:'investigate',investigating:'investigate',proposal_ready:'proposal',repair_queued:'repair',repairing:'repair',repair_ready:'release-decision',release_queued:'release',releasing:'release',released:'new-study',needs_input:'halt'})){
+  const r={...validation,status:'escalated',activity:{phase:'decision'},tech:{status}};
+  assert.equal(current(r),node,'Technical '+status+' must show its own stage');
+  const h=activity.render(r);assert.equal((h.match(/aria-current="step"/g)||[]).length,1);
+  assert.match(h,new RegExp('flow-step is-current" data-flow-node="'+node+'"'));
+}
+for(const status of ['escalated','stopped','awaiting_samples','finished','rejected'])assert.equal(current({...validation,status}),'halt');
+const historical={...validation,status:'awaiting_next_round',visited_steps:['review','validation','activate','escalated'],activity:{phase:'review'}};
+const historyGraph=activity.render(historical).split('<figure class="writing-flow"')[1];
+assert.doesNotMatch(historyGraph,/is-visited|flow-edge/,'Historical node visits cannot invent traversed routes');
+assert.match(historyGraph,/flow-step is-current" data-flow-node="allowance"/);
+assert.equal(activity.workflow({...validation,status:'queued',validation_pending:false}).mode,'Learning','Next round mode comes from current pending flag');
+assert.equal(activity.workflow({...validation,status:'queued',validation_pending:true}).mode,'Validation');
+assert.match(historyGraph,/Separate approval of the exact tested repair/);
+assert.match(historyGraph,/Validation falls short/);assert.match(historyGraph,/they do not call the StoryTechMan model/);
 assert.match(fs.readFileSync('web/writing.css','utf8'),/prefers-reduced-motion/);
 console.log('PASS live agent heads and workflow: one working actor, escaped speech, review transition, human escalation, approval, idle and reduced motion');

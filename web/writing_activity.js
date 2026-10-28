@@ -4,7 +4,7 @@ window.NCCEWritingActivity = (() => {
   const people = [
     {name:'JuniorWriter',role:'Drafts the prose',kind:'writer'},
     {name:'JKSimmons',role:'Reviews and improves guidance',kind:'critic'},
-    {name:'StoryTechMan',role:'Checks context · escalates problems',kind:'tech'}
+    {name:'StoryTechMan',role:'Investigates and repairs the environment',kind:'tech'}
   ];
   function portrait(kind,expression) {
     const tech=kind==='tech', critic=kind==='critic';
@@ -18,7 +18,7 @@ window.NCCEWritingActivity = (() => {
   }
   function model(run,options={}) {
     let a=run?.activity || {phase:run?.status==='queued'?'queued':'idle',actor:null,message:''};
-    const status=run?.status || 'idle', technicalWorking=['investigating','repairing','releasing'].includes(run?.tech?.status), working=(status==='running' && a.phase!=='awaiting_reviewer') || technicalWorking;
+    const status=run?.status || 'idle', technicalWorking=['investigating','repairing','releasing'].includes(run?.tech?.status), working=(status==='running' && ['draft','review'].includes(a.phase)) || technicalWorking;
     if(technicalWorking)a={...a,phase:'technical_review',actor:'StoryTechMan',message:run.tech.status==='investigating'?'Inspecting exact saved requests and the generation environment. I will return a proposal before any repair.':run.tech.status==='repairing'?'Implementing and testing the repair you approved. Deployment needs a separate decision.':'Deploying and checking the exact tested repair you approved.'};
     const attention=!technicalWorking && ['escalated','stopped'].includes(status) && !['queued','repair_queued','release_queued'].includes(run?.tech?.status);
     if(['awaiting_next_round','budget_exhausted','awaiting_samples'].includes(status))a={...a,phase:'decision'};
@@ -36,21 +36,53 @@ window.NCCEWritingActivity = (() => {
     const view={phase:a.phase,status,working,attention,activity:a,people:people.map(p=>({...p,
       active:working && a.actor===p.name,
       attention:attention && p.name==='StoryTechMan',
-      expression:mood(p),message:working && a.actor===p.name?a.message:messages[p.name]}))};
+      expression:mood(p),message:status==='running' && a.actor===p.name && a.phase!=='context' || technicalWorking && p.name==='StoryTechMan'?a.message:messages[p.name]}))};
     view.people=view.people.map(p=>({...p,banter:banter(p)}));return view;
   }
+  function workflow(run) {
+    const status=run?.status, phase=run?.activity?.phase, tech=run?.tech?.status;
+    const round=run?.rounds?.at(-1), next=status==='queued';
+    const validation=next?!!run.validation_pending:round?round.kind==='validation':!!run?.validation_pending;
+    const mode=validation?'Validation':'Learning';
+    const technical={queued:['investigate','StoryTechMan investigation queued'],investigating:['investigate','StoryTechMan is investigating'],proposal_ready:['proposal','Your decision on the repair proposal'],repair_queued:['repair','Approved development repair queued'],repairing:['repair','StoryTechMan is implementing and testing'],repair_ready:['release-decision','Your decision on deployment'],release_queued:['release','Approved deployment queued'],releasing:['release','StoryTechMan is deploying and verifying'],released:['new-study','Repair released; a new study is required'],needs_input:['halt','StoryTechMan needs your input']};
+    let node='',label='No study selected';
+    if(technical[tech])[node,label]=technical[tech];
+    else if(status==='approved'){node='activate';label='Tested instructions activated';}
+    else if(status==='awaiting_approval'){node='approval';label='Validation passed; your activation decision';}
+    else if(['awaiting_next_round','budget_exhausted'].includes(status)){node='allowance';label=run.validation_pending?'Your decision: authorize validation or finish':'Your decision: another learning round or finish';}
+    else if(['escalated','stopped','awaiting_samples','finished','rejected'].includes(status)){node='halt';label=({escalated:'Writing paused; investigation or input needed',stopped:'Stopped by you',awaiting_samples:'Waiting for fresh source entries',finished:'Study finished; findings saved',rejected:'Setup rejected; active instructions unchanged'})[status];}
+    else if(next){node='allowance';label='Authorized round queued';}
+    else if(status==='running'){
+      const steps={context:['context','NCCE is checking context'],draft:['draft','JuniorWriter is drafting'],awaiting_reviewer:['review','Waiting for JKSimmons'],review:['review','JKSimmons is reviewing'],evaluate:['pair','Checking this pair’s review'],revise:['revise','Saving revised category instructions']};
+      [node,label]=steps[phase] || ['', 'Reading saved study status'];
+    }
+    return {node,label,mode,round:next?(run?.rounds?.length || 0)+1:round?.number || run?.activity?.round,sample:status==='running'?run?.activity?.sample:null};
+  }
   function graph(run,m) {
-    const visited=new Set(run?.visited_steps || []);
-    const phase=m.phase;
-    const nodes=[['context','NCCE context','Check evidence & sources',20,60],['draft','JuniorWriter','Draft A + draft B',265,60],['review','JKSimmons','Score & diagnose',510,60],['evaluate','Quality gate','Both entries at 8/10?',755,60],['revise','Revise category prompt','Fresh tests; no draft rewrites',265,220],['validation','Fresh-entry validation','Keep the setup unchanged',510,220],['approval','Your decision','Validate, continue or approve',755,220],['escalated','StoryTechMan + you','Pause · investigate context',510,365],['activate','Future NCCE writing','Use the approved setup',755,365]];
-    const paths=[['context','draft','M220 95H265'],['draft','review','M465 95H510'],['review','evaluate','M710 95H755'],['evaluate','revise','M855 130V185H365V220'],['revise','context','M265 255H6V95H20'],['evaluate','validation','M855 130V185H610V220'],['validation','approval','M710 255H755'],['review','escalated','M610 130V365'],['approval','activate','M855 290V365']];
-    const activeNode=phase==='decision'?'approval':phase==='technical_review'?'escalated':phase==='complete'?(m.status==='approved'?'activate':'approval'):phase==='awaiting_reviewer'?'review':['stopped','budget_exhausted','rejected'].includes(phase)?'escalated':phase;
-    const key=run?.run_id?.replace(/[^a-zA-Z0-9]/g,'') || 'idle';
-    return `<figure class="writing-flow"><figcaption>How the loop works <span>Current step: ${esc(phase.replaceAll('_',' '))}</span></figcaption><svg viewBox="0 0 980 465" role="img" aria-label="Context flows to two drafts, review and a quality gate. Writing issues loop through revised guidance. Technical issues pause for human input. Passing work needs your approval before activation."><defs><marker id="arrow${key}" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8"/></marker></defs>
-      ${paths.map(([from,to,d])=>`<path d="${d}" class="flow-edge${activeNode===to && (to!=='context' || visited.has('revise'))?' is-current':''}${visited.has(from) && visited.has(to)?' is-visited':''}" marker-end="url(#arrow${key})"/>`).join('')}
-      <path d="M855 60V15H120V60" class="flow-edge flow-next${phase==='context' && m.activity.sample===2?' is-current':''}" marker-end="url(#arrow${key})"/>
-      <text x="480" y="12" text-anchor="middle" class="flow-label">Next independent entry</text><text x="530" y="176" class="flow-label">Writing needs work · another round</text><text x="873" y="178" class="flow-label">Pass</text><text x="623" y="324" class="flow-label">Context / technical issue</text><text x="28" y="245" class="flow-label">Retest both entries</text>
-      ${nodes.map(([id,title,sub,x,y])=>`<g class="flow-node${visited.has(id)?' is-visited':''}${activeNode===id?' is-current':''}${id==='escalated' && m.attention?' needs-human':''}"${activeNode===id?' aria-current="step"':''}><rect x="${x}" y="${y}" width="200" height="70" rx="10"/><text x="${x+100}" y="${y+28}" text-anchor="middle" class="flow-title">${esc(title)}</text><text x="${x+100}" y="${y+50}" text-anchor="middle" class="flow-subtitle">${esc(sub)}</text></g>`).join('')}</svg></figure>`;
+    const f=workflow(run);
+    const card=(id,title,text)=>`<div class="flow-step${f.node===id?' is-current':''}" data-flow-node="${id}"${f.node===id?' aria-current="step"':''}><strong>${title}</strong><p>${text}</p></div>`;
+    const arrow='<span class="flow-route-arrow" aria-hidden="true">→</span>';
+    const cycle=(items)=>`<div class="flow-sequence">${items.join(arrow)}</div>`;
+    return `<figure class="writing-flow" aria-label="Category study workflow"><figcaption>How the loop works <span role="status">${esc(f.label)}</span></figcaption>
+      <div class="flow-mode${run?.status==='running'?' is-running':''}" data-flow-mode="${f.mode.toLowerCase()}"><strong>${run?esc(f.mode)+(f.round?' round '+esc(f.round):''):'Learning and validation'}</strong>${f.sample?`<span>Entry ${esc(f.sample)} of 2${run?.activity?.draft?' · draft '+(run.activity.draft===1?'A':'B'):''}</span>`:''}<p>${f.mode==='Validation'?'Validation repeats the full cycle below on fresh entries, with the prompt and editorial reminders unchanged.':'Each learning round tests the same category prompt on two independent entries.'}</p></div>
+      ${cycle([card('context','NCCE context','Application checks evidence, sources and configuration.'),card('draft','JuniorWriter','Generate fresh draft A and draft B for this entry.'),card('review','JKSimmons','One Codex review scores both drafts and proposes reusable guidance.'),card('pair','Pair result','After entry 1, repeat for entry 2. Then assess the whole round.')])}
+      <p class="flow-repeat">↶ Next independent entry: context → fresh A/B → pair review. A complete round uses <strong>4 writing calls + 2 pair reviews</strong>.</p>
+      <p class="flow-technical-exit">A context, technical or permission issue stops the cycle immediately, even on entry 1. Follow the StoryTechMan branch below.</p>
+      <h5 class="flow-section-title">After both entries: all four drafts need every score ≥ 8/10 and no blocking issues</h5>
+      <div class="flow-outcomes">
+        <section><h6>Writing falls short</h6>${card('revise','Revise category prompt','Save JKSimmons’s reusable category instructions. Generate new prose on fresh entries in the next learning round; do not rewrite these drafts.')}<p>↓ Check authorization for another round.</p></section>
+        <section><h6>Learning round passes</h6>${card('validation','Prepare fresh-entry validation','Keep the tested prompt and editorial reminders unchanged. Repeat the entire context → drafts → reviews cycle on two fresh entries.')}<p>↓ Check authorization for the validation round.</p></section>
+        <section><h6>Validation round passes</h6>${card('approval','You decide: activate or reject','Only your approval activates the exact tested instructions.')}<p class="flow-inline-arrow">↓ If approved</p>${card('activate','Future NCCE writing','Use the approved setup. Existing prose stays unchanged.')}</section>
+      </div>
+      <p class="flow-validation-failure">Validation falls short → revise the category prompt → learning tests again. Context issues during validation → pause for investigation.</p>
+      ${card('allowance','Before another round: check authorization','Rounds remain: continue automatically within your approved limit. None remain: pause for your decision to authorize a complete round, finish with saved findings, or ask StoryTechMan. Missing fresh entries also pauses the study.')}
+      <p class="flow-return">↶ Authorized learning or validation returns to the full cycle above. Passing learning alone cannot activate instructions.</p>
+      <section class="flow-technical"><h5 class="flow-section-title">Context / technical / permission issue → stop writing</h5>
+      ${cycle([card('investigate','1. StoryTechMan investigates','Read-only investigation of saved requests and code; returns an evidence-backed proposal.'),card('proposal','2. You approve the proposal','Approve this exact repair for development and tests, request changes, or reject it.'),card('repair','3. Development and tests','StoryTechMan implements the approved repair and returns a tested report.'),card('release-decision','4. You approve deployment','Separate approval of the exact tested repair is required.'),card('release','5. Deploy and verify','StoryTechMan releases the approved repair and checks it.'),card('new-study','6. Start a new study','Your authorization is required for new writing tests. Repair does not activate writing instructions.')])}
+      <p class="flow-return">↶ A new study starts at NCCE context. It must pass learning and fresh-entry validation before your activation decision.</p></section>
+      ${card('halt','Paused, stopped or finished','A failure, missing input or your stop decision prevents further writing. Findings remain saved; resolve the reason before starting more work.')}
+      <p class="flow-legend">The highlighted box shows the current saved stage. Arrows describe possible routes, not a history of completed transitions. Routine context checks are application code; they do not call the StoryTechMan model.</p>
+    </figure>`;
   }
   function handoffText(text,limit=220) {
     text=String(text || '');
@@ -77,5 +109,5 @@ window.NCCEWritingActivity = (() => {
     const m=model(run,options), dialogue=(run?.dialogue || []).slice(-6);
     return `<section class="writing-control-room" aria-label="Live writing team"><div class="writing-team">${m.people.map(p=>`<article class="writing-agent agent-${p.kind}${p.active?' is-working is-talking':''}${p.attention?' needs-human':''}" data-expression="${p.expression}"><div class="agent-head">${portrait(p.kind,p.expression)}<span class="agent-status-dot" aria-hidden="true"></span></div><div class="agent-identity"><h4>${p.name}</h4><span>${p.active?'Working':p.attention?'Needs you':m.phase==='awaiting_reviewer' && p.name==='JKSimmons'?'Waiting for Codex':'Standing by'} · ${p.role}</span></div><div class="agent-bubble"${p.active || p.attention?' role="status"':''}>${p.banter?`<span class="agent-banter">${esc(p.banter)}</span>`:''}<div class="agent-facts">${handoffText(p.message,260)}</div></div></article>`).join('')}</div>${eventWindow(run,m,dialogue)}${graph(run,m)}</section>`;
   }
-  return {render,model};
+  return {render,model,workflow};
 })();
