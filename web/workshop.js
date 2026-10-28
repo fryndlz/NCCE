@@ -84,7 +84,7 @@ window.NCCEWorkshop = (() => {
   function decisionPanel(run) {
     const waiting=['awaiting_next_round','budget_exhausted'].includes(run.status), paused=['escalated','awaiting_samples','stopped'].includes(run.status);
     if(!waiting && !paused && !run.tech)return '';
-    return `<section class="ws-decision"><h4>${waiting?(run.validation_pending?'Promising setup · validate on fresh entries':'This test allowance is complete'):run.status==='awaiting_samples'?'Fresh source entries are needed':'The writing loop is paused'}</h4>${waiting?`<p>${run.validation_pending?'The current category prompt passed its learning test. The same prompt must now pass on fresh entries before activation.':'The latest reusable category instructions are saved. This pause means the rounds you authorized are finished; it does not mean your API account ran out of money.'}</p><p>One more complete round includes up to <strong>4 fresh writing calls + 2 pair reviews</strong>. Each review covers A and B for one entry.</p><div class="workshop-actions"><button data-ws="opt-continue"${S.busy || techBlocking()?' disabled':''}>${S.continueBody?'Check submitted next round':run.validation_pending?'Authorize validation round':'Authorize another learning round'}</button><button data-ws="opt-finish"${techWorking()?' disabled':''}>Finish and keep findings</button></div>`:paused?`<p>${esc(run.message)}</p><p>No further writer calls will start. Use the investigation below to diagnose the environment before another study.</p>`:''}${techPanel(run)}</section>`;
+    return `<section class="ws-decision"><h4>${waiting?(run.validation_pending?'Promising setup · validate on fresh entries':'This test allowance is complete'):run.status==='awaiting_samples'?'Fresh source entries are needed':'The writing loop is paused'}</h4>${waiting?`<p>${run.validation_pending?'The current category prompt passed its learning test. The same prompt must now pass on fresh entries before activation.':run.status==='budget_exhausted'?'The reviews contain a proposed category prompt. Continuing saves that proposal and tests fresh entries. The previous test allowance finished; it does not mean your API account ran out of money.':'The latest reusable category instructions are saved. This pause means the rounds you authorized are finished; it does not mean your API account ran out of money.'}</p><p>One more complete round includes up to <strong>4 fresh writing calls + 2 pair reviews</strong>. Each review covers A and B for one entry.</p><div class="workshop-actions"><button data-ws="opt-continue"${S.busy || techBlocking()?' disabled':''}>${S.continueBody?'Check submitted next round':run.validation_pending?'Authorize validation round':'Authorize another learning round'}</button><button data-ws="opt-finish"${techWorking()?' disabled':''}>Finish and keep findings</button></div>`:paused?`<p>${esc(run.message)}</p><p>No further writer calls will start. Use the investigation below to diagnose the environment before another study.</p>`:''}${techPanel(run)}</section>`;
   }
   function draftFocus() {
     const options=S.home.focus_options?.[S.sample.form] || [];
@@ -339,8 +339,10 @@ window.NCCEWorkshop = (() => {
       if(!S.home) {
         S.home=await request('/api/workshop'); S.sharedMeta=await request('/api/workshop/policy?scope=shared');S.shared=clone(S.sharedMeta.draft);
         S.optimizations=await request('/api/workshop/optimizations');
-        const active=S.optimizations.runs.find(r=>['queued','running'].includes(r.status));
-        if(active){S.optimization=active;setTimeout(pollOptimization,1000);}
+        const active=S.optimizations.runs.find(r=>['queued','running'].includes(r.status) || ['queued','investigating','repair_queued','repairing','release_queued','releasing'].includes(r.tech?.status));
+        const pending=active || S.optimizations.runs.find(r=>['awaiting_next_round','budget_exhausted','awaiting_samples','escalated'].includes(r.status) || ['proposal_ready','repair_ready','needs_input'].includes(r.tech?.status));
+        if(pending){S.optimization=pending;S.optForm=pending.form;}
+        if(active)setTimeout(pollOptimization,1000);
         const initial=S.home.samples.find(s=>s.key==='comparison:1:0') || S.home.samples[0];
         if(initial) await selectSample(initial.key);
       }
