@@ -53,5 +53,6 @@ def test_proposal_does_not_replace_saved_or_active_instructions():
 if __name__=='__main__':
     assert guides.changes('Same\r\ntext','Same\ntext')['edits']==[]
     assert 'reviewed' in guides.announcement('fighter_memory',guides.changes('same','same'))
+    assert 'specific NEW ending' in guides.announcement('fighter_memory',guides.changes('Repeated prefix '*80+'old ending','Repeated prefix '*80+'specific NEW ending'))
     for test in [test_saved_update_and_read_only_history,test_proposal_does_not_replace_saved_or_active_instructions]:
         test();print('PASS',test.__name__)

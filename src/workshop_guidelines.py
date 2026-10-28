@@ -20,8 +20,15 @@ def announcement(scope, change, proposed=False):
     message = 'I '+verb+' the '+scope.replace('_',' ')+' guidelines. '+change['summary']
     for edit in change['edits'][:2]:
         old, new = edit['before'], edit['after']
-        if old: message += '\nRemoved/replaced: '+old[:180]+('…' if len(old)>180 else '')
-        if new: message += '\nAdded: '+new[:180]+('…' if len(new)>180 else '')
+        prefix = 0
+        if old and new:
+            for a, b in zip(old, new):
+                if a != b: break
+                prefix += 1
+        start = max(0, prefix-45)
+        def excerpt(text): return ('…' if start else '')+text[start:start+180]+('…' if len(text)>start+180 else '')
+        if old: message += '\nRemoved/replaced: '+excerpt(old)
+        if new: message += '\nAdded: '+excerpt(new)
     return message+'\nSee Writing guidelines for the full text and exact changes. Active NCCE instructions are unchanged.'
 
 
