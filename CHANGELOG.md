@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.1 - draft-first Workshop (2026-10-28)
+
+- Show readable draft A/B prose above each pair assessment, with distinct category and issue-title spacing.
+- Retire the legacy manual test/editor desk and raw full-study report from the screen; preserve all saved samples, revisions and backend audit data. Category studies load existing saved guidance directly.
+- Add an animated activity indicator in the event window for actual JKSimmons/StoryTechMan work, separate queued messages, and reduced-motion support.
+- Preserve approval gates, source authority and complete-round limits. UI/activity, optimizer/owner-decision and authenticated HTTP regressions pass with mocked providers.
+
 ## 0.15.0 - category calibration and actionable human decisions (2026-10-28)
 
 - Calibrate reusable category prompts/environment with fresh drafts and separate held-out validation; never rewrite the previous generated text. Save candidate guidance even when authorized rounds end.

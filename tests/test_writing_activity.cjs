@@ -6,13 +6,18 @@ let view=activity.model(run);assert.equal(view.people.filter(p=>p.active).length
 let html=activity.render(run);assert.ok(!html.includes('<unsafe>'));assert.match(html,/Writing draft A &lt;unsafe&gt;/);assert.match(html,/agent-writer is-working/);assert.match(html,/aria-current="step"/);
 assert.match(html,/Next independent entry/);assert.match(html,/Retest both entries/);
 run.activity={phase:'review',actor:'JKSimmons',message:'Checking both drafts'};view=activity.model(run);assert.equal(view.people[1].active,true);assert.equal(view.people[0].active,false);
+assert.match(activity.render(run),/data-working-agent="JKSimmons"/);
+assert.match(activity.render(run),/agent-work-spinner/);
+assert.ok(activity.render(run).indexOf('agent-live-event')<activity.render(run).indexOf('writing-flow'),'Live status is visible with empty handoff history');
 run.status='escalated';run.activity={phase:'escalated',actor:'StoryTechMan',message:'Missing a historical source'};view=activity.model(run);
 assert.ok(view.people.every(p=>!p.active));assert.equal(view.people[2].attention,true);assert.match(activity.render(run),/Missing a historical source/);
-run.status='awaiting_approval';run.activity={phase:'approval',actor:'human',message:'Please approve'};assert.ok(activity.model(run).people.every(p=>!p.active));assert.match(activity.render(run),/You decide/);
+run.status='awaiting_approval';assert.doesNotMatch(activity.render(run),/agent-work-spinner|agent-queued-event/);run.activity={phase:'approval',actor:'human',message:'Please approve'};assert.ok(activity.model(run).people.every(p=>!p.active));assert.match(activity.render(run),/You decide/);
 run.status='approved';run.activity={phase:'complete',actor:'human',message:'Approved'};assert.match(activity.render(run),/approved is active/);
 assert.ok(activity.model(null).people.every(p=>!p.active));assert.match(activity.render(null),/I’m ready/);
 run.status='running';run.activity={phase:'awaiting_reviewer',actor:'StoryTechMan',message:'Waiting for Codex'};
 assert.ok(activity.model(run).people.every(p=>!p.active));assert.match(activity.render(run),/Waiting for Codex/);
+assert.match(activity.render(run),/Waiting for JKSimmons to begin/);
+assert.doesNotMatch(activity.render(run),/agent-work-spinner/);
 run.activity={phase:'revise',actor:'JKSimmons',message:'Save candidate'};
 assert.equal(activity.model(run).people[0].expression,'sad');assert.equal(activity.model(run).people[1].expression,'angry');
 const neutral=activity.render(run,{personas:false});assert.ok(!neutral.includes('Enough fog'));assert.match(neutral,/Save candidate/);
@@ -20,7 +25,15 @@ const original=JSON.stringify(run);activity.render(run);assert.equal(JSON.string
 run.dialogue=[{from:'JKSimmons',to:'JuniorWriter',phase:'evaluate',text:'Long <unsafe> assessment. '+('Keep all evidence. '.repeat(30))}];
 const readable=activity.render(run);assert.match(readable,/handoff-card/);assert.match(readable,/Full handoff/);assert.ok(!readable.includes('<unsafe>'));assert.match(readable,/Keep all evidence/);
 run.status='escalated';run.tech={status:'investigating'};view=activity.model(run);assert.equal(view.people[2].active,true);assert.ok(view.people.slice(0,2).every(p=>!p.active));
-run.tech.status='proposal_ready';assert.ok(activity.model(run).people.every(p=>!p.active));
+for(const status of ['investigating','repairing','releasing']){
+  run.tech.status=status;assert.match(activity.render(run),/data-working-agent="StoryTechMan"/);
+  assert.match(activity.render(run),/agent-work-spinner/);
+}
+for(const status of ['queued','repair_queued','release_queued']){
+  run.tech.status=status;assert.match(activity.render(run),/Waiting for StoryTechMan to begin/);
+  assert.doesNotMatch(activity.render(run),/agent-work-spinner/);
+}
+run.tech.status='proposal_ready';assert.doesNotMatch(activity.render(run),/agent-work-spinner/);assert.ok(activity.model(run).people.every(p=>!p.active));
 run.tech=null;run.status='awaiting_next_round';assert.equal(activity.model(run).attention,false);
 for(const status of ['awaiting_next_round','budget_exhausted']){
   run.status=status;const waiting=activity.model(run);

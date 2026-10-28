@@ -373,3 +373,23 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 @media(max-width:650px) { .ws-decision { padding:16px; }.ws-agent-info dl>div { grid-template-columns:1fr; gap:4px; } }
 
 #ws-status:empty { display:none; }
+
+/* Read prose before critique; issue metadata must never run into its title. */
+.ws-drafts-reading { margin:22px 0 30px; }
+.ws-section-heading { font:600 18px/1.5 system-ui,sans-serif; margin:0 0 16px; color:#dbe7d9; }
+.ws-prose-draft { min-width:0; padding:20px; border:1px solid #4c6050; border-radius:10px; background:#142018; }
+.ws-prose-draft>h5 { font:600 18px/1.4 system-ui,sans-serif; margin:0 0 16px; }
+.ws-prose-body { overflow-wrap:anywhere; }
+.ws-assessment { border-top:1px solid #4a5b4c; padding-top:22px; }
+.ws-review-issue>summary>.ws-closed-title { flex-direction:column; gap:7px; }
+.ws-review-issue:not([open])>summary>.ws-closed-title { display:flex; }
+.ws-review-issue .ws-issue-category { display:block; margin:0; line-height:1.5; }
+.ws-issue-title { display:block; font:500 15px/1.65 system-ui,sans-serif; }
+.ws-review-issue>summary { padding:2px 0; }
+.agent-live-event,.agent-queued-event { display:flex; align-items:center; gap:14px; padding:18px 20px; margin:18px 0; border:1px solid #7d977f; border-radius:10px; background:#23372a; font:15px/1.6 system-ui,sans-serif; }
+.agent-live-event strong { display:block; font-size:16px; }.agent-live-event p,.agent-queued-event p { margin:3px 0 0; }
+.agent-work-spinner { display:block; width:23px; height:23px; flex:0 0 23px; border:3px solid #526e59; border-top-color:#e6d494; border-radius:50%; animation:agent-work-turn 1s linear infinite; }
+.agent-queued-event { background:#1b271f; border-color:#4a6351; color:#b8cbbc; }
+.agent-queued-event>span { font-size:24px; }
+@keyframes agent-work-turn { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .agent-work-spinner { animation:none; border-color:#e6d494; } }
