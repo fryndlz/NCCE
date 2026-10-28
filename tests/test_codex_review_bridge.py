@@ -184,7 +184,7 @@ def test_event_wait_never_claims_and_exact_job_claim_ignores_cancelled():
     def check(store):
         assert cq.events(store,{**identity(),'wait_seconds':0})=={'job_id':None}
         job=cq.self_test(store,{})['job_id']
-        assert cq.events(store,{**identity(),'wait_seconds':0})=={'job_id':job}
+        assert cq.events(store,{**identity(),'wait_seconds':0})=={'job_id':job,'kind':'review','thread_id':cq.thread_id()}
         assert cq.get(store,job)['status']=='queued'
         assert cq.claim(store,{**identity(),'job_id':'unknown'})['job'] is None
         cq.cancel(store,job,'Owner cancelled before wake')
@@ -220,6 +220,27 @@ def test_event_listener_idle_is_free_and_restart_never_duplicates_model_wake():
                 except (RuntimeError,TimeoutError):pass
                 else:raise AssertionError('Uncertain wake replayed')
             assert run.call_count==1
+
+
+def test_listener_routes_only_known_technical_thread_without_idle_model_calls():
+    sys.path.insert(0,str(ROOT/'scripts'))
+    from codex_event_listener import EventListener
+    from workshop_interventions import TECH_THREAD_ID
+    from types import SimpleNamespace
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+        path=Path(folder)/'config.json'
+        path.write_text(json.dumps({'base_url':'http://localhost','worker_id':'event-test-worker','thread_id':cq.THREAD_ID,'storytech_thread_id':TECH_THREAD_ID,'token':TOKEN,'codex_executable':'codex'}))
+        listener=EventListener(path)
+        listener.post=lambda *a,**k:{'job_id':'tech-test','kind':'technical_investigation','thread_id':TECH_THREAD_ID}
+        with patch('subprocess.run',return_value=SimpleNamespace(returncode=0)) as run:
+            assert listener.tick();args=run.call_args[0][0]
+            assert args[3]==TECH_THREAD_ID and 'Investigations are READ ONLY' in args[-1]
+        listener.post=lambda *a,**k:{'job_id':'tech-wrong','kind':'technical_investigation','thread_id':'wrong-thread'}
+        with patch('subprocess.run') as run:
+            try:listener.tick()
+            except ValueError:pass
+            else:raise AssertionError('Unknown technical target accepted')
+            run.assert_not_called()
 
 
 if __name__=='__main__':

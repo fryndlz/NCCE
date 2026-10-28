@@ -346,3 +346,28 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .handoff-full { white-space:pre-wrap; margin-top:14px; }
 .agent-facts p { margin:0; }.agent-facts details { margin-top:10px; }.agent-facts .handoff-full { font-size:14px; }
 @media(max-width:900px) { .ws-draft-grid { grid-template-columns:1fr; }.ws-round { padding:12px; }.ws-draft-card { padding:16px; } }
+
+/* Owner decisions and stable, single-representation disclosures. */
+.ws-disclosure:not([open])>summary>.ws-open-title { display:none; }
+.ws-disclosure[open]>summary>.ws-closed-title,.ws-disclosure[open]>summary>.ws-disclosure-hint { display:none; }
+.ws-disclosure[open]>summary>.ws-open-title { display:inline; }
+.ws-disclosure-hint { display:block; color:#9eb7a4; font-size:12px; margin-top:6px; }
+.ws-disclosure>summary { cursor:pointer; line-height:1.6; }
+.ws-full-text { max-width:76ch; }
+.ws-purpose { font:17px/1.7 system-ui,sans-serif; max-width:78ch; }
+.ws-connection-row { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:18px 0; font:14px/1.5 system-ui,sans-serif; }
+.ws-connection-row button { padding:7px 10px; }
+.ws-agent-info { padding:14px 0; border-bottom:1px solid #405247; font:15px/1.6 system-ui,sans-serif; }
+.ws-agent-info dl>div { display:grid; grid-template-columns:130px 1fr; gap:18px; padding:10px 0; }.ws-agent-info dd { margin:0; color:#c1cec3; }
+.ws-decision { border:1px solid #ab976b; border-radius:10px; padding:24px; margin:24px 0; background:#26281d; font:16px/1.7 system-ui,sans-serif; }
+.ws-decision>h4 { font-size:22px; margin:0 0 14px; color:#f0d79e; }
+.ws-decision p { max-width:78ch; }
+.ws-tech-panel { border-top:1px solid #6e7254; margin-top:24px; padding-top:20px; }
+.ws-tech-panel h4 { font-size:20px; }.ws-tech-panel h5 { font-size:16px; margin:22px 0 10px; }
+.ws-tech-panel ul { padding-left:24px; max-width:78ch; }.ws-tech-panel li { padding:5px 0; }
+.ws-findings { display:grid; gap:14px; margin:18px 0; }.ws-findings>details { border-left:2px solid #8a9f7d; padding:10px 16px; }
+.ws-findings blockquote { white-space:pre-wrap; overflow-wrap:anywhere; color:#c9d8ca; }
+.ws-running { padding:16px; margin:18px 0; background:#203328; font:16px/1.6 system-ui,sans-serif; }
+@media(max-width:650px) { .ws-decision { padding:16px; }.ws-agent-info dl>div { grid-template-columns:1fr; gap:4px; } }
+
+#ws-status:empty { display:none; }

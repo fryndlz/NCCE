@@ -101,6 +101,32 @@ def main():
                 assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==0
                 assert server.store.db.execute('SELECT count(*) FROM workshop_review_requests').fetchone()[0]==0
                 assert call('/api/workshop/optimizations',cookie=cookie)[0]==200
+                from test_workshop_decisions import proposal
+                import workshop_interventions as interventions
+                state=server.workshop_optimizer.get(server.store,first['run_id']);state['status']='awaiting_next_round';server.workshop_optimizer.save(server.store,state)
+                grant={'run_id':state['run_id'],'request_key':'http-round-grant-000001','additional_rounds':1,'allow_paid':True}
+                assert call('/api/workshop/optimization-continue',{**grant,'allow_paid':False},cookie)[0]==400
+                optimizer_launches.clear();launched.clear()
+                with patch.object(server,'_run_optimization',side_effect=optimizer_worker):
+                    code,next_run=call('/api/workshop/optimization-continue',grant,cookie);assert code==202 and launched.wait(2)
+                    assert call('/api/workshop/optimization-continue',grant,cookie)[0]==200 and len(optimizer_launches)==1
+                next_run['status']='awaiting_next_round';server.workshop_optimizer.save(server.store,next_run)
+                investigation={'run_id':state['run_id'],'request_key':'http-tech-investigation-0001','note':'Investigate the reusable input setup'}
+                assert call('/api/workshop/optimization-investigate',investigation,authorization=bearer)[0]==401
+                assert call('/api/workshop/optimization-investigate',investigation,cookie,'https://foreign.invalid')[0]==403
+                code,case=call('/api/workshop/optimization-investigate',investigation,cookie);assert code==200
+                assert call('/api/workshop/optimization-investigate',investigation,cookie)[1]['tech']['job_id']==case['tech']['job_id']
+                tech_body={'thread_id':interventions.TECH_THREAD_ID,'worker_id':'http-storytech-worker','job_id':case['tech']['job_id']}
+                claimed=call('/api/reviewer-bridge/claim',tech_body,authorization=bearer)[1]
+                leased={**tech_body,'lease':claimed['lease'],'turn_id':'real-http-native-turn'}
+                assert call('/api/reviewer-bridge/started',leased,authorization=bearer)[0]==200
+                assert call('/api/reviewer-bridge/complete',{**leased,'review':proposal()},authorization=bearer)[0]==200
+                case=call('/api/workshop/optimization?run_id='+state['run_id'],cookie=cookie)[1]
+                approve={'run_id':state['run_id'],'action':'approve_repair','proposal_hash':case['tech']['proposal_hash']}
+                assert call('/api/workshop/optimization-technical-decision',{**approve,'proposal_hash':'wrong'},cookie)[0]==400
+                assert call('/api/workshop/optimization-technical-decision',approve,cookie)[1]['tech']['status']=='repair_queued'
+                assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==0
+
             print('HTTP workshop passed: auth mandatory, cross-origin denied, busy rejected, duplicate key queued once, no paid calls')
         finally:http.shutdown();http.server_close();thread.join();server.store.close()
 

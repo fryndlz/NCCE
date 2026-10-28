@@ -16,6 +16,12 @@ from urllib.parse import urlparse
 DEFAULT_CONFIG = Path(r'C:\Codex\NCCE\.codex-review-bridge\config.json')
 
 
+class BridgeRequestError(RuntimeError):
+    def __init__(self,action,status,detail):
+        self.status=status
+        super().__init__('NCCE '+action+': '+str(detail)[:250])
+
+
 class Rpc:
     def __init__(self, executable):
         self.process = subprocess.Popen([executable, 'app-server', '--stdio'], stdin=subprocess.PIPE,
@@ -75,7 +81,7 @@ class Companion:
         except HTTPError as exc:
             try: detail = json.load(exc).get('error', 'request rejected')
             except Exception: detail = 'request rejected'
-            raise RuntimeError('NCCE ' + action + ': ' + str(detail)[:250]) from None
+            raise BridgeRequestError(action,exc.code,detail) from None
 
     def journal(self, job_id, status, turn_id=None):
         target = self.folder / (job_id + '.json'); temporary = target.with_suffix('.tmp')

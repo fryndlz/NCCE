@@ -37,7 +37,7 @@ def ready_bridge(store):
     cq.heartbeat(store,identity)
 
 
-def body(store, rounds=2):
+def body(store, rounds=3):
     return {'sample_key': seed(store)['key'], 'request_key': 'optimizer-request-000000001', 'max_rounds': rounds, 'allow_paid': True}
 
 
@@ -64,7 +64,7 @@ def fake_call(form, packet, **kwargs):
 
 def test_live_activity_is_persisted_before_each_provider_role_runs():
     def check(store):
-        request = body(store, 2)
+        request = body(store, 3)
         with patch.object(writer, 'API_KEY', 'mock'):
             state, _ = opt.queue(store, request)
             def generator(store, state, prepared, instructions, token):
@@ -78,7 +78,7 @@ def test_live_activity_is_persisted_before_each_provider_role_runs():
                 return assessment(7 if len(state['rounds']) == 1 else 9)
             result = opt.execute(store, state['run_id'], generator=generator, reviewer=reviewer)
             assert result['activity']['phase'] == 'approval' and result['activity']['actor'] == 'human'
-            assert set(result['visited_steps']) == {'context','draft','awaiting_reviewer','evaluate','revise','approval'}
+            assert set(result['visited_steps']) == {'context','draft','awaiting_reviewer','evaluate','revise','validation','approval'}
     with_store(check)
 
 
@@ -91,19 +91,19 @@ def test_loop_revises_real_prompt_and_explicit_approval_changes_future_ncce_gene
             assert fresh and len(state['samples']) == 2 and provider.call_count == 0
             reviewer = lambda store, state, pair, preceding: assessment(7 if len(state['rounds']) == 1 else 9)
             result = opt.execute(store, state['run_id'], reviewer=reviewer)
-            assert result['status'] == 'awaiting_approval' and len(result['rounds']) == 2
-            assert result['writer_reserved'] == 8 and result['reviewer_reserved'] == 4 and provider.call_count == 8
+            assert result['status'] == 'awaiting_approval' and len(result['rounds']) == 3
+            assert result['writer_reserved'] == 12 and result['reviewer_reserved'] == 6 and provider.call_count == 12
             assert ws.active_contract(store, 'fighter_memory') is None
             assert 'physically intelligible' in provider.call_args.kwargs['contract_override']
             assert mechanical_records(store) == before
             assert memories == [tuple(r) for r in store.db.execute('SELECT * FROM story_memories')]
             assert opt.execute(store, state['run_id'], reviewer=reviewer)['status'] == 'awaiting_approval'
-            assert provider.call_count == 8
+            assert provider.call_count == 12
             opt.decide(store, {'run_id': state['run_id'], 'approve': True})
             assert 'physically intelligible' in ws.active_contract(store, 'fighter_memory')
             writer.reset_budget(1)
             writer.write(store, 'fighter_memory', {'subject': 'A new production context'})
-            assert provider.call_count == 9
+            assert provider.call_count == 13
             assert 'physically intelligible' in provider.call_args.kwargs['contract_override']
         assert mechanical_records(store) == before
     with_store(check)
@@ -135,7 +135,7 @@ def test_budget_cancel_and_failed_writer_never_trigger_automatic_retries():
                     return {'status': 'error' if kind == 'failure' else 'ready', 'document': {}, 'usage': {}, 'error': 'quota exhausted' if kind == 'failure' else ''}
                 cancel = lambda: kind == 'cancel' and opt.get(store, state['run_id'])['writer_reserved'] >= 1
                 result = opt.execute(store, state['run_id'], generator=generator, reviewer=lambda *a: assessment(7), cancelled=cancel)
-                assert result['status'] == {'budget': 'budget_exhausted', 'cancel': 'stopped', 'failure': 'escalated'}[kind]
+                assert result['status'] == {'budget': 'awaiting_next_round', 'cancel': 'stopped', 'failure': 'escalated'}[kind]
                 assert len(calls) == (4 if kind == 'budget' else 1)
                 assert result['reviewer_reserved'] == (2 if kind == 'budget' else 0)
                 assert ws.active_contract(store, 'fighter_memory') is None
@@ -149,7 +149,7 @@ def test_idempotency_authorization_restart_and_stale_promotion():
             rejects(lambda: opt.queue(store, {**request, 'allow_paid': False}))
             state, _ = opt.queue(store, request)
             assert opt.queue(store, request)[1] is False
-            rejects(lambda: opt.queue(store, {**request, 'max_rounds': 3}))
+            rejects(lambda: opt.queue(store, {**request, 'max_rounds': 2}))
             result = opt.execute(store, state['run_id'], reviewer=lambda *a: assessment())
             changed = ws.save_revision(store, {**ws.defaults('shared'), 'instructions': 'New owner shared instructions'})
             ws.activate(store, {'scope': 'shared', 'revision_id': changed['revision_id'], 'expected_active': None})

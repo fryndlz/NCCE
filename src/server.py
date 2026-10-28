@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.14.2'
+APP_VERSION='0.15.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -291,7 +291,8 @@ class H(BaseHTTPRequestHandler):
     body=json.loads(self.rfile.read(length).decode('utf-8'))
     if not isinstance(body,dict):raise ValueError('Expected an object')
     action=p.rsplit('/',1)[-1]
-    functions={'heartbeat':bridge.heartbeat,'claim':bridge.claim,'started':bridge.started,'complete':bridge.complete,'fail':bridge.fail,'self-test':bridge.self_test,'events':bridge.events}
+    import workshop_interventions
+    functions={'technical-test':workshop_interventions.self_test,'heartbeat':bridge.heartbeat,'claim':bridge.claim,'started':bridge.started,'complete':bridge.complete,'fail':bridge.fail,'self-test':bridge.self_test,'events':bridge.events}
     if action not in functions:return self.js({'error':'Unknown bridge operation'},404)
     if action=='events':result=functions[action](store,body)
     else:
@@ -332,6 +333,23 @@ class H(BaseHTTPRequestHandler):
      if flag:flag.set()
      with store.reader() as reader:result=workshop_optimizer.get(reader,run_id)
      return self.js({'stop_requested':bool(flag),'run':result})
+    if p=='/api/workshop/optimization-continue':
+     with store.reader() as reader:
+      old=workshop_optimizer.get(reader,body.get('run_id'))
+      grant=next((g for g in old.get('grants',[]) if g['request_key']==body.get('request_key')),None)
+      if grant:
+       if grant['request_hash']!=workshop_optimizer.hashed(body):raise ValueError('Decision key belongs to different settings')
+       return self.js(old)
+     if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'The writer is busy. No additional round started.'},409)
+     try:
+      with store._lock:item,fresh=workshop_optimizer.continue_run(store,body)
+      if fresh:
+       _optimizer_stops[item['run_id']]=threading.Event()
+       threading.Thread(target=_run_optimization,args=(item['run_id'],),name='ncce-workshop-optimizer',daemon=True).start()
+      else:_writer_pipeline_guard.release()
+     except Exception:
+      _writer_pipeline_guard.release();raise
+     return self.js(item,202 if fresh else 200)
     if p=='/api/workshop/optimize':
      with store.reader() as reader:old=workshop_optimizer.existing(reader,body)
      if old:return self.js(old)
@@ -364,6 +382,13 @@ class H(BaseHTTPRequestHandler):
      elif p=='/api/workshop/import':result=workshop.import_sample(store,body)
      elif p=='/api/workshop/edit':result=workshop.save_edit(store,body)
      elif p=='/api/workshop/optimization-decide':result=workshop_optimizer.decide(store,body)
+     elif p=='/api/workshop/optimization-investigate':
+      import workshop_interventions
+      result=workshop_interventions.investigate(store,body)
+     elif p=='/api/workshop/optimization-technical-decision':
+      import workshop_interventions
+      result=workshop_interventions.decision(store,body)
+     elif p=='/api/workshop/optimization-finish':result=workshop_optimizer.finish_run(store,body)
      else:return self.send_error(404)
     return self.js(result)
    except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)

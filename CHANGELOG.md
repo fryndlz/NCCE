@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.0 - category calibration and actionable human decisions (2026-10-28)
+
+- Calibrate reusable category prompts/environment with fresh drafts and separate held-out validation; never rewrite the previous generated text. Save candidate guidance even when authorized rounds end.
+- Replace ordinary allowance exhaustion with continue/investigate/finish decisions. Every newly authorized round reserves four writing calls plus two pair reviews together; duplicate approvals cannot spend again.
+- Add the owner-created native StoryTechMan chat and scoped event jobs for read-only investigations, evidence-backed app proposals, separately approved development repairs and tested releases. Prompt changes remain inactive until a qualified study is explicitly approved.
+- Preserve open disclosures and focused controls during polling. Show one short or full representation at a time; remove duplicated status/slot/instructions clutter and tidy model/connection information.
+- Keep account/provider failures distinct from normal limits. Retain source/canon authority, no-idle-model listener, immutable results and exact approval hashes.
+
+## 0.14.2 - readable Workshop controls and results (2026-10-28)
+
+- Put a separate prose-type dropdown beside the improvement action, with the chosen type in its label and authorization prompt. Preserve manual sample edits when testing another type.
+- Replace dense review text with entry/draft cards, score grids, issue labels, expandable assessments and quoted evidence; render spaced handoff cards with full messages on demand.
+- Hide old comparison-feedback UI. Replace the confusing Creative plan frame with a fixed-event explanation or an optional focus control explicitly for one manual draft.
+- Keep scores, evidence, run budgets, human approval and stored owner guidance intact. No model calls required for verification.
+
 ## 0.14.1 - review events without idle Codex calls (2026-10-28)
 
 - Paused the five-minute model checks. A lightweight local HTTPS listener wakes the actual JKSimmons chat via documented `codex queue` only after NCCE queues a draft-pair review.

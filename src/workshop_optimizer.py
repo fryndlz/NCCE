@@ -9,6 +9,7 @@ import math
 import os
 import uuid
 import time
+from pathlib import Path
 
 import llm_writer as writer
 import writer_workshop as ws
@@ -18,6 +19,14 @@ import codex_review_queue as codex_queue
 
 def packed(value): return json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False)
 def hashed(value): return hashlib.sha256(packed(value).encode()).hexdigest()
+
+
+def environment_fingerprint():
+    root=Path(__file__).parent
+    import writer_contract
+    sources=[root/name for name in ('writer_contract.py','narrative_context.py','writer_planning.py','writer_workshop.py','territory_reference.py','llm_writer.py')]
+    sources.append(writer_contract.RUNTIME_PATH)
+    return hashlib.sha256(b''.join(p.name.encode()+p.read_bytes() for p in sources if p.exists())).hexdigest()
 
 
 def configuration():
@@ -99,17 +108,78 @@ def queue(store, body):
         prepared.append(ws.preview(store, options))
     state = {'run_id': 'opt-' + uuid.uuid4().hex, 'status': 'queued', 'form': selected['form'],
              'created_at': ws.now(), 'configuration': configuration(), 'max_rounds': rounds,
+             'environment_hash':environment_fingerprint(), 'workflow_version':2, 'validation_pending':False, 'grants':[], 'prompt_history':[],
              'writer_limit': rounds * 4, 'reviewer_limit': rounds * 2,
              'writer_reserved': 0, 'reviewer_reserved': 0, 'shared': shared, 'specific': specific,
              'expected_active': {scope: (ws.active(store, scope) or {}).get('revision_id') for scope in ('shared', selected['form'])},
              'samples': prepared, 'rounds': [], 'events': [], 'message': '', 'decision': None,
-             'coverage': 'Two independent source packets for one prose form; representative checks, not a guarantee across all prose.',
+             'coverage': 'Fresh source packets across learning rounds and separate unchanged-setup validation; representative checks, not a guarantee across the category.',
              'activity': {'phase': 'queued', 'actor': 'StoryTechMan', 'message': 'Your bounded run is queued. Preparing the source checks.', 'at': ws.now()},
              'visited_steps': [],
              'reviewer_context': 'Actual persistent JKSimmons Codex chat, with its conversation, saved standards and corrections. Reviews are not external reviewer API calls.'}
     with store._lock, store.db:
         store.db.execute('INSERT INTO workshop_optimization_runs VALUES(?,?,?,?)', (state['run_id'], key, hashed(body), packed(state)))
     return state, True
+
+
+def pause(store,state,status,message):
+    state['status']=status;state['message']=message
+    activity(store,state,'decision','human',message)
+
+
+def round_samples(store,state):
+    if not state['rounds']:return state['samples']
+    used={p.get('packet_hash') for r in state['rounds'] for p in r['pairs']}
+    used.update(p['packet_hash'] for p in state['samples'])
+    used_keys={p['sample_key'] for r in state['rounds'] for p in r['pairs']}
+    result=[]
+    for entry in ws.catalog(store):
+        if entry['form']!=state['form'] or entry['key'] in used_keys:continue
+        source=ws.sample(store,entry['key']);fingerprint=hashed(source['packet'])
+        if fingerprint in used:continue
+        used.add(fingerprint)
+        result.append(ws.preview(store,{'sample_key':entry['key'],'shared_revision_id':state['shared']['revision_id'],
+            'form_revision_id':state['specific']['revision_id'],'focus':'auto','variation':len(state['rounds'])}))
+        if len(result)==2:break
+    return result
+
+
+def continue_run(store,body):
+    state=get(store,body.get('run_id'));key=body.get('request_key')
+    if not isinstance(key,str) or not 16<=len(key)<=100:raise ValueError('Unique decision identity required')
+    previous=next((g for g in state.get('grants',[]) if g['request_key']==key),None)
+    if previous:
+        if previous['request_hash']!=hashed(body):raise ValueError('Decision key belongs to different settings')
+        return state,False
+    if state.get('tech',{}).get('status') in ('queued','investigating','repair_queued','repairing','release_queued','releasing'):raise ValueError('Finish the technical investigation or repair before more writing')
+    if state.get('environment_hash') and state['environment_hash']!=environment_fingerprint():raise ValueError('The generation environment changed; start a new category study')
+    if state['status'] not in ('awaiting_next_round','budget_exhausted'):raise ValueError('This run is not waiting for more test rounds')
+    rounds=body.get('additional_rounds',1)
+    if type(rounds) is not int or not 1<=rounds<=3 or body.get('allow_paid') is not True:raise ValueError('Explicit authorization for 1–3 complete rounds is required')
+    if not codex_queue.status(store)['online']:raise ValueError('Reconnect the event listener before authorizing more writing')
+    if configuration()!=state['configuration']:raise ValueError('Writer configuration changed; start a new study')
+    for scope,expected in state['expected_active'].items():
+        if (ws.active(store,scope) or {}).get('revision_id')!=expected:raise ValueError('Active instructions changed; start a new study')
+    state['workflow_version']=2;state['environment_hash']=environment_fingerprint()
+    if state['status']=='budget_exhausted':
+        reviews=[p['review'] for r in state['rounds'] for p in r['pairs'] if p.get('review')]
+        if reviews:
+            state['specific']=ws.save_revision(store,{**state['specific'],'instructions':reviews[-1]['proposed_form_instructions'],'label':'Recovered category candidate '+state['run_id'][-8:]})
+    state['max_rounds']=len(state['rounds'])+rounds
+    state['writer_limit']+=rounds*4;state['reviewer_limit']+=rounds*2
+    state.setdefault('grants',[]).append({'request_key':key,'request_hash':hashed(body),'rounds':rounds,'at':ws.now()})
+    state['status']='queued';activity(store,state,'queued','human','You authorized '+str(rounds)+' more complete round(s). Each includes up to four fresh drafts and two pair reviews.')
+    return state,True
+
+
+def finish_run(store,body):
+    state=get(store,body.get('run_id'))
+    if state['status'] in ('queued','running'):raise ValueError('Stop active writing before finishing the study')
+    if state.get('tech',{}).get('status') in ('repairing','releasing'):raise ValueError('Stop the active technical work in its Codex chat before closing the study')
+    if state.get('tech',{}).get('job_id'):codex_queue.cancel(store,state['tech']['job_id'],'Owner finished the study')
+    if state.get('tech'):state['tech']['status']='cancelled'
+    state['status']='finished';state['message']='Study finished. Findings and candidate instructions are saved; active NCCE writing is unchanged.'
+    activity(store,state,'complete','human',state['message']);return state
 
 
 def stop(store, state, message, status='escalated'):
@@ -119,9 +189,12 @@ def stop(store, state, message, status='escalated'):
 
 def recover(store):
     with store.db:
-        store.db.execute("UPDATE codex_review_jobs SET status='cancelled',error='Server restarted; uncertain reviews are not replayed',finished_at=? WHERE status IN ('queued','claimed','reviewing')", (ws.now(),))
+        store.db.execute("UPDATE codex_review_jobs SET status='cancelled',error='Server restarted; uncertain reviews are not replayed',finished_at=? WHERE status IN ('queued','claimed','reviewing') AND coalesce(json_extract(payload_json,'$.kind'),'review')!='technical_release'", (ws.now(),))
     for row in store.db.execute('SELECT state_json FROM workshop_optimization_runs').fetchall():
         state = json.loads(row[0])
+        if state.get('tech',{}).get('status') in ('queued','investigating','repair_queued','repairing'):
+            state['tech'].update(status='needs_input',error='Server restarted; inspect the retained technical job before requesting another investigation.')
+            save(store,state,'Technical job interrupted by restart; no replay')
         if state['status'] in ('queued', 'running'):
             stop(store, state, 'Server restarted. Inspect retained calls before a new run; nothing was automatically replayed.')
 
@@ -129,11 +202,11 @@ def recover(store):
 def review_schema():
     def obj(props): return {'type': 'object', 'properties': props, 'required': list(props), 'additionalProperties': False}
     issue = obj({'category': {'type': 'string', 'enum': ['writing', 'context', 'technical', 'permission']},
-                 'evidence': {'type': 'string'}, 'explanation': {'type': 'string'}, 'blocking': {'type': 'boolean'}})
+                 'title': {'type':'string','maxLength':180}, 'evidence': {'type': 'string'}, 'explanation': {'type': 'string'}, 'blocking': {'type': 'boolean'}})
     candidate = obj({'index': {'type': 'integer'}, 'overall': {'type': 'number'},
                      'scores': obj({key: {'type': 'number'} for key in CRITERIA}),
                      'issues': {'type': 'array', 'items': issue}})
-    return obj({'summary': {'type': 'string'}, 'proposed_form_instructions': {'type': 'string'},
+    return obj({'headline': {'type':'string','maxLength':180}, 'summary': {'type': 'string'}, 'proposed_form_instructions': {'type': 'string'},
                 'candidates': {'type': 'array', 'items': candidate}})
 
 
@@ -144,6 +217,7 @@ def assess(value):
     proposed = value.get('proposed_form_instructions')
     if not isinstance(proposed, str) or not 1 <= len(proposed.strip()) <= 4000:
         raise ValueError('Reviewer must provide a bounded full replacement form brief')
+    if 'headline' in value and (not isinstance(value['headline'],str) or not 1<=len(value['headline'])<=180):raise ValueError('Reviewer headline must be short')
     candidates = value.get('candidates')
     if not isinstance(candidates, list) or len(candidates) != 2: raise ValueError('Reviewer must assess BOTH drafts')
     qualified = True; escalated = False
@@ -162,6 +236,7 @@ def assess(value):
                 raise ValueError('Reviewer issue classification invalid')
             if any(not isinstance(issue.get(k), str) or not issue[k].strip() for k in ('evidence', 'explanation')):
                 raise ValueError('Reviewer issues need evidence and explanation')
+            if 'title' in issue and (not isinstance(issue['title'],str) or not 1<=len(issue['title'])<=180):raise ValueError('Issue title must be short')
             escalated |= issue['category'] != 'writing'
             qualified = qualified and not issue['blocking']
     return qualified, escalated
@@ -215,17 +290,22 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
     state['status'] = 'running'; activity(store, state, 'context', 'StoryTechMan', 'Checking the writer configuration and source context before any calls.')
     try:
         if configuration() != state['configuration'] or not writer.API_KEY: raise ValueError('Writer/reviewer configuration changed or credentials unavailable')
-        for round_index in range(state['max_rounds']):
-            round_item = {'number': round_index + 1, 'revision_id': state['specific']['revision_id'], 'pairs': []}
+        for round_index in range(len(state['rounds']), state['max_rounds']):
+            validation = state.get('validation_pending', False)
+            prepared_samples = round_samples(store, state)
+            if len(prepared_samples)<2:
+                pause(store,state,'awaiting_samples','Two fresh source entries are needed before the setup can be tested further. Ask StoryTechMan to investigate source coverage.')
+                return state
+            round_item = {'number': round_index + 1, 'kind':'validation' if validation else 'learning', 'revision_id': state['specific']['revision_id'], 'pairs': []}
             state['rounds'].append(round_item); all_pass = True
-            for sample_index, prepared in enumerate(state['samples']):
+            for sample_index, prepared in enumerate(prepared_samples):
                 if cancelled(): stop(store, state, 'Stopped by the owner before the next call.', 'stopped'); return state
                 activity(store, state, 'context', 'StoryTechMan', f"Checking entry {sample_index + 1} of 2: {prepared['label']}", round=round_index + 1, sample=sample_index + 1)
                 if hashed(ws.sample(store, prepared['key'])['packet']) != prepared['packet_hash']:
                     raise ValueError('Source context changed; inspect and start a new run')
                 instructions = ws.compose(state['form'], state['shared'], state['specific'])
                 pair = {'sample_key': prepared['key'], 'label': prepared['label'], 'packet': prepared['packet'],
-                        'instructions': instructions, 'candidates': [], 'review': None}
+                        'instructions': instructions, 'packet_hash':prepared['packet_hash'], 'candidates': [], 'review': None}
                 round_item['pairs'].append(pair); save(store, state)
                 for index in range(2):
                     if cancelled(): stop(store, state, 'Stopped by the owner before the next call.', 'stopped'); return state
@@ -240,22 +320,35 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
                 if state['reviewer_reserved'] >= state['reviewer_limit']: raise ValueError('Authorized reviewer-call limit reached')
                 state['reviewer_reserved'] += 1
                 activity(store, state, 'awaiting_reviewer', 'StoryTechMan', f"Passing entry {sample_index + 1} to the actual JKSimmons Codex chat.", round=round_index + 1, sample=sample_index + 1)
-                preceding = [p['review'] for p in round_item['pairs'][:-1]]
+                preceding = [p['review'] for r in state['rounds'] for p in r['pairs'] if p.get('review')]
                 assessment = reviewer(store, state, pair, preceding) if reviewer else review_pair(store, state, pair, preceding, cancelled)
                 pair['review'] = assessment
                 passed, technical = assess(assessment); all_pass = all_pass and passed
                 activity(store, state, 'evaluate', 'JKSimmons', assessment['summary'], round=round_index + 1, sample=sample_index + 1)
-                if technical: stop(store, state, 'Context, technical or permission issue identified. Inspect the review; human input is required.'); return state
-            if all_pass:
+                if technical:
+                    stop(store, state, 'The writing loop is paused because the generation setup needs investigation. StoryTechMan will propose a repair; nothing will be changed without your approval.')
+                    import workshop_interventions as interventions
+                    interventions.investigate(store, {'run_id':run_id,'request_key':'auto-tech-'+run_id,'note':assessment['summary']})
+                    return get(store,run_id)
+            if all_pass and validation:
+                state.setdefault('visited_steps',[]).append('validation')
                 state['status'] = 'awaiting_approval'
-                state['message'] = 'Both drafts on both independent samples reached 8/10 on every criterion. Review the tested instructions and results before activating.'
-                activity(store, state, 'approval', 'human', state['message']); return state
-            if round_index + 1 < state['max_rounds']:
-                activity(store, state, 'revise', 'JKSimmons', 'Saving the revised form brief from the reviews. I will test it on both entries again; active NCCE instructions stay unchanged.', round=round_index + 1)
-                state['specific'] = ws.save_revision(store, {**state['specific'],
-                    'instructions': assessment['proposed_form_instructions'], 'label': 'Optimizer candidate ' + state['run_id'][-8:] + ' round ' + str(round_index + 2)})
-                save(store, state, 'Candidate form brief saved for the next round; production policy unchanged.')
-        stop(store, state, 'Authorized rounds exhausted before all samples passed. Review the findings; further spending needs a new run.', 'budget_exhausted')
+                state['validated'] = {'round':round_index+1,'entries':[p['sample_key'] for p in round_item['pairs']]}
+                state['message'] = 'The unchanged category setup passed on fresh validation entries. Review the results and approve it for future writing.'
+                activity(store,state,'approval','human',state['message']);return state
+            if all_pass:
+                state['validation_pending'] = True
+                state['message'] = 'The setup passed this learning round. It now needs a check on fresh entries before approval.'
+                save(store,state,'Learning round passed; unchanged setup requires held-out validation.')
+            else:
+                state['validation_pending'] = False
+                previous = state['specific']['revision_id']
+                state['specific'] = ws.save_revision(store,{**state['specific'],'instructions':assessment['proposed_form_instructions'],
+                    'label':'Category candidate '+state['run_id'][-8:]+' after round '+str(round_index+1)})
+                state.setdefault('prompt_history',[]).append({'after_round':round_index+1,'from_revision':previous,'to_revision':state['specific']['revision_id'],'instructions':state['specific']['instructions']})
+                activity(store,state,'revise','JKSimmons','Saved reusable category instructions for the next test. The next drafts will be generated from scratch on fresh source entries; earlier prose is not rewritten.',round=round_index+1)
+        pause(store,state,'awaiting_next_round',
+            'This test allowance is finished. No provider-credit failure occurred. Authorize another complete round, ask StoryTechMan to investigate the setup, or finish here.')
     except ReviewCancelled as exc:
         stop(store, state, str(exc), 'stopped')
     except Exception as exc:
@@ -268,6 +361,8 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
 def decide(store, body):
     state = get(store, body.get('run_id'))
     if state['status'] != 'awaiting_approval': raise ValueError('Only a completed qualified run may be approved or rejected')
+    if state.get('environment_hash') and state['environment_hash']!=environment_fingerprint():raise ValueError('Generation environment changed; validate a new study')
+    if state.get('workflow_version',1)>=2 and not state.get('validated'):raise ValueError('Fresh-entry validation is required before activation')
     if type(body.get('approve')) is not bool: raise ValueError('Explicit approval or rejection required')
     if body['approve']:
         # Check both pointers before writing either; promote the exact tested pair atomically.
@@ -277,6 +372,9 @@ def decide(store, body):
                 if (ws.active(store, scope) or {}).get('revision_id') != expected: raise ValueError('Active policy changed since this run. Start a new validation run before activating.')
             for sample in state['samples']:
                 if hashed(ws.sample(store, sample['key'])['packet']) != sample['packet_hash']: raise ValueError('Source context changed. Validate a new run before activating.')
+            for r in state['rounds']:
+                for pair in r['pairs']:
+                    if pair.get('packet_hash') and hashed(ws.sample(store,pair['sample_key'])['packet'])!=pair['packet_hash']:raise ValueError('A tested source changed; validate a new study')
             for revision in (state['shared'], state['specific']):
                 store.db.execute('INSERT INTO workshop_active VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET revision_id=excluded.revision_id', (revision['scope'], revision['revision_id']))
             state['status'] = 'approved'; state['decision'] = {'approved': True, 'at': ws.now()}

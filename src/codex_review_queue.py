@@ -18,6 +18,10 @@ def configured():
     return len(value) == 64 and all(c in '0123456789abcdef' for c in value)
 def thread_id(): return os.environ.get('NCCE_CODEX_REVIEWER_THREAD_ID') or THREAD_ID
 
+def valid_thread(value):
+    from workshop_interventions import TECH_THREAD_ID
+    return value in (thread_id(),TECH_THREAD_ID)
+
 
 def authenticated(header):
     if not configured() or not isinstance(header, str) or not header.startswith('Bearer '): return False
@@ -42,7 +46,11 @@ def status(store):
 
 
 def heartbeat(store, body):
-    if body.get('thread_id') != thread_id(): raise ValueError('Wrong reviewer thread')
+    if not valid_thread(body.get('thread_id')): raise ValueError('Wrong agent thread')
+    if body['thread_id']!=thread_id():
+        result={'thread_id':body['thread_id'],'state':body.get('state','idle')}
+        if body.get('job_id'):result['job_status']=owned(store,body)['status']
+        return result
     worker = body.get('worker_id')
     if not isinstance(worker, str) or not 8 <= len(worker) <= 100: raise ValueError('Worker identity required')
     state = body.get('state', 'idle')
@@ -63,7 +71,9 @@ def enqueue(store, state, pair, preceding, schema, rubric):
     payload = {'job_id': job_id, 'run_id': state['run_id'], 'thread_id': thread_id(),
                'form': state['form'], 'instructions': pair['instructions'], 'packet': pair['packet'],
                'candidates': pair['candidates'], 'preceding_reviews': preceding,
-               'rubric': rubric, 'output_schema': schema}
+               'rubric': rubric, 'output_schema': schema,
+               'objective':'Improve the reusable category setup, never rewrite the candidate texts. Propose complete general form instructions; flag context/system defects for StoryTechMan.',
+               'round_kind':state.get('rounds',[{}])[-1].get('kind','learning') if state.get('rounds') else 'learning'}
     with store._lock, store.db:
         store.db.execute("INSERT INTO codex_review_jobs(job_id,run_id,status,payload_json,created_at) VALUES(?,?,'queued',?,?)", (job_id, state['run_id'], packed(payload), now()))
     return job_id
@@ -78,7 +88,9 @@ def events(store, body):
     while True:
         with store._lock:
             row = store.db.execute("SELECT job_id FROM codex_review_jobs WHERE status='queued' ORDER BY created_at LIMIT 1").fetchone()
-        if row: return {'job_id': row['job_id']}
+        if row:
+            payload=json.loads(store.db.execute('SELECT payload_json FROM codex_review_jobs WHERE job_id=?',(row['job_id'],)).fetchone()[0])
+            return {'job_id':row['job_id'], 'kind':payload.get('kind','review'), 'thread_id':payload.get('thread_id',thread_id())}
         if time.monotonic() >= deadline: return {'job_id': None}
         time.sleep(min(.5, max(0, deadline-time.monotonic())))
 
@@ -120,11 +132,11 @@ def claim(store, body):
     with store._lock, store.db:
         store.db.execute('BEGIN IMMEDIATE')
         # Never silently re-lease an uncertain dispatch after a crash.
-        if store.db.execute("SELECT 1 FROM codex_review_jobs WHERE status IN ('claimed','reviewing')").fetchone(): return {'job': None}
+        if store.db.execute("SELECT 1 FROM codex_review_jobs WHERE status IN ('claimed','reviewing') AND json_extract(payload_json,'$.thread_id')=?",(body['thread_id'],)).fetchone(): return {'job': None}
         if body.get('job_id'):
-            row = store.db.execute("SELECT * FROM codex_review_jobs WHERE status='queued' AND job_id=?", (body['job_id'],)).fetchone()
+            row = store.db.execute("SELECT * FROM codex_review_jobs WHERE status='queued' AND job_id=? AND json_extract(payload_json,'$.thread_id')=?", (body['job_id'],body['thread_id'])).fetchone()
         else:
-            row = store.db.execute("SELECT * FROM codex_review_jobs WHERE status='queued' ORDER BY created_at LIMIT 1").fetchone()
+            row = store.db.execute("SELECT * FROM codex_review_jobs WHERE status='queued' AND json_extract(payload_json,'$.thread_id')=? ORDER BY created_at LIMIT 1",(body['thread_id'],)).fetchone()
         if not row: return {'job': None}
         lease = secrets.token_urlsafe(32)
         store.db.execute("UPDATE codex_review_jobs SET status='claimed',worker_id=?,lease_hash=?,claimed_at=? WHERE job_id=?", (body['worker_id'], hashlib.sha256(lease.encode()).hexdigest(), now(), row['job_id']))
@@ -134,14 +146,19 @@ def claim(store, body):
 def owned(store, body):
     row = store.db.execute('SELECT * FROM codex_review_jobs WHERE job_id=?', (body.get('job_id'),)).fetchone()
     lease = body.get('lease')
-    if not row or not isinstance(lease, str) or row['worker_id'] != body.get('worker_id') or not hmac.compare_digest(row['lease_hash'] or '', hashlib.sha256(lease.encode()).hexdigest()):
+    if not row or json.loads(row['payload_json']).get('thread_id')!=body.get('thread_id') or not isinstance(lease, str) or row['worker_id'] != body.get('worker_id') or not hmac.compare_digest(row['lease_hash'] or '', hashlib.sha256(lease.encode()).hexdigest()):
         raise ValueError('Review job lease does not match')
     return row
 
 
 def complete(store, body):
     from workshop_optimizer import assess
-    result = body.get('review'); assess(result)
+    result = body.get('review')
+    row=owned(store,body);payload=json.loads(row['payload_json'])
+    if payload.get('kind','review')=='review':assess(result)
+    else:
+        from workshop_interventions import validate
+        validate(payload['kind'],result)
     with store._lock, store.db:
         row = owned(store, body)
         if row['status'] == 'completed':
@@ -152,7 +169,11 @@ def complete(store, body):
         turn_id = body.get('turn_id')
         if not isinstance(turn_id, str) or not turn_id.strip(): raise ValueError('Actual Codex turn identity is required')
         if json.loads(row['result_json']).get('_codex', {}).get('turn_id') != turn_id: raise ValueError('Codex turn identity changed')
-        envelope = {**result, '_codex': {'thread_id': thread_id(), 'turn_id': turn_id}}
+        identity={'thread_id':payload['thread_id'],'turn_id':turn_id}
+        envelope = {**result, '_codex': identity}
+        if payload.get('kind','review')!='review' and not payload.get('diagnostic'):
+            from workshop_interventions import complete as finish_technical
+            finish_technical(store,payload,result,identity)
         store.db.execute("UPDATE codex_review_jobs SET status='completed',result_json=?,finished_at=? WHERE job_id=?", (packed(envelope), now(), row['job_id']))
     return {'ok': True}
 
@@ -163,7 +184,11 @@ def started(store, body):
     with store._lock, store.db:
         row = owned(store, body)
         if row['status'] != 'claimed': raise ValueError('Review job is no longer awaiting Codex')
-        identity = {'_codex': {'thread_id': thread_id(), 'turn_id': turn_id}}
+        payload=json.loads(row['payload_json'])
+        identity = {'_codex': {'thread_id': payload['thread_id'], 'turn_id': turn_id}}
+        if payload.get('kind','review')!='review' and not payload.get('diagnostic'):
+            from workshop_interventions import started as technical_started
+            technical_started(store,payload)
         store.db.execute("UPDATE codex_review_jobs SET status='reviewing',result_json=? WHERE job_id=?", (packed(identity), row['job_id']))
     return {'ok': True}
 
@@ -173,6 +198,10 @@ def fail(store, body):
         row = owned(store, body)
         if row['status'] not in ('claimed', 'reviewing', 'failed'): raise ValueError('Review job is no longer active')
         error = str(body.get('error') or 'Codex review needs human attention')[:400]
+        payload=json.loads(row['payload_json'])
+        if payload.get('kind','review')!='review' and not payload.get('diagnostic'):
+            from workshop_interventions import failed
+            failed(store,payload,error)
         store.db.execute("UPDATE codex_review_jobs SET status='failed',error=?,finished_at=? WHERE job_id=?", (error, now(), row['job_id']))
     return {'ok': True}
 

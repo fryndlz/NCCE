@@ -6,11 +6,13 @@ from codex_review_bridge import Companion, DEFAULT_CONFIG, single_instance
 
 
 class ChatWorker:
-    def __init__(self, config=DEFAULT_CONFIG):
+    def __init__(self, config=DEFAULT_CONFIG, role='reviewer'):
         self.client = Companion(config)
-        self.client.worker_id += '-chat'
-        self.active = self.client.folder / 'chat-active.json'
-        (self.client.folder / 'chat-lock').mkdir(exist_ok=True)
+        if role=='storytech':self.client.thread_id=self.client.config['storytech_thread_id']
+        self.client.worker_id += '-'+role
+        self.role=role
+        self.active = self.client.folder / ('chat-'+role+'-active.json')
+        (self.client.folder / ('chat-'+role+'-lock')).mkdir(exist_ok=True)
 
     def post(self, action, body=None):
         return self.client.post(action, {'transport': 'codex_chat', 'poll_interval': 0, **(body or {})})
@@ -29,7 +31,7 @@ class ChatWorker:
 
     def claim(self, turn_id, job_id=None):
         if not turn_id.strip(): raise ValueError('Read the actual current Codex turn identity first')
-        with single_instance(self.client.folder / 'chat-lock'):
+        with single_instance(self.client.folder / ('chat-'+self.role+'-lock')):
             previous = json.loads(self.active.read_text(encoding='utf-8')) if self.active.exists() else {}
             if previous.get('status') in ('claimed', 'reviewing'):
                 raise RuntimeError('Unfinished native review: inspect the chat and job; no automatic replay')
@@ -58,18 +60,20 @@ class ChatWorker:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['heartbeat', 'claim', 'complete', 'fail', 'self-test'])
+    parser.add_argument('action', choices=['heartbeat', 'claim', 'complete', 'fail', 'self-test', 'technical-test'])
     parser.add_argument('--config', default=str(DEFAULT_CONFIG))
+    parser.add_argument('--role',choices=['reviewer','storytech'],default='reviewer')
     parser.add_argument('--turn-id', default='')
     parser.add_argument('--job-id')
     parser.add_argument('--file')
     parser.add_argument('--message')
     parser.add_argument('--new-attempt', action='store_true')
-    args = parser.parse_args(); worker = ChatWorker(args.config)
-    (worker.client.folder / 'chat-lock').mkdir(exist_ok=True)
+    args = parser.parse_args(); worker = ChatWorker(args.config,args.role)
+    (worker.client.folder / ('chat-'+args.role+'-lock')).mkdir(exist_ok=True)
     if args.action == 'claim': result = worker.claim(args.turn_id, args.job_id)
     elif args.action == 'complete': result = worker.finish(review=json.loads(Path(args.file).read_text(encoding='utf-8-sig')))
     elif args.action == 'fail': result = worker.finish(error=args.message or 'Human attention required')
+    elif args.action == 'technical-test': result=worker.post('technical-test')
     elif args.action == 'self-test': result = worker.post('self-test', {'new_attempt': args.new_attempt})
     else: result = worker.heartbeat()
     print(json.dumps(result, ensure_ascii=True, allow_nan=False))
