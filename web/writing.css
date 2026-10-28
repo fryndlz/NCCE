@@ -361,6 +361,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .ws-agent-info dl>div { display:grid; grid-template-columns:130px 1fr; gap:18px; padding:10px 0; }.ws-agent-info dd { margin:0; color:#c1cec3; }
 .ws-decision { border:1px solid #ab976b; border-radius:10px; padding:24px; margin:24px 0; background:#26281d; font:16px/1.7 system-ui,sans-serif; }
 .ws-decision>h4 { font-size:22px; margin:0 0 14px; color:#f0d79e; }
+.ws-decision.is-batch-complete { border-color:#627a82; background:#1d292e; }
+.ws-decision.is-batch-complete>h4 { color:#d6e6eb; }
 .ws-decision p { max-width:78ch; }
 .ws-tech-panel { border-top:1px solid #6e7254; margin-top:24px; padding-top:20px; }
 .ws-tech-panel h4 { font-size:20px; }.ws-tech-panel h5 { font-size:16px; margin:22px 0 10px; }

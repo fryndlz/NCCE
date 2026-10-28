@@ -136,6 +136,10 @@ def test_budget_cancel_and_failed_writer_never_trigger_automatic_retries():
                 cancel = lambda: kind == 'cancel' and opt.get(store, state['run_id'])['writer_reserved'] >= 1
                 result = opt.execute(store, state['run_id'], generator=generator, reviewer=lambda *a: assessment(7), cancelled=cancel)
                 assert result['status'] == {'budget': 'awaiting_next_round', 'cancel': 'stopped', 'failure': 'escalated'}[kind]
+                if kind == 'budget':
+                    assert result['message'].startswith('This test batch is complete.')
+                    assert 'Drafts and reviews are saved' in result['message']
+                    assert 'credit' not in result['message'] and 'failure' not in result['message']
                 assert len(calls) == (4 if kind == 'budget' else 1)
                 assert result['reviewer_reserved'] == (2 if kind == 'budget' else 0)
                 assert ws.active_contract(store, 'fighter_memory') is None

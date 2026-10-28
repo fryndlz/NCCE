@@ -89,8 +89,8 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   assert.match(root.innerHTML,/not the improvement test/);
   historyRun={...optimization,status:'budget_exhausted',message:'Raw legacy budget message'};
   callbacks.change({target:{dataset:{},value:'saved-study',hasAttribute:name=>name==='data-ws-opt-history'}});await settle();
-  assert.match(root.innerHTML,/This test allowance is complete/);
-  assert.match(root.innerHTML,/does not mean your API account ran out of money/);
+  assert.match(root.innerHTML,/This test batch is complete/);
+  assert.match(root.innerHTML,/The setup has not yet met the approval requirements/);
   assert.ok(!root.innerHTML.includes('Reserved request slots') && !root.innerHTML.includes('Tested form instructions'));
   context.window.confirm=()=>false;click('opt-continue');await settle();
   assert.equal(calls.filter(c=>c[0].endsWith('/optimization-continue')).length,0);
@@ -109,8 +109,46 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   const pendingRoot={dataset:{},innerHTML:'',addEventListener:()=>{},querySelector(){return this.innerHTML.includes('writer-workshop')?{}:null;}};
   const postCount=calls.filter(c=>c[1]?.method==='POST').length;
   await pendingContext.window.NCCEWorkshop.open(pendingRoot,(url,options)=>url==='/api/workshop/optimizations'?Promise.resolve({configuration:{},runs:[{...optimization,status:'budget_exhausted'}]}):api(url,options),doc=>escaped(JSON.stringify(doc)));
-  assert.match(pendingRoot.innerHTML,/This test allowance is complete/);
-  assert.match(pendingRoot.innerHTML,/Authorize another learning round/);
+  assert.match(pendingRoot.innerHTML,/This test batch is complete/);
+  assert.match(pendingRoot.innerHTML,/Authorize another test round/);
   assert.equal(calls.filter(c=>c[1]?.method==='POST').length,postCount,'Opening an owner decision must not queue work');
+  // Reopen each saved decision state without spending or changing its audit.
+  async function savedView(run){
+    const c={window:{confirm:()=>false},console,setTimeout:()=>{},crypto:{randomUUID:()=> 'unused'}};
+    vm.createContext(c);vm.runInContext(fs.readFileSync('web/workshop.js','utf8'),c);
+    const r={dataset:{},innerHTML:'',addEventListener:()=>{},querySelector(){return this.innerHTML.includes('writer-workshop')?{}:null;}};
+    const before=JSON.stringify(run), count=calls.filter(x=>x[1]?.method==='POST').length;
+    await c.window.NCCEWorkshop.open(r,(url,options)=>url==='/api/workshop/optimizations'?Promise.resolve({configuration:{},runs:[run]}):api(url,options),doc=>escaped(JSON.stringify(doc)));
+    assert.equal(JSON.stringify(run),before,'Rendering must preserve stored status and audit');
+    assert.equal(calls.filter(x=>x[1]?.method==='POST').length,count,'Reopening must not write or spend');
+    return r.innerHTML;
+  }
+  for(const status of ['budget_exhausted','awaiting_next_round']){
+    const h=await savedView({...optimization,status,message:'Historical allowance message'});
+    assert.match(h,/ws-decision is-batch-complete/);
+    assert.match(h,/The rounds you authorized have finished\. Drafts and reviews are saved/);
+    assert.match(h,/The setup has not yet met the approval requirements/);
+    assert.match(h,/4 fresh writing calls \+ 2 pair reviews/);
+    assert.match(h,/Authorize another test round/);assert.match(h,/Finish and keep findings/);
+    const panel=h.slice(h.indexOf('<section class="ws-decision'));
+    assert.doesNotMatch(panel,/role="alert"|API account|provider-credit|test allowance/);
+  }
+  const validating=await savedView({...optimization,status:'awaiting_next_round',validation_pending:true});
+  assert.match(validating,/Promising setup · validate on fresh entries/);
+  assert.match(validating,/same prompt must now pass on fresh entries before activation/);
+  assert.match(validating,/Authorize validation round/);
+  assert.doesNotMatch(validating,/This test batch is complete|Approve tested setup/);
+  for(const status of ['escalated','awaiting_next_round']){
+    const h=await savedView({...optimization,status,message:'Writing provider could not be reached',tech:{status:'needs_input',error:'Technical connection failed'}});
+    assert.match(h,/<p role="alert">Technical connection failed/);
+    if(status==='escalated'){
+      assert.match(h,/The writing loop is paused/);assert.match(h,/Writing provider could not be reached/);
+      assert.doesNotMatch(h,/ws-decision is-batch-complete/);
+    }
+  }
+  const finished=await savedView({...optimization,status:'finished'});
+  assert.doesNotMatch(finished,/This test batch is complete|data-ws="opt-continue"/);
+  const css=fs.readFileSync('web/writing.css','utf8');
+  assert.match(css,/\.ws-decision\.is-batch-complete\s*\{/);
   console.log('Workshop UI passed: free opening/inspection, escaping, one-call double-click protection, completion rendering');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -22,5 +22,10 @@ const readable=activity.render(run);assert.match(readable,/handoff-card/);assert
 run.status='escalated';run.tech={status:'investigating'};view=activity.model(run);assert.equal(view.people[2].active,true);assert.ok(view.people.slice(0,2).every(p=>!p.active));
 run.tech.status='proposal_ready';assert.ok(activity.model(run).people.every(p=>!p.active));
 run.tech=null;run.status='awaiting_next_round';assert.equal(activity.model(run).attention,false);
+for(const status of ['awaiting_next_round','budget_exhausted']){
+  run.status=status;const waiting=activity.model(run);
+  assert.equal(waiting.attention,false);assert.equal(waiting.phase,'decision');
+  assert.ok(waiting.people.every(p=>!p.active && !p.attention));
+}
 assert.match(fs.readFileSync('web/writing.css','utf8'),/prefers-reduced-motion/);
 console.log('PASS live agent heads and workflow: one working actor, escaped speech, review transition, human escalation, approval, idle and reduced motion');

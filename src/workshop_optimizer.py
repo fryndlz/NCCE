@@ -349,7 +349,7 @@ def execute(store, run_id, cancelled=lambda: False, generator=None, reviewer=Non
                 state.setdefault('prompt_history',[]).append({'after_round':round_index+1,'from_revision':previous,'to_revision':state['specific']['revision_id'],'instructions':state['specific']['instructions']})
                 activity(store,state,'revise','JKSimmons','Saved reusable category instructions for the next test. The next drafts will be generated from scratch on fresh source entries; earlier prose is not rewritten.',round=round_index+1)
         pause(store,state,'awaiting_next_round',
-            'This test allowance is finished. No provider-credit failure occurred. Authorize another complete round, ask StoryTechMan to investigate the setup, or finish here.')
+            'This test batch is complete. The rounds you authorized have finished. Drafts and reviews are saved. Choose whether to continue testing or finish here.')
     except ReviewCancelled as exc:
         stop(store, state, str(exc), 'stopped')
     except Exception as exc:
