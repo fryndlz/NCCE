@@ -77,11 +77,13 @@ window.NCCEWorkshop = (() => {
   }
   function paint(force=false) {
     if(!force && typeof document!=='undefined' && root?.contains?.(document.activeElement) && document.activeElement?.matches?.('select,textarea,input')){S.pendingPaint=true;return;}
+    const focusedFlow=typeof document!=='undefined' && document.activeElement?.matches?.('.flow-node-button')?document.activeElement.closest('.flow-node')?.dataset.flowNode:null;
     const openDetails=new Map([...(root?.querySelectorAll?.('details') || [])].map(d=>[detailKey(d),d.open]));
 
     if (!visible()) return;
     root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Category writing lab</div><h2>Writer Workshop</h2><p>Develop the writing setup for a whole prose category. Read the fresh drafts first, then their assessment and your next decision.</p><p class="muted">Opening studies and reading results makes no model calls. Starting or continuing a writing test requires your confirmation.</p><p role="status" id="ws-status">${esc(S.message)}</p>${optimizationPanel()}</section>`;
     for(const d of root.querySelectorAll?.('details') || []){const key=detailKey(d);if(openDetails.has(key))d.open=openDetails.get(key);}
+    if(focusedFlow && /^[a-z-]+$/.test(focusedFlow))root.querySelector('.flow-node[data-flow-node="'+focusedFlow+'"] .flow-node-button')?.focus({preventScroll:true});
     S.pendingPaint=false;
   }
   async function preparedOptimization() {

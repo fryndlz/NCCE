@@ -58,30 +58,33 @@ window.NCCEWritingActivity = (() => {
     }
     return {node,label,mode,round:next?(run?.rounds?.length || 0)+1:round?.number || run?.activity?.round,sample:status==='running'?run?.activity?.sample:null};
   }
-  function graph(run,m) {
-    const f=workflow(run);
-    const card=(id,title,text)=>`<div class="flow-step${f.node===id?' is-current':''}" data-flow-node="${id}"${f.node===id?' aria-current="step"':''}><strong>${title}</strong><p>${text}</p></div>`;
-    const arrow='<span class="flow-route-arrow" aria-hidden="true">→</span>';
-    const cycle=(items)=>`<div class="flow-sequence">${items.join(arrow)}</div>`;
-    return `<figure class="writing-flow" aria-label="Category study workflow"><figcaption>How the loop works <span role="status">${esc(f.label)}</span></figcaption>
-      <div class="flow-mode${run?.status==='running'?' is-running':''}" data-flow-mode="${f.mode.toLowerCase()}"><strong>${run?esc(f.mode)+(f.round?' round '+esc(f.round):''):'Learning and validation'}</strong>${f.sample?`<span>Entry ${esc(f.sample)} of 2${run?.activity?.draft?' · draft '+(run.activity.draft===1?'A':'B'):''}</span>`:''}<p>${f.mode==='Validation'?'Validation repeats the full cycle below on fresh entries, with the prompt and editorial reminders unchanged.':'Each learning round tests the same category prompt on two independent entries.'}</p></div>
-      ${cycle([card('context','NCCE context','Application checks evidence, sources and configuration.'),card('draft','JuniorWriter','Generate fresh draft A and draft B for this entry.'),card('review','JKSimmons','One Codex review scores both drafts and proposes reusable guidance.'),card('pair','Pair result','After entry 1, repeat for entry 2. Then assess the whole round.')])}
-      <p class="flow-repeat">↶ Next independent entry: context → fresh A/B → pair review. A complete round uses <strong>4 writing calls + 2 pair reviews</strong>.</p>
-      <p class="flow-technical-exit">A context, technical or permission issue stops the cycle immediately, even on entry 1. Follow the StoryTechMan branch below.</p>
-      <h5 class="flow-section-title">After both entries: all four drafts need every score ≥ 8/10 and no blocking issues</h5>
-      <div class="flow-outcomes">
-        <section><h6>Writing falls short</h6>${card('revise','Revise category prompt','Save JKSimmons’s reusable category instructions. Generate new prose on fresh entries in the next learning round; do not rewrite these drafts.')}<p>↓ Check authorization for another round.</p></section>
-        <section><h6>Learning round passes</h6>${card('validation','Prepare fresh-entry validation','Keep the tested prompt and editorial reminders unchanged. Repeat the entire context → drafts → reviews cycle on two fresh entries.')}<p>↓ Check authorization for the validation round.</p></section>
-        <section><h6>Validation round passes</h6>${card('approval','You decide: activate or reject','Only your approval activates the exact tested instructions.')}<p class="flow-inline-arrow">↓ If approved</p>${card('activate','Future NCCE writing','Use the approved setup. Existing prose stays unchanged.')}</section>
+  function graph(run) {
+    const f=workflow(run), technical=['investigate','proposal','repair','release-decision','release','new-study'].includes(f.node);
+    const conditions={revise:'Writing falls short',validation:'Learning passes',approval:'Validation passes',allowance:'Before more tests',activate:'If approved'};
+    const node=(id,title,text,position='')=>`<div class="flow-step flow-node${f.node===id?' is-current':''}" data-flow-node="${id}"${f.node===id?' aria-current="step"':''}${position?` style="${position}"`:''}><button class="flow-node-button" type="button" aria-describedby="flow-tip-${id}">${conditions[id]?`<span class="flow-mobile-condition">${conditions[id]}</span>`:''}${title}</button><span class="flow-tip" role="tooltip" id="flow-tip-${id}">${text}</span></div>`;
+    const paths=['M220 58H273','M473 58H527','M727 58H780','M880 86V116H120V160','M500 116V160','M880 116V160','M120 216V280','M500 216V248H220V280','M120 280H8V58H20','M880 216V280','M880 30V8H120V30'];
+    return `<figure class="writing-flow flow-compact" aria-label="Category study workflow"><figcaption>How the loop works <span role="status">${esc(f.label)}</span></figcaption>
+      <div class="flow-toolbar"><span class="flow-mode" data-flow-mode="${f.mode.toLowerCase()}">${run?esc(f.mode)+(f.round?' · round '+esc(f.round):''):'Learning / validation'}${f.sample?' · entry '+esc(f.sample)+'/2':''}</span><span>Hover or focus a node for details · tap on mobile</span></div>
+      <div class="flow-map">
+        <svg class="flow-connectors" viewBox="0 0 1000 356" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="compact-flow-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z"/></marker></defs>${paths.map(d=>`<path class="flow-link" d="${d}" marker-end="url(#compact-flow-arrow)"/>`).join('')}<text x="490" y="18" text-anchor="middle">Repeat for entry 2</text><text x="120" y="146" text-anchor="middle">Writing falls short</text><text x="500" y="146" text-anchor="middle">Learning passes</text><text x="880" y="146" text-anchor="middle">Validation passes</text><text x="880" y="260" text-anchor="middle">If approved</text><text x="340" y="265" text-anchor="middle">Next round</text></svg>
+        ${node('context','NCCE context','Application code checks evidence, sources and configuration. Routine checks do not call the StoryTechMan model.','left:2%;top:30px')}
+        ${node('draft','JuniorWriter · A/B','Generate two fresh drafts for this entry from the same category prompt. A complete round uses 4 writing calls + 2 pair reviews across two independent entries.','left:27.3%;top:30px')}
+        ${node('review','JKSimmons','One Codex review scores both drafts and proposes reusable category guidance. A context, technical or permission issue stops writing immediately, even on entry 1.','left:52.7%;top:30px')}
+        ${node('pair','Review gate','Entry 1: repeat context → fresh A/B → review for entry 2. After both entries, all four drafts need every score ≥ 8/10 and no blocking issues. Choose the outcome below.','left:78%;top:30px')}
+        ${node('revise','Revise prompt','Writing falls short: save reusable category instructions, then run new learning tests on fresh entries. Validation falls short: return here too. Earlier drafts are not rewritten.','left:2%;top:160px')}
+        ${node('validation','Validate on fresh entries','Learning passes: repeat the entire context → drafts → reviews cycle on two fresh entries. Keep the prompt and editorial reminders unchanged. Passing learning alone cannot activate instructions.','left:40%;top:160px')}
+        ${node('approval','You approve activation','Validation passes: you may activate or reject the exact tested setup. No model can activate instructions for you.','left:78%;top:160px')}
+        ${node('allowance','Authorize next round','Before another round: continue automatically only while authorized rounds remain. Otherwise pause for your choice to authorize a complete round, finish, or investigate. Missing fresh entries also pauses. Authorized learning or validation returns to NCCE context.','left:2%;top:280px')}
+        ${node('activate','Future NCCE writing','Use the setup you approved for future writing. Existing prose stays unchanged.','left:78%;top:280px')}
       </div>
-      <p class="flow-validation-failure">Validation falls short → revise the category prompt → learning tests again. Context issues during validation → pause for investigation.</p>
-      ${card('allowance','Before another round: check authorization','Rounds remain: continue automatically within your approved limit. None remain: pause for your decision to authorize a complete round, finish with saved findings, or ask StoryTechMan. Missing fresh entries also pauses the study.')}
-      <p class="flow-return">↶ Authorized learning or validation returns to the full cycle above. Passing learning alone cannot activate instructions.</p>
-      <section class="flow-technical"><h5 class="flow-section-title">Context / technical / permission issue → stop writing</h5>
-      ${cycle([card('investigate','1. StoryTechMan investigates','Read-only investigation of saved requests and code; returns an evidence-backed proposal.'),card('proposal','2. You approve the proposal','Approve this exact repair for development and tests, request changes, or reject it.'),card('repair','3. Development and tests','StoryTechMan implements the approved repair and returns a tested report.'),card('release-decision','4. You approve deployment','Separate approval of the exact tested repair is required.'),card('release','5. Deploy and verify','StoryTechMan releases the approved repair and checks it.'),card('new-study','6. Start a new study','Your authorization is required for new writing tests. Repair does not activate writing instructions.')])}
-      <p class="flow-return">↶ A new study starts at NCCE context. It must pass learning and fresh-entry validation before your activation decision.</p></section>
-      ${card('halt','Paused, stopped or finished','A failure, missing input or your stop decision prevents further writing. Findings remain saved; resolve the reason before starting more work.')}
-      <p class="flow-legend">The highlighted box shows the current saved stage. Arrows describe possible routes, not a history of completed transitions. Routine context checks are application code; they do not call the StoryTechMan model.</p>
+      <div class="flow-bottom">${node('halt','Paused / finished','A failure, missing input or your stop decision prevents further writing. Findings stay saved. Resolve the cause before authorizing more work.')}<details class="flow-repair" data-ws-detail="flow-repair"${technical?' open':''}><summary${technical?' class="has-current-stage"':''}>Context / technical issue → StoryTechMan${technical?' · current branch':''}</summary><div class="flow-repair-map">
+        ${node('investigate','1 · Investigate','Context, technical or permission issue: stop writing. StoryTechMan inspects saved requests and code read-only, then returns an evidence-backed proposal.')}
+        ${node('proposal','2 · Approve proposal','You approve the exact proposal for development and tests, request changes, or reject it. Approval does not authorize deployment.')}
+        ${node('repair','3 · Repair &amp; test','StoryTechMan implements your approved repair and returns a tested report. No writer calls or instruction activation.')}
+        ${node('release-decision','4 · Approve deployment','Separate approval of the exact tested repair is required before publishing it.')}
+        ${node('release','5 · Deploy &amp; verify','StoryTechMan deploys only the approved tested repair and verifies it.')}
+        ${node('new-study','6 · New study','Authorize a new study after a systemic repair. Return to context, learning tests and fresh-entry validation. Repair does not activate writing instructions.')}
+      </div></details></div>
     </figure>`;
   }
   function handoffText(text,limit=220) {

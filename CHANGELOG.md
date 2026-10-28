@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.3 - compact graph with on-demand explanations (2026-10-28)
+
+- Replace explanation cards with a compact connected graph and short labels. Hide descriptions until hover, keyboard focus or touch focus; retain keyboard focus through live repaint.
+- Nest the repair process in an expandable subgraph, automatically opened when it contains the current technical stage. Keep saved-stage highlighting and all workflow/approval semantics.
+- Add a mobile node layout with explicit outcome labels. No changes to generation, prompts, model usage or approval gates. UI/activity and disposable authenticated application checks pass.
+
 ## 0.15.2 - faithful Workshop workflow graph (2026-10-28)
 
 - Replace crossing SVG shortcuts with an explicit shared learning/validation cycle: context, fresh A/B, pair review, second entry and whole-round outcomes. Validation repeats the full cycle with the setup frozen.
