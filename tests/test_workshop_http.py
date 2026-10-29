@@ -42,6 +42,8 @@ def main():
                 assert call('/api/workshop/quality?scope=territory_origin')[0]==403
                 assert call('/api/workshop/owner-verdict',{})[0]==403
                 assert call('/api/workshop/optimization-resume',{})[0]==403
+                assert call('/api/workshop/optimization-recover-review',{})[0]==403
+                assert call('/api/reviewer-bridge/notified',{})[0]==401
                 bearer='Bearer '+bridge_token
                 assert call('/api/reviewer-bridge/claim',bridge_body,authorization=bearer)[0]==200
                 assert call('/api/reviewer-bridge/events',{**bridge_body,'wait_seconds':0},authorization=bearer)[1]=={'job_id':None}
@@ -171,6 +173,26 @@ def main():
                 assert code==200 and updated['active']['revision_id']==event['revision_id']
                 assert call('/api/workshop/guidelines-activate',selection,cookie)[0]==200
                 assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==0
+
+                # Explicit saved-draft recovery: auth/origin, pipeline guard and
+                # duplicate HTTP delivery cannot enqueue a second native job.
+                from test_review_delivery import interrupted,recovery_body
+                paused=interrupted(server.store); recover_body=recovery_body(paused)
+                requests_before=server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]
+                assert call('/api/workshop/optimization-recover-review',recover_body)[0]==401
+                assert call('/api/workshop/optimization-recover-review',recover_body,cookie,'https://foreign.invalid')[0]==403
+                assert call('/api/workshop/optimization-recover-review',{'run_id':paused['run_id']},cookie)[0]==400
+                server._writer_pipeline_guard.acquire()
+                assert call('/api/workshop/optimization-recover-review',recover_body,cookie)[0]==409
+                server._writer_pipeline_guard.release()
+                launched.clear();optimizer_launches.clear()
+                with patch.object(server,'_run_optimization',side_effect=optimizer_worker):
+                    code,recovered=call('/api/workshop/optimization-recover-review',recover_body,cookie)
+                    assert code==202 and launched.wait(2)
+                    assert call('/api/workshop/optimization-recover-review',recover_body,cookie)[0]==200
+                    assert len(optimizer_launches)==1
+                assert recovered['review_delivery_recovery']['original_job_id']==recover_body['job_id']
+                assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==requests_before
 
             print('HTTP workshop passed: auth mandatory, cross-origin denied, busy rejected, duplicate key queued once, no paid calls')
         finally:http.shutdown();http.server_close();thread.join();server.store.close()

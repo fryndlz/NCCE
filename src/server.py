@@ -303,7 +303,7 @@ class H(BaseHTTPRequestHandler):
     if not isinstance(body,dict):raise ValueError('Expected an object')
     action=p.rsplit('/',1)[-1]
     import workshop_interventions
-    functions={'technical-test':workshop_interventions.self_test,'heartbeat':bridge.heartbeat,'claim':bridge.claim,'started':bridge.started,'complete':bridge.complete,'fail':bridge.fail,'self-test':bridge.self_test,'events':bridge.events}
+    functions={'technical-test':workshop_interventions.self_test,'heartbeat':bridge.heartbeat,'claim':bridge.claim,'started':bridge.started,'complete':bridge.complete,'fail':bridge.fail,'self-test':bridge.self_test,'events':bridge.events,'notified':bridge.notified}
     if action not in functions:return self.js({'error':'Unknown bridge operation'},404)
     if action=='events':result=functions[action](store,body)
     else:
@@ -351,11 +351,17 @@ class H(BaseHTTPRequestHandler):
      if flag:flag.set()
      with store.reader() as reader:result=workshop_optimizer.get(reader,run_id)
      return self.js({'stop_requested':bool(flag),'run':result})
-    if p in ('/api/workshop/optimization-checkpoint','/api/workshop/optimization-resume'):
+    if p in ('/api/workshop/optimization-checkpoint','/api/workshop/optimization-resume','/api/workshop/optimization-recover-review'):
+     if p.endswith('optimization-recover-review'):
+      import workshop_review_recovery
+      with store.reader() as reader:
+       prior=workshop_optimizer.get(reader,body.get('run_id')).get('review_delivery_recovery',{})
+       if prior and prior.get('request_key')==body.get('request_key') and prior.get('original_job_id')==body.get('job_id'):
+        return self.js(workshop_optimizer.get(reader,body.get('run_id')))
      if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'Writing is already in progress.'},409)
      try:
       import workshop_experiments
-      operation=workshop_experiments.resume_saved_round if p.endswith('optimization-resume') else workshop_experiments.checkpoint
+      operation=workshop_review_recovery.recover if p.endswith('optimization-recover-review') else workshop_experiments.resume_saved_round if p.endswith('optimization-resume') else workshop_experiments.checkpoint
       with store._lock:item,fresh=operation(store,body)
       if fresh:
        _optimizer_stops[item['run_id']]=threading.Event()

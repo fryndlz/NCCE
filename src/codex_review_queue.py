@@ -202,11 +202,12 @@ def started(store, body):
         row = owned(store, body)
         if row['status'] != 'claimed': raise ValueError('Review job is no longer awaiting Codex')
         payload=json.loads(row['payload_json'])
+        payload.setdefault('transport_audit', {})['started_at'] = now()
         identity = {'_codex': {'thread_id': payload['thread_id'], 'turn_id': turn_id}}
         if payload.get('kind','review')!='review' and not payload.get('diagnostic'):
             from workshop_interventions import started as technical_started
             technical_started(store,payload)
-        store.db.execute("UPDATE codex_review_jobs SET status='reviewing',result_json=? WHERE job_id=?", (packed(identity), row['job_id']))
+        store.db.execute("UPDATE codex_review_jobs SET status='reviewing',result_json=?,payload_json=? WHERE job_id=?", (packed(identity), packed(payload), row['job_id']))
     return {'ok': True}
 
 
@@ -232,3 +233,27 @@ def get(store, job_id):
     row = store.db.execute('SELECT * FROM codex_review_jobs WHERE job_id=?', (job_id,)).fetchone()
     if not row: raise ValueError('Review job missing')
     return dict(row)
+
+
+def transport(store, job_id):
+    """Allowlisted transport evidence, never leases, workers or hidden verdicts."""
+    row = get(store, job_id)
+    audit = json.loads(row['payload_json']).get('transport_audit', {})
+    return {'job_id': job_id, 'status': row['status'], 'enqueued_at': row['created_at'],
+            'notification_accepted_at': audit.get('notification_accepted_at'),
+            'claimed_at': row['claimed_at'], 'started_at': audit.get('started_at'),
+            'finished_at': row['finished_at'], 'terminal_cause': row['error'] or ''}
+
+
+def notified(store, body):
+    """A queue CLI acknowledgement is not a native claim or review start."""
+    row = get(store, body.get('job_id'))
+    payload = json.loads(row['payload_json'])
+    if not valid_thread(body.get('thread_id')) or payload.get('thread_id') != body['thread_id']:
+        raise ValueError('Wrong notification thread')
+    audit = payload.setdefault('transport_audit', {})
+    if not audit.get('notification_accepted_at'):
+        audit['notification_accepted_at'] = now()
+        with store._lock, store.db:
+            store.db.execute('UPDATE codex_review_jobs SET payload_json=? WHERE job_id=?', (packed(payload), row['job_id']))
+    return {'ok': True}

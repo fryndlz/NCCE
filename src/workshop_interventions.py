@@ -75,6 +75,8 @@ def submit(store,state,kind,note='',approval=None):
     payload={'job_id':job_id,'run_id':state['run_id'],'thread_id':TECH_THREAD_ID,'kind':kind,
         'objective':'Improve reusable category prompts, guardrails and NCCE context; do not rewrite one draft.',
         'packet':packet,'approval':approval,'output_schema':schema(kind)}
+    packet['review_transport'] = [cq.transport(store,p['codex_job_id'])
+        for r in state['rounds'] for p in r['pairs'] if p.get('codex_job_id')]
     with store._lock,store.db:
         store.db.execute("INSERT INTO codex_review_jobs(job_id,run_id,status,payload_json,created_at) VALUES(?,?,'queued',?,?)",(job_id,state['run_id'],cq.packed(payload),ws.now()))
         tech=state.setdefault('tech',{})

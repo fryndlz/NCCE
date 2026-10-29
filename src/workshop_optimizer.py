@@ -269,32 +269,41 @@ def assess(value):
 class ReviewCancelled(Exception): pass
 
 
-def review_pair(store, state, pair, preceding_reviews, cancelled=lambda: False):
+def review_pair(store, state, pair, preceding_reviews, cancelled=lambda: False, existing_job=None):
     """Wait for the actual Codex chat; there is deliberately no API fallback."""
     if not codex_queue.configured(): raise ValueError('Codex reviewer bridge is not configured')
     from workshop_experiments import schema
-    job_id = codex_queue.enqueue(store, state, pair, preceding_reviews, schema() if state.get('workflow_version',1)>=3 else review_schema(), RUBRIC)
+    job_id = existing_job or codex_queue.enqueue(store, state, pair, preceding_reviews, schema() if state.get('workflow_version',1)>=3 else review_schema(), RUBRIC)
     pair['codex_job_id'] = job_id
     activity(store, state, 'awaiting_reviewer', 'StoryTechMan', 'Review packet sealed. Awaiting JKSimmons in Codex. No external reviewer API request will be made.')
-    deadline = time.monotonic() + 1800
-    waiting_since = time.monotonic()
+    deadline = None
     claimed = False
-    while time.monotonic() < deadline:
+    waiting_message = None
+    while True:
         if cancelled():
             codex_queue.cancel(store, job_id, 'Owner stopped the run')
             raise ReviewCancelled('Owner stopped the run while waiting for Codex')
         job = codex_queue.get(store, job_id)
+        if job['status'] in ('claimed', 'reviewing') and deadline is None:
+            # Queue latency is unbounded and consumes no execution allowance.
+            # A claim is uncertain work, even before native started arrives.
+            deadline = time.monotonic() + 1800
         if job['status'] == 'reviewing' and not claimed:
             activity(store, state, 'review', 'JKSimmons', 'I have the two drafts in my Codex chat. Comparing the evidence, your standards and the writing itself.')
             claimed = True
         if job['status'] == 'completed': return json.loads(job['result_json'])
         if job['status'] in ('failed', 'cancelled'): raise ValueError(job['error'] or 'Codex review stopped')
-        if time.monotonic() - waiting_since > 90 and not codex_queue.status(store)['online']:
-            codex_queue.cancel(store, job_id, 'Codex companion went offline')
-            raise ValueError('Codex companion is offline. The loop is paused; no API reviewer fallback was made.')
+        if deadline is not None and time.monotonic() >= deadline:
+            codex_queue.cancel(store, job_id, 'Active Codex review timed out; no automatic replay')
+            raise ValueError('The claimed Codex review did not finish within 30 minutes. Inspect its native turn; no replay was made.')
+        if job['status'] == 'queued':
+            online = codex_queue.status(store)['online']
+            message = ('Waiting for the queued Codex chat turn. No review has started; saved drafts and allowance are unchanged.' if online else
+                       'Waiting for the Codex listener to reconnect and the queued chat turn to start. No review has started; saved drafts and allowance are unchanged.')
+            if message != waiting_message:
+                activity(store, state, 'awaiting_reviewer', 'StoryTechMan', message)
+                waiting_message = message
         time.sleep(1)
-    codex_queue.cancel(store, job_id, 'Codex review timed out; no automatic replay')
-    raise ValueError('Codex reviewer did not finish within 30 minutes. Check the reviewer chat; no API fallback or automatic replay was made.')
 
 
 def generate(store, state, prepared, instructions, token):

@@ -208,8 +208,18 @@ def execute(store, state, cancelled, generator, reviewer):
                     raise ValueError('Source context changed. Start a fresh comparison.')
                 if si<len(round_['pairs']):
                     retained=round_['pairs'][si]
-                    if not resuming or retained['sample_key']!=prepared['key'] or len(retained['candidates'])!=2 or any(c['status']!='ready' for c in retained['candidates']) or not retained.get('review'):
+                    if not resuming or retained['sample_key']!=prepared['key'] or len(retained['candidates'])!=2 or any(c['status']!='ready' for c in retained['candidates']):
                         raise ValueError('Interrupted request outcome is uncertain. No automatic retry is allowed.')
+                    delivery = state.get('review_delivery_recovery', {})
+                    if not retained.get('review') and delivery.get('replacement_job_id') == retained.get('codex_job_id'):
+                        preceding = [p['review'] for r in state['rounds'] for p in r['pairs'] if p.get('review')]
+                        result = reviewer(store, state, retained, preceding) if reviewer else opt.review_pair(store, state, retained, preceding, cancelled, existing_job=delivery['replacement_job_id'])
+                        validate_review(result)
+                        retained['review'] = result; retained['review_sealed_at'] = ws.now()
+                        delivery['completed_at'] = ws.now()
+                        opt.activity(store, state, 'evaluate', 'JKSimmons', 'The saved draft pair has its independent verdict. No writer request was repeated.')
+                    if not retained.get('review'):
+                        raise ValueError('Interrupted review is uncertain. Explicit verified recovery is required.')
                     validate_review(retained['review'])
                     if opt.assess(retained['review'])[1]:
                         raise ValueError('The retained review requires technical investigation before more writing')
@@ -280,6 +290,9 @@ def execute(store, state, cancelled, generator, reviewer):
                 if not calibrated:
                     opt.pause(store, state, 'awaiting_owner', 'Reviewer scores remain advisory. This comparison is saved; record your blind verdicts before more writing. No instructions have been activated.')
                     return state
+            if resuming and state.get('review_delivery_recovery', {}).get('completed_at'):
+                opt.pause(store, state, 'awaiting_owner', 'Recovered review saved. Record your blind verdicts before any further authorized writing. No writer request was repeated.')
+                return state
         opt.pause(store, state, 'awaiting_next_round', 'This test batch is complete. Current-versus-candidate comparisons and findings are saved. Continue within a new bounded grant, investigate, or finish.')
     except opt.ReviewCancelled as exc:
         opt.stop(store, state, str(exc), 'stopped')
@@ -293,6 +306,13 @@ def public_run(store, state):
     """Do not reveal assessor verdicts or A/B identities before owner judgement."""
     import copy
     result = copy.deepcopy(state)
+    import codex_review_queue as cq
+    from workshop_review_recovery import available
+    result['review_recovery_available'] = available(store, state)
+    for r in result['rounds']:
+        for pair in r['pairs']:
+            if pair.get('codex_job_id'):
+                pair['review_transport'] = cq.transport(store, pair['codex_job_id'])
     if result.get('workflow_version', 1) < 3:
         return result
     result['reviewer_calibration'] = quality.calibration(store, result['form'])

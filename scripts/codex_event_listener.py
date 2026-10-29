@@ -34,6 +34,9 @@ class EventListener:
         if journal.exists():
             value = json.loads(journal.read_text(encoding='utf-8'))
             if value['status'] != 'sent': raise DispatchUncertain('Uncertain event dispatch; human inspection required')
+            if not value.get('acknowledged'):
+                self.post('notified', {'job_id':job,'thread_id':target})
+                journal.write_text(json.dumps({**value,'acknowledged':True}),encoding='utf-8')
             time.sleep(2)
             return False
         # An uncertain CLI response is never automatically re-dispatched.
@@ -60,6 +63,10 @@ class EventListener:
             try:self.post('heartbeat',{'state':'error'})
             except Exception:pass
             raise DispatchUncertain('Queue delivery is uncertain; inspect the native chat before any retry') from exc
+        # Persist sent before the server acknowledgement: reconnecting may retry
+        # metadata, never the CLI notification or a model turn.
+        self.post('notified', {'job_id':job,'thread_id':target})
+        journal.write_text(json.dumps({'job_id':job,'status':'sent','acknowledged':True}),encoding='utf-8')
         return True
 
 
