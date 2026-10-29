@@ -1,6 +1,7 @@
 """One event-driven reviewer learning job per sealed feedback snapshot.
 
-No writer calls, policy activation, timers, or rewriting of historical verdicts.
+No writer calls, timers, or rewriting of historical verdicts.
+Owner-authorized completed feedback updates automatically become active.
 """
 import json
 import uuid
@@ -62,7 +63,8 @@ def maybe_queue(store,run_id):
                 'Explain what changed and why in short human language. Never alter scores, verdicts, source/canon, '
                 'the protected owner contract, spending or active writing policies. Do not rewrite drafts, start writing, '
                 'inspect unjudged comparisons, or message other chats. Return the exact schema; the application saves '
-                'inactive candidate guidance and the local helper mirrors the confirmed standards to reviewer memory.',
+                'the updated category guidance and automatically activates it under the owner\'s standing instruction. '
+                'The local helper mirrors the confirmed standards to reviewer memory.',
             'output_schema':schema()}
         state['feedback_sync']={'job_id':job,'input_hash':fingerprint,'status':'queued','at':ws.now(),
             'message':'Your verdicts are saved. JKSimmons will update his standards and candidate guidance once.'}
@@ -95,7 +97,7 @@ def complete(store,payload,result,identity):
     if (current or {}).get('revision_id')!=(payload.get('base_standards') or {}).get('revision_id'):raise ValueError('Reviewer standards changed during this update; retain the result for inspection')
     revision=uuid.uuid4().hex;at=ws.now();base=payload['candidate']
     # Plain inserts share complete()'s transaction: candidate, memory and audit
-    # either all commit or all roll back. No active policy pointers are touched.
+    # either all commit or all roll back, including the active category pointer.
     store.db.execute('INSERT INTO workshop_revisions VALUES(?,?,?,?,?,?)',(revision,payload['form'],
         'JKSimmons feedback consolidation',result['proposed_form_instructions'].strip(),base.get('examples',''),at))
     saved={**result,'examples':base.get('examples',''),'revision_id':payload['job_id'],'candidate_revision_id':revision,'form':payload['form'],
@@ -105,7 +107,45 @@ def complete(store,payload,result,identity):
     sync.update(status='completed',message=result['summary'],changes=result['changes'],standards=result['reviewer_standards'],
         owner_corrections=result['owner_corrections'],reviewer_inferences=result['reviewer_inferences'],
         candidate_revision_id=revision,previous_candidate_revision_id=base['revision_id'],at=at,identity=identity)
+    activate_update(store,saved,state,'completed_feedback')
     store.db.execute('UPDATE workshop_optimization_runs SET state_json=? WHERE run_id=?',(opt.packed(state),state['run_id']))
+
+
+def activate_update(store,saved,state,reason):
+    """Called inside the completion/startup transaction, never on page reads."""
+    form=ws.scope_name(saved['form'])
+    if form=='shared':raise ValueError('Feedback updates must belong to one category')
+    rid=saved['candidate_revision_id'];revision=ws.revision(store,rid,form)
+    if revision['instructions']!=saved['proposed_form_instructions'].strip() or revision['examples']!=saved.get('examples',''):
+        raise ValueError('Saved feedback guidance does not match its revision')
+    key='guideline-auto-activation:'+saved['revision_id']
+    if store.get_state(key):return  # Restarts/retries must respect later manual choices.
+    previous=(ws.active(store,form) or {}).get('revision_id')
+    audit={'scope':form,'revision_id':rid,'previous_active':previous,'run_id':saved['run_id'],
+        'job_id':saved['revision_id'],'at':ws.now(),'actor':'owner_standing_instruction','reason':reason}
+    store.db.execute('INSERT INTO workshop_active VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET revision_id=excluded.revision_id',(form,rid))
+    store.db.execute('INSERT INTO system_state VALUES(?,?)',(key,cq.packed(audit)))
+    # Only this study's guard advances. Its baseline, tested prompts, ballots and
+    # calibration evidence stay frozen; other studies still detect pointer drift.
+    state['expected_active'][form]=rid
+    state['feedback_sync'].update(active_revision_id=rid,automatic_activation=audit)
+
+
+def reconcile_active_guidelines(store):
+    """One-time upgrade: activate each category's latest completed feedback update."""
+    import workshop_optimizer as opt
+    marker='guideline-auto-activation-upgrade-v1'
+    with store._lock,store.db:
+        if store.get_state(marker):return
+        rows=store.db.execute("SELECT value FROM system_state WHERE key LIKE 'reviewer-standards:%'").fetchall()
+        for row in rows:
+            saved=json.loads(row[0])
+            if not saved.get('candidate_revision_id'):continue
+            state=opt.get(store,saved['run_id'])
+            if state.get('feedback_sync',{}).get('job_id')!=saved['revision_id']:continue
+            activate_update(store,saved,state,'existing_completed_feedback')
+            store.db.execute('UPDATE workshop_optimization_runs SET state_json=? WHERE run_id=?',(opt.packed(state),state['run_id']))
+        store.db.execute('INSERT INTO system_state VALUES(?,?)',(marker,ws.now()))
 
 
 def export(store,payload):

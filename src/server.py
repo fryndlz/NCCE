@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.19.1'
+APP_VERSION='0.19.2'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -47,6 +47,8 @@ def _run_workshop(trial_id):
  finally:_writer_pipeline_guard.release()
 import workshop_optimizer
 workshop_optimizer.recover(store)
+import editorial_sync
+editorial_sync.reconcile_active_guidelines(store)
 _optimizer_stops={}
 def _run_optimization(run_id):
  try:

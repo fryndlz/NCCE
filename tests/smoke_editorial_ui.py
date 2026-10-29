@@ -39,6 +39,16 @@ def main():
         # throughout the browser's declined-confirmation check.
         writer.API_KEY='mock'
         writer._call=forbidden
+        import editorial_sync
+        from test_editorial_sync import finish_learning
+        original_queue=editorial_sync.maybe_queue
+        def simulated_feedback(store,run_id):
+            state=original_queue(store,run_id)
+            if state.get('feedback_sync',{}).get('status')=='queued':
+                finish_learning(store,state)
+            return opt.get(store,run_id)
+        feedback_patch=patch.object(editorial_sync,'maybe_queue',side_effect=simulated_feedback)
+        feedback_patch.start()
         initial_requests=server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]
         http=server.ThreadingHTTPServer(('127.0.0.1',0),server.H)
         threading.Thread(target=http.serve_forever,daemon=True).start()
@@ -88,10 +98,14 @@ const {chromium}=require(process.env.NCCE_PLAYWRIGHT);
   await page.getByRole('heading',{name:'Study finished · results saved',exact:true}).waitFor();
   const runId=await page.locator('[data-ws-run]').getAttribute('data-ws-run');
   const saved=await (await page.request.get(process.env.NCCE_PREVIEW_URL+'/api/workshop/optimization?run_id='+runId)).json();
+  const guidelines=await (await page.request.get(process.env.NCCE_PREVIEW_URL+'/api/workshop/guidelines?scope='+saved.form)).json();
+  assert.equal(guidelines.active.revision_id,saved.feedback_sync.candidate_revision_id,'Completed feedback guidance must be active');
+  assert.equal(guidelines.activation_mode,'automatic_completed_feedback');
   const mutations=[];
   page.on('request',r=>{if(r.method()==='POST')mutations.push(r.url());});
   await page.getByRole('button',{name:'Prepare another test using saved guidance',exact:true}).click();
-  assert.equal(await page.locator('[data-ws-candidate]').inputValue(),saved.specific.instructions);
+  await page.locator('[data-ws-detail="candidate-editor"][open]').waitFor();
+  assert.equal(await page.locator('[data-ws-candidate]').inputValue(),guidelines.active.instructions);
   assert.equal(await page.locator('[data-ws-detail="candidate-editor"]').getAttribute('open'),'');
   assert.equal(mutations.length,0);
   page.once('dialog',dialog=>dialog.dismiss());
@@ -120,6 +134,7 @@ const {chromium}=require(process.env.NCCE_PLAYWRIGHT);
             assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==initial_requests
             forbidden.assert_not_called()
         finally:
+            feedback_patch.stop()
             http.shutdown();http.server_close();server.store.close()
 
 

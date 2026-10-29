@@ -1,4 +1,4 @@
-"""Post-study learning: event-driven, durable, bounded and never activation."""
+"""Post-study learning: event-driven, durable, bounded and automatically activates completed updates."""
 import copy
 import hashlib
 import json
@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
@@ -37,7 +38,7 @@ def setup(store,fn):
 
 
 def judged(store):
-    state,_=opt.queue(store,request(store,1))
+    state,_=opt.queue(store,request(store,1,key=uuid.uuid4().hex))
     state=opt.execute(store,state['run_id'],generator=fake_generator,reviewer=lambda s,t,p,h:review(p,True))
     vote(store,state,0)
     assert 'feedback_sync' not in opt.get(store,state['run_id'])
@@ -68,7 +69,9 @@ def test_last_verdict_queues_once_and_completion_saves_candidate_memory_and_chan
         assert len(payload['feedback'])==2 and all(x['owner_verdict'] for x in payload['feedback'])
         assert done['feedback_sync']['status']=='completed' and done['rounds']==frozen
         assert [done[k] for k in ('writer_reserved','writer_limit','reviewer_reserved','reviewer_limit')]==reservations
-        assert ws.active(store,state['form']) is None and ws.active(store,'shared') is None
+        assert ws.active(store,state['form'])['revision_id']==memory['candidate_revision_id'] and ws.active(store,'shared') is None
+        assert update()['proposed_form_instructions'] in ws.active_contract(store,state['form'])
+        assert done['expected_active'][state['form']]==memory['candidate_revision_id']
         assert done['specific']['revision_id']==state['specific']['revision_id'],'historically tested pair is immutable'
         assert ws.revision(store,memory['candidate_revision_id'])['instructions']==update()['proposed_form_instructions']
         assert q.home(store,state['form'])['suggested_instructions']==update()['proposed_form_instructions']
@@ -94,9 +97,70 @@ def test_failure_and_restart_never_replay_a_learning_job():
     with_store(lambda s:setup(s,check))
 
 
+def test_latest_completed_update_activates_without_touching_other_scopes_or_replaying():
+    def check(store):
+        untouched=ws.save_revision(store,{'scope':'shared','instructions':'Keep shared craft.'})
+        ws.activate(store,{'scope':'shared','revision_id':untouched['revision_id']})
+        other=ws.save_revision(store,{'scope':'fighter_biography','instructions':'Keep biography guidance.'})
+        ws.activate(store,{'scope':'fighter_biography','revision_id':other['revision_id']})
+        first=judged(store);finish_learning(store,first)
+        second=judged(store);frozen=copy.deepcopy(second['rounds'])
+        _,lease,_=finish_learning(store,second,update('Newest completed category guidance.'))
+        rid=sync.standards(store,second['form'])['candidate_revision_id']
+        assert ws.active(store,second['form'])['revision_id']==rid
+        assert ws.active(store,'shared')==untouched and ws.active(store,'fighter_biography')==other
+        assert opt.get(store,second['run_id'])['rounds']==frozen
+        # Later manual rollback must survive retries/startup.
+        rollback=ws.save_revision(store,{'scope':second['form'],'instructions':'Owner rollback.'})
+        ws.activate(store,{'scope':second['form'],'revision_id':rollback['revision_id'],'expected_active':rid})
+        cq.complete(store,{**lease,'review':update('Newest completed category guidance.')})
+        sync.reconcile_active_guidelines(store);sync.reconcile_active_guidelines(store)
+        assert ws.active(store,second['form'])==rollback
+    with_store(lambda s:setup(s,check))
+
+
+def test_upgrade_activates_existing_latest_feedback_once_and_preserves_audit():
+    def check(store):
+        state=judged(store);finish_learning(store,state)
+        saved=sync.standards(store,state['form']);rid=saved['candidate_revision_id']
+        # Model a pre-upgrade database: completed standards exist, pointer was never advanced.
+        with store.db:
+            store.db.execute('DELETE FROM workshop_active WHERE scope=?',(state['form'],))
+            store.db.execute('DELETE FROM system_state WHERE key=?',('guideline-auto-activation:'+saved['revision_id'],))
+        frozen=copy.deepcopy(opt.get(store,state['run_id'])['rounds'])
+        sync.reconcile_active_guidelines(store)
+        assert ws.active(store,state['form'])['revision_id']==rid
+        audit=json.loads(store.get_state('guideline-auto-activation:'+saved['revision_id']))
+        assert audit['previous_active'] is None and audit['reason']=='existing_completed_feedback'
+        assert opt.get(store,state['run_id'])['rounds']==frozen
+        assert ws.active(store,'shared') is None
+        sync.reconcile_active_guidelines(store)
+        assert json.loads(store.get_state('guideline-auto-activation:'+saved['revision_id']))==audit
+    with_store(lambda s:setup(s,check))
+
+
+def test_activation_failure_rolls_back_candidate_memory_audit_and_job_completion():
+    def check(store):
+        import sqlite3
+        state=judged(store)
+        before=store.db.execute('SELECT count(*) FROM workshop_revisions').fetchone()[0]
+        with store.db:
+            store.db.execute("CREATE TRIGGER reject_activation BEFORE INSERT ON workshop_active BEGIN SELECT RAISE(ABORT,'test activation failure'); END")
+        try:finish_learning(store,state)
+        except sqlite3.IntegrityError:pass
+        else:raise AssertionError('Activation failure must abort the complete transaction')
+        assert sync.standards(store,state['form']) is None
+        assert ws.active(store,state['form']) is None
+        assert store.db.execute('SELECT count(*) FROM workshop_revisions').fetchone()[0]==before
+        assert opt.get(store,state['run_id'])['feedback_sync']['status']=='reviewing'
+        assert cq.get(store,state['feedback_sync']['job_id'])['status']=='reviewing'
+        assert not store.get_state('guideline-auto-activation:'+state['feedback_sync']['job_id'])
+    with_store(lambda s:setup(s,check))
+
+
 def test_finished_study_still_learns_once_after_its_last_rating():
     def check(store):
-        state,_=opt.queue(store,request(store,1))
+        state,_=opt.queue(store,request(store,1,key=uuid.uuid4().hex))
         state=opt.execute(store,state['run_id'],generator=fake_generator,reviewer=lambda s,t,p,h:review(p,True))
         opt.finish_run(store,{'run_id':state['run_id']})
         vote(store,state,0);vote(store,state,1)
