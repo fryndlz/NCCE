@@ -193,7 +193,8 @@ def prepare(store, form, packet, source_key='', focus='auto', variant=0, plan_ke
         return json.loads(row['packet_json'])
     allowed = options(form)
     if focus != 'auto' and focus not in allowed: raise ValueError('This creative focus is incompatible with the writing form')
-    key = digest([REVISION, territory_reference.REVISION, source_hash, focus, variant])
+    import writing_rag
+    key = digest([REVISION, territory_reference.REVISION, source_hash, focus, variant, writing_rag.corpus(store)[3]])
     if editorial is not None:
         if editorial.get('form') != form: raise ValueError('Editorial reminders belong to another form')
         key = digest([key, editorial])
@@ -236,6 +237,7 @@ def prepare(store, form, packet, source_key='', focus='auto', variant=0, plan_ke
     prepared = {**raw, 'creative_plan': plan}
     reference = territory_reference.for_packet(form, raw)
     if reference: prepared['rulebook_context'] = reference
+    prepared = writing_rag.attach(store,form,prepared)
     if persist:
         with store._lock:
             # Never commit a surrounding campaign regeneration transaction.

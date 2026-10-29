@@ -25,7 +25,7 @@ def hashed(value): return hashlib.sha256(packed(value).encode()).hexdigest()
 def environment_fingerprint():
     root=Path(__file__).parent
     import writer_contract
-    sources=[root/name for name in ('writer_contract.py','narrative_context.py','writer_planning.py','writer_workshop.py','territory_reference.py','llm_writer.py','story_engine.py','fighter_mind.py','fighter_event_clock.py','editorial_quality.py','workshop_experiments.py')]
+    sources=[root/name for name in ('writer_contract.py','narrative_context.py','writer_planning.py','writer_workshop.py','territory_reference.py','llm_writer.py','story_engine.py','fighter_mind.py','fighter_event_clock.py','editorial_quality.py','workshop_experiments.py','writing_rag.py')]
     sources.append(writer_contract.RUNTIME_PATH)
     return hashlib.sha256(b''.join(p.name.encode()+p.read_bytes() for p in sources if p.exists())).hexdigest()
 

@@ -621,7 +621,10 @@ async function render(view, preserveScroll = false) {
   const token = ++renderToken;
   activeView = view === 'people' ? 'fighters' : view;
   currentDetail = null;
+  app.dataset.view=activeView;
+  if(activeView!=='retrieval' && location.hash==='#retrieval')history.replaceState(null,'',location.pathname+location.search);
   document.querySelectorAll('nav button').forEach(button => button.classList.toggle('active', button.dataset.view === activeView));
+  if (activeView === 'retrieval') { location.hash='retrieval'; await window.NCCERetrieval.open(app,api); return; }
   if (activeView === 'workshop') { await window.NCCEWorkshop.open(app,api,blocks); return; }
   if (activeView === 'fighters') {
     if (!fightersCache) app.innerHTML = '<div class="loading-state" role="status">Opening fighter records…</div>';
@@ -873,11 +876,13 @@ syncNow.addEventListener('click', async () => {
 });
 if (logout) logout.addEventListener('click', async () => { await api('/api/logout', {method: 'POST'}); location.replace('/login'); });
 async function startApp() {
+  const initialView=location.hash;
   const session = await api('/api/session');
   if (session.auth_required && !session.authenticated) { location.replace('/login'); return; }
   if (logout) logout.hidden = !session.auth_required;
   await refreshDashboard(false); await refreshStatus();
-  if (location.hash === '#workshop') await render('workshop');
+  if (initialView === '#retrieval') await render('retrieval');
+  if (initialView === '#workshop') await render('workshop');
   setInterval(() => refreshStatus().catch(error => { health.textContent = 'Could not check the latest Sheet refresh'; health.classList.add('has-error'); console.error(error); }), 15000);
 }
 startApp().catch(handleError);

@@ -473,3 +473,21 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 
 .ws-feedback-sync { padding: 1rem; margin: 1rem 0; border: 1px solid #63816b; border-radius: 8px; background: #1c2920; }
 .ws-feedback-sync li { line-height: 1.6; margin: .5rem 0; }
+/* Retrieval controls remain readable on narrow screens. */
+.rag-workbench section { margin:1.25rem 0; padding:1rem; border:1px solid #445345; border-radius:6px; }
+.rag-workbench label { display:block; margin:.65rem 0; }
+.rag-workbench input:not([type=checkbox]):not([type=file]), .rag-workbench textarea, .rag-workbench select { width:100%; max-width:100%; box-sizing:border-box; }
+.rag-workbench input[type=checkbox] { width:auto; }
+.rag-workbench button { margin:.3rem .4rem .3rem 0; white-space:normal; overflow-wrap:anywhere; }
+.rag-source-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr)); gap:.75rem; }
+.rag-source-list article, .rag-passage { padding:.8rem; border:1px solid #445345; border-radius:5px; }
+.rag-request-list { display:flex; flex-direction:column; align-items:stretch; }
+.rag-workbench pre { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; max-height:32rem; overflow:auto; font-size:.88rem; }
+.rag-workbench .rag-prose { font-family:inherit; line-height:1.6; }
+.rag-workbench summary { cursor:pointer; overflow-wrap:anywhere; }
+.rag-message { position:sticky; top:0; background:#1b241c; z-index:2; }
+.rag-workbench { min-width:0; overflow-wrap:anywhere; }
+.rag-workbench section, .rag-workbench article, .rag-workbench details { min-width:0; max-width:100%; box-sizing:border-box; }
+.rag-request-list { max-height:22rem; overflow:auto; }
+.rag-source-list { max-height:36rem; overflow:auto; }
+.rag-workbench > details[data-rag-library] { margin:1rem 0; padding:1rem; border:1px solid #445345; border-radius:6px; }

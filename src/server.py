@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.19.2'
+APP_VERSION='0.20.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -49,6 +49,8 @@ import workshop_optimizer
 workshop_optimizer.recover(store)
 import editorial_sync
 editorial_sync.reconcile_active_guidelines(store)
+import writing_rag
+writing_rag.sync_sources(store)
 _optimizer_stops={}
 def _run_optimization(run_id):
  try:
@@ -198,6 +200,9 @@ class H(BaseHTTPRequestHandler):
    try:
     with store.reader() as reader:
      if p=='/api/workshop':result=workshop.home(reader)
+     elif p.startswith('/api/workshop/rag/'):
+      import writing_rag
+      result=writing_rag.read(reader,p.rsplit('/',1)[-1],query)
      elif p=='/api/workshop/guidelines':
       import workshop_guidelines
       result=workshop_guidelines.library(reader,query.get('scope',['shared'])[0])
@@ -337,9 +342,18 @@ class H(BaseHTTPRequestHandler):
    import writer_workshop as workshop
    try:
     length=int(self.headers.get('Content-Length','0'))
-    if length<1 or length>128000:return self.js({'error':'Workshop request is too long'},413)
+    body_limit=300000 if p.startswith('/api/workshop/rag/') else 128000
+    if length<1 or length>body_limit:return self.js({'error':'Workshop request is too long'},413)
     body=json.loads(self.rfile.read(length).decode('utf-8'))
     if not isinstance(body,dict):raise ValueError('Expected an object')
+    if p.startswith('/api/workshop/rag/'):
+     if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'Writing is in progress. Change retrieval after the current writing work finishes.'},409)
+     try:
+      import writing_rag
+      action=p.rsplit('/',1)[-1]
+      result=writing_rag.sync_sources(store) if action=='sync' else writing_rag.mutate(store,action,body)
+     finally:_writer_pipeline_guard.release()
+     return self.js(result)
     if p=='/api/workshop/guidelines-activate':
      if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'Writing is in progress. Wait for the current study to finish before switching active guidelines.'},409)
      try:

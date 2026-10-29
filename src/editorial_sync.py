@@ -109,6 +109,8 @@ def complete(store,payload,result,identity):
         candidate_revision_id=revision,previous_candidate_revision_id=base['revision_id'],at=at,identity=identity)
     activate_update(store,saved,state,'completed_feedback')
     store.db.execute('UPDATE workshop_optimization_runs SET state_json=? WHERE run_id=?',(opt.packed(state),state['run_id']))
+    import writing_rag
+    writing_rag.sync_sources(store)
 
 
 def activate_update(store,saved,state,reason):
