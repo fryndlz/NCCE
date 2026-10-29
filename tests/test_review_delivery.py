@@ -233,15 +233,47 @@ def test_ballot_on_missing_or_changed_review_still_blocks_recovery():
 def test_only_exact_transport_source_upgrade_can_rebind_environment():
     def check(store):
         state = interrupted(store)
-        current = opt.environment_fingerprint()
-        assert current in recovery.REPAIRED_ENVIRONMENTS, 'Update exact compatibility hashes only after verifying transport-only edits'
         state['environment_hash'] = next(iter(recovery.PREVIOUS_ENVIRONMENTS))
         opt.save(store,state)
-        assert recovery.available(store,state)
-        upgraded,_ = recovery.recover(store,recovery_body(state))
-        assert upgraded['environment_hash'] == current
-        assert upgraded['review_delivery_recovery']['previous_environment_hash'] in recovery.PREVIOUS_ENVIRONMENTS
+        # The historical exception stays narrow after later releases. Never
+        # widen it just to make an obsolete source snapshot resumable.
+        current = next(iter(recovery.REPAIRED_ENVIRONMENTS))
+        with patch.object(opt,'environment_fingerprint',return_value=current):
+            assert recovery.available(store,state)
+            upgraded,_ = recovery.recover(store,recovery_body(state))
+            assert upgraded['environment_hash'] == current
+            assert upgraded['review_delivery_recovery']['previous_environment_hash'] in recovery.PREVIOUS_ENVIRONMENTS
     with_store(lambda s: setup(s, check))
+
+
+def test_exact_audited_packet_failure_recovers_without_repeating_writer():
+    error='The claim succeeded, but its tool output exceeded the requested output budget and was truncated mid-packet. The full exact review instructions/context/schema could not be parsed from the saved tool result. No assessment was submitted. Human attention is required to provide a complete bounded packet; do not replay the claim or authorize writer spending.'
+    def check(store):
+        state=interrupted(store);pair=state['rounds'][0]['pairs'][1];old=pair['codex_job_id']
+        target=recovery.VERIFIED_PACKET_FAILURE['job_id'];payload=json.loads(cq.get(store,old)['payload_json']);payload['job_id']=target
+        with store.db:
+            store.db.execute("UPDATE codex_review_jobs SET job_id=?,payload_json=?,status='queued',error='' WHERE job_id=?",(target,cq.packed(payload),old))
+        pair['codex_job_id']=target;opt.save(store,state)
+        claim=cq.claim(store,{**identity(),'job_id':target})
+        native={**identity(),'job_id':target,'lease':claim['lease'],'turn_id':recovery.VERIFIED_PACKET_FAILURE['turn_id']}
+        cq.started(store,native);cq.fail(store,{**native,'error':error})
+        failed=cq.get(store,target)
+        assert recovery.available(store,state)=={'job_id':target,'reason':'packet_delivery'}
+        for change in ({'job_id':'unverified-job'},{'error':'unknown failure'},{'result_json':'{"assessment":"already generated"}'},{'status':'reviewing'}):
+            rejects(lambda:recovery.recoverable_delivery({**failed,**change}))
+        recovered,fresh=recovery.recover(store,recovery_body(state));assert fresh
+        assert cq.get(store,target)==failed,'The original failed job and its native identity must remain immutable'
+        assert recovered['review_delivery_recovery']['reason']=='packet_delivery'
+        assert recovered['writer_reserved']==state['writer_reserved'] and recovered['reviewer_reserved']==state['reviewer_reserved']
+        replacement=recovered['review_delivery_recovery']['replacement_job_id']
+        def reviewer(s,t,p,h):
+            claim=cq.claim(s,{**identity(),'job_id':replacement})
+            native={**identity(),'job_id':replacement,'lease':claim['lease'],'turn_id':'recovered-packet-review'}
+            cq.started(s,native);cq.complete(s,{**native,'review':review(p,True)})
+            return json.loads(cq.get(s,replacement)['result_json'])
+        done=opt.execute(store,state['run_id'],generator=lambda *a:(_ for _ in ()).throw(AssertionError('No writer call')),reviewer=reviewer)
+        assert done['status']=='awaiting_owner' and all(p.get('review') for p in done['rounds'][0]['pairs'])
+    with_store(lambda s:setup(s,check))
 
 
 if __name__ == '__main__':

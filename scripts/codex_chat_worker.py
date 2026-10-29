@@ -3,6 +3,7 @@ import argparse
 import json
 from pathlib import Path
 from codex_review_bridge import Companion, DEFAULT_CONFIG, single_instance, BridgeRequestError
+from codex_job_packet import JobPackets
 
 
 class ChatWorker:
@@ -11,6 +12,7 @@ class ChatWorker:
         if role=='storytech':self.client.thread_id=self.client.config['storytech_thread_id']
         self.client.worker_id += '-'+role
         self.role=role
+        self.packets = JobPackets(self.client.folder, role)
         self.active = self.client.folder / ('chat-'+role+'-active.json')
         (self.client.folder / ('chat-'+role+'-lock')).mkdir(exist_ok=True)
 
@@ -56,10 +58,11 @@ class ChatWorker:
             if not job: return {'job': None}
             value = {'job_id': job['job_id'], 'lease': reply['lease'], 'turn_id': turn_id, 'status': 'claimed'}
             self.save(value)  # Persist before acknowledging any model work.
+            manifest = self.packets.save(job, turn_id, (reply['lease'], self.client.config.get('token')))
             self.post('started', value)
             self.save({**value, 'status': 'reviewing'})
             # Lease and private transport credential never enter model-visible output.
-            return {'job': job}
+            return manifest
 
     def finish(self, review=None, error=None):
         value = json.loads(self.active.read_text(encoding='utf-8'))
@@ -96,7 +99,7 @@ class ChatWorker:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['heartbeat', 'claim', 'complete', 'fail', 'self-test', 'technical-test'])
+    parser.add_argument('action', choices=['heartbeat', 'claim', 'packet-info', 'read-packet', 'complete', 'fail', 'self-test', 'technical-test'])
     parser.add_argument('--config', default=str(DEFAULT_CONFIG))
     parser.add_argument('--role',choices=['reviewer','storytech'],default='reviewer')
     parser.add_argument('--turn-id', default='')
@@ -104,9 +107,15 @@ def main():
     parser.add_argument('--file')
     parser.add_argument('--message')
     parser.add_argument('--new-attempt', action='store_true')
+    parser.add_argument('--sha256')
+    parser.add_argument('--section', default='')
+    parser.add_argument('--offset', type=int, default=0)
+    parser.add_argument('--limit', type=int, default=4000)
     args = parser.parse_args(); worker = ChatWorker(args.config,args.role)
     (worker.client.folder / ('chat-'+args.role+'-lock')).mkdir(exist_ok=True)
     if args.action == 'claim': result = worker.claim(args.turn_id, args.job_id)
+    elif args.action == 'packet-info': result = worker.packets.info(args.job_id)
+    elif args.action == 'read-packet': result = worker.packets.read(args.job_id, args.sha256, args.section, args.offset, args.limit)
     elif args.action == 'complete': result = worker.finish(review=json.loads(Path(args.file).read_text(encoding='utf-8-sig')))
     elif args.action == 'fail': result = worker.finish(error=args.message or 'Human attention required')
     elif args.action == 'technical-test': result=worker.post('technical-test')

@@ -1,6 +1,7 @@
-"""Explicit owner recovery of a cancelled review that never claimed work."""
+"""Explicit owner recovery of verified delivery failures, never uncertain work."""
 import json
 import uuid
+import hashlib
 
 import codex_review_queue as cq
 import writer_workshop as ws
@@ -14,6 +15,23 @@ PREVIOUS_ENVIRONMENTS = {
 REPAIRED_ENVIRONMENTS = {
     '1401e7921ba356a2c63ec96482c930fed6b8d76093dc72d7119a1e25b40502c8',
     '28131e30c1a4e85d5bf6d040ada131fd9b133fb249787c0f7a6021b5b2489936'}
+
+# Explicitly inspected native transcript: claim output was truncated, the
+# reviewer produced no assessment and deliberately failed the job. This is
+# NOT permission to replay arbitrary claimed/failed or uncertain reviews.
+VERIFIED_PACKET_FAILURE = {
+    'job_id': 'review-f9ffb8e975924615a7b6fb0e438b9fa3',
+    'turn_id': '01a188ea-5f76-76a3-b64e-94ec63bfd70b',
+    'error_sha256': '630fae7aec678cd6652b0b6de96b80301d8b83a2594f98cf59dd7d857123c47d'}
+
+
+def recoverable_delivery(job):
+    if job['status'] == 'cancelled' and job['error'] == 'Codex review timed out; no automatic replay' and not any(job.get(k) for k in ('claimed_at','worker_id','lease_hash')) and not json.loads(job['result_json'] or '{}'):
+        return 'unclaimed_timeout'
+    native = {'_codex': {'thread_id': cq.thread_id(), 'turn_id': VERIFIED_PACKET_FAILURE['turn_id']}}
+    if job['job_id'] == VERIFIED_PACKET_FAILURE['job_id'] and job['status'] == 'failed' and job.get('claimed_at') and json.loads(job['result_json'] or '{}') == native and hashlib.sha256(job['error'].encode()).hexdigest() == VERIFIED_PACKET_FAILURE['error_sha256']:
+        return 'packet_delivery'
+    raise ValueError('Only a verified input-delivery failure or never-claimed timeout can be recovered')
 
 
 def inspect(store, state):
@@ -55,10 +73,12 @@ def inspect(store, state):
             if job['status'] != 'completed' or json.loads(job['result_json']) != pair.get('review'):
                 raise ValueError('The first original completed review must be intact')
             exp.validate_review(pair['review'])
-        elif pair.get('review') or job['status'] != 'cancelled' or job['error'] != 'Codex review timed out; no automatic replay' or job['claimed_at'] or job['worker_id'] or job['lease_hash'] or json.loads(job['result_json'] or '{}'):
-            raise ValueError('Only the definitively timed-out, never-claimed second review can be replaced')
-        elif payload.get('form') != state['form'] or payload.get('editorial_contract') != state['editorial_contract'] or payload.get('output_schema') != exp.schema() or payload.get('rubric') != opt.RUBRIC:
-            raise ValueError('Frozen review contract differs from the current protocol')
+        else:
+            if pair.get('review'):
+                raise ValueError('An existing review cannot be recovered or replaced')
+            recoverable_delivery(job)
+            if payload.get('form') != state['form'] or payload.get('editorial_contract') != state['editorial_contract'] or payload.get('output_schema') != exp.schema() or payload.get('rubric') != opt.RUBRIC:
+                raise ValueError('Frozen review contract differs from the current protocol')
     if opt.assess(round_['pairs'][0]['review'])[1]:
         raise ValueError('The first review requires technical investigation before further work')
     # A sealed ballot on an unchanged completed pair does not taint the
@@ -85,7 +105,7 @@ def inspect(store, state):
 def available(store, state):
     try:
         _, job, _ = inspect(store, state)
-        return {'job_id': job['job_id']}
+        return {'job_id': job['job_id'], 'reason': recoverable_delivery(job)}
     except (ValueError, KeyError, IndexError, TypeError):
         return None
 
@@ -114,12 +134,13 @@ def recover(store, body):
         payload.pop('transport_audit', None)
         store.db.execute("INSERT INTO codex_review_jobs(job_id,run_id,status,payload_json,created_at) VALUES(?,?,'queued',?,?)", (replacement, state['run_id'], cq.packed(payload), ws.now()))
         state['review_delivery_recovery'] = {'request_key': key, 'original_job_id': job['job_id'],
-            'replacement_job_id': replacement, 'at': ws.now(), 'previous_environment_hash': state['environment_hash']}
+            'replacement_job_id': replacement, 'at': ws.now(), 'previous_environment_hash': state['environment_hash'],
+            'reason': recoverable_delivery(job), 'original_native_identity': json.loads(job['result_json'] or '{}').get('_codex')}
         import editorial_quality as quality
         state['review_delivery_recovery']['preserved_verdict_hashes'] = [quality.digest(v) for v in quality.records(store) if v.get('run_id') == state['run_id']]
         state['environment_hash'] = opt.environment_fingerprint()
         pair['codex_job_id'] = replacement
         state['resume_round'] = True
         state['status'] = 'queued'
-        opt.activity(store, state, 'awaiting_reviewer', 'human', 'Owner recovered only the never-started review of these saved drafts. Writer calls and allowance are unchanged.')
+        opt.activity(store, state, 'awaiting_reviewer', 'human', 'Owner recovered only the missing review of these saved drafts. Writer calls and allowance are unchanged.')
     return state, True
