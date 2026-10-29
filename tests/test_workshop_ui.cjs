@@ -29,7 +29,7 @@ async function api(url,options){
   if(url.endsWith('/optimize'))return optimization;
   if(url.includes('/optimization?'))return historyRun || {...optimization,workflow_version:3,status:'awaiting_approval'};
   if(url.endsWith('/optimization-continue'))return {...optimization,status:'queued'};
-  if(url.endsWith('/optimization-technical-decision'))return {...historyRun,tech:{...historyRun.tech,status:data.action==='approve_repair'?'repair_queued':data.action==='approve_release'?'release_queued':'rejected'}};
+  if(url.endsWith('/optimization-technical-decision'))return {...historyRun,tech:{...historyRun.tech,status:data.action==='approve_repair'?'repair_queued':data.action==='approve_release'?'release_queued':'queued'}};
   if(url.endsWith('/optimization-decide'))return {...optimization,status:data.approve?'approved':'rejected'};
   if(url.includes('/trial?'))return {trial_id:'once',status:'ready',form:'fighter_memory',label:'Mara',document:bodyDoc,edits:[],packet:sample.packet,usage:{requests_attempted:1,input_tokens:100},instructions:'Saved instructions'};
   throw new Error('Unexpected request '+url);
@@ -123,6 +123,18 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   context.window.confirm=()=>false;click('tech-approve');await settle();assert.equal(calls.filter(c=>c[0].endsWith('/optimization-technical-decision')).length,0);
   context.window.confirm=()=>true;click('tech-approve');await settle();
   const repair=JSON.parse(calls.find(c=>c[0].endsWith('/optimization-technical-decision'))[1].body);assert.equal(repair.proposal_hash,'exact-proposal');assert.equal(repair.action,'approve_repair');
+  callbacks.change({target:{dataset:{},value:'saved-study',hasAttribute:name=>name==='data-ws-opt-history'}});await settle();
+  assert.match(root.innerHTML,/ws-tech-brief/);assert.match(root.innerHTML,/<h5>Problem<\/h5>/);
+  assert.match(root.innerHTML,/<h5>Solution<\/h5>/);assert.match(root.innerHTML,/<h5>Risk<\/h5>/);
+  assert.match(root.innerHTML,/<details class="ws-tech-evidence" data-ws-detail="technical-evidence">/);
+  callbacks.input({target:{dataset:{wsTechRejection:'exact-proposal'},value:'Try a smaller fix.',hasAttribute:n=>n==='data-ws-tech-rejection'}});
+  const beforeReject=calls.filter(c=>c[0].endsWith('/optimization-technical-decision')).length;
+  click('tech-reject');click('tech-reject');await settle();
+  const rejected=calls.filter(c=>c[0].endsWith('/optimization-technical-decision'));
+  assert.equal(rejected.length,beforeReject+1,'Double reject must submit once');
+  const rejection=JSON.parse(rejected.at(-1)[1].body);
+  assert.equal(rejection.note,'Try a smaller fix.');assert.equal(rejection.proposal_hash,'exact-proposal');assert.ok(rejection.request_key);
+  assert.match(root.innerHTML,/Investigation queued/);
   // Reopening a paused study must prompt a decision without authorizing work.
   const pendingContext={window:{confirm:()=>false},console,setTimeout:()=>{},crypto:{randomUUID:()=> 'unused'}};
   vm.createContext(pendingContext);vm.runInContext(fs.readFileSync('web/workshop.js','utf8'),pendingContext);
@@ -187,6 +199,12 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   const revealed=await savedView({...optimization,workflow_version:3,status:'awaiting_owner',rounds:[{number:1,pairs:[revealedPair]}]});
   assert.match(revealed,/Candidate: B; current setup: A/);assert.match(revealed,/Reviewer disagrees with you/);
   assert.match(revealed,/calibration revoked/);assert.match(revealed,/What this experiment changed/);
+  const techSummary=await savedView({...optimization,status:'escalated',tech:{status:'proposal_ready',proposal_hash:'brief-proposal',proposal:{
+    headline:'Long technical title',summary:'DETAILS_ONLY '+('Long evidence. '.repeat(60)),findings:[],proposed_changes:['Detailed change list'],validation_plan:['Detailed test plan'],risks:['Detailed risk list'],questions:[],
+    decision_brief:{problem:'The writer lacks <verified> context.',solution:'Add the missing source to its requests.',risk:'Unknown types still need verification.'}}}});
+  const briefOnly=techSummary.split('<ol class="ws-tech-brief">')[1].split('</ol>')[0];
+  assert.match(briefOnly,/The writer lacks &lt;verified&gt; context/);assert.doesNotMatch(briefOnly,/DETAILS_ONLY|Long evidence/);
+  assert.match(techSummary,/Technical evidence &amp; full report/);assert.ok(!techSummary.includes('<verified>'));
   const css=fs.readFileSync('web/writing.css','utf8');
   assert.match(css,/\.ws-decision\.is-batch-complete\s*\{/);
   console.log('Workshop UI passed: draft-first layout, legacy removal, free opening, escaping, human gates, duplicate protection and saved-state rendering');

@@ -154,6 +154,24 @@ def main():
                 assert call('/api/reviewer-bridge/started',leased,authorization=bearer)[0]==200
                 assert call('/api/reviewer-bridge/complete',{**leased,'review':proposal()},authorization=bearer)[0]==200
                 case=call('/api/workshop/optimization?run_id='+state['run_id'],cookie=cookie)[1]
+                rejected={'run_id':state['run_id'],'action':'reject','proposal_hash':case['tech']['proposal_hash'],
+                          'request_key':'http-reject-solution-0001','note':'Investigate a smaller repair.'}
+                assert call('/api/workshop/optimization-technical-decision',rejected)[0]==401
+                assert call('/api/workshop/optimization-technical-decision',rejected,cookie,'https://foreign.invalid')[0]==403
+                count=server.store.db.execute('SELECT count(*) FROM codex_review_jobs').fetchone()[0]
+                code,reinvestigating=call('/api/workshop/optimization-technical-decision',rejected,cookie)
+                assert code==200 and reinvestigating['tech']['status']=='queued'
+                new_job=reinvestigating['tech']['job_id']
+                assert call('/api/workshop/optimization-technical-decision',rejected,cookie)[1]['tech']['job_id']==new_job
+                assert server.store.db.execute('SELECT count(*) FROM codex_review_jobs').fetchone()[0]==count+1
+                new_body={**tech_body,'job_id':new_job}
+                new_claim=call('/api/reviewer-bridge/claim',new_body,authorization=bearer)[1]
+                assert new_claim['job']['packet']['rejected_proposals'][0]['reason']==rejected['note']
+                new_lease={**new_body,'lease':new_claim['lease'],'turn_id':'revised-http-native-turn'}
+                assert call('/api/reviewer-bridge/started',new_lease,authorization=bearer)[0]==200
+                revised_proposal=proposal();revised_proposal['summary']='A narrower repair after the owner rejected the first approach.'
+                assert call('/api/reviewer-bridge/complete',{**new_lease,'review':revised_proposal},authorization=bearer)[0]==200
+                case=call('/api/workshop/optimization?run_id='+state['run_id'],cookie=cookie)[1]
                 approve={'run_id':state['run_id'],'action':'approve_repair','proposal_hash':case['tech']['proposal_hash']}
                 assert call('/api/workshop/optimization-technical-decision',{**approve,'proposal_hash':'wrong'},cookie)[0]==400
                 assert call('/api/workshop/optimization-technical-decision',approve,cookie)[1]['tech']['status']=='repair_queued'

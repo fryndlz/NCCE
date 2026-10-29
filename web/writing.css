@@ -464,3 +464,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .ws-blind-verdict label, [data-ws-hypothesis] { display: block; margin: .8rem 0; }
 [data-ws-candidate], [data-ws-hypothesis], [data-ws-verdict-choice], [data-ws-verdict-note] { width: 100%; box-sizing: border-box; }
 .ws-blind-verdict button[disabled] { opacity: .5; }
+.ws-tech-brief { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; padding: 0; list-style: none; margin: 1rem 0; }
+.ws-tech-brief li { background: #202c23; border: 1px solid #536455; border-radius: 7px; padding: 16px; min-width: 0; }
+.ws-tech-brief h5 { color: #e7c17e; margin: 0 0 9px; font: 700 16px var(--sans,sans-serif); }
+.ws-tech-brief p { margin: 0; font: 14px/1.65 var(--sans,sans-serif); overflow-wrap: anywhere; }
+.ws-tech-evidence { margin: 1rem 0; }
+@media (max-width: 760px) { .ws-tech-brief { grid-template-columns: 1fr; } }

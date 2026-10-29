@@ -14,6 +14,7 @@ from test_workshop_optimizer import with_store,body,assessment,rejects,fake_call
 
 def proposal(questions=None):
  return {'headline':'Supply the missing verified context','summary':'Investigate reusable input preparation, not individual prose.',
+  'decision_brief':{'problem':'The writer is missing verified territory context.','solution':'Add the verified type reference to future writing requests.','risk':'Unknown territory types still need a verified source.'},
   'findings':[{'problem':'The packet lacks a required reference','evidence':'Exact saved field is empty','uncertainty':'The canonical source must be verified'}],
   'proposed_changes':['Supply a verified reference with provenance'],'validation_plan':['Assert the actual provider packet includes it'],
   'risks':['Do not turn generated prose into canon'],'questions':questions or []}
@@ -21,6 +22,7 @@ def proposal(questions=None):
 
 def report(ready=True):
  return {'headline':'Tested development repair','summary':'Reusable context preparation repaired.','changes':['Added verified context'],
+  'decision_brief':{'problem':'Requests were missing verified context.','solution':'The context repair has been tested in development.','risk':'It still needs release approval and a fresh writing study.'},
   'tests':['Relevant context boundary test passed'],'files':['src/narrative_context.py'],'limitations':['No paid generation performed'],
   'proposed_shared_instructions':'','proposed_form_instructions':'','commit_id':'1'*40,'ready':ready}
 
@@ -130,6 +132,46 @@ def test_questions_need_answers_and_more_rounds_do_not_bypass_investigation():
    packet=json.loads(cq.get(store,next_state['tech']['job_id'])['payload_json'])['packet']
    assert packet['proposal']['questions'] and packet['note']=='Use the approved canonical source.'
  with_store(check)
+
+
+def test_rejection_queues_one_readonly_reinvestigation_and_invalidates_old_approval():
+ def check(store):
+  with patch.object(writer,'API_KEY','mock'):
+   state,_=opt.queue(store,body(store,1));state['status']='escalated';opt.save(store,state)
+   state=tech.investigate(store,{'run_id':state['run_id'],'request_key':'first-investigation-001'})
+   _,lease=claim_tech(store,state['tech']['job_id']);cq.complete(store,{**lease,'review':proposal()})
+   state=opt.get(store,state['run_id']);old_hash=state['tech']['proposal_hash'];old_proposal=state['tech']['proposal']
+   reservations=(state['writer_reserved'],state['writer_limit'],state['reviewer_reserved'],state['reviewer_limit'])
+   reject={'run_id':state['run_id'],'action':'reject','proposal_hash':old_hash,'request_key':'reject-proposal-000001','note':'Too broad. Investigate a smaller fix.'}
+   rejects(lambda:tech.decision(store,{**reject,'proposal_hash':'stale'}))
+   revised=tech.decision(store,reject);job=revised['tech']['job_id']
+   assert revised['tech']['status']=='queued' and 'proposal_hash' not in revised['tech']
+   assert tech.decision(store,reject)['tech']['job_id']==job
+   rejects(lambda:tech.decision(store,{**reject,'note':'Changed feedback using the same identity'}))
+   assert len(revised['tech']['rejections'])==1 and revised['tech']['rejections'][0]['proposal']==old_proposal
+   payload=json.loads(cq.get(store,job)['payload_json'])
+   assert payload['kind']=='technical_investigation' and payload['approval'] is None and payload['report_version']==2
+   assert payload['packet']['rejected_proposals'][0]['reason']==reject['note']
+   assert 'smaller fix' in payload['packet']['note'] and 'decision_brief' in payload['output_schema']['required']
+   assert reservations==(revised['writer_reserved'],revised['writer_limit'],revised['reviewer_reserved'],revised['reviewer_limit'])
+   rejects(lambda:tech.decision(store,{'run_id':state['run_id'],'action':'approve_repair','proposal_hash':old_hash}))
+   _,lease=claim_tech(store,job)
+   next_proposal=proposal();next_proposal['decision_brief']['solution']='Supply just the missing type reference for this category.'
+   cq.complete(store,{**lease,'review':next_proposal})
+   final=opt.get(store,state['run_id'])
+   assert final['tech']['status']=='proposal_ready' and final['tech']['proposal_hash']!=old_hash
+   assert len(final['tech']['rejections'])==1 and ws.active(store,state['form']) is None
+ with_store(check)
+
+
+def test_brief_is_required_for_new_jobs_and_legacy_reports_remain_readable():
+ legacy=proposal();legacy.pop('decision_brief')
+ tech.validate('technical_investigation',legacy)
+ rejects(lambda:tech.validate('technical_investigation',legacy,2))
+ for field,limit in [('problem',300),('solution',400),('risk',300)]:
+  for text in ('','x'*(limit+1)):
+   bad=proposal();bad['decision_brief'][field]=text
+   rejects(lambda:tech.validate('technical_investigation',bad,2))
 
 
 if __name__=='__main__':

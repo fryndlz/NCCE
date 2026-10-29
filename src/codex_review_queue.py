@@ -175,7 +175,7 @@ def complete(store, body):
         else:assess(result)
     else:
         from workshop_interventions import validate
-        validate(payload['kind'],result)
+        validate(payload['kind'],result,payload.get('report_version',1))
     with store._lock, store.db:
         row = owned(store, body)
         if row['status'] == 'completed':
