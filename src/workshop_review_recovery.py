@@ -31,8 +31,6 @@ def inspect(store, state):
     for scope, expected in state['expected_active'].items():
         if (ws.active(store, scope) or {}).get('revision_id') != expected:
             raise ValueError('Active writing instructions changed')
-    if any(v.get('run_id') == state['run_id'] for v in quality.records(store)):
-        raise ValueError('Do not rebind a study with sealed owner verdicts')
     round_ = state['rounds'][-1]
     if round_['revision_id'] != state['specific']['revision_id']:
         raise ValueError('Saved candidate changed')
@@ -63,6 +61,19 @@ def inspect(store, state):
             raise ValueError('Frozen review contract differs from the current protocol')
     if opt.assess(round_['pairs'][0]['review'])[1]:
         raise ValueError('The first review requires technical investigation before further work')
+    # A sealed ballot on an unchanged completed pair does not taint the
+    # missing pair. Preserve it, and never add it to the blind review packet.
+    for ballot in quality.records(store):
+        if ballot.get('run_id') != state['run_id']:
+            continue
+        voted_round = next((r for r in state['rounds'] if r['number'] == ballot.get('round')), None)
+        index = ballot.get('pair')
+        if not voted_round or type(index) is not int or not 0 <= index < len(voted_round['pairs']):
+            raise ValueError('Saved owner verdict does not match a completed pair')
+        voted_pair = voted_round['pairs'][index]
+        completed = cq.get(store, voted_pair['codex_job_id'])
+        if not voted_pair.get('review') or completed['status'] != 'completed' or json.loads(completed['result_json']) != voted_pair['review'] or ballot.get('review_hash') != quality.digest(voted_pair['review']) or ballot.get('candidate_index') != voted_pair['candidate_index'] or ballot.get('review_sealed_at') != voted_pair.get('review_sealed_at'):
+            raise ValueError('Owner verdict must remain bound to its original completed review')
     count = sum(len(r['pairs']) for r in state['rounds'])
     if state['writer_reserved'] != count * 2 or state['reviewer_reserved'] != count or state['writer_reserved'] > state['writer_limit'] or state['reviewer_reserved'] > state['reviewer_limit']:
         raise ValueError('Saved reservations do not match the original allowance')
@@ -104,6 +115,8 @@ def recover(store, body):
         store.db.execute("INSERT INTO codex_review_jobs(job_id,run_id,status,payload_json,created_at) VALUES(?,?,'queued',?,?)", (replacement, state['run_id'], cq.packed(payload), ws.now()))
         state['review_delivery_recovery'] = {'request_key': key, 'original_job_id': job['job_id'],
             'replacement_job_id': replacement, 'at': ws.now(), 'previous_environment_hash': state['environment_hash']}
+        import editorial_quality as quality
+        state['review_delivery_recovery']['preserved_verdict_hashes'] = [quality.digest(v) for v in quality.records(store) if v.get('run_id') == state['run_id']]
         state['environment_hash'] = opt.environment_fingerprint()
         pair['codex_job_id'] = replacement
         state['resume_round'] = True

@@ -187,6 +187,49 @@ def test_notification_acknowledgement_retry_never_redispatches_cli():
             assert cli.call_count == 1 and attempts == ['notified','notified']
 
 
+def test_completed_pair_owner_ballot_survives_missing_pair_recovery():
+    import editorial_quality as quality
+    def check(store):
+        state = interrupted(store)
+        first = state['rounds'][0]['pairs'][0]
+        ballot = quality.record_verdict(store, {'run_id':state['run_id'],'round':1,'pair':0,'preference':'A','acceptable':[True,False],'note':'Keep my original judgement.'})
+        before = copy.deepcopy(quality.records(store))
+        assert recovery.available(store,state)
+        recovered,_ = recovery.recover(store,recovery_body(state))
+        job = cq.get(store,recovered['review_delivery_recovery']['replacement_job_id'])
+        payload = json.loads(job['payload_json'])
+        assert 'Keep my original judgement.' not in json.dumps(payload)
+        assert payload['preceding_reviews'] == [first['review']]
+        assert quality.records(store) == before
+        def reviewer(s,t,p,h):
+            claim=cq.claim(s,{**identity(),'job_id':job['job_id']})
+            native={**identity(),'job_id':job['job_id'],'lease':claim['lease'],'turn_id':'only-missing-review'}
+            cq.started(s,native);cq.complete(s,{**native,'review':review(p,True)})
+            return json.loads(cq.get(s,job['job_id'])['result_json'])
+        done=opt.execute(store,state['run_id'],generator=lambda *a: (_ for _ in ()).throw(AssertionError('Writer must not run')),reviewer=reviewer)
+        assert done['status']=='awaiting_owner' and quality.records(store)==before
+        assert done['rounds'][0]['pairs'][0]==first
+        assert quality.verdict_for(store,state['run_id'],1,0)==ballot
+        assert quality.verdict_for(store,state['run_id'],1,1) is None
+        assert recovered['review_delivery_recovery']['preserved_verdict_hashes']==[quality.digest(ballot)]
+    with_store(lambda s:setup(s,check))
+
+
+def test_ballot_on_missing_or_changed_review_still_blocks_recovery():
+    import editorial_quality as quality
+    def check(store):
+        state=interrupted(store)
+        ballot=quality.record_verdict(store,{'run_id':state['run_id'],'round':1,'pair':0,'preference':'neither','acceptable':[False,False]})
+        key='editorial-verdict:'+quality.digest([state['run_id'],1,0])
+        for change in ({'pair':1},{'review_hash':'changed'},{'candidate_index':1-ballot['candidate_index']},{'review_sealed_at':'changed'}):
+            with store.db:store.db.execute('UPDATE system_state SET value=? WHERE key=?',(cq.packed({**ballot,**change}),key))
+            assert recovery.available(store,state) is None
+            rejects(lambda:recovery.recover(store,recovery_body(state)))
+        with store.db:store.db.execute('UPDATE system_state SET value=? WHERE key=?',(cq.packed(ballot),key))
+        assert recovery.available(store,state)
+    with_store(lambda s:setup(s,check))
+
+
 def test_only_exact_transport_source_upgrade_can_rebind_environment():
     def check(store):
         state = interrupted(store)
