@@ -88,6 +88,8 @@ def queue(store, body):
     if not writer.API_KEY: raise ValueError('The server writing provider is not configured; no calls made')
     if not codex_queue.status(store)['online']: raise ValueError('The actual JKSimmons connection is offline or unverified. Resolve its connection check before spending writer calls.')
     selected = ws.sample(store, body.get('sample_key'))
+    if store.db.execute("SELECT 1 FROM codex_review_jobs WHERE json_extract(payload_json,'$.kind')='editorial_consolidation' AND json_extract(payload_json,'$.form')=? AND status IN ('queued','claimed','reviewing')",(selected['form'],)).fetchone():
+        raise ValueError('JKSimmons is incorporating feedback for this category. Wait before starting another writing test.')
     # Two independent real contexts: duplicate A/B comparison packets do not count.
     samples = [selected]; seen = {hashed(selected['packet'])}
     for entry in ws.catalog(store):
@@ -159,6 +161,8 @@ def round_samples(store,state):
 
 def continue_run(store,body):
     state=get(store,body.get('run_id'));key=body.get('request_key')
+    from editorial_sync import before_more_writing
+    before_more_writing(store,state)
     if state.get('workflow_version',1)>=3:
         from workshop_experiments import ensure_current
         ensure_current(store,state)
@@ -203,7 +207,9 @@ def finish_run(store,body):
     if state.get('tech',{}).get('job_id'):codex_queue.cancel(store,state['tech']['job_id'],'Owner finished the study')
     if state.get('tech'):state['tech']['status']='cancelled'
     state['status']='finished';state['message']='Study finished. Findings and candidate instructions are saved; active NCCE writing is unchanged.'
-    activity(store,state,'complete','human',state['message']);return state
+    activity(store,state,'complete','human',state['message'])
+    from editorial_sync import maybe_queue
+    return maybe_queue(store,state['run_id'])
 
 
 def stop(store, state, message, status='escalated'):
@@ -216,6 +222,9 @@ def recover(store):
         store.db.execute("UPDATE codex_review_jobs SET status='cancelled',error='Server restarted; uncertain reviews are not replayed',finished_at=? WHERE status IN ('queued','claimed','reviewing') AND coalesce(json_extract(payload_json,'$.kind'),'review')!='technical_release'", (ws.now(),))
     for row in store.db.execute('SELECT state_json FROM workshop_optimization_runs').fetchall():
         state = json.loads(row[0])
+        if state.get('feedback_sync',{}).get('status') in ('queued','claimed','reviewing'):
+            state['feedback_sync'].update(status='cancelled',message='Server restarted. Inspect the saved feedback job; it was not automatically replayed.')
+            save(store,state,'Feedback update interrupted by restart; no model replay')
         if state.get('tech',{}).get('status') in ('queued','investigating','repair_queued','repairing'):
             state['tech'].update(status='needs_input',error='Server restarted; inspect the retained technical job before requesting another investigation.')
             save(store,state,'Technical job interrupted by restart; no replay')

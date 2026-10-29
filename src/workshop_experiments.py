@@ -87,6 +87,8 @@ def checkpoint(store, body):
         state['validation_pending'] = False
     elif round_.get('candidate_non_regression') and state['reviewer_calibration']['calibrated']:
         state['validation_pending'] = True
+    from editorial_sync import before_more_writing
+    before_more_writing(store,state)
     if len(state['rounds']) >= state['max_rounds']:
         opt.pause(store, state, 'awaiting_next_round', 'Your verdicts are saved. This authorized batch is complete. Continue with a new bounded round, inspect findings, or finish.')
     else:

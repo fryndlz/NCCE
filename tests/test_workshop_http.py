@@ -142,6 +142,19 @@ def main():
                     assert call('/api/workshop/owner-verdict',ballot,cookie)[0]==200
                 visible=call('/api/workshop/optimization?run_id='+compared['run_id'],cookie=cookie)[1]
                 assert visible['rounds'][0]['pairs'][0]['review']['preference']
+                learning=visible['feedback_sync']['job_id']
+                assert call('/api/workshop/feedback-sync',{'run_id':compared['run_id']})[0]==401
+                assert call('/api/workshop/feedback-sync',{'run_id':compared['run_id']},cookie,'https://foreign.invalid')[0]==403
+                assert call('/api/workshop/feedback-sync',{'run_id':compared['run_id']},cookie)[1]['feedback_sync']['job_id']==learning
+                assert call('/api/workshop/optimization-checkpoint',{'run_id':compared['run_id']},cookie)[0]==400
+                learn_identity={**bridge_body,'job_id':learning}
+                learn_claim=call('/api/reviewer-bridge/claim',learn_identity,authorization=bearer)[1]
+                assert learn_claim['job']['kind']=='editorial_consolidation'
+                learn_lease={**learn_identity,'lease':learn_claim['lease'],'turn_id':'http-feedback-native-turn'}
+                assert call('/api/reviewer-bridge/started',learn_lease,authorization=bearer)[0]==200
+                from test_editorial_sync import update
+                learned=call('/api/reviewer-bridge/complete',{**learn_lease,'review':update()},authorization=bearer)
+                assert learned[0]==200 and learned[1]['standards_export']['form']=='fighter_memory'
                 assert call('/api/workshop/optimization-checkpoint',{'run_id':compared['run_id']},cookie)[1]['status']=='awaiting_next_round'
                 investigation={'run_id':state['run_id'],'request_key':'http-tech-investigation-0001','note':'Investigate the reusable input setup'}
                 assert call('/api/workshop/optimization-investigate',investigation,authorization=bearer)[0]==401

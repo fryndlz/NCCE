@@ -13,7 +13,7 @@ window.NCCEWorkshop = (() => {
     const scope=S.optForm,ticket=S.qualityLoad=(S.qualityLoad || 0)+1;
     try {
       const q=await request('/api/workshop/quality?scope='+encodeURIComponent(scope));
-      if(ticket===S.qualityLoad){S.quality=q;S.qualityError='';if(S.candidateScope!==scope){S.candidateText=q.suggested_instructions;S.candidateScope=scope;}}
+      if(ticket===S.qualityLoad){S.quality=q;S.qualityError='';if(S.candidateScope!==scope || (!S.candidateDirty && S.standardRevision!==q.standards?.revision_id)){S.candidateText=q.suggested_instructions;S.candidateScope=scope;S.candidateDirty=false;S.standardRevision=q.standards?.revision_id;}}
     } catch(error){if(ticket===S.qualityLoad)S.qualityError='Editorial standards could not load. Refresh the Workshop before starting a study.';}
   }
   function qualityPanel() {
@@ -96,7 +96,18 @@ window.NCCEWorkshop = (() => {
     }).join('')}</div>`:'<p class="muted">The assessment will appear after JKSimmons reviews the draft pair.</p>'}</section></section>`;
   }
   const techWorking=()=>['queued','investigating','repair_queued','repairing','release_queued','releasing'].includes(S.optimization?.tech?.status);
-  const watching=()=>optimizing() || techWorking();
+  const syncWorking=()=>['queued','claimed','reviewing'].includes(S.optimization?.feedback_sync?.status);
+  const watching=()=>optimizing() || techWorking() || syncWorking();
+  function feedbackPanel(run) {
+    if(!run || run.workflow_version<3)return '';
+    const s=run.feedback_sync;
+    if(!s){
+      const pairs=(run.rounds || []).flatMap(r=>r.pairs).filter(p=>p.review || p.review_pending_reveal),ready=pairs.length && pairs.every(p=>p.owner_verdict);
+      return `<section class="ws-feedback-sync"><h4>JKSimmons · learning from your feedback</h4><p>After all completed draft pairs are rated, one automatic Codex update saves his reviewer standards and candidate guidance. No JuniorWriter calls or automatic activation.</p>${ready?'<p>This study predates the automatic update.</p><button data-ws="feedback-sync">Sync this existing study once</button>':''}</section>`;
+    }
+    const busy=['queued','claimed','reviewing'].includes(s.status);
+    return `<section class="ws-feedback-sync" role="status"><h4>JKSimmons · ${s.status==='completed'?'standards updated':s.status==='reviewing'?'incorporating your feedback':s.status==='queued'?'feedback update queued':'feedback update needs attention'}</h4>${s.status==='reviewing'?'<span class="ws-activation-spinner" aria-hidden="true"></span>':''}<p>${esc(s.message)}</p>${s.changes?.length?`<ul>${s.changes.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${s.status==='completed'?`<p>Saved for future reviews. The revised category prompt is an inactive candidate; your active instructions are unchanged.</p><details data-ws-detail="reviewer-standards"><summary>Updated reviewer standards</summary>${guidelineText(s.standards)}<h5>Your explicit corrections</h5>${paragraphs((s.owner_corrections || []).join('\n\n'))}<h5>Reviewer interpretations</h5>${paragraphs((s.reviewer_inferences || []).join('\n\n'))}</details>`:''}${!busy && s.status!=='completed'?'<p>Inspect the existing job in JKSimmons’s Codex chat. It will not be automatically replayed.</p>':''}</section>`;
+  }
   const techBlocking=()=>techWorking() || ['proposal_ready','repair_ready','released','needs_input'].includes(S.optimization?.tech?.status);
   function techPanel(run) {
     const t=run.tech || {}, proposal=t.proposal, report=t.report, release=t.release_report;
@@ -148,8 +159,8 @@ window.NCCEWorkshop = (() => {
       ${!available?`<p class="workshop-error">Start START JKSIMMONS.vbs and keep Codex open before authorizing writing. ${esc(bridge?.connection_error || '')}</p>`:''}
       <details class="ws-agent-info"><summary>Models and connection</summary><dl><div><dt>JuniorWriter</dt><dd>${esc(config.writer_model || S.home.model)} · ${esc(config.writer_effort || S.home.effort)} effort · external writing provider</dd></div><div><dt>JKSimmons</dt><dd>Your persistent Codex reviewer chat; reviews category guidance and fresh results. <a href="codex://threads/01a17f57-f5bb-7782-bce0-8b3b43dd367f">Open JKSimmons in Codex</a></dd></div><div><dt>StoryTechMan</dt><dd>Your persistent Codex engineer chat; investigates the environment and proposes repairs.</dd></div></dl><p>The local listener wakes an agent only for an actual job. Empty waiting uses no Codex allowance. Agent expressions and banter do not affect scores or prompts.</p></details>
       ${window.NCCEWritingActivity?.render(run,{personas:S.personas!==false}) || ''}
-      ${!watching()?`<h4>Start a controlled category study</h4><label>Experiment hypothesis<input data-ws-hypothesis maxlength="1000" value="${esc(S.hypothesis || 'Test direct language, subject focus and useful-or-empty endings against the current setup.')}"></label><details data-ws-detail="candidate-editor"><summary>Candidate instructions to test</summary><p>These instructions are experimental. The current active setup supplies the other draft.</p><textarea data-ws-candidate rows="10" maxlength="4000">${esc(S.candidateText || '')}</textarea></details><label>Complete rounds allowed<select data-ws-opt-rounds>${[1,2,3].map(n=>`<option value="${n}"${n===(S.optRounds || 1)?' selected':''}>${n} complete ${n===1?'round':'rounds'} · up to ${n*4} fresh drafts + ${n*2} pair reviews</option>`).join('')}</select></label><div class="workshop-actions ws-improve-controls"><label>Prose type to improve<select data-ws-opt-form${S.busy || S.optBody?' disabled':''}>${forms.map(f=>`<option value="${esc(f)}"${f===form?' selected':''}${!S.home.samples.some(s=>s.form===f)?' disabled':''}>${esc(formName(f))}</option>`).join('')}</select></label><button data-ws="opt-start"${!available || !hasSample || !S.home.configured || !S.quality || S.busy?' disabled':''}>${S.optBody?'Check submitted study':'Start '+esc(formName(form).toLowerCase())+' study'}</button></div><p class="ws-control-help">One round = current versus candidate on two entries: 4 writing calls + 2 independent pair reviews. Uncalibrated reviewers pause for your blind verdicts after each round. Qualification requires reviewer calibration, fresh validation and your approval.</p><label>Previous studies<select data-ws-opt-history><option value="">Choose study…</option>${(S.optimizations?.runs || []).map(r=>`<option value="${esc(r.run_id)}"${r.run_id===run?.run_id?' selected':''}>${esc(formName(r.form))} · ${esc(({budget_exhausted:'Awaiting your decision',awaiting_next_round:'Awaiting your decision',escalated:'Setup investigation needed'})[r.status] || r.status.replaceAll('_',' '))} · ${esc(r.created_at)}</option>`).join('')}</select></label>`:`<div class="ws-running"><p role="status">${optimizing()?'Category study in progress':'StoryTechMan is working on this study'}. Your authorized writing limit does not increase automatically.</p>${optimizing()?'<button data-ws="opt-stop">Stop after the current request</button>':''}</div>`}
-      ${run?`${decisionPanel(run)}<div class="ws-results">${(run.rounds || []).map(round=>`<details class="ws-round"${round===run.rounds.at(-1)?' open':''}><summary>${round.kind==='validation'?'Validation':'Learning'} round ${round.number} · ${round.pairs.length} test ${round.pairs.length===1?'entry':'entries'}</summary>${round.pairs.map((pair,i)=>reviewPair(pair,round.number+'-'+i)).join('')}</details>`).join('')}</div>
+      ${!watching()?`<h4>Start a controlled category study</h4><label>Experiment hypothesis<input data-ws-hypothesis maxlength="1000" value="${esc(S.hypothesis || 'Test direct language, subject focus and useful-or-empty endings against the current setup.')}"></label><details data-ws-detail="candidate-editor"><summary>Candidate instructions to test</summary><p>These instructions are experimental. The current active setup supplies the other draft.</p><textarea data-ws-candidate rows="10" maxlength="4000">${esc(S.candidateText || '')}</textarea></details><label>Complete rounds allowed<select data-ws-opt-rounds>${[1,2,3].map(n=>`<option value="${n}"${n===(S.optRounds || 1)?' selected':''}>${n} complete ${n===1?'round':'rounds'} · up to ${n*4} fresh drafts + ${n*2} pair reviews</option>`).join('')}</select></label><div class="workshop-actions ws-improve-controls"><label>Prose type to improve<select data-ws-opt-form${S.busy || S.optBody?' disabled':''}>${forms.map(f=>`<option value="${esc(f)}"${f===form?' selected':''}${!S.home.samples.some(s=>s.form===f)?' disabled':''}>${esc(formName(f))}</option>`).join('')}</select></label><button data-ws="opt-start"${!available || !hasSample || !S.home.configured || !S.quality || S.busy?' disabled':''}>${S.optBody?'Check submitted study':'Start '+esc(formName(form).toLowerCase())+' study'}</button></div><p class="ws-control-help">One round = current versus candidate on two entries: 4 writing calls + 2 independent pair reviews. Uncalibrated reviewers pause for your blind verdicts after each round. Finishing a batch of ratings also triggers one Codex standards update, without writer calls. Qualification requires reviewer calibration, fresh validation and your approval.</p><label>Previous studies<select data-ws-opt-history><option value="">Choose study…</option>${(S.optimizations?.runs || []).map(r=>`<option value="${esc(r.run_id)}"${r.run_id===run?.run_id?' selected':''}>${esc(formName(r.form))} · ${esc(({budget_exhausted:'Awaiting your decision',awaiting_next_round:'Awaiting your decision',escalated:'Setup investigation needed'})[r.status] || r.status.replaceAll('_',' '))} · ${esc(r.created_at)}</option>`).join('')}</select></label>`:`<div class="ws-running"><p role="status">${optimizing()?'Category study in progress':syncWorking()?'JKSimmons is updating his reviewer standards':'StoryTechMan is working on this study'}. Your authorized writing limit does not increase automatically.</p>${optimizing()?'<button data-ws="opt-stop">Stop after the current request</button>':''}</div>`}
+      ${run?`${decisionPanel(run)}${feedbackPanel(run)}<div class="ws-results">${(run.rounds || []).map(round=>`<details class="ws-round"${round===run.rounds.at(-1)?' open':''}><summary>${round.kind==='validation'?'Validation':'Learning'} round ${round.number} · ${round.pairs.length} test ${round.pairs.length===1?'entry':'entries'}</summary>${round.pairs.map((pair,i)=>reviewPair(pair,round.number+'-'+i)).join('')}</details>`).join('')}</div>
       ${run.status==='awaiting_approval' && run.workflow_version>=3?`<section class="ws-decision"><h4>The category setup passed validation</h4><p>The candidate passed fresh current-versus-candidate comparisons. Seal your blind verdicts below before activation. Reviewer calibration is checked again when you approve.</p><details><summary>Review the exact instructions to activate</summary><h5>Shared craft</h5><pre>${esc(run.shared.instructions)}</pre><h5>Category brief</h5><pre>${esc(run.specific.instructions)}</pre></details><div class="workshop-actions"><button data-ws="opt-approve">Approve tested setup for future NCCE writing</button><button data-ws="opt-reject">Reject this setup</button></div></section>`:''}
       ${run.status==='awaiting_approval' && !(run.workflow_version>=3)?'<p class="ws-calibration-status">This historical score-based study cannot qualify under the new standards. Start a controlled comparison to validate it.</p>':''}
       ${run.prompt_history?.length?`<details class="ws-prompt-changes"><summary>Category prompt changes · ${run.prompt_history.length} saved revisions</summary>${run.prompt_history.map(p=>`<details><summary>Proposed after learning round ${p.after_round}</summary><pre>${esc(p.instructions)}</pre></details>`).join('')}</details>`:''}
@@ -157,9 +168,10 @@ window.NCCEWorkshop = (() => {
   }
   async function pollOptimization() {
     try {
+      const previousSync=S.optimization?.feedback_sync?.status;
       const previousStamp=guidelineStamp(S.optimization);
       S.optimization=await request('/api/workshop/optimization?run_id='+encodeURIComponent(S.optimization.run_id));
-      if(previousStamp!==guidelineStamp(S.optimization))await loadGuidelines();
+      if(previousStamp!==guidelineStamp(S.optimization) || previousSync!==S.optimization.feedback_sync?.status){await loadGuidelines();await loadQuality();}
       paint();
       if(watching()) setTimeout(pollOptimization,1500);
       else {S.optBody=null;S.continueBody=null; S.optimizations=await request('/api/workshop/optimizations'); paint();}
@@ -192,17 +204,26 @@ window.NCCEWorkshop = (() => {
     if(!entry)throw new Error('No sourced entries are available for this prose type.');
     const sample=await request('/api/workshop/sample?key='+encodeURIComponent(entry.key));
     const sharedMeta=await request('/api/workshop/policy?scope=shared');
-    const specific=seed?.specific || (saved && S.candidateText===saved.instructions?saved.specific:(await post('save-policy',{scope:form,label:'Owner experiment candidate',instructions:S.candidateText,examples:saved?.examples || ''})).revision_id);
+    const specific=seed?.specific || (saved && S.candidateText===saved.instructions?saved.specific:(await post('save-policy',{scope:form,label:'Owner experiment candidate',instructions:S.candidateText,examples:saved?.examples || S.quality?.standards?.examples || ''})).revision_id);
     const shared=seed?.shared || saved?.shared || sharedMeta.active?.revision_id || (await post('save-policy',sharedMeta.builtin)).revision_id;
     return {sample_key:sample.key,packet_hash:sample.packet_hash,shared_revision_id:shared,form_revision_id:specific,focus:'auto',variation:0,plan_key:null,hypothesis:S.hypothesis || 'Test direct language, subject focus and useful-or-empty endings against the current setup.'};
   }
   async function action(button) {
     switch(button.dataset.ws) {
+      case 'feedback-sync':
+        if(S.busy || watching())return;
+        S.busy=true;paint();
+        try {S.optimization=await post('feedback-sync',{run_id:S.optimization.run_id});S.busy=false;paint();if(syncWorking())setTimeout(pollOptimization,1000);else S.message='Rate all completed draft pairs first; the update queues automatically with the last verdict.';}
+        finally {S.busy=false;paint();}
+        break;
       case 'opt-prepare-saved': {
         const run=S.optimization;
         if(S.busy || watching() || S.optBody || run?.status!=='finished' || !run.specific?.revision_id || !run.shared?.revision_id || run.rounds.some(r=>r.pairs.some(p=>p.review_pending_reveal && !p.owner_verdict)))return;
-        S.optForm=run.form;S.candidateScope=run.form;S.candidateText=run.specific.instructions;
-        S.finishedSeed={form:run.form,specific:run.specific.revision_id,shared:run.shared.revision_id,instructions:run.specific.instructions,examples:run.specific.examples || ''};
+        const latest=run.feedback_sync?.candidate_revision_id;
+        const candidate=latest?(await request('/api/workshop/policy?scope='+encodeURIComponent(run.form))).history.find(r=>r.revision_id===latest):run.specific;
+        if(!candidate)throw new Error('The saved updated candidate is unavailable; refresh before preparing another study.');
+        S.optForm=run.form;S.candidateScope=run.form;S.candidateText=candidate.instructions;
+        S.finishedSeed={form:run.form,specific:candidate.revision_id,shared:run.shared.revision_id,instructions:candidate.instructions,examples:candidate.examples || ''};
         S.repairSeed=null;S.continueBody=null;
         S.message='Saved guidance is ready in the candidate editor. No writing has started. Review it before authorizing a new test.';
         paint(true);
@@ -220,7 +241,7 @@ window.NCCEWorkshop = (() => {
         try {
           await post('owner-verdict',{run_id:S.optimization.run_id,round,pair,preference,acceptable,note:draft.note || ''});
           S.optimization=await request('/api/workshop/optimization?run_id='+encodeURIComponent(S.optimization.run_id));
-          await loadQuality();S.message='Blind verdict sealed. The independent review and setup identities are now revealed.';
+          await loadQuality();S.message='Blind verdict sealed. The independent review and setup identities are now revealed.';if(syncWorking())setTimeout(pollOptimization,1000);
         } finally {S.busy=false;paint(true);}
         break;
       }
@@ -267,7 +288,7 @@ window.NCCEWorkshop = (() => {
       case 'opt-start': {
         if(S.busy || watching()) return;
         const rounds=S.optRounds || 1;
-        if(!S.optBody && !window.confirm(`Test the reusable ${formName(S.optForm).toLowerCase()} setup on fresh entries with up to ${rounds*4} paid JuniorWriter calls and ${rounds*2} reviews in your JKSimmons Codex chat? Codex usage limits apply. There are no external reviewer API calls. The run stops on technical issues and never activates instructions automatically.`)) {paint();return;}
+        if(!S.optBody && !window.confirm(`Test the reusable ${formName(S.optForm).toLowerCase()} setup on fresh entries with up to ${rounds*4} paid JuniorWriter calls and ${rounds*2} reviews in your JKSimmons Codex chat? Codex usage limits apply, including one standards update after you finish rating a batch. There are no external reviewer API calls. The run stops on technical issues and never activates instructions automatically.`)) {paint();return;}
         S.busy=true;paint();
         try {
           if(!S.optBody) S.optBody={...await preparedOptimization(),request_key:crypto.randomUUID(),max_rounds:rounds,allow_paid:true};
@@ -314,7 +335,7 @@ window.NCCEWorkshop = (() => {
         }catch(error){S.busy=false;if(error.status>=400 && error.status<500 && ![408,429].includes(error.status))S.techRejectBody=null;throw error;}
         break;
       }
-      case 'opt-finish':S.optimization=await post('optimization-finish',{run_id:S.optimization.run_id});S.continueBody=null;break;
+      case 'opt-finish':S.optimization=await post('optimization-finish',{run_id:S.optimization.run_id});S.continueBody=null;if(syncWorking())setTimeout(pollOptimization,1000);break;
       case 'opt-stop': await post('optimization-stop',{run_id:S.optimization.run_id});S.message='Stop requested. The current request may finish; no further requests will begin.';break;
       case 'opt-approve':
       case 'opt-reject': {
@@ -339,7 +360,7 @@ window.NCCEWorkshop = (() => {
       if(t.hasAttribute('data-ws-tech-note'))S.techNote=t.value;
       if(t.hasAttribute('data-ws-tech-rejection')){S.rejectionNotes ||= {};S.rejectionNotes[t.dataset.wsTechRejection]=t.value;}
       if(t.hasAttribute('data-ws-hypothesis'))S.hypothesis=t.value;
-      if(t.hasAttribute('data-ws-candidate'))S.candidateText=t.value;
+      if(t.hasAttribute('data-ws-candidate')){S.candidateText=t.value;S.candidateDirty=true;}
       if(t.hasAttribute('data-ws-verdict-note')){const k=t.dataset.wsVerdictNote;S.verdictDrafts ||= {};S.verdictDrafts[k] ||= {};S.verdictDrafts[k].note=t.value;}
     });
     root.addEventListener('change',event=>{
@@ -360,7 +381,7 @@ window.NCCEWorkshop = (() => {
       if(!S.home) {
         S.home=await request('/api/workshop');
         S.optimizations=await request('/api/workshop/optimizations');
-        const active=S.optimizations.runs.find(r=>['queued','running'].includes(r.status) || ['queued','investigating','repair_queued','repairing','release_queued','releasing'].includes(r.tech?.status));
+        const active=S.optimizations.runs.find(r=>['queued','claimed','reviewing'].includes(r.feedback_sync?.status) || ['queued','running'].includes(r.status) || ['queued','investigating','repair_queued','repairing','release_queued','releasing'].includes(r.tech?.status));
         const pending=active || S.optimizations.runs.find(r=>['awaiting_resume','awaiting_owner','awaiting_approval','awaiting_next_round','budget_exhausted','awaiting_samples','escalated'].includes(r.status) || ['proposal_ready','repair_ready','released','needs_input'].includes(r.tech?.status)) || S.optimizations.runs.find(r=>r.status==='finished');
         if(pending){S.optimization=pending;S.optForm=pending.form;}
         if(active)setTimeout(pollOptimization,1000);

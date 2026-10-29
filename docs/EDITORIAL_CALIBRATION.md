@@ -1,5 +1,13 @@
 # Controlled writing experiments and reviewer calibration
 
+## Automatic post-study learning (0.19.0)
+
+The final sealed owner rating, once every completed review in the study has a rating, queues one `editorial_consolidation` job in the actual JKSimmons thread. Closing a study before rating it does not lose the trigger: the last later ballot queues it. This is event-driven Codex usage, never a timer, writer request or new spending grant. The input is an immutable snapshot of the independent reviews, exact drafts, owner preferences/acceptance/notes, protected contract and previous working standards. Duplicate ballot/finish/sync actions return the same job; failed, cancelled or uncertain jobs never replay automatically. Older fully judged studies have a one-time sync action, not a recurring manual step.
+
+JKSimmons returns a short change summary, explicit owner corrections, separately labelled reviewer hypotheses, complete reusable reviewer standards and an inactive form candidate. Completion atomically saves all of these with the real native identity; original verdicts, scores, tested prompts and active policy pointers are preserved. Each future review receives the latest saved standards, and the desktop helper mirrors confirmed app standards into its configured `context_dir/workshop-standards-FORM.md`. A local file failure leaves a recoverable file-only pending operation; it never reruns the model. The protected owner contract and personal global instructions are not overwritten. Working standards are coaching, not fresh calibration evidence; historical prospective agreement remains intact.
+
+The app shows queued/working/completed status, the concrete changes and collapsible standards; the actual working reviewer head lights up. Further writing for the category waits for this job. Continuing uses the new candidate as a fresh learning setup if its text changed; it cannot be treated as already validated. A new study defaults to the consolidated guidance, while the owner's unsaved editor changes are preserved. A completed study's Prepare action uses its consolidated candidate when present. Activation remains a separate explicit owner decision. Reading or opening a study triggers no model work.
+
 Development source 0.18.0, 29 October 2026. Schema remains 15. This replaces score-based qualification for new Workshop studies. It does not activate new production instructions or regenerate campaign prose.
 
 ## What changed

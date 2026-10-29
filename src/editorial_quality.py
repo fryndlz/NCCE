@@ -68,8 +68,10 @@ def require_calibrated(store, form):
 def home(store, form):
     ws.scope_name(form)
     data = contract()
-    return {'contract': data, 'calibration': calibration(store, form),
-            'suggested_instructions': seed_brief(form),
+    from editorial_sync import standards
+    learned=standards(store,form)
+    return {'contract': data, 'calibration': calibration(store, form),'standards':learned,
+            'suggested_instructions': learned['proposed_form_instructions'] if learned else seed_brief(form),
             'scope_note': 'Historical examples teach standards; they never count as fresh calibration evidence. Calibration is category-specific and is revoked by a strong-rejection false acceptance.'}
 
 
@@ -111,6 +113,8 @@ def record_verdict(store, body):
         saved = json.loads(existing)
         if any(saved[k] != v for k, v in choice.items()):
             raise ValueError('This blind verdict is sealed. It cannot be rewritten after the reveal.')
+        from editorial_sync import maybe_queue
+        maybe_queue(store,run['run_id'])
         return saved
     from workshop_experiments import validate_review
     validate_review(review)
@@ -133,6 +137,8 @@ def record_verdict(store, body):
             value['fingerprint'] = 'duplicate-source-not-calibration'
         store.db.execute('INSERT INTO system_state VALUES(?,?)', (key, cq.packed(value)))
         store.db.execute('INSERT OR IGNORE INTO system_state VALUES(?,?)', ('editorial-source:' + source, key))
+    from editorial_sync import maybe_queue
+    maybe_queue(store,run['run_id'])
     return value
 
 

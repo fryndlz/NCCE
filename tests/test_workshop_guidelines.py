@@ -40,7 +40,7 @@ def test_saved_update_and_read_only_history():
 
 def test_proposal_does_not_replace_saved_or_active_instructions():
     def check(store):
-        with patch.object(writer, 'API_KEY', 'mock'):
+        with patch.object(writer, 'API_KEY', 'mock'), patch.object(ws,'now',return_value='2026-10-28T11:00:00+00:00'):
             state, _ = opt.queue(store, body(store, 1))
             result = opt.execute(store, state['run_id'], generator=lambda *a: {'status':'ready','document':{},'usage':{},'error':''}, reviewer=lambda *a: assessment(7,'context'))
         assert result['status']=='escalated' and not result['prompt_history']

@@ -21,8 +21,23 @@ class ChatWorker:
         tmp = self.active.with_suffix('.tmp')
         tmp.write_text(json.dumps(value), encoding='utf-8'); tmp.replace(self.active)
 
+    def mirror_standards(self,export):
+        import re
+        scope=export['form']
+        if not re.fullmatch('[a-z_]{1,50}',scope):raise ValueError('Invalid reviewer memory scope')
+        folder=Path(self.client.config['context_dir'])
+        folder.mkdir(parents=True,exist_ok=True)
+        target=folder/('workshop-standards-'+scope+'.md')
+        text='# Workshop reviewer standards · '+scope+'\n\nConfirmed app revision: '+export['revision_id']+'\nUpdated: '+export['at']+'\n\n'+export['reviewer_standards']+'\n'
+        text+='\n## Owner corrections\n'+'\n'.join('- '+x for x in export.get('owner_corrections',[]))
+        text+='\n\n## Reviewer interpretations (not owner instructions)\n'+'\n'.join('- '+x for x in export.get('reviewer_inferences',[]))+'\n'
+        temp=target.with_suffix('.tmp');temp.write_text(text,encoding='utf-8');temp.replace(target)
+
     def heartbeat(self):
         active = json.loads(self.active.read_text(encoding='utf-8')) if self.active.exists() else {}
+        if active.get('memory_pending'):
+            self.mirror_standards(active['memory_pending'])
+            active.pop('memory_pending');self.save(active)
         pending = active.get('status') in ('claimed', 'reviewing')
         result = self.post('heartbeat', {**(active if pending else {}), 'state': 'reviewing' if pending else 'idle'})
         if pending and result.get('job_status') in ('completed', 'cancelled', 'failed'):
@@ -33,6 +48,8 @@ class ChatWorker:
         if not turn_id.strip(): raise ValueError('Read the actual current Codex turn identity first')
         with single_instance(self.client.folder / ('chat-'+self.role+'-lock')):
             previous = json.loads(self.active.read_text(encoding='utf-8')) if self.active.exists() else {}
+            if previous.get('memory_pending'):
+                self.mirror_standards(previous.pop('memory_pending'));self.save(previous)
             if previous.get('status') in ('claimed', 'reviewing'):
                 raise RuntimeError('Unfinished native review: inspect the chat and job; no automatic replay')
             reply = self.post('claim', {'job_id': job_id} if job_id else None); job = reply.get('job')
@@ -53,7 +70,7 @@ class ChatWorker:
             self.post('heartbeat', {'state': 'error'})
         else:
             try:
-                self.post('complete', {**value, 'review': review})
+                reply=self.post('complete', {**value, 'review': review})
             except BridgeRequestError as exc:
                 # A definitive rejection must stop the app's waiter promptly.
                 # Never retry a submission or turn a network uncertainty into
@@ -66,7 +83,13 @@ class ChatWorker:
                     except Exception:
                         pass  # Preserve the original rejection and uncertain lease.
                 raise
-            self.save({**value, 'status': 'completed'})
+            completed={**value,'status':'completed'}
+            if reply.get('standards_export'):
+                completed['memory_pending']=reply['standards_export']
+                self.save(completed)  # App completion is durable before local file I/O.
+                self.mirror_standards(completed['memory_pending'])
+                completed.pop('memory_pending')
+            self.save(completed)
             self.post('heartbeat', {'state': 'idle'})
         return {'ok': True, 'job_id': value['job_id']}
 

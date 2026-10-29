@@ -1,6 +1,10 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const context={window:{}};vm.createContext(context);vm.runInContext(fs.readFileSync('web/writing_activity.js','utf8'),context);
 const activity=context.window.NCCEWritingActivity;
+const learning=activity.model({run_id:'learning',status:'finished',rounds:[],feedback_sync:{status:'reviewing',at:'native-start'}});
+assert.equal(learning.people.filter(p=>p.active).length,1);
+assert.equal(learning.people.find(p=>p.active).name,'JKSimmons');
+assert.match(learning.people.find(p=>p.active).message,/Incorporating your sealed feedback/);
 // Cosmetic randomness belongs to an event, never to a polling redraw.
 let randomCalls=0;
 const controlledMath=Object.create(Math);controlledMath.random=()=>{randomCalls++;return [0,.95,.45,.2][randomCalls%4];};

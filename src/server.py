@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.18.2'
+APP_VERSION='0.19.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -422,6 +422,9 @@ class H(BaseHTTPRequestHandler):
      elif p=='/api/workshop/owner-verdict':
       import editorial_quality
       result=editorial_quality.record_verdict(store,body)
+     elif p=='/api/workshop/feedback-sync':
+      import editorial_sync
+      result=editorial_sync.maybe_queue(store,body.get('run_id'))
      elif p=='/api/workshop/optimization-investigate':
       import workshop_interventions
       result=workshop_interventions.investigate(store,body)

@@ -53,6 +53,13 @@ class EventListener:
                 'Read your actual current native turn ID and claim ONLY this job using codex_chat_worker.py --role storytech claim --job-id '+job+' --turn-id ACTUAL_ID. '
                 'Inspect the actual packet, source and approval record. Investigations are READ ONLY. Repair/release jobs need their exact human approval in the packet. '
                 'Return the required report with complete --role storytech --file. No writer calls, writing-policy activation, authoritative campaign/canon edits, timers, other models or messages to other chats. Never display credentials or leases. Stop after this job.')
+        elif kind=='editorial_consolidation':
+            message=('NCCE FEEDBACK UPDATE '+job+'. The owner authorized one post-study standards update from sealed app feedback. '
+                'Follow C:\\Codex\\NCCE\\writing-quality-dev\\docs\\CODEX_CHAT_REVIEWER.md. '
+                'Read your actual native turn ID, claim ONLY this job with codex_chat_worker.py claim --job-id '+job+' --turn-id ACTUAL_ID. '
+                'This is feedback consolidation, not a blind draft review. Return the exact claimed schema and complete --file. '
+                'The helper mirrors confirmed standards to durable reviewer memory. No writer calls, activation, source edits, '
+                'spending grants, timers, other models or messages to other chats. End after this job.')
         try:
             result = subprocess.run([self.client.executable,'queue','--thread',target,'--message',message],
                 capture_output=True,text=True,encoding='utf-8',timeout=30,

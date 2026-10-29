@@ -47,6 +47,11 @@ def library(store, scope):
         "SELECT state_json FROM workshop_optimization_runs WHERE json_extract(state_json, '$.form')=? ORDER BY rowid DESC LIMIT 40", (scope,))]
     sources, proposals, seen_proposals = {}, [], set()
     for run in runs:
+        sync=run.get('feedback_sync',{})
+        if sync.get('status')=='completed' and sync.get('candidate_revision_id'):
+            sources[sync['candidate_revision_id']]={'author':'JKSimmons','run_id':run['run_id'],
+                'round':len(run['rounds']),'previous_revision_id':sync['previous_candidate_revision_id'],
+                'reason':sync['message'],'kind':'feedback_consolidation'}
         adopted = {h['after_round']:h for h in run.get('prompt_history', [])}
         for h in run.get('prompt_history', []):
             round_ = next((r for r in run.get('rounds', []) if r['number']==h['after_round']), {})

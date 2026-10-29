@@ -80,13 +80,15 @@ def enqueue(store, state, pair, preceding, schema, rubric):
         payload.update(workflow_version=3, editorial_contract=state['editorial_contract'],
             hypothesis=state['hypothesis'], comparison_instructions=pair['comparison_instructions'],
             prior_owner_corrections=editorial_quality.training_feedback(store,state['form']))
+        from editorial_sync import standards
+        payload['reviewer_standards']=standards(store,state['form'])
         payload.pop('instructions',None)
         payload['objective'] = ('Blindly compare A and B. Both use the same model, source context and response limits; only the instructions differ. '
             'Do not infer which is current or candidate. Apply the explicit owner editorial contract before scoring: subject, first-read clarity, direct register and useful-or-empty closing. '
             'Scores are advisory, never proof of qualification. Explain changed/addresses/observed_effect/regressions. '
             'On entry two, consolidate reusable proposed_form_instructions across BOTH entries and preceding reviews. '
             'Never rewrite a candidate text or activate anything. Historical owner examples are training data, not fresh calibration evidence. '
-            'Do not inspect owner verdicts for the current study or infer them from this chat. If already exposed to them, fail the job instead of claiming independence.')
+            'Prior sealed feedback is coaching. Do not inspect owner verdicts for THIS draft pair or infer them from this chat. If already exposed to this pair’s owner verdict, fail the job instead of claiming independence.')
     with store._lock, store.db:
         store.db.execute("INSERT INTO codex_review_jobs(job_id,run_id,status,payload_json,created_at) VALUES(?,?,'queued',?,?)", (job_id, state['run_id'], packed(payload), now()))
     return job_id
@@ -151,9 +153,13 @@ def claim(store, body):
         else:
             row = store.db.execute("SELECT * FROM codex_review_jobs WHERE status='queued' AND json_extract(payload_json,'$.thread_id')=? ORDER BY created_at LIMIT 1",(body['thread_id'],)).fetchone()
         if not row: return {'job': None}
+        payload=json.loads(row['payload_json'])
+        if payload.get('kind')=='editorial_consolidation':
+            from editorial_sync import prepare_claim
+            payload=prepare_claim(store,payload)
         lease = secrets.token_urlsafe(32)
         store.db.execute("UPDATE codex_review_jobs SET status='claimed',worker_id=?,lease_hash=?,claimed_at=? WHERE job_id=?", (body['worker_id'], hashlib.sha256(lease.encode()).hexdigest(), now(), row['job_id']))
-        return {'job': json.loads(row['payload_json']), 'lease': lease}
+        return {'job': payload, 'lease': lease}
 
 
 def owned(store, body):
@@ -168,7 +174,10 @@ def complete(store, body):
     from workshop_optimizer import assess
     result = body.get('review')
     row=owned(store,body);payload=json.loads(row['payload_json'])
-    if payload.get('kind','review')=='review':
+    if payload.get('kind')=='editorial_consolidation':
+        from editorial_sync import validate
+        validate(result)
+    elif payload.get('kind','review')=='review':
         if payload.get('workflow_version',1)>=3:
             from workshop_experiments import validate_review
             validate_review(result)
@@ -181,6 +190,9 @@ def complete(store, body):
         if row['status'] == 'completed':
             previous = json.loads(row['result_json']); identity = previous.pop('_codex', {})
             if packed(previous) != packed(result) or identity.get('turn_id') != body.get('turn_id'): raise ValueError('Completed review is immutable')
+            if payload.get('kind')=='editorial_consolidation':
+                from editorial_sync import export
+                return {'ok':True,'standards_export':export(store,payload)}
             return {'ok': True}
         if row['status'] != 'reviewing': raise ValueError('Review job is no longer active')
         turn_id = body.get('turn_id')
@@ -188,10 +200,16 @@ def complete(store, body):
         if json.loads(row['result_json']).get('_codex', {}).get('turn_id') != turn_id: raise ValueError('Codex turn identity changed')
         identity={'thread_id':payload['thread_id'],'turn_id':turn_id}
         envelope = {**result, '_codex': identity}
-        if payload.get('kind','review')!='review' and not payload.get('diagnostic'):
+        if payload.get('kind')=='editorial_consolidation':
+            from editorial_sync import complete as finish_learning
+            finish_learning(store,payload,result,identity)
+        elif payload.get('kind','review')!='review' and not payload.get('diagnostic'):
             from workshop_interventions import complete as finish_technical
             finish_technical(store,payload,result,identity)
         store.db.execute("UPDATE codex_review_jobs SET status='completed',result_json=?,finished_at=? WHERE job_id=?", (packed(envelope), now(), row['job_id']))
+    if payload.get('kind')=='editorial_consolidation':
+        from editorial_sync import export
+        return {'ok':True,'standards_export':export(store,payload)}
     return {'ok': True}
 
 
@@ -204,7 +222,10 @@ def started(store, body):
         payload=json.loads(row['payload_json'])
         payload.setdefault('transport_audit', {})['started_at'] = now()
         identity = {'_codex': {'thread_id': payload['thread_id'], 'turn_id': turn_id}}
-        if payload.get('kind','review')!='review' and not payload.get('diagnostic'):
+        if payload.get('kind')=='editorial_consolidation':
+            from editorial_sync import set_status
+            set_status(store,payload,'reviewing','JKSimmons is incorporating your sealed feedback into his standards and candidate guidance.')
+        elif payload.get('kind','review')!='review' and not payload.get('diagnostic'):
             from workshop_interventions import started as technical_started
             technical_started(store,payload)
         store.db.execute("UPDATE codex_review_jobs SET status='reviewing',result_json=?,payload_json=? WHERE job_id=?", (packed(identity), packed(payload), row['job_id']))
@@ -217,7 +238,10 @@ def fail(store, body):
         if row['status'] not in ('claimed', 'reviewing', 'failed'): raise ValueError('Review job is no longer active')
         error = str(body.get('error') or 'Codex review needs human attention')[:400]
         payload=json.loads(row['payload_json'])
-        if payload.get('kind','review')!='review' and not payload.get('diagnostic'):
+        if payload.get('kind')=='editorial_consolidation':
+            from editorial_sync import set_status
+            set_status(store,payload,'failed',error)
+        elif payload.get('kind','review')!='review' and not payload.get('diagnostic'):
             from workshop_interventions import failed
             failed(store,payload,error)
         store.db.execute("UPDATE codex_review_jobs SET status='failed',error=?,finished_at=? WHERE job_id=?", (error, now(), row['job_id']))

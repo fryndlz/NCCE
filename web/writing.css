@@ -470,3 +470,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .ws-tech-brief p { margin: 0; font: 14px/1.65 var(--sans,sans-serif); overflow-wrap: anywhere; }
 .ws-tech-evidence { margin: 1rem 0; }
 @media (max-width: 760px) { .ws-tech-brief { grid-template-columns: 1fr; } }
+
+.ws-feedback-sync { padding: 1rem; margin: 1rem 0; border: 1px solid #63816b; border-radius: 8px; background: #1c2920; }
+.ws-feedback-sync li { line-height: 1.6; margin: .5rem 0; }

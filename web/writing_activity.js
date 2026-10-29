@@ -51,10 +51,11 @@ window.NCCEWritingActivity = (() => {
   }
   function model(run,options={}) {
     let a=run?.activity || {phase:run?.status==='queued'?'queued':'idle',actor:null,message:''};
-    const status=run?.status || 'idle', technicalWorking=['investigating','repairing','releasing'].includes(run?.tech?.status), working=(status==='running' && ['draft','review'].includes(a.phase)) || technicalWorking;
+    const status=run?.status || 'idle', technicalWorking=['investigating','repairing','releasing'].includes(run?.tech?.status), learningWorking=run?.feedback_sync?.status==='reviewing', working=(status==='running' && ['draft','review'].includes(a.phase)) || technicalWorking || learningWorking;
     if(technicalWorking)a={...a,phase:'technical_review',actor:'StoryTechMan',message:run.tech.status==='investigating'?'Inspecting exact saved requests and the generation environment. I will return a proposal before any repair.':run.tech.status==='repairing'?'Implementing and testing the repair you approved. Deployment needs a separate decision.':'Deploying and checking the exact tested repair you approved.'};
     const attention=!technicalWorking && ['escalated','stopped'].includes(status) && !['queued','repair_queued','release_queued'].includes(run?.tech?.status);
     if(['awaiting_resume','awaiting_owner','awaiting_next_round','budget_exhausted','awaiting_samples'].includes(status))a={...a,phase:'decision'};
+    if(learningWorking && !technicalWorking)a={phase:'review',actor:'JKSimmons',at:run.feedback_sync.at,message:'Incorporating your sealed feedback into my reviewer standards and candidate writing guidance.'};
     const messages={
       JuniorWriter:!run?'I’m ready to draft from NCCE’s context once you authorize a run.':run.writer_reserved?'My drafts and exact instructions are saved below. I’m waiting for the next writing step.':'I’m waiting for the checked source context.',
       JKSimmons:!run?'I’ll review both alternatives, score them and distinguish writing issues from missing context.':status==='awaiting_approval'?(run?.workflow_version>=3?'The candidate passed fresh comparisons. Your blind verdicts and approval are still required.':'All tested drafts passed the target. You decide whether this setup is good enough.'):a.phase==='awaiting_reviewer'?'The packet is queued for my actual Codex chat. I am not reviewing until Codex accepts the turn.':run.reviewer_reserved?'The reviews and reusable guidance are saved below.':'I’m waiting for both drafts before reviewing.',
@@ -75,7 +76,7 @@ window.NCCEWritingActivity = (() => {
     const view={phase:a.phase,status,working,attention,activity:a,people:people.map(p=>({...p,
       active:working && a.actor===p.name,
       attention:attention && p.name==='StoryTechMan',
-      expression:mood(p),message:status==='running' && a.actor===p.name && a.phase!=='context' || technicalWorking && p.name==='StoryTechMan'?a.message:messages[p.name]}))};
+      expression:mood(p),message:status==='running' && a.actor===p.name && a.phase!=='context' || technicalWorking && p.name==='StoryTechMan' || learningWorking && p.name==='JKSimmons'?a.message:messages[p.name]}))};
     view.people=view.people.map(p=>({...p,banter:banter(p)}));return view;
   }
   function workflow(run) {
@@ -85,7 +86,8 @@ window.NCCEWritingActivity = (() => {
     const mode=validation?'Validation':'Learning';
     const technical={queued:['investigate','StoryTechMan investigation queued'],investigating:['investigate','StoryTechMan is investigating'],proposal_ready:['proposal','Your decision on the repair proposal'],repair_queued:['repair','Approved development repair queued'],repairing:['repair','StoryTechMan is implementing and testing'],repair_ready:['release-decision','Your decision on deployment'],release_queued:['release','Approved deployment queued'],releasing:['release','StoryTechMan is deploying and verifying'],released:['new-study','Repair released; a new study is required'],needs_input:['halt','StoryTechMan needs your input']};
     let node='',label='No study selected';
-    if(technical[tech])[node,label]=technical[tech];
+    if(run?.feedback_sync?.status==='reviewing'){node='review';label='JKSimmons is updating standards from your sealed feedback';}
+    else if(technical[tech])[node,label]=technical[tech];
     else if(status==='approved'){node='activate';label='Tested instructions activated';}
     else if(status==='awaiting_approval'){node='approval';label='Validation passed; your activation decision';}
     else if(status==='awaiting_resume'){node='allowance';label='Saved review recovered; resume only unfinished authorized work';}

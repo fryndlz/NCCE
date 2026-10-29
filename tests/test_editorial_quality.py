@@ -47,7 +47,10 @@ def fake_generator(store, state, prepared, instructions, token):
 def setup(store, fn):
     with patch.dict(os.environ, {'NCCE_REVIEW_BRIDGE_TOKEN_SHA256': hashlib.sha256(('test-bridge-token-'*4).encode()).hexdigest()}), patch.object(writer, 'API_KEY', 'mock'):
         ready_bridge(store)
-        fn(store)
+        # These regressions isolate prospective judging. Consolidation has its
+        # own end-to-end suite with a native claim/complete and durable memory.
+        with patch('editorial_sync.maybe_queue',side_effect=lambda s,r:opt.get(s,r)):
+            fn(store)
 
 
 def vote(store, state, index, preference=None, acceptable=None):
