@@ -157,7 +157,7 @@ def export(store,payload):
 
 
 def before_more_writing(store,state):
-    """Consume a completed inactive candidate once, before a fresh learning round."""
+    """Consume completed feedback guidance once, before a fresh learning round."""
     sync=state.get('feedback_sync',{})
     if sync.get('status') in BUSY:raise ValueError('JKSimmons is incorporating your feedback. Wait for his update before another writing round.')
     if sync.get('status') in ('failed','cancelled'):raise ValueError('The reviewer feedback update needs attention in his Codex chat before more writing.')
