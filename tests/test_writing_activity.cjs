@@ -115,6 +115,7 @@ const controlledGraph=activity.render({...validation,workflow_version:3,status:'
 assert.match(controlledGraph,/Your blind verdicts are needed/);
 assert.match(controlledGraph,/Scores are advisory/);
 assert.match(controlledGraph,/current versus candidate/i);
+assert.equal(current({...validation,workflow_version:3,status:'awaiting_resume'}),'allowance');
 assert.doesNotMatch(controlledGraph,/all four drafts need every score/);
 assert.match(css,/prefers-reduced-motion/);
 assert.match(css,/\.flow-tip\s*\{\s*display:none/,'Descriptions must be hidden by default');

@@ -82,7 +82,7 @@ window.NCCEWorkshop = (() => {
     const drafts=(pair.candidates || []).map((candidate,index)=>`<article class="ws-prose-draft"><h5>Draft ${index?'B':'A'}</h5><div class="ws-prose-body">${candidate.document?drawDocument(candidate.document):'<p class="muted">'+esc(candidate.status==='error'?'This draft could not be generated.':candidate.status==='running'?'Writing this draft...':'Waiting for this draft...')+'</p>'}</div></article>`).join('');
     if(pair.experiment && !pair.owner_verdict) {
       const selected=S.verdictDrafts?.[pairKey] || {};
-      return `<section class="ws-result-entry"><h4>${esc(pair.label)}</h4><div class="ws-draft-grid">${drafts}</div>${pair.review_pending_reveal?`<section class="ws-blind-verdict"><h5>Your blind verdict</h5><p>The independent review is sealed. Judge the prose before seeing his verdict or which setup wrote it.</p><label>Which drafts would you accept?<select data-ws-verdict-choice="${esc(pairKey)}"><option value="">Choose your verdict…</option>${[['A-only','Prefer A · only A is acceptable'],['B-only','Prefer B · only B is acceptable'],['A-both','Prefer A · both acceptable'],['B-both','Prefer B · both acceptable'],['tie','Tie · both acceptable'],['neither','Strong neither · neither acceptable']].map(([v,t])=>`<option value="${v}"${selected.choice===v?' selected':''}>${t}</option>`).join('')}</select></label><label>What worked or failed? (optional)<textarea data-ws-verdict-note="${esc(pairKey)}" rows="2" maxlength="4000">${esc(selected.note || '')}</textarea></label><button data-ws="owner-verdict" data-pair-key="${esc(pairKey)}"${!selected.choice || S.busy?' disabled':''}>Seal verdict and reveal comparison</button></section>`:'<p role="status">Waiting for the independent review. Your verdict controls will appear when it is sealed.</p>'}</section>`;
+      return `<section class="ws-result-entry"><h4>${esc(pair.label)}</h4><div class="ws-draft-grid">${drafts}</div>${pair.review_pending_reveal?`<section class="ws-blind-verdict"><h5>Your blind verdict</h5><p>The independent review is sealed. Judge the prose before seeing his verdict or which setup wrote it.</p><label>Which drafts would you accept?<select data-ws-verdict-choice="${esc(pairKey)}"><option value="">Choose your verdict…</option>${[['A-only','Prefer A · only A is acceptable'],['B-only','Prefer B · only B is acceptable'],['A-both','Prefer A · both acceptable'],['B-both','Prefer B · both acceptable'],['tie','Tie · both acceptable'],['A-neither','Prefer A · neither acceptable'],['B-neither','Prefer B · neither acceptable'],['tie-neither','Tie · neither acceptable'],['neither','Strong neither · neither acceptable']].map(([v,t])=>`<option value="${v}"${selected.choice===v?' selected':''}>${t}</option>`).join('')}</select></label><label>What worked or failed? (optional)<textarea data-ws-verdict-note="${esc(pairKey)}" rows="2" maxlength="4000">${esc(selected.note || '')}</textarea></label><button data-ws="owner-verdict" data-pair-key="${esc(pairKey)}"${!selected.choice || S.busy?' disabled':''}>Seal verdict and reveal comparison</button></section>`:'<p role="status">Waiting for the independent review. Your verdict controls will appear when it is sealed.</p>'}</section>`;
     }
     return `<section class="ws-result-entry"><h4>${esc(pair.label)}</h4><section class="ws-drafts-reading" aria-label="Generated drafts"><h5 class="ws-section-heading">Read the drafts</h5><div class="ws-draft-grid">${drafts || '<p class="muted">Drafts will appear here as they are generated.</p>'}</div></section>${pair.owner_verdict?`<p class="ws-owner-reveal"><strong>Your verdict: ${esc(pair.owner_verdict.preference)}.</strong> Candidate: ${'AB'[pair.candidate_index]}; current setup: ${'AB'[1-pair.candidate_index]}. Reviewer preference: ${esc(review?.preference)}. ${pair.owner_verdict.agrees?'Preferences agree.':'Reviewer disagrees with you.'}${pair.owner_verdict.critical_miss?' Strong rejection was falsely accepted; calibration revoked.':''}</p>${review?.experiment?`<details><summary>What this experiment changed and what happened</summary><dl>${Object.entries(review.experiment).map(([k,v])=>`<dt>${esc(k.replaceAll('_',' '))}</dt><dd>${esc(v)}</dd>`).join('')}</dl></details>`:''}`:''}<section class="ws-assessment" aria-label="Draft assessment"><h5 class="ws-section-heading">Assessment${pair.experiment?' · scores are advisory':''}</h5>${review?`<div class="ws-review-verdict"><span class="ws-kicker">JKSimmons’s assessment</span>${disclosure(review.headline || (hasSystem?'The writing setup needs investigation':passed?'Both drafts meet the target':'The category setup still needs improvement'),review.summary,'','Full assessment')}</div><div class="ws-draft-grid">${(pair.candidates || []).map((candidate,index)=>{
       const c=review.candidates?.find(c=>c.index===index), issues=c?.issues || [], pass=c && c.overall>=8 && Object.values(c.scores || {}).every(v=>v>=8) && !issues.some(i=>i.blocking);
@@ -104,6 +104,7 @@ window.NCCEWorkshop = (() => {
       ${!techWorking() && t.status!=='repair_ready'?`<label>What should StoryTechMan investigate?<textarea data-ws-tech-note rows="3" maxlength="6000" placeholder="For example: inspect why the category keeps repeating the same ending.">${esc(S.techNote || '')}</textarea></label><button data-ws="tech-investigate"${S.busy?' disabled':''}>${t.status==='proposal_ready'?'Send guidance and revise proposal':t.status?'Request another investigation':'Ask StoryTechMan to investigate'}</button><p class="muted">Uses Codex for a read-only investigation. No JuniorWriter calls and no automatic repair.</p>`:''}</section>`;
   }
   function decisionPanel(run) {
+    if(run.status==='awaiting_resume')return `<section class="ws-decision"><h4>Saved review recovered · round paused</h4><p>${esc(run.message)}</p><p>The allowance is unchanged: ${Math.max(0,run.writer_limit-run.writer_reserved)} writing calls and ${Math.max(0,run.reviewer_limit-run.reviewer_reserved)} reviews remain. Completed drafts and reviews will be reused.</p><button data-ws="opt-resume"${S.busy?' disabled':''}>Resume saved round</button><button data-ws="opt-finish">Finish and keep findings</button></section>`;
     if(run.status==='awaiting_owner')return `<section class="ws-decision"><h4>Your blind verdicts are needed</h4><p>${esc(run.message)}</p><p>Use the verdict controls beneath each draft pair. Then continue using the remaining allowance, or finish with the findings.</p><button data-ws="opt-checkpoint"${S.busy?' disabled':''}>Save checkpoint and continue</button><button data-ws="opt-finish">Finish and keep findings</button>${techPanel(run)}</section>`;
     const waiting=['awaiting_next_round','budget_exhausted'].includes(run.status), paused=['escalated','awaiting_samples','stopped'].includes(run.status);
     if(!waiting && !paused && !run.tech)return '';
@@ -173,7 +174,7 @@ window.NCCEWorkshop = (() => {
         if(S.busy)return;
         const key=button.dataset.pairKey,[round,pair]=key.split('-').map(Number),draft=S.verdictDrafts?.[key];
         if(!draft?.choice)throw new Error('Choose a blind verdict first.');
-        const choice=draft.choice,preference=choice==='tie' || choice==='neither'?choice:choice[0];
+        const choice=draft.choice,preference=choice.startsWith('tie')?'tie':choice==='neither'?'neither':choice[0];
         const acceptable=choice==='tie' || choice.endsWith('-both')?[true,true]:[choice==='A-only',choice==='B-only'];
         S.busy=true;paint(true);
         try {
@@ -187,6 +188,13 @@ window.NCCEWorkshop = (() => {
         if(S.busy)return;
         S.busy=true;paint();
         try {S.optimization=await post('optimization-checkpoint',{run_id:S.optimization.run_id});await loadQuality();S.busy=false;paint();if(watching())setTimeout(pollOptimization,1000);}
+        finally {S.busy=false;paint();}
+        break;
+      case 'opt-resume':
+        if(S.busy)return;
+        if(!window.confirm('Resume the unfinished portion using only the remaining authorized calls? Completed drafts and the recovered review will be reused. The spending allowance will not increase.'))break;
+        S.busy=true;paint();
+        try {S.optimization=await post('optimization-resume',{run_id:S.optimization.run_id,allow_remaining:true});S.busy=false;paint();if(watching())setTimeout(pollOptimization,1000);}
         finally {S.busy=false;paint();}
         break;
       case 'guidelines-refresh': if(!S.guidelineActivation)await loadGuidelines();break;
@@ -295,7 +303,7 @@ window.NCCEWorkshop = (() => {
         S.home=await request('/api/workshop');
         S.optimizations=await request('/api/workshop/optimizations');
         const active=S.optimizations.runs.find(r=>['queued','running'].includes(r.status) || ['queued','investigating','repair_queued','repairing','release_queued','releasing'].includes(r.tech?.status));
-        const pending=active || S.optimizations.runs.find(r=>['awaiting_owner','awaiting_approval','awaiting_next_round','budget_exhausted','awaiting_samples','escalated'].includes(r.status) || ['proposal_ready','repair_ready','released','needs_input'].includes(r.tech?.status));
+        const pending=active || S.optimizations.runs.find(r=>['awaiting_resume','awaiting_owner','awaiting_approval','awaiting_next_round','budget_exhausted','awaiting_samples','escalated'].includes(r.status) || ['proposal_ready','repair_ready','released','needs_input'].includes(r.tech?.status));
         if(pending){S.optimization=pending;S.optForm=pending.form;}
         if(active)setTimeout(pollOptimization,1000);
         const initial=S.home.samples.find(s=>s.key==='comparison:1:0') || S.home.samples[0];

@@ -25,7 +25,7 @@ The owner can finish, inspect findings, request an investigation, or resume rema
 Calibration is per prose category and bound to a fingerprint of the owner contract, reviewer thread, rubric and protocol. Initial thresholds are engineering defaults, not statistical proof of literary reliability:
 
 - At least three fresh owner-labelled pairs.
-- At least 80% exact A/B/tie/neither agreement in the latest ten eligible pairs.
+- At least 80% verdict agreement in the latest ten eligible pairs: acceptance decisions must match; relative preference must also match when either draft is accepted. When both reject both drafts, a different relative ranking is diagnostic rather than a publication disagreement.
 - At least one correctly rejected **neither** pair.
 - No unresolved false acceptance of a strong rejection. Such a failure immediately revokes trust and resets eligible evidence to the subsequent pairs; old successes cannot hide it.
 
@@ -48,3 +48,11 @@ Existing evidence-backed context/technical/permission escalation remains immedia
 Offline tests use disposable databases and fake writer/reviewer outputs. They cover actual provider request serialization, blinding/reveal, immutability, duplicate evidence, prospective calibration, stale contracts, strong-rejection revocation, fresh unchanged validation, exact activation, bounded reservations, legacy safety, authenticated HTTP controls, owner cross-origin protection, UI rendering and existing technical handoffs. No real writer/reviewer calls, active policy changes or campaign-source edits are required to validate the implementation. Actual literary calibration is a separate observed result, not something mocked tests can certify.
 
 Relevant modules: `editorial_quality.py`, `workshop_experiments.py`, `workshop_optimizer.py`, `codex_review_queue.py`, `workshop.js` and `writing_activity.js`. Tests: `test_editorial_quality.py`, existing Workshop/bridge/HTTP suites and the Workshop/activity JavaScript suites.
+
+## 0.18.1 ranking repair and explicit saved-review recovery
+
+Relative ranking and publication acceptance are independent. A or B may be preferred while both fail; a tie may also be below threshold. The original validator mistakenly rejected these combinations. Neither draft can qualify without its explicit acceptance, regardless of preference or numerical scores. Owner controls support the same distinction. The calibration protocol fingerprint advances to v2 so older agreement semantics cannot silently qualify new studies.
+
+Definitively rejected native submissions now fail the queue job promptly and retain the original JSON file; uncertain network results are never replayed. A scoped operator script, `scripts/restore_saved_editorial_review.py`, can restore an owner-requested saved verdict after restart or deterministic submission rejection. It verifies the original native turn/job, both ready drafts, frozen source plans, exact instructions, active pointers and unchanged writer configuration/owner contract; it refuses owner-stopped or otherwise uncertain jobs and studies with existing sealed owner verdicts. It atomically completes the existing job, records the repair and updated validator/environment fingerprints, and leaves the study in `awaiting_resume`. This maintenance operation is not exposed through bridge or web endpoints and starts no model work.
+
+The owner-authenticated Resume saved round control uses the original allowance, reuses completed pairs and only processes untouched entries. Saved rounds retain both prepared source plans; the first interrupted 0.18.0 round can recover them from its original initial samples. Partial/failed/uncertain calls are not automatically retried. Tests reproduce the actual A-preferred/both-rejected response, acceptance agreement, original-native-review restoration, idempotency, wrong-turn rejection and bounded no-replay continuation.

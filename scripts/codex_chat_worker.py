@@ -2,7 +2,7 @@
 import argparse
 import json
 from pathlib import Path
-from codex_review_bridge import Companion, DEFAULT_CONFIG, single_instance
+from codex_review_bridge import Companion, DEFAULT_CONFIG, single_instance, BridgeRequestError
 
 
 class ChatWorker:
@@ -52,7 +52,20 @@ class ChatWorker:
             self.save({**value, 'status': 'failed'})
             self.post('heartbeat', {'state': 'error'})
         else:
-            self.post('complete', {**value, 'review': review})
+            try:
+                self.post('complete', {**value, 'review': review})
+            except BridgeRequestError as exc:
+                # A definitive rejection must stop the app's waiter promptly.
+                # Never retry a submission or turn a network uncertainty into
+                # a new review. The caller's original JSON file is retained.
+                if exc.status==400:
+                    try:
+                        self.post('fail',{**value,'error':'Reviewer submission rejected: '+str(exc)})
+                        self.save({**value,'status':'failed'})
+                        self.post('heartbeat',{'state':'error'})
+                    except Exception:
+                        pass  # Preserve the original rejection and uncertain lease.
+                raise
             self.save({**value, 'status': 'completed'})
             self.post('heartbeat', {'state': 'idle'})
         return {'ok': True, 'job_id': value['job_id']}

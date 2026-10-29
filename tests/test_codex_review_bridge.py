@@ -244,6 +244,27 @@ def test_listener_routes_only_known_technical_thread_without_idle_model_calls():
             run.assert_not_called()
 
 
+def test_rejected_completion_stops_waiter_but_network_uncertainty_does_not_retry():
+    sys.path.insert(0,str(ROOT/'scripts'))
+    import codex_chat_worker as worker_module
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+        worker=object.__new__(worker_module.ChatWorker)
+        worker.active=Path(folder)/'active.json'
+        initial={'job_id':'retained-review','lease':'private-test-lease','turn_id':'native-turn','status':'reviewing'}
+        for status in (400,503):
+            worker.save(initial);calls=[]
+            def post(action,body):
+                calls.append(action)
+                if action=='complete':raise worker_module.BridgeRequestError(action,status,'Rejected assessment')
+                return {'ok':True}
+            worker.post=post
+            try:worker.finish(review={'saved':'review'})
+            except worker_module.BridgeRequestError:pass
+            else:raise AssertionError('Submission rejection was hidden')
+            assert calls==(['complete','fail','heartbeat'] if status==400 else ['complete'])
+            assert json.loads(worker.active.read_text())['status']==('failed' if status==400 else 'reviewing')
+
+
 if __name__=='__main__':
     for name,test in sorted(list(globals().items())):
         if name.startswith('test_') and callable(test):test();print('PASS',name)

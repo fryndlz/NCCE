@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.18.0'
+APP_VERSION='0.18.1'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -351,11 +351,12 @@ class H(BaseHTTPRequestHandler):
      if flag:flag.set()
      with store.reader() as reader:result=workshop_optimizer.get(reader,run_id)
      return self.js({'stop_requested':bool(flag),'run':result})
-    if p=='/api/workshop/optimization-checkpoint':
+    if p in ('/api/workshop/optimization-checkpoint','/api/workshop/optimization-resume'):
      if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'Writing is already in progress.'},409)
      try:
       import workshop_experiments
-      with store._lock:item,fresh=workshop_experiments.checkpoint(store,body)
+      operation=workshop_experiments.resume_saved_round if p.endswith('optimization-resume') else workshop_experiments.checkpoint
+      with store._lock:item,fresh=operation(store,body)
       if fresh:
        _optimizer_stops[item['run_id']]=threading.Event()
        threading.Thread(target=_run_optimization,args=(item['run_id'],),name='ncce-workshop-optimizer',daemon=True).start()

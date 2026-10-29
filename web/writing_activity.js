@@ -54,7 +54,7 @@ window.NCCEWritingActivity = (() => {
     const status=run?.status || 'idle', technicalWorking=['investigating','repairing','releasing'].includes(run?.tech?.status), working=(status==='running' && ['draft','review'].includes(a.phase)) || technicalWorking;
     if(technicalWorking)a={...a,phase:'technical_review',actor:'StoryTechMan',message:run.tech.status==='investigating'?'Inspecting exact saved requests and the generation environment. I will return a proposal before any repair.':run.tech.status==='repairing'?'Implementing and testing the repair you approved. Deployment needs a separate decision.':'Deploying and checking the exact tested repair you approved.'};
     const attention=!technicalWorking && ['escalated','stopped'].includes(status) && !['queued','repair_queued','release_queued'].includes(run?.tech?.status);
-    if(['awaiting_owner','awaiting_next_round','budget_exhausted','awaiting_samples'].includes(status))a={...a,phase:'decision'};
+    if(['awaiting_resume','awaiting_owner','awaiting_next_round','budget_exhausted','awaiting_samples'].includes(status))a={...a,phase:'decision'};
     const messages={
       JuniorWriter:!run?'I’m ready to draft from NCCE’s context once you authorize a run.':run.writer_reserved?'My drafts and exact instructions are saved below. I’m waiting for the next writing step.':'I’m waiting for the checked source context.',
       JKSimmons:!run?'I’ll review both alternatives, score them and distinguish writing issues from missing context.':status==='awaiting_approval'?(run?.workflow_version>=3?'The candidate passed fresh comparisons. Your blind verdicts and approval are still required.':'All tested drafts passed the target. You decide whether this setup is good enough.'):a.phase==='awaiting_reviewer'?'The packet is queued for my actual Codex chat. I am not reviewing until Codex accepts the turn.':run.reviewer_reserved?'The reviews and reusable guidance are saved below.':'I’m waiting for both drafts before reviewing.',
@@ -88,6 +88,7 @@ window.NCCEWritingActivity = (() => {
     if(technical[tech])[node,label]=technical[tech];
     else if(status==='approved'){node='activate';label='Tested instructions activated';}
     else if(status==='awaiting_approval'){node='approval';label='Validation passed; your activation decision';}
+    else if(status==='awaiting_resume'){node='allowance';label='Saved review recovered; resume only unfinished authorized work';}
     else if(status==='awaiting_owner'){node='allowance';label='Your blind verdicts are needed; reviewer scores are advisory';}
     else if(['awaiting_next_round','budget_exhausted'].includes(status)){node='allowance';label=run.validation_pending?'Your decision: authorize validation or finish':'Your decision: another learning round or finish';}
     else if(['escalated','stopped','awaiting_samples','finished','rejected'].includes(status)){node='halt';label=({escalated:'Writing paused; investigation or input needed',stopped:'Stopped by you',awaiting_samples:'Waiting for fresh source entries',finished:'Study finished; findings saved',rejected:'Setup rejected; active instructions unchanged'})[status];}

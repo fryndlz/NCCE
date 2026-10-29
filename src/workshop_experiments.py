@@ -8,12 +8,13 @@ def schema():
     import workshop_optimizer as opt
     result = opt.review_schema()
     props = result['properties']
-    props['preference'] = {'type': 'string', 'enum': ['A', 'B', 'tie', 'neither']}
+    props['preference'] = {'type': 'string', 'enum': ['A', 'B', 'tie', 'neither'],
+        'description':'Relative ranking, independent of publication acceptance. A/B may be preferred even when both drafts are unacceptable; tie may also mean both fail.'}
     props['experiment'] = {'type': 'object', 'properties': {
         key: {'type': 'string'} for key in ('changed', 'addresses', 'observed_effect', 'regressions')},
         'required': ['changed', 'addresses', 'observed_effect', 'regressions'], 'additionalProperties': False}
     candidate = props['candidates']['items']
-    candidate['properties']['acceptable'] = {'type': 'boolean'}
+    candidate['properties']['acceptable'] = {'type': 'boolean', 'description':'Publication judgement for this draft, independent of relative preference.'}
     candidate['properties']['owner_checks'] = {'type': 'object', 'properties': {
         key: {'type': 'boolean'} for key in quality.CHECKS}, 'required': list(quality.CHECKS), 'additionalProperties': False}
     candidate['required'] += ['acceptable', 'owner_checks']
@@ -36,8 +37,7 @@ def validate_review(value):
         if c['acceptable'] and (not all(checks.values()) or any(i['blocking'] for i in c['issues'])):
             raise ValueError('A failed owner check or blocking issue cannot be accepted')
     accept = [c['acceptable'] for c in value['candidates']]
-    if value['preference'] == 'neither' and any(accept) or value['preference'] == 'tie' and not all(accept) or value['preference'] in ('A', 'B') and not accept[0 if value['preference'] == 'A' else 1]:
-        raise ValueError('Reviewer preference conflicts with acceptance decisions')
+    quality.validate_verdict(value['preference'],accept)
 
 
 def candidate_passes(pair):
@@ -95,6 +95,82 @@ def checkpoint(store, body):
     return state, state['status'] == 'queued'
 
 
+def resume_saved_round(store, body):
+    """Owner action resumes only untouched work inside the existing allowance."""
+    import workshop_optimizer as opt
+    state=opt.get(store,body.get('run_id'))
+    if state['status']!='awaiting_resume' or not state.get('review_recovery') or body.get('allow_remaining') is not True:
+        raise ValueError('Explicit resume of a recovered saved round is required')
+    ensure_current(store,state)
+    state['resume_round']=True;state['status']='queued'
+    opt.activity(store,state,'queued','human','Resuming the saved round. Completed drafts and reviews will be reused; the authorized allowance is unchanged.')
+    return state,True
+
+
+def restore_saved_review(store, job_id, review, expected_turn_id):
+    """Operator-only repair, deliberately NOT exposed on the bridge or web API.
+
+    Restore an existing native verdict after the submission-validator repair.
+    No lease is reissued, no review regenerated and no writing starts here.
+    """
+    import json
+    import workshop_optimizer as opt
+    import codex_review_queue as cq
+    validate_review(review)
+    if '_codex' in review:
+        raise ValueError('Supply the original review, not an identity override')
+    with store._lock,store.db:
+        store.db.execute('BEGIN IMMEDIATE')
+        job=cq.get(store,job_id);payload=json.loads(job['payload_json'])
+        identity=json.loads(job['result_json']).get('_codex',{})
+        if identity!={'thread_id':cq.thread_id(),'turn_id':expected_turn_id} or payload.get('workflow_version')!=3 or payload.get('kind','review')!='review':
+            raise ValueError('Saved verdict must match the original native reviewer turn and job')
+        state=opt.get(store,job['run_id'])
+        previous=state.get('review_recovery',{})
+        if previous.get('job_id')==job_id:
+            if previous.get('review_hash')!=quality.digest(review):raise ValueError('Recovered review is immutable')
+            return state
+        recoverable=(job['status']=='cancelled' and job['error']=='Server restarted; uncertain reviews are not replayed') or (job['status']=='failed' and job['error'].startswith('Reviewer submission rejected:'))
+        if not recoverable or state['status']!='escalated':
+            raise ValueError('Only a restart-interrupted native review may be recovered by this repair')
+        if store.db.execute("SELECT 1 FROM workshop_optimization_runs WHERE run_id!=? AND json_extract(state_json,'$.status') IN ('queued','running')",(state['run_id'],)).fetchone():
+            raise ValueError('Wait for other active writing before repairing a saved study')
+        if any(v.get('run_id')==state['run_id'] for v in quality.records(store)):
+            raise ValueError('Do not rebind a study with sealed owner verdicts')
+        round_=state['rounds'][-1]
+        pair=next((p for p in round_['pairs'] if p.get('codex_job_id')==job_id),None)
+        if not pair or pair.get('review') or payload['candidates']!=pair['candidates'] or len(pair['candidates'])!=2 or any(c['status']!='ready' for c in pair['candidates']):
+            raise ValueError('Both original ready drafts and the pending pair must be intact')
+        samples=round_.get('prepared_samples') or (state['samples'] if round_['number']==1 else [])
+        if len(samples)!=2:raise ValueError('Both frozen source plans are required for recovery')
+        for sample in samples:
+            if opt.hashed(ws.sample(store,sample['key'])['packet'])!=sample['packet_hash']:
+                raise ValueError('A frozen source changed; no recovery or new calls performed')
+        for scope,expected in state['expected_active'].items():
+            if (ws.active(store,scope) or {}).get('revision_id')!=expected:
+                raise ValueError('Active writing instructions changed; do not resume')
+        if opt.configuration()!=state['configuration'] or state['editorial_contract']!=quality.contract():
+            raise ValueError('Writer configuration or owner standards changed; do not resume')
+        candidate=ws.compose(state['form'],state['shared'],state['specific'])
+        baseline=ws.compose(state['form'],state['baseline']['shared'],state['baseline'][state['form']])
+        if pair['instructions']!=candidate or pair['comparison_instructions'][pair['candidate_index']]!=candidate or pair['comparison_instructions'][1-pair['candidate_index']]!=baseline:
+            raise ValueError('Exact frozen instructions changed; do not resume')
+        state['review_recovery']={'job_id':job_id,'turn_id':expected_turn_id,'review_hash':quality.digest(review),
+            'at':ws.now(),'old_quality_fingerprint':state['quality_fingerprint'],
+            'old_environment_hash':state['environment_hash'],
+            'reason':'Owner-requested repair of ranking/acceptance validation; original review and ready drafts retained. No replay or increased allowance.'}
+        pair['review']={**review,'_codex':identity};pair['review_sealed_at']=ws.now()
+        round_['prepared_samples']=samples
+        state['quality_fingerprint']=quality.fingerprint();state['environment_hash']=opt.environment_fingerprint()
+        state['status']='awaiting_resume'
+        state['message']='The saved JKSimmons review has been recovered. Existing drafts and verdict are retained. Resume only the unfinished portion of this authorized round, or finish with the saved findings.'
+        state['activity']={'phase':'decision','actor':'human','message':state['message'],'at':ws.now()}
+        state['events'].append({'at':ws.now(),'message':state['review_recovery']['reason']})
+        store.db.execute("UPDATE codex_review_jobs SET status='completed',result_json=?,error='',finished_at=? WHERE job_id=?",(cq.packed(pair['review']),ws.now(),job_id))
+        store.db.execute('UPDATE workshop_optimization_runs SET state_json=? WHERE run_id=?',(opt.packed(state),state['run_id']))
+    return state
+
+
 def execute(store, state, cancelled, generator, reviewer):
     import workshop_optimizer as opt
     from workshop_guidelines import changes, announcement
@@ -105,21 +181,39 @@ def execute(store, state, cancelled, generator, reviewer):
         ensure_current(store, state)
         if opt.configuration() != state['configuration'] or not writer.API_KEY:
             raise ValueError('Writer/reviewer configuration changed or credentials unavailable')
-        for round_index in range(len(state['rounds']), state['max_rounds']):
+        start=len(state['rounds'])-1 if state.get('resume_round') else len(state['rounds'])
+        for round_index in range(start, state['max_rounds']):
             ensure_current(store, state)
-            validation = state.get('validation_pending', False)
-            samples = opt.round_samples(store, state)
+            resuming=bool(state.get('resume_round') and round_index==start)
+            if resuming:
+                round_=state['rounds'][round_index]
+                validation=round_['kind']=='validation'
+                samples=round_.get('prepared_samples') or (state['samples'] if round_index==0 else [])
+                if round_['revision_id']!=state['specific']['revision_id']:
+                    raise ValueError('Saved candidate changed; the interrupted round cannot resume')
+            else:
+                validation = state.get('validation_pending', False)
+                samples = opt.round_samples(store, state)
             if len(samples) < 2:
                 opt.pause(store, state, 'awaiting_samples', 'Two unused source entries are needed. No calls were made for this round; ask StoryTechMan to inspect source coverage.')
                 return state
-            round_ = {'number': round_index + 1, 'kind': 'validation' if validation else 'learning',
-                      'revision_id': state['specific']['revision_id'], 'hypothesis': state['hypothesis'], 'pairs': []}
-            state['rounds'].append(round_)
+            if not resuming:
+                round_ = {'number': round_index + 1, 'kind': 'validation' if validation else 'learning',
+                          'revision_id': state['specific']['revision_id'], 'hypothesis': state['hypothesis'], 'pairs': [], 'prepared_samples':samples}
+                state['rounds'].append(round_)
             for si, prepared in enumerate(samples):
                 if cancelled():
                     opt.stop(store, state, 'Stopped by the owner before the next request.', 'stopped'); return state
                 if opt.hashed(ws.sample(store, prepared['key'])['packet']) != prepared['packet_hash']:
                     raise ValueError('Source context changed. Start a fresh comparison.')
+                if si<len(round_['pairs']):
+                    retained=round_['pairs'][si]
+                    if not resuming or retained['sample_key']!=prepared['key'] or len(retained['candidates'])!=2 or any(c['status']!='ready' for c in retained['candidates']) or not retained.get('review'):
+                        raise ValueError('Interrupted request outcome is uncertain. No automatic retry is allowed.')
+                    validate_review(retained['review'])
+                    if opt.assess(retained['review'])[1]:
+                        raise ValueError('The retained review requires technical investigation before more writing')
+                    continue
                 baseline = ws.compose(state['form'], state['baseline']['shared'], state['baseline'][state['form']])
                 candidate = ws.compose(state['form'], state['shared'], state['specific'])
                 ci = secrets.randbelow(2)
@@ -155,6 +249,7 @@ def execute(store, state, cancelled, generator, reviewer):
                     import workshop_interventions as interventions
                     interventions.investigate(store, {'run_id': state['run_id'], 'request_key': 'auto-tech-'+state['run_id'], 'note': result['summary']})
                     return opt.get(store, state['run_id'])
+            state.pop('resume_round',None)
             qualified = all(candidate_passes(p) for p in round_['pairs'])
             state['reviewer_calibration'] = quality.calibration(store, state['form'])
             calibrated = state['reviewer_calibration']['calibrated']

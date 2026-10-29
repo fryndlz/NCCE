@@ -41,6 +41,7 @@ def main():
                 bridge_body={'thread_id':bridge.thread_id(),'worker_id':'http-test-worker'}
                 assert call('/api/workshop/quality?scope=territory_origin')[0]==403
                 assert call('/api/workshop/owner-verdict',{})[0]==403
+                assert call('/api/workshop/optimization-resume',{})[0]==403
                 bearer='Bearer '+bridge_token
                 assert call('/api/reviewer-bridge/claim',bridge_body,authorization=bearer)[0]==200
                 assert call('/api/reviewer-bridge/events',{**bridge_body,'wait_seconds':0},authorization=bearer)[1]=={'job_id':None}
@@ -96,6 +97,7 @@ def main():
                 assert call('/api/workshop/optimize',optimization,cookie)[0]==400, 'Heartbeat without actual review must block spending'
                 from test_workshop_optimizer import ready_bridge
                 ready_bridge(server.store)
+                assert call('/api/workshop/optimization-resume',{'run_id':'missing','allow_remaining':True},cookie,'https://foreign.invalid')[0]==403
                 launched.clear(); optimizer_launches=[]
                 def optimizer_worker(run_id):
                     optimizer_launches.append(run_id);server._writer_pipeline_guard.release();launched.set()

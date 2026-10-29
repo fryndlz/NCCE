@@ -25,7 +25,16 @@ def fingerprint():
     # A new reviewer thread or a changed rubric invalidates prior calibration.
     from writer_quality import RUBRIC
     return digest({'contract': contract(), 'thread': cq.thread_id(), 'rubric': RUBRIC,
-                   'protocol': 'prospective-owner-agreement-v1'})
+                   'protocol': 'prospective-owner-agreement-v2-independent-ranking'})
+
+
+def validate_verdict(preference, acceptable):
+    if preference not in ('A', 'B', 'tie', 'neither') or not isinstance(acceptable,list) or len(acceptable)!=2 or any(type(v) is not bool for v in acceptable):
+        raise ValueError('Choose a relative preference and whether each draft is acceptable')
+    # A can be better while both fail publication. A tie can also be below the
+    # threshold. Only the explicit "neither" rejection contradicts an acceptance.
+    if preference=='neither' and any(acceptable):
+        raise ValueError('Neither acceptable cannot include an accepted draft')
 
 
 def records(store):
@@ -42,13 +51,13 @@ def calibration(store, form):
     last_failure = max((i for i, v in enumerate(evidence) if v['critical_miss']), default=-1)
     window = evidence[last_failure + 1:][-10:]
     agreements = sum(v['agrees'] for v in window)
-    negative = any(v['preference'] == 'neither' for v in window)
+    negative = any(not any(v.get('acceptable',[v['preference']!='neither']*2)) and v['agrees'] for v in window)
     ready = len(window) >= 3 and negative and agreements / len(window) >= .8
     return {'form': form, 'fingerprint': current, 'calibrated': ready,
             'fresh_pairs': len(window), 'agreements': agreements,
             'has_rejection_check': negative, 'critical_misses': sum(v['critical_miss'] for v in evidence),
             'message': 'Reviewer agreement gate passed for this category.' if ready else
-            'Reviewer scores are advisory. Need at least 3 fresh owner-labelled pairs, 80% preference agreement, a correctly rejected neither pair, and no unresolved false acceptance of a strong rejection.'}
+            'Reviewer scores are advisory. Need at least 3 fresh owner-labelled pairs, 80% verdict agreement, a correctly rejected neither pair, and no unresolved false acceptance of a strong rejection.'}
 
 
 def require_calibrated(store, form):
@@ -91,10 +100,7 @@ def record_verdict(store, body):
         raise ValueError('Independent review must finish before owner judgement')
     preference = body.get('preference')
     acceptable = body.get('acceptable')
-    if preference not in ('A', 'B', 'tie', 'neither') or not isinstance(acceptable, list) or len(acceptable) != 2 or any(type(v) is not bool for v in acceptable):
-        raise ValueError('Choose a preference and whether each draft is acceptable')
-    if (preference == 'neither' and any(acceptable)) or (preference in ('A', 'B') and not acceptable[0 if preference == 'A' else 1]) or (preference == 'tie' and not all(acceptable)):
-        raise ValueError('Preference and acceptance choices conflict')
+    validate_verdict(preference,acceptable)
     note = body.get('note', '')
     if not isinstance(note, str) or len(note) > 4000:
         raise ValueError('Keep the owner note within 4,000 characters')
@@ -113,8 +119,10 @@ def record_verdict(store, body):
              'form': run['form'], 'fingerprint': run['quality_fingerprint'],
              'at': ws.now(), 'review_sealed_at': pair['review_sealed_at'],
              'review_hash': digest(review), 'reviewer_preference': review['preference'],
-             'agrees': review['preference'] == preference,
-             'critical_miss': preference == 'neither' and any(predicted),
+             'ranking_agrees': review['preference'] == preference,
+             'acceptance_agrees': predicted == acceptable,
+             'agrees': predicted == acceptable and (review['preference'] == preference or not any(acceptable)),
+             'critical_miss': not any(acceptable) and any(predicted),
              'candidate_index': pair['candidate_index']}
     with store._lock, store.db:
         # Duplicate source entries, even in another study, cannot manufacture

@@ -214,6 +214,73 @@ def test_high_scores_cannot_hide_a_losing_candidate_and_critical_miss_revokes_ex
     with_store(lambda store:setup(store,check))
 
 
+def test_relative_preference_and_ties_do_not_require_publication_acceptance():
+    pair={'candidate_index':0}
+    for preference in ('A','B','tie','neither'):
+        r=review(pair,True);r['preference']=preference
+        exp.validate_review(r)
+        assert not exp.candidate_passes({'candidate_index':0,'review':r})
+        q.validate_verdict(preference,[False,False])
+    bad=review(pair);bad['preference']='neither'
+    rejects(lambda:exp.validate_review(bad))
+
+
+def test_both_rejected_agrees_on_acceptance_despite_relative_ranking():
+    def check(store):
+        state,_=opt.queue(store,request(store,1))
+        def ranked_rejection(s,t,p,h):
+            r=review(p,True);r['preference']='A';return r
+        state=opt.execute(store,state['run_id'],generator=fake_generator,reviewer=ranked_rejection)
+        a=vote(store,state,0,'neither',[False,False])
+        b=vote(store,state,1,'B',[False,False])
+        assert a['agrees'] and a['acceptance_agrees'] and not a['ranking_agrees']
+        assert b['agrees'] and not b['critical_miss']
+        assert q.calibration(store,state['form'])['has_rejection_check']
+    with_store(lambda store:setup(store,check))
+
+
+def test_restore_original_native_verdict_and_resume_without_replaying_any_completed_call():
+    def check(store):
+        import json
+        state,_=opt.queue(store,request(store,1))
+        generated=[]
+        def generator(*args):
+            generated.append(args[-1]);return fake_generator(*args)
+        def interrupted(s,t,p,h):
+            job=cq.enqueue(s,t,p,h,exp.schema(),opt.RUBRIC);p['codex_job_id']=job;opt.save(s,t)
+            identity={'thread_id':cq.thread_id(),'worker_id':'retained-review-worker','job_id':job}
+            claim=cq.claim(s,identity)
+            cq.started(s,{**identity,'lease':claim['lease'],'turn_id':'original-native-review-turn'})
+            raise ValueError('Original submission rejected by the former ranking validator')
+        broken=opt.execute(store,state['run_id'],generator=generator,reviewer=interrupted)
+        assert broken['status']=='escalated' and len(generated)==2
+        original=copy.deepcopy(broken['rounds'][0]['pairs'][0])
+        # Old 0.18.0 runs did not retain per-round prepared_samples.
+        broken['rounds'][0].pop('prepared_samples',None)
+        broken['quality_fingerprint']='previous-protocol';broken['environment_hash']='previous-validator-source'
+        opt.save(store,broken);opt.recover(store)
+        verdict=review(original,True);verdict['preference']='A'
+        job=original['codex_job_id']
+        rejects(lambda:exp.restore_saved_review(store,job,verdict,'wrong-native-turn'))
+        restored=exp.restore_saved_review(store,job,verdict,'original-native-review-turn')
+        assert restored['status']=='awaiting_resume' and restored['writer_reserved']==2 and restored['reviewer_reserved']==1
+        assert restored['rounds'][0]['pairs'][0]['candidates']==original['candidates']
+        assert cq.get(store,job)['status']=='completed'
+        assert exp.restore_saved_review(store,job,verdict,'original-native-review-turn')['status']=='awaiting_resume'
+        altered={**verdict,'summary':'A different assessment.'}
+        rejects(lambda:exp.restore_saved_review(store,job,altered,'original-native-review-turn'))
+        rejects(lambda:exp.resume_saved_round(store,{'run_id':state['run_id']}))
+        exp.resume_saved_round(store,{'run_id':state['run_id'],'allow_remaining':True})
+        resumed=opt.execute(store,state['run_id'],generator=generator,reviewer=lambda s,t,p,h:review(p,True))
+        assert resumed['status']=='awaiting_owner' and len(resumed['rounds'])==1
+        assert len(resumed['rounds'][0]['pairs'])==2 and len(generated)==4 and len(set(generated))==4
+        assert resumed['writer_reserved']==4 and resumed['reviewer_reserved']==2
+        assert resumed['writer_limit']==4 and resumed['reviewer_limit']==2
+        assert resumed['rounds'][0]['pairs'][0]['candidates']==original['candidates']
+        assert not ws.active(store,resumed['form'])
+    with_store(lambda store:setup(store,check))
+
+
 if __name__=='__main__':
     for name,test in sorted(list(globals().items())):
         if name.startswith('test_') and callable(test):test();print('PASS',name)
