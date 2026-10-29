@@ -124,6 +124,12 @@ window.NCCEWorkshop = (() => {
       ${!techWorking() && t.status!=='repair_ready'?`<details data-ws-detail="technical-request"><summary>${proposal?.questions?.length?'Answer questions / request clarification':'Request a separate investigation'}</summary><label>What should StoryTechMan investigate?<textarea data-ws-tech-note rows="3" maxlength="6000" placeholder="For example: inspect why the category keeps repeating the same ending.">${esc(S.techNote || '')}</textarea></label><button data-ws="tech-investigate"${S.busy?' disabled':''}>${t.status==='proposal_ready'?'Send guidance and revise proposal':t.status?'Request another investigation':'Ask StoryTechMan to investigate'}</button><p class="muted">Uses Codex for a read-only investigation. No JuniorWriter calls and no automatic repair.</p></details>`:''}</section>`;
   }
   function decisionPanel(run) {
+    if(run.status==='finished') {
+      const pairs=(run.rounds || []).flatMap(r=>r.pairs), reviewed=pairs.length && pairs.every(p=>p.review || p.review_pending_reveal);
+      const hidden=run.workflow_version>=3 && pairs.some(p=>p.review_pending_reveal && !p.owner_verdict);
+      const saved=run.specific?.revision_id && run.shared?.revision_id;
+      return `<section class="ws-decision"><h4>Study finished · results saved</h4><p>${reviewed?'The saved reviews are complete.':'This study is closed.'} Drafts, completed reviews and your ratings are retained. Finishing did not activate the proposed guidance.</p><button data-ws="opt-prepare-saved"${S.busy || watching() || S.optBody || hidden || !saved?' disabled':''}>Prepare another test using saved guidance</button><p>${hidden?'Rate the remaining draft pair below before viewing or preparing its saved guidance.':!saved?'No complete saved guidance is available for this study.':'Preparing is free and starts no writing. Review the guidance in the candidate editor; starting one new round requires confirmation for up to 4 writing calls and 2 pair reviews.'}</p>${run.tech?`<details class="ws-disclosure" data-ws-detail="finished-technical"><summary>Technical work and findings</summary>${techPanel(run)}</details>`:''}</section>`;
+    }
     if(run.review_recovery_available && !techWorking())return `<section class="ws-decision"><h4>Saved drafts · review never started</h4><p>The earlier review expired while waiting for Codex. Recover only its review of these exact drafts. No writing calls will be repeated and the allowance will not increase.</p><button data-ws="opt-recover-review"${S.busy?' disabled':''}>Recover saved draft review</button><button data-ws="opt-finish">Finish and keep findings</button><details class="ws-disclosure"><summary>Repair details</summary>${techPanel(run)}</details></section>`;
     if(run.status==='awaiting_resume')return `<section class="ws-decision"><h4>Saved review recovered · round paused</h4><p>${esc(run.message)}</p><p>The allowance is unchanged: ${Math.max(0,run.writer_limit-run.writer_reserved)} writing calls and ${Math.max(0,run.reviewer_limit-run.reviewer_reserved)} reviews remain. Completed drafts and reviews will be reused.</p><button data-ws="opt-resume"${S.busy?' disabled':''}>Resume saved round</button><button data-ws="opt-finish">Finish and keep findings</button></section>`;
     if(run.status==='awaiting_owner')return `<section class="ws-decision"><h4>Your blind verdicts are needed</h4><p>${esc(run.message)}</p><p>Use the verdict controls beneath each draft pair. Then continue using the remaining allowance, or finish with the findings.</p><button data-ws="opt-checkpoint"${S.busy?' disabled':''}>Save checkpoint and continue</button><button data-ws="opt-finish">Finish and keep findings</button>${techPanel(run)}</section>`;
@@ -181,16 +187,29 @@ window.NCCEWorkshop = (() => {
   }
   async function preparedOptimization() {
     const form=S.optForm, seed=S.repairSeed?.form===form?S.repairSeed:null;
+    const saved=S.finishedSeed?.form===form?S.finishedSeed:null;
     const entry=S.home.samples.find(s=>s.form===form);
     if(!entry)throw new Error('No sourced entries are available for this prose type.');
     const sample=await request('/api/workshop/sample?key='+encodeURIComponent(entry.key));
     const sharedMeta=await request('/api/workshop/policy?scope=shared');
-    const specific=seed?.specific || (await post('save-policy',{scope:form,label:'Owner experiment candidate',instructions:S.candidateText,examples:''})).revision_id;
-    const shared=seed?.shared || sharedMeta.active?.revision_id || (await post('save-policy',sharedMeta.builtin)).revision_id;
+    const specific=seed?.specific || (saved && S.candidateText===saved.instructions?saved.specific:(await post('save-policy',{scope:form,label:'Owner experiment candidate',instructions:S.candidateText,examples:saved?.examples || ''})).revision_id);
+    const shared=seed?.shared || saved?.shared || sharedMeta.active?.revision_id || (await post('save-policy',sharedMeta.builtin)).revision_id;
     return {sample_key:sample.key,packet_hash:sample.packet_hash,shared_revision_id:shared,form_revision_id:specific,focus:'auto',variation:0,plan_key:null,hypothesis:S.hypothesis || 'Test direct language, subject focus and useful-or-empty endings against the current setup.'};
   }
   async function action(button) {
     switch(button.dataset.ws) {
+      case 'opt-prepare-saved': {
+        const run=S.optimization;
+        if(S.busy || watching() || S.optBody || run?.status!=='finished' || !run.specific?.revision_id || !run.shared?.revision_id || run.rounds.some(r=>r.pairs.some(p=>p.review_pending_reveal && !p.owner_verdict)))return;
+        S.optForm=run.form;S.candidateScope=run.form;S.candidateText=run.specific.instructions;
+        S.finishedSeed={form:run.form,specific:run.specific.revision_id,shared:run.shared.revision_id,instructions:run.specific.instructions,examples:run.specific.examples || ''};
+        S.repairSeed=null;S.continueBody=null;
+        S.message='Saved guidance is ready in the candidate editor. No writing has started. Review it before authorizing a new test.';
+        paint(true);
+        const editor=root.querySelector('details[data-ws-detail="candidate-editor"]');
+        if(editor){editor.open=true;editor.scrollIntoView?.({block:'start'});}
+        break;
+      }
       case 'owner-verdict': {
         if(S.busy)return;
         const key=button.dataset.pairKey,[round,pair]=key.split('-').map(Number),draft=S.verdictDrafts?.[key];
@@ -252,7 +271,7 @@ window.NCCEWorkshop = (() => {
         S.busy=true;paint();
         try {
           if(!S.optBody) S.optBody={...await preparedOptimization(),request_key:crypto.randomUUID(),max_rounds:rounds,allow_paid:true};
-          S.optimization=await post('optimize',S.optBody);S.repairSeed=null;S.verdictDrafts={};
+          S.optimization=await post('optimize',S.optBody);S.repairSeed=null;S.finishedSeed=null;S.verdictDrafts={};
           S.busy=false;if(!optimizing())S.optBody=null;paint();if(watching())setTimeout(pollOptimization,1000);
         } catch(error) {S.busy=false;if(error.status>=400 && error.status<500 && ![408,429].includes(error.status))S.optBody=null;throw error;}
         break;
@@ -329,8 +348,8 @@ window.NCCEWorkshop = (() => {
       if(t.hasAttribute('data-ws-verdict-choice')){const k=t.dataset.wsVerdictChoice;S.verdictDrafts ||= {};S.verdictDrafts[k] ||= {};S.verdictDrafts[k].choice=t.value;paint(true);}
       if(t.hasAttribute('data-ws-guide-scope')) {S.guidelineScope=t.value;S.guidelines=null;paint(true);task=loadGuidelines().then(()=>paint(true));}
       if(t.hasAttribute('data-ws-opt-rounds')) {S.optRounds=Number(t.value);paint(true);}
-      if(t.hasAttribute('data-ws-opt-form') && !S.optBody && !optimizing()) {S.optForm=t.value;S.repairSeed=null;S.quality=null;paint(true);task=loadQuality().then(()=>paint(true));}
-      if(t.hasAttribute('data-ws-opt-history') && t.value) task=request('/api/workshop/optimization?run_id='+encodeURIComponent(t.value)).then(run=>{if(S.optimization?.run_id!==run.run_id){S.continueBody=null;S.repairSeed=null;S.verdictDrafts={};}S.optimization=run;S.optForm=run.form;loadQuality().then(()=>paint());paint();if(watching())setTimeout(pollOptimization,1000);});
+      if(t.hasAttribute('data-ws-opt-form') && !S.optBody && !optimizing()) {S.optForm=t.value;S.repairSeed=null;S.finishedSeed=null;S.quality=null;paint(true);task=loadQuality().then(()=>paint(true));}
+      if(t.hasAttribute('data-ws-opt-history') && t.value) task=request('/api/workshop/optimization?run_id='+encodeURIComponent(t.value)).then(run=>{if(S.optimization?.run_id!==run.run_id){S.continueBody=null;S.repairSeed=null;S.finishedSeed=null;S.verdictDrafts={};}S.optimization=run;S.optForm=run.form;loadQuality().then(()=>paint());paint();if(watching())setTimeout(pollOptimization,1000);});
       task?.catch(error=>{S.message=error.message;paint();});
     });
   }
@@ -342,7 +361,7 @@ window.NCCEWorkshop = (() => {
         S.home=await request('/api/workshop');
         S.optimizations=await request('/api/workshop/optimizations');
         const active=S.optimizations.runs.find(r=>['queued','running'].includes(r.status) || ['queued','investigating','repair_queued','repairing','release_queued','releasing'].includes(r.tech?.status));
-        const pending=active || S.optimizations.runs.find(r=>['awaiting_resume','awaiting_owner','awaiting_approval','awaiting_next_round','budget_exhausted','awaiting_samples','escalated'].includes(r.status) || ['proposal_ready','repair_ready','released','needs_input'].includes(r.tech?.status));
+        const pending=active || S.optimizations.runs.find(r=>['awaiting_resume','awaiting_owner','awaiting_approval','awaiting_next_round','budget_exhausted','awaiting_samples','escalated'].includes(r.status) || ['proposal_ready','repair_ready','released','needs_input'].includes(r.tech?.status)) || S.optimizations.runs.find(r=>r.status==='finished');
         if(pending){S.optimization=pending;S.optForm=pending.form;}
         if(active)setTimeout(pollOptimization,1000);
         const initial=S.home.samples.find(s=>s.key==='comparison:1:0') || S.home.samples[0];

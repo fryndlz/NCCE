@@ -179,7 +179,14 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
     }
   }
   const finished=await savedView({...optimization,status:'finished'});
+  assert.match(finished,/Study finished · results saved/);
   assert.doesNotMatch(finished,/This test batch is complete|data-ws="opt-continue"/);
+  for(const status of ['investigating','proposal_ready','released']){
+    const closed=await savedView({...optimization,status:'finished',tech:{status}});
+    assert.match(closed,/Study finished · results saved/);
+    assert.doesNotMatch(closed,/The writing loop is paused/);
+    assert.match(closed,/<details class="ws-disclosure" data-ws-detail="finished-technical">/);
+  }
   const controlledPair={label:'Blind precinct',experiment:true,candidates:[{status:'ready',document:bodyDoc},{status:'ready',document:bodyDoc}],review:null,review_pending_reveal:true};
   const blind=await savedView({...optimization,workflow_version:3,status:'awaiting_owner',rounds:[{number:1,pairs:[controlledPair]}]});
   assert.match(blind,/Your blind verdicts are needed/);assert.match(blind,/Seal verdict and reveal comparison/);

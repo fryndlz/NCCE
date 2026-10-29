@@ -35,6 +35,10 @@ def main():
             state=opt.execute(server.store,state['run_id'],generator=fake_generator,reviewer=lambda s,t,p,h:review(p))
             assert state['status']=='awaiting_owner'
             forbidden.assert_not_called()
+        # Keep the start control available while forbidding any provider call
+        # throughout the browser's declined-confirmation check.
+        writer.API_KEY='mock'
+        writer._call=forbidden
         initial_requests=server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]
         http=server.ThreadingHTTPServer(('127.0.0.1',0),server.H)
         threading.Thread(target=http.serve_forever,daemon=True).start()
@@ -74,8 +78,34 @@ const {chromium}=require(process.env.NCCE_PLAYWRIGHT);
   await page.setViewportSize({width:390,height:844});
   assert.equal(await overflow(),false,'mobile overflow');
   await page.screenshot({path:process.env.NCCE_PREVIEW_ARTIFACTS+'/mobile.png',fullPage:true});
+  // Finish a complete disposable study, then prepare its exact guidance for
+  // another test without creating a policy revision or starting a worker.
+  await page.locator('[data-ws-verdict-choice]').selectOption('A-only');
+  await page.getByRole('button',{name:'Seal verdict and reveal comparison',exact:true}).click();
+  await page.getByRole('button',{name:'Finish and keep findings',exact:true}).click();
+  await page.getByRole('heading',{name:'Study finished · results saved',exact:true}).waitFor();
+  await page.reload();
+  await page.getByRole('heading',{name:'Study finished · results saved',exact:true}).waitFor();
+  const runId=await page.locator('[data-ws-run]').getAttribute('data-ws-run');
+  const saved=await (await page.request.get(process.env.NCCE_PREVIEW_URL+'/api/workshop/optimization?run_id='+runId)).json();
+  const mutations=[];
+  page.on('request',r=>{if(r.method()==='POST')mutations.push(r.url());});
+  await page.getByRole('button',{name:'Prepare another test using saved guidance',exact:true}).click();
+  assert.equal(await page.locator('[data-ws-candidate]').inputValue(),saved.specific.instructions);
+  assert.equal(await page.locator('[data-ws-detail="candidate-editor"]').getAttribute('open'),'');
+  assert.equal(mutations.length,0);
+  page.once('dialog',dialog=>dialog.dismiss());
+  await page.locator('[data-ws="opt-start"]').click();
+  assert.equal(mutations.length,0,'Declining a new test must leave saved policies and requests untouched');
+  assert.equal(await overflow(),false,'finished/prepared mobile overflow');
+  await page.screenshot({path:process.env.NCCE_PREVIEW_ARTIFACTS+'/finished-prepared-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1100});
+  assert.equal(await overflow(),false,'finished/prepared desktop overflow');
+  await page.screenshot({path:process.env.NCCE_PREVIEW_ARTIFACTS+'/finished-prepared-desktop.png',fullPage:true});
+  const after=await (await page.request.get(process.env.NCCE_PREVIEW_URL+'/api/workshop/optimization?run_id='+runId)).json();
+  assert.deepEqual(after,saved,'Preparation must retain the closed study and both sealed owner verdicts');
   assert.deepEqual(errors,[]);
-  console.log('PASS real authenticated browser: blind controls, standards, reveal, desktop/mobile bounds, no JS errors.');
+  console.log('PASS real authenticated browser: blind controls, finished-study reopening, exact free preparation, declined spending, desktop/mobile bounds, no JS errors.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
 ''',encoding='utf-8')
@@ -88,6 +118,7 @@ const {chromium}=require(process.env.NCCE_PLAYWRIGHT);
             if result.returncode:
                 print(result.stderr);raise AssertionError('Browser smoke failed')
             assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==initial_requests
+            forbidden.assert_not_called()
         finally:
             http.shutdown();http.server_close();server.store.close()
 
