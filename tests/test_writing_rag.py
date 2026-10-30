@@ -102,6 +102,7 @@ def test_actual_provider_request_has_retrieval_and_exact_owner_visible_audit():
         assert status['status']=='ready' and len(sent)==1
         request=rag.request_detail(store,store.db.execute('SELECT max(request_row_id) FROM writer_requests').fetchone()[0])
         assert request['prompt']==sent[0]
+        assert request['retrieval']['audit_complete'] is True
         assert 'invent campaign victories' not in sent[0]['instructions']
         assert rag.BOUNDARY in sent[0]['instructions']
         assert request['packet']['retrieval']['selected'] and request['retrieval']['other_passages']==[]
@@ -109,6 +110,12 @@ def test_actual_provider_request_has_retrieval_and_exact_owner_visible_audit():
         assert 'Authorization' not in json.dumps(request)
         config(store,enabled=False)
         assert rag.request_detail(store,request['request_id'])['prompt']==sent[0]
+        with store.db:store.db.execute('DELETE FROM system_state WHERE key=?',('rag:snapshot:'+request['retrieval']['snapshot_id'],))
+        missing=rag.request_detail(store,request['request_id'])
+        assert missing['retrieval']['audit_complete'] is False
+        assert missing['retrieval']['selected']==request['packet']['retrieval']['selected']
+        assert 'unknown' in missing['retrieval']['audit_notice']
+        assert missing['prompt']==sent[0]
     with_store(check)
 
 
@@ -165,6 +172,48 @@ def test_history_hides_unsealed_blind_inputs_and_undated_canon_stays_out_of_even
         with store.db:rag.put(store,'editorial-verdict:'+q.digest([run,1,0]),{'sealed':True})
         assert not rag.locked_request(store,request)
         assert rag.request_detail(store,row.lastrowid)['retrieval'] is None
+    with_store(check)
+
+
+
+def test_import_failure_rolls_back_every_source_and_preserves_outer_transactions():
+    def check(store):
+        with store.db:
+            store.db.execute("INSERT INTO lore_sources(title,source_type,content) VALUES('Broken imported canon','canonical player-authored lore','')")
+        before=rag.docs(store)
+        rejects(lambda:rag.sync_sources(store))
+        assert rag.docs(store)==before,'A failed import must not leave a partially changed corpus'
+        assert not store.db.in_transaction,'A failed standalone import must close its transaction'
+        with store.db:store.db.execute("DELETE FROM lore_sources WHERE title='Broken imported canon'")
+        store.db.execute('BEGIN')
+        rag.put(store,'test:outer',{'not_committed':True})
+        rag.sync_sources(store)
+        assert store.db.in_transaction,'Refreshing sources must not commit its caller’s work'
+        store.db.rollback()
+        assert rag.get(store,'test:outer') is None and rag.docs(store)==before
+    with_store(check)
+
+
+def test_source_history_uses_exact_identity_instead_of_sql_wildcards():
+    def check(store):
+        first=rag.mutate(store,'source',{'source':{'id':'manual_a','title':'First source','scope':'all','kind':'reference','text':'First source content.'}})
+        second=rag.mutate(store,'source',{'source':{'id':'manualxa','title':'Different source','scope':'all','kind':'reference','text':'Different source content.'}})
+        history=rag.read(store,'source',{'id':[first['id']]})
+        assert [v['version'] for v in history['versions']]==[first['version']],'Version history must not mix sources with similar IDs'
+    with_store(check)
+
+
+def test_missing_or_partial_saved_prompts_are_not_presented_as_exact_inputs():
+    def check(store):
+        with store.db:
+            row=store.db.execute("INSERT INTO writer_requests(run_id,form,model,requested_at,finished_at,status) VALUES('legacy','territory_origin','fake','2026-10-29','2026-10-29','failed')")
+        detail=rag.request_detail(store,row.lastrowid)
+        assert detail['prompt_available'] is False
+        assert 'not retained' in detail['notice']
+        with store.db:
+            store.db.execute("INSERT INTO writer_request_details(request_row_id,prompt_hash,contract_revision,reasoning_effort,prompt_json,response_json,draft_json) VALUES(?, 'hash','legacy','medium','null','null','null')",(row.lastrowid,))
+        detail=rag.request_detail(store,row.lastrowid)
+        assert not detail['prompt_available'] and detail['packet']=={}
     with_store(check)
 
 

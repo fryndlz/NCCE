@@ -63,51 +63,58 @@ def sync_sources(store):
     import editorial_quality as q
     import writer_contract
     with store._lock:
-        own_transaction=not store.db.in_transaction
-        imported=set()
-        def import_source(item):
-            imported.add(item['id'])
-            return upsert(store,item,automatic=True)
-        for i,r in enumerate(q.contract().get('style_references',[])):
-            import_source({'id':'tone-'+str(i),'title':r['source']+' · '+str(r['printed_page']),
-                'text':r['excerpt']+'\nLesson: '+r['lesson'],'kind':'style_example','scope':'all',
-                'locator':r['source']+', printed p. '+str(r['printed_page'])})
-        for form in writer_contract.BRIEFS:
-            example=ws.defaults(form).get('examples','')
-            if example:import_source({'id':'example-'+form,'title':'Maintained '+form.replace('_',' ')+' example',
-                'text':example,'scope':form,'kind':'style_example','locator':'Maintained writer contract'})
-        for row in store.db.execute('SELECT * FROM lore_sources ORDER BY id').fetchall():
-            if 'canonical player-authored' not in str(row['source_type']):continue
-            import_source({'id':'lore-'+str(row['id']),'title':row['title'],'text':row['content'],
-                'kind':'canon_authored','scope':'all','subjects':['C-NINE','Geothermal Prospect Detail C-9'],
-                'locator':row['source_url'] or 'Authored lore #'+str(row['id'])})
-        for row in store.db.execute("SELECT value FROM system_state WHERE key LIKE 'reviewer-standards:%'").fetchall():
-            s=json.loads(row[0]);runrow=store.db.execute('SELECT state_json FROM workshop_optimization_runs WHERE run_id=?',(s['run_id'],)).fetchone()
-            if not runrow:continue
-            run=json.loads(runrow[0])
-            if run.get('feedback_sync',{}).get('status')!='completed':continue
-            corrections='\n'.join(s.get('owner_corrections',[]));inferences='\n'.join(s.get('reviewer_inferences',[]))
-            import_source({'id':'feedback-'+s['form'],'title':'Latest completed '+s['form'].replace('_',' ')+' feedback',
-                'text':'Explicit owner corrections:\n'+corrections+'\nReviewer interpretations (may be mistaken):\n'+inferences,
-                'kind':'owner_feedback','scope':s['form'],'run_id':s['run_id'],'locator':'Completed feedback '+s['revision_id']})
-        # A preference is never relabelled as acceptance; retain each complete
-        # pair and its exact owner note together in every returned chunk's metadata.
-        for v in q.records(store)[-200:]:
-            row=store.db.execute('SELECT state_json FROM workshop_optimization_runs WHERE run_id=?',(v['run_id'],)).fetchone()
-            if not row:continue
-            run=json.loads(row[0])
-            if run.get('feedback_sync',{}).get('status')!='completed':continue
-            round_=next((r for r in run['rounds'] if r['number']==v['round']),None)
-            if not round_ or v['pair']>=len(round_['pairs']):continue
-            pair=round_['pairs'][v['pair']]
-            judgement={k:v[k] for k in ('preference','acceptable','note')}
-            import_source({'id':'judgement-'+digest([v['run_id'],v['round'],v['pair']]),
-                'title':pair['label']+' · owner-judged comparison','scope':v['form'],'kind':'judged_example',
-                'text':ws.packed({'owner_judgement':judgement,'drafts':[c.get('document',{}) for c in pair['candidates']]}),
-                'judgement':judgement,'run_id':v['run_id'],'locator':v['run_id']+' / round '+str(v['round'])+' / pair '+str(v['pair']+1)})
-        put(store,'rag:managed_active',sorted(imported))
-        put(store,'rag:last_sync',ws.now())
-        if own_transaction:store.db.commit()
+        savepoint='rag_import_'+uuid.uuid4().hex
+        store.db.execute('SAVEPOINT '+savepoint)
+        try:
+            imported=set()
+            def import_source(item):
+                imported.add(item['id'])
+                return upsert(store,item,automatic=True)
+            for i,r in enumerate(q.contract().get('style_references',[])):
+                import_source({'id':'tone-'+str(i),'title':r['source']+' · '+str(r['printed_page']),
+                    'text':r['excerpt']+'\nLesson: '+r['lesson'],'kind':'style_example','scope':'all',
+                    'locator':r['source']+', printed p. '+str(r['printed_page'])})
+            for form in writer_contract.BRIEFS:
+                example=ws.defaults(form).get('examples','')
+                if example:import_source({'id':'example-'+form,'title':'Maintained '+form.replace('_',' ')+' example',
+                    'text':example,'scope':form,'kind':'style_example','locator':'Maintained writer contract'})
+            for row in store.db.execute('SELECT * FROM lore_sources ORDER BY id').fetchall():
+                if 'canonical player-authored' not in str(row['source_type']):continue
+                import_source({'id':'lore-'+str(row['id']),'title':row['title'],'text':row['content'],
+                    'kind':'canon_authored','scope':'all','subjects':['C-NINE','Geothermal Prospect Detail C-9'],
+                    'locator':row['source_url'] or 'Authored lore #'+str(row['id'])})
+            for row in store.db.execute("SELECT value FROM system_state WHERE key LIKE 'reviewer-standards:%'").fetchall():
+                s=json.loads(row[0]);runrow=store.db.execute('SELECT state_json FROM workshop_optimization_runs WHERE run_id=?',(s['run_id'],)).fetchone()
+                if not runrow:continue
+                run=json.loads(runrow[0])
+                if run.get('feedback_sync',{}).get('status')!='completed':continue
+                corrections='\n'.join(s.get('owner_corrections',[]));inferences='\n'.join(s.get('reviewer_inferences',[]))
+                import_source({'id':'feedback-'+s['form'],'title':'Latest completed '+s['form'].replace('_',' ')+' feedback',
+                    'text':'Explicit owner corrections:\n'+corrections+'\nReviewer interpretations (may be mistaken):\n'+inferences,
+                    'kind':'owner_feedback','scope':s['form'],'run_id':s['run_id'],'locator':'Completed feedback '+s['revision_id']})
+            # A preference is never relabelled as acceptance; retain each complete
+            # pair and its exact owner note together in every returned chunk's metadata.
+            for v in q.records(store)[-200:]:
+                row=store.db.execute('SELECT state_json FROM workshop_optimization_runs WHERE run_id=?',(v['run_id'],)).fetchone()
+                if not row:continue
+                run=json.loads(row[0])
+                if run.get('feedback_sync',{}).get('status')!='completed':continue
+                round_=next((r for r in run['rounds'] if r['number']==v['round']),None)
+                if not round_ or v['pair']>=len(round_['pairs']):continue
+                pair=round_['pairs'][v['pair']]
+                judgement={k:v[k] for k in ('preference','acceptable','note')}
+                import_source({'id':'judgement-'+digest([v['run_id'],v['round'],v['pair']]),
+                    'title':pair['label']+' · owner-judged comparison','scope':v['form'],'kind':'judged_example',
+                    'text':ws.packed({'owner_judgement':judgement,'drafts':[c.get('document',{}) for c in pair['candidates']]}),
+                    'judgement':judgement,'run_id':v['run_id'],'locator':v['run_id']+' / round '+str(v['round'])+' / pair '+str(v['pair']+1)})
+            put(store,'rag:managed_active',sorted(imported))
+            put(store,'rag:last_sync',ws.now())
+        except BaseException:
+            store.db.execute('ROLLBACK TO '+savepoint)
+            store.db.execute('RELEASE '+savepoint)
+            raise
+        else:
+            store.db.execute('RELEASE '+savepoint)
     return home(store)
 
 
@@ -255,18 +262,41 @@ def history(store,before=2147483647):
             'next_before':rows[-1]['request_row_id'] if len(rows)==30 else None}
 
 
+def retained_audit(store,retrieval):
+    if not isinstance(retrieval,dict):return None
+    saved=get(store,'rag:snapshot:'+str(retrieval.get('snapshot_id','')))
+    if (isinstance(saved,dict) and saved.get('snapshot_id')==digest({k:v for k,v in saved.items() if k!='snapshot_id'})
+            and all(saved.get(k)==v for k,v in retrieval.items())):
+        return {**saved,'audit_complete':True}
+    return {**retrieval,'audit_complete':False,
+        'audit_notice':'The selected passages below come from the saved provider request. The full search audit is unavailable or could not be verified; omitted-source and passage counts are unknown.'}
+
+
 def request_detail(store,rid):
     row=store.db.execute('SELECT r.*,d.prompt_json,d.contract_revision FROM writer_requests r LEFT JOIN writer_request_details d USING(request_row_id) WHERE request_row_id=?',(rid,)).fetchone()
     if not row:raise ValueError('Writing request not found')
     if locked_request(store,row):raise ValueError('Exact inputs are available after your blind verdict on this pair is sealed')
-    prompt=json.loads(row['prompt_json'] or '{}');packet={}
-    if prompt.get('input'):
-        try:packet=json.loads(prompt['input'].split('\n',1)[1])
+    try:prompt=json.loads(row['prompt_json'] or '{}')
+    except (TypeError,ValueError):prompt={}
+    if not isinstance(prompt,dict):prompt={}
+    available=all(isinstance(prompt.get(k),str) and bool(prompt[k].strip()) for k in ('model','instructions','input')) and isinstance(prompt.get('text'),dict) and type(prompt.get('max_output_tokens')) is int
+    packet={}
+    if isinstance(prompt.get('input'),str):
+        try:
+            parsed=json.loads(prompt['input'].split('\n',1)[1])
+            if isinstance(parsed,dict):packet=parsed
         except (ValueError,IndexError):pass
+    retrieval=packet.get('retrieval')
+    if not isinstance(retrieval,dict):retrieval=None
+    instruction=prompt.get('instructions')
+    if not isinstance(instruction,str):instruction=''
+    notice=('Exact saved provider request. Historical requests without retrieval are labelled as such; no reconstruction is performed.'
+            if available else 'The complete provider request was not retained for this historical attempt. Available fragments are shown; missing inputs are not reconstructed.')
     return {'request_id':rid,'form':row['form'],'status':row['status'],'requested_at':row['requested_at'],
         'subject':row['subject_name'],'usage':{'input_tokens':row['input_tokens'],'output_tokens':row['output_tokens']},'instruction_version':row['contract_revision'] if 'contract_revision' in row.keys() else None,
-        'instruction_hash':hashlib.sha256(prompt.get('instructions','').encode()).hexdigest(),'prompt':prompt,'packet':packet,'retrieval':get(store,'rag:snapshot:'+packet.get('retrieval',{}).get('snapshot_id',''),packet.get('retrieval')),
-        'notice':'Exact saved provider request. Historical requests without retrieval are labelled as such; no reconstruction is performed.'}
+        'instruction_hash':hashlib.sha256(instruction.encode()).hexdigest() if instruction else None,
+        'prompt_available':available,'prompt':prompt,'packet':packet,'retrieval':retained_audit(store,retrieval),
+        'notice':notice}
 
 
 def read(store,action,query):
@@ -278,7 +308,7 @@ def read(store,action,query):
         if not current:raise ValueError('Source not found')
         d=get(store,'rag:version:'+arg('id')+':'+arg('version')) if arg('version') else current
         if not d:raise ValueError('Source version not found')
-        versions=[json.loads(r[0]) for r in store.db.execute('SELECT value FROM system_state WHERE key LIKE ?',('rag:version:'+arg('id')+':%',))]
+        versions=[json.loads(r[0]) for r in store.db.execute('SELECT value FROM system_state WHERE substr(key,1,?)=?',(len('rag:version:'+arg('id')+':'),'rag:version:'+arg('id')+':'))]
         return {**d,'current_version':current['version'],'versions':[{'version':v['version'],'at':v['updated_at']} for v in sorted(versions,key=lambda v:v['updated_at'],reverse=True)],'passages':chunks(d,settings(store))}
     if action=='subjects':return {'subjects':ws.catalog(store)}
     if action=='preview':

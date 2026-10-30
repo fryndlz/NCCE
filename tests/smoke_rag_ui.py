@@ -35,7 +35,9 @@ def main():
         with patch.object(writer,'API_KEY','disposable-fake-key'),patch.object(writer,'urlopen',return_value=Response()):
             _,status=writer.write(server.store,'territory_origin',{'subject':'Promethium Cache'},trace={'subject_name':'Saved fuel draft'})
         assert status['status']=='ready'
+        server.store.db.execute("INSERT INTO writer_requests(run_id,form,subject_name,model,requested_at,finished_at,status) VALUES('missing-audit-fixture','territory_origin','Missing retained inputs','fake','2026-10-29','2026-10-29','failed')")
         server.store.db.commit()
+        initial_request_count=server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]
         forbidden=patch.object(writer,'_call',side_effect=AssertionError('GUI must not call the writer'));forbidden.start()
         http=server.ThreadingHTTPServer(('127.0.0.1',0),server.H);threading.Thread(target=http.serve_forever,daemon=True).start()
         base='http://127.0.0.1:'+str(http.server_address[1]);cookie=make_session_token(server.SESSION_KEY)
@@ -54,6 +56,11 @@ def main():
             server._writer_pipeline_guard.acquire()
             try:assert call('/api/workshop/rag/sync',{})[0]==409
             finally:server._writer_pipeline_guard.release()
+            corpus_before=rag.corpus(server.store)[3]
+            with server.store.db:server.store.db.execute("INSERT INTO lore_sources(title,source_type,content) VALUES('Invalid import fixture','canonical player-authored lore','')")
+            assert call('/api/workshop/rag/sync',{})[0]==400
+            assert rag.corpus(server.store)[3]==corpus_before and not server.store.db.in_transaction
+            with server.store.db:server.store.db.execute("DELETE FROM lore_sources WHERE title='Invalid import fixture'")
             before=server.store.db.execute('SELECT count(*) FROM system_state').fetchone()[0]
             assert call('/api/workshop/rag/preview?form=territory_origin&query=Promethium')[0]==200
             assert call('/api/workshop/rag/history')[0]==200
@@ -122,6 +129,10 @@ const {chromium}=require(process.env.NCCE_PLAYWRIGHT);
   assert.equal(await page.locator('.rag-passage').count(),0);
   await page.getByRole('button',{name:'Recent pipeline changes',exact:true}).click();
   await page.getByText('Recent source and setting changes',{exact:true}).waitFor();
+  await page.getByRole('button',{name:/Missing retained inputs · failed/}).click();
+  await page.getByRole('button',{name:'Download available input record',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Download exact inputs as JSON',exact:true}).count(),0);
+  await page.getByText('The complete provider request was not retained for this historical attempt. Available fragments are shown; missing inputs are not reconstructed.',{exact:true}).waitFor();
   await page.getByRole('button',{name:/Saved fuel draft · succeeded/}).click();
   await page.getByRole('button',{name:'Download exact inputs as JSON',exact:true}).waitFor();
   assert.ok(await page.locator('.rag-passage').count()>0,'Past selected passages survive disabling retrieval');
@@ -150,7 +161,7 @@ const {chromium}=require(process.env.NCCE_PLAYWRIGHT);
             if result.returncode:print(result.stderr);raise AssertionError('RAG browser smoke failed')
             exported=json.loads((artifacts/'exact-inputs.json').read_text())
             assert exported['retrieval']['selected'] and 'instructions' in exported['prompt']
-            assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==1
+            assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==initial_request_count
             print('PASS RAG HTTP: authentication, origin, busy protection, validation, read-only previews, no GUI model calls.')
         finally:
             forbidden.stop();http.shutdown();http.server_close();server.store.close()
