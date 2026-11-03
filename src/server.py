@@ -29,9 +29,10 @@ if upgrade_backup:print('Verified pre-upgrade database backup: '+str(upgrade_bac
 store=Store(DB)
 from story_engine import regenerate
 import llm_writer
-# Keep service startup/health responsive. Configured writing begins on the first scheduled/manual refresh.
+# Retire execution paths before preparing derived campaign state.
 from writing_retirement import retire
 retirement=retire(store)
+print('Writing system removed; verified backup: '+retirement['backup']+'; terminal audit labels restored: '+str(retirement.get('restored_terminal_audits',0)),flush=True)
 regenerate(store,writer_enabled=False)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900

@@ -31,6 +31,7 @@ def test_retirement_cancels_work_preserves_audit_and_verified_backup():
             store.set_state('native-author:draft-a',json.dumps({'status':'draft','output':'Private draft'}))
             store.db.execute("INSERT INTO workshop_optimization_runs VALUES('run','key','hash',?)",(json.dumps({'status':'running','rounds':[{'draft':'saved'}]}),))
             store.db.execute("INSERT INTO codex_review_jobs(job_id,run_id,status,payload_json,created_at) VALUES('job','run','claimed','{}','2026-11-03')")
+            store.db.execute("INSERT INTO workshop_review_requests(call_id,run_id,status,prompt_json,error) VALUES('successful','run','succeeded','{}','original note')")
             store.db.commit()
             before={t:[tuple(r) for r in store.db.execute('SELECT * FROM '+t)] for t in ('fighters','snapshots','campaign_events','story_memories','story_artifacts','narrative_entries','fighter_thoughts')}
             result=retire(store)
@@ -47,6 +48,17 @@ def test_retirement_cancels_work_preserves_audit_and_verified_backup():
             assert json.loads(store.get_state('native-author:draft-a'))['output']=='Private draft'
             for t,rows in before.items():assert rows==[tuple(r) for r in store.db.execute('SELECT * FROM '+t)],t
             assert retire(store)==result
+            assert store.db.execute("SELECT status FROM workshop_review_requests WHERE call_id='successful'").fetchone()[0]=='succeeded'
+            # Simulate the earlier rollout audit-label bug. Repair restores the
+            # terminal preimage only, never the genuinely unfinished job.
+            result.pop('audit_revision')
+            store.set_state(MARKER,json.dumps(result))
+            store.db.execute("UPDATE workshop_review_requests SET status='cancelled',error='Writing system removed by owner' WHERE call_id='successful'")
+            store.db.commit()
+            repaired=retire(store)
+            assert repaired['restored_terminal_audits']==1 and repaired['audit_revision']==2
+            assert tuple(store.db.execute("SELECT status,error FROM workshop_review_requests WHERE call_id='successful'").fetchone())==('succeeded','original note')
+            assert store.db.execute("SELECT status FROM codex_review_jobs WHERE job_id='job'").fetchone()[0]=='cancelled'
             assert len(list(Path(folder).glob('*pre-writing-retirement*.db')))==1
             state=public_state({r['key']:r['value'] for r in store.db.execute('SELECT * FROM system_state')})
             assert not any(k.startswith(('native-author:','category-')) for k in state)
