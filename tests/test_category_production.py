@@ -85,6 +85,35 @@ def main():
    configure(False);configure(True,1);prod.advance(store);assert len(task(key)['attempts'])==2
    review(task(key),8.5);prod.advance(store);assert task(key)['status']=='published'
    assert not prod.policy(store,form)['remaining']
+   # Scene listening creates pending fiction from NEW recorded territory entries,
+   # independently of the general writer flag and without a model call during discovery.
+   from world_streams import save_entry,scene_triggers
+   form='place_ambient'
+   configure(True,3)
+   baseline_scenes=store.db.execute("SELECT count(*) FROM narrative_entries WHERE provenance_class='connective_fiction'").fetchone()[0]
+   ledger_count=store.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]
+   prod.discover(store);assert store.db.execute("SELECT count(*) FROM narrative_entries WHERE provenance_class='connective_fiction'").fetchone()[0]==baseline_scenes
+   prior_count=count
+   save_entry(store,'territory',territory['id'],'new-recorded-change','territory_owner_changed','Recorded change',[],['Test source evidence'],generate=False)
+   store.db.commit();prod.discover(store);prod.discover(store)
+   assert count==prior_count,'Scene discovery called the writer'
+   scene_tasks=[i for i in prod.all_items(store) if i['form']=='place_ambient']
+   assert len(scene_tasks)==1 and pop.record(store,scene_tasks[0]['key'])['provenance_class']=='connective_fiction'
+   assert store.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==ledger_count
+   prod.advance(store);review(prod.read(store,prod.ITEM+scene_tasks[0]['item_id']),8.4);prod.advance(store)
+   assert prod.read(store,prod.ITEM+scene_tasks[0]['item_id'])['status']=='published'
+   save_entry(store,'territory',territory['id'],'new-recorded-change','territory_owner_changed','Corrected change',[],['Corrected source evidence'],event={'payload':{'correction':True}},generate=False)
+   store.db.commit();prod.discover(store)
+   assert len([i for i in prod.all_items(store) if i['form']=='place_ambient'])==1,'A correction duplicated its scene'
+   configure(False)
+   save_entry(store,'territory',territory['id'],'another-recorded-change','territory_owner_changed','Recorded change',[],['Test source evidence'],generate=False)
+   store.db.commit();prod.discover(store)
+   assert len([i for i in prod.all_items(store) if i['form']=='place_ambient'])==1
+   configure(True);prod.discover(store)
+   assert len([i for i in prod.all_items(store) if i['form']=='place_ambient'])==1,'Enabling scenes backfilled historical events'
+   p=prod.policy(store,form);p.pop('scene_seen');prod.put(store,prod.POLICY+form,p);store.db.commit()
+   prod.recover(store);prod.discover(store)
+   assert len([i for i in prod.all_items(store) if i['form']=='place_ambient'])==1,'Upgrade backfilled historical scene triggers'
   store.close()
  print('Category production passed: event discovery, independent controls, five-attempt cap, best-valid selection, native identity, pause, restart and spending bounds')
 

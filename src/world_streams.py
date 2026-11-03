@@ -29,7 +29,7 @@ def read_stream(store, scope, key):
 
 
 def save_entry(store, scope, key, entry_key, kind, title, blocks, evidence, event=None,
-               previous=(), provenance='inference', created_at=None, details=()):
+               previous=(), provenance='inference', created_at=None, details=(), generate=True):
     import narrative_context
     event=event or {}
     old_draft=store.db.execute('''SELECT document_json FROM narrative_entries WHERE scope_type=? AND scope_key=? AND entry_key=?
@@ -64,7 +64,7 @@ def save_entry(store, scope, key, entry_key, kind, title, blocks, evidence, even
             doc['writer_context']['holder_context']=narrative_context.entity_context(store,'gang',state['holder_id'])
             # A current gang origin can include later facts; historical ownership is evidence only.
             doc['writer_context']['holder_context']['baseline']=None
-    paragraphs,writer_status=llm_writer.write_document(store,'place_ambient' if provenance=='connective_fiction' else 'place_event' if scope=='territory' else 'gang_event',entry_key,doc)
+    paragraphs,writer_status=llm_writer.write_document(store,'place_ambient' if provenance=='connective_fiction' else 'place_event' if scope=='territory' else 'gang_event',entry_key,doc) if generate else ([],{'status':'pending','message':'Local scene awaiting an explicitly authorized category writing request.'})
     doc=llm_writer.apply(doc,paragraphs,writer_status)
     if doc.get('composition',{}).get('subject'):
         title=doc['composition']['subject']
@@ -286,6 +286,29 @@ def rebuild(store, gangs, territories, battles, events, current_battle, evidence
             if str(gang['gang_id']) in affected:
                 title,text=gang_event_text(gang,event,battle)
                 add('gang',gang['gang_id'],entry_key,event,title,text,evidence)
+
+
+def scene_record(store, territory_id, token='baseline', anchor=None):
+    """Create a pending fictional scene slot, never prose or a mechanical event."""
+    anchor=anchor or {}
+    territory=dict(store.db.execute('SELECT * FROM territories WHERE id=? AND active=1',(territory_id,)).fetchone())
+    entry_key='scene:'+str(territory_id)+':'+token
+    old=store.db.execute("SELECT entry_id FROM narrative_entries WHERE scope_type='territory' AND scope_key=? AND entry_key=? AND active=1",(str(territory_id),entry_key)).fetchone()
+    if old:return old[0]
+    event={'event_type':'ambient_report','occurred_at':anchor.get('occurred_at'),'observed_at':anchor.get('observed_at'),
+           'payload':{'inspiration':anchor.get('title'),'fiction_boundary':'Invent one local incident. The recorded change is context only, not proof that the invented incident happened. No tabletop effects.'}}
+    ids=json.loads(anchor.get('source_event_ids_json') or '[]')
+    if ids:event['event_id']=ids[0]
+    evidence=[f"Place: {territory['territory']}; recorded holder: {territory.get('gang_name') or 'unknown'}",
+              'Invented local scene. It establishes no mechanical campaign event or outcome.']
+    if anchor.get('title'):evidence.append('Recorded context: '+anchor['title'])
+    return save_entry(store,'territory',territory_id,entry_key,'ambient_report','Local scene',[],evidence,event,
+                      provenance='connective_fiction',generate=False)
+
+
+def scene_triggers(store):
+    """Stable factual entry identities; corrected versions do not make new scenes."""
+    return [(hash_of([r['scope_key'],r['entry_key']]),dict(r)) for r in store.db.execute("SELECT n.* FROM narrative_entries n JOIN territories t ON cast(t.id AS TEXT)=n.scope_key WHERE n.scope_type='territory' AND n.active=1 AND n.provenance_class='inference' AND t.active=1 ORDER BY n.created_at,n.entry_key")]
 
 
 def maybe_ambient(store, gangs, territories, at=None, chance=0.25, limit=2):

@@ -418,8 +418,10 @@ class Store:
   r=self.db.execute('SELECT * FROM territories WHERE id=?',(tid,)).fetchone()
   if not r:return None
   from world_streams import read_stream
-  t=dict(r); t['history_document']=document_for(self,'territory_origin',tid) or document_for(self,'territory_history',tid)
+  t=dict(r); t['origin_document']=document_for(self,'territory_origin',tid)
+  t['history_document']=t['origin_document']  # Legacy description field; never substitute the evolving history.
   t['campaign_account_document']=document_for(self,'territory_history',tid)
+  t['territory_history_document']=t['campaign_account_document']
   t['narrative_stream']=read_stream(self,'territory',tid)
   t['mechanics']=json.loads(t.get('mechanics_json') or '{}')
   return t

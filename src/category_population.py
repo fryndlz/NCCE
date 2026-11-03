@@ -17,6 +17,10 @@ def hashed(value):
 
 def record(store, key):
     kind, _, ident = key.partition(':')
+    if kind=='scene':
+        row=store.db.execute('SELECT * FROM territories WHERE id=? AND active=1',(ident,)).fetchone()
+        if not row:raise ValueError('Scene territory no longer exists')
+        return {'territory':dict(row),'active':1,'writer_status':'pending','provenance_class':'connective_fiction'}
     if kind not in TABLES:
         raise ValueError('This is not a campaign writing record')
     table, column = TABLES[kind]
@@ -68,6 +72,11 @@ def plan(store, form):
         sample = ws.sample(store, source['key'])
         items.append({'key': source['key'], 'label': source['label'], 'source_hash': hashed(row),
                       'packet_hash': hashed(sample['packet'])})
+    if form=='place_ambient':
+        for row in store.db.execute("SELECT * FROM territories t WHERE active=1 AND NOT EXISTS(SELECT 1 FROM narrative_entries n WHERE n.scope_type='territory' AND n.scope_key=cast(t.id AS TEXT) AND n.active=1 AND n.provenance_class='connective_fiction') ORDER BY id"):
+            key='scene:'+str(row['id']);seed=record(store,key)
+            items.append({'key':key,'label':row['territory']+' · '+str(row['gang_name'] or 'Unknown holder')+' · local scene',
+                          'source_hash':hashed(seed),'packet_hash':hashed(seed['territory'])})
     return {'form': form, 'items': items, 'counts': counts, 'setup': setup(store, form)}
 
 
@@ -148,6 +157,15 @@ def queue(store, body):
            'call_limit': limit, 'plan': planned, 'created_at': ws.now(), 'results': [],
            'target_count': min(limit, len(planned['items'])), 'remaining_count': max(0, len(planned['items']) - limit),
            'message': 'Population authorized. Existing writing will be preserved.', 'usage': {}}
+    # Virtual scene slots are preview-only until this explicit one-off authorization.
+    with store.db:
+        for item in planned['items'][:run['target_count']]:
+            if item['key'].startswith('scene:'):
+                from world_streams import scene_record
+                entry_id=scene_record(store,int(item['key'].partition(':')[2]))
+                item['key']='entry:'+entry_id
+                item['source_hash']=hashed(record(store,item['key']))
+                item['packet_hash']=hashed(ws.sample(store,item['key'])['packet'])
     save(store, run)
     return run, True
 

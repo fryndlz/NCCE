@@ -87,6 +87,9 @@ def configure(store,body):
             # Existing pending records belong to the one-off backlog action.
             p['seen']=list(set(p['seen'])|{ident for ident,_ in sources(store,form)})
             if 'setup' not in p:p['setup']=pop.setup(store,form)
+            if form=='place_ambient':
+                from world_streams import scene_triggers
+                p['scene_seen']=[key for key,_ in scene_triggers(store)]
         p.update(enabled=enabled,remaining=p['remaining']+grant,revision=uuid.uuid4().hex,updated_at=ws.now())
         p['guidelines']=(p.get('setup') or {}).get('specific',{}).get('label','Active instructions at enablement')
         put(store,POLICY+form,p);put(store,command,pop.hashed(body))
@@ -111,10 +114,20 @@ def discover(store):
         for form in ws.contract.BRIEFS:
             p=policy(store,form)
             if not p['enabled']:continue
+            if form=='place_ambient':
+                from world_streams import scene_record,scene_triggers
+                known=set(p.get('scene_seen',[]))
+                for trigger,anchor in scene_triggers(store):
+                    if trigger not in known:
+                        scene_record(store,int(anchor['scope_key']),trigger,anchor)
+                        known.add(trigger)
+                p['scene_seen']=sorted(known)
             seen=set(p['seen'])
+            uncertain={e['key'] for run in pop.home_all(store) for e in run['results'] if e['status'] in ('generating','generated','error')}
             for ident,source in sources(store,form):
                 if ident in seen:continue
                 seen.add(ident)
+                if source['key'] in uncertain:continue
                 if pop.eligibility(pop.record(store,source['key']))!='pending':continue
                 if read(store,ITEM+ident):continue
                 item={'item_id':ident,'form':form,'key':source['key'],'label':source['label'],'status':'queued',
@@ -175,6 +188,11 @@ def failed(store,payload,message):
 
 def recover(store):
     with store._lock,store.db:
+        p=read(store,POLICY+'place_ambient')
+        if p and 'scene_seen' not in p:
+            from world_streams import scene_triggers
+            p['scene_seen']=[key for key,_ in scene_triggers(store)]
+            put(store,POLICY+'place_ambient',p)
         for item in all_items(store):
             if item['status'] in ('writing','awaiting_review'):
                 item.update(status='needs_attention',message='Server restarted during a request or review. Saved attempts retained; no automatic replay.')

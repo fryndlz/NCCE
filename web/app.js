@@ -742,7 +742,7 @@ function identityEditor(fighter) {
 function recordEventTime(row) { return row.occurred_at || row.recorded_at || row.event_date || row.date || row.observed_at || ''; }
 function entityTimeline(entries, facts, battles = []) {
   const rows = [
-    ...list(entries).map(e=>({key:'story-'+e.entry_id,record:e,label:e.title || 'Local account',kind:'Story',body:`<div class="archive-paper event-paper">${blocks(e.document)}</div>${evidence(e.document?.evidence || [],e.document || e)}`})),
+    ...list(entries).map(e=>({key:'story-'+e.entry_id,record:e,label:e.title || 'Local account',kind:e.provenance_class==='connective_fiction'?'Fictional scene':e.scope_type==='territory'?'Territory event':e.scope_type==='gang'?'Gang event':'Story',body:`${e.provenance_class==='connective_fiction'?'<p class="entity-fiction-label">Invented local scene · no tabletop effects</p>':''}<div class="archive-paper event-paper">${blocks(e.document)}</div>${evidence(e.document?.evidence || [],e.document || e)}`})),
     ...list(facts).map(e=>({key:'fact-'+(e.event_id || e.id),record:e,label:e.title || [e.fighter_name,human(e.action_type || e.event_type)].filter(Boolean).join(' · ') || 'Recorded change',kind:'Recorded event',body:`<div class="entity-factual-event">${prose(e.description || list(eventSummary(e)).join(' · '))}</div>${evidence(e.evidence || [],e)}`})),
     ...list(battles).map(b=>({key:'battle-'+b.id,record:b,label:(b.scenario || 'Engagement')+(b.territory?' — '+b.territory:''),kind:'Battle',body:battle(b,true)}))
   ].sort((a,b)=>recordEventTime(b.record).localeCompare(recordEventTime(a.record)) || a.key.localeCompare(b.key));
@@ -769,9 +769,14 @@ function gangRecordSections(g) {
 }
 function placeRecordSections(t, related) {
   const stream=list(t.narrative_stream);
+  const scenes=stream.filter(e=>e.provenance_class==='connective_fiction');
+  const events=stream.filter(e=>e.provenance_class!=='connective_fiction');
+  const history=t.territory_history_document || t.campaign_account_document;
   return [
     {id:'baseline',label:'Description',description:'What this place is: its setting and established background.',paper:true,body:narrative(t.backstory,t.backstory_source || 'inference',t.evidence || [`Current holder: ${short(t.gang_name)}`,`Card: ${t.card || 'Not recorded'}`],t)},
-    {id:'timeline',label:'Timeline',count:stream.length+related.length,description:'The place’s changing history, local events and engagements, most recent first.',body:entityTimeline(stream,[],related)+(t.campaign_account_document?`<details class="additional-history" data-key="place-account"><summary>Campaign account</summary>${campaignAccount(t.campaign_account_document)}</details>`:'')},
+    {id:'history',label:'History',description:'A chronological account connecting this place’s recorded campaign developments. Generated interpretation, grounded in the cited events.',paper:true,paperLabel:'CAMPAIGN HISTORY',body:history?blocks(history)+evidence(history.evidence || [],history):empty('No territory history has been written yet.')},
+    {id:'events',label:'Events',count:events.length,description:'Individual accounts of recorded territory changes, most recent first. These interpret campaign facts; they are separate from fictional local scenes.',body:entityTimeline(events,[])},
+    {id:'scenes',label:'Scenes',count:scenes.length,description:'Invented local incidents and atmosphere. These do not establish battles, casualties, income, ownership changes or other tabletop effects.',body:scenes.length?entityTimeline(scenes,[]):empty('No local scenes yet. Populate Territory scenes in Writer Workshop for a one-off pass, or enable its separate listener for future recorded territory events.')},
     {id:'battles',label:'Battles',count:related.length,description:'Recorded engagements associated with this territory.',body:related.map(b=>battle(b)).join('') || empty('No battle over this territory is recorded.')}
   ];
 }

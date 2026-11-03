@@ -72,6 +72,16 @@ def main():
         for state in ('ready','stale','error','running'):
             assert pop.eligibility({'writer_status':state})!='pending'
         assert pop.eligibility({'writer_status':'pending','provenance_class':'player_authored'})=='protected'
+        # Scene preview is free and read-only; only explicit backlog authorization creates a slot.
+        scenes_before=store.db.execute("SELECT count(*) FROM narrative_entries WHERE provenance_class='connective_fiction'").fetchone()[0]
+        ledger_before=store.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]
+        scenes=pop.preview(store,{'form':'place_ambient'});assert scenes['items']
+        assert store.db.execute("SELECT count(*) FROM narrative_entries WHERE provenance_class='connective_fiction'").fetchone()[0]==scenes_before
+        with patch.object(writer,'API_KEY','fake-key'),patch.object(writer,'write',return_value=fake) as scene_writer:
+            run,_=pop.queue(store,body(scenes,'scene-population-1'))
+            assert scene_writer.call_count==0 and run['plan']['items'][0]['key'].startswith('entry:')
+            filled=pop.execute(store,run['run_id']);assert filled['status']=='completed' and scene_writer.call_count==1
+        assert store.db.execute('SELECT count(*) FROM campaign_events').fetchone()[0]==ledger_before
         store.close()
     print('Category population tests passed')
 

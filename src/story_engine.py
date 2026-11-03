@@ -368,7 +368,9 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
             retry_writer=retry_writer or any(json.loads(r[0]).get('writer_status') in ('pending','unconfigured','error') for r in entry_rows)
         if target_fighter_ids is None and not force and not retry_writer and store.get_state("story_input_hash") == fingerprint:
             with store.db:
-                added=world_streams.maybe_ambient(store,gangs,territories) if ambient else 0
+                # Scene slots now come only from explicit category population or
+                # a listening category's new recorded territory events.
+                added=0
                 if added:
                     store.db.execute("UPDATE system_state SET value=? WHERE key='story_revision'",(digest([fingerprint,now()])[:16],))
             return {"changed": bool(added), "revision": store.get_state('story_revision',fingerprint[:16]), 'ambient_created':added}
@@ -559,8 +561,6 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                 doc = _artifact(store,"territory_history",territory["id"],_document(territory["territory"],text,facts,[e['event_id'] for e in anchors if e]),fingerprint,generated_at)
                 store.db.execute("UPDATE territories SET backstory=?,provenance_class='inference' WHERE id=?",(_text(origin),territory["id"]))
             world_streams.rebuild(store,gangs,territories,battles,events,_current_battle_event,event_evidence,generated_at)
-            if ambient:
-                world_streams.maybe_ambient(store,gangs,territories,at=generated_at)
             for battle in battles:
                 document=prose.battle_report(battle,gangs,fighters,events)
                 document['occurred_at']=battle.get('date')
