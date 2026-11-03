@@ -24,7 +24,8 @@ CONTRACT_FILES = (
 )
 FORMS = {
     'battle_report': ('incident_record', 'District archive compiler', 'Collated engagement returns'),
-    'territory_history': ('survey_note', 'District survey compiler', 'Place description'),
+    'territory_origin': ('survey_note', 'District survey compiler', 'Place description'),
+    'territory_history': ('territory_history', 'District archive compiler', 'Territory campaign history'),
     'place_event': ('local_account', 'Local account, compiled reconstruction', 'Territorial memory'),
     'place_ambient': ('local_rumour', 'Local report, fictional reconstruction', 'Life under the current holding'),
     'gang_history': ('gang_dossier', 'District archive compiler', 'Gang background'),

@@ -255,7 +255,7 @@ def _artifact(store, scope, key, document, input_hash, generated_at):
     document=llm_writer.apply(document,paragraphs,writer_status)
     if prior:
         document=llm_writer.retain_previous(document,old,writer_status)
-    scope_form={'gang_origin':'gang_history','territory_origin':'territory_history'}.get(scope,scope)
+    scope_form={'gang_origin':'gang_history'}.get(scope,scope)
     document = director.direct_document(scope_form,key,document)
     document.setdefault("source_event_ids", [])
     snapshot = store.latest_snapshot()
