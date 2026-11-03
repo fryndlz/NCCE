@@ -11,15 +11,35 @@ from urllib.error import URLError
 class DispatchUncertain(RuntimeError):pass
 
 
+def open_chat(thread_id):
+    """Load the existing desktop chat so its already queued message can run."""
+    if not re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}',thread_id):
+        raise ValueError('Invalid native chat identity')
+    if os.name!='nt':raise RuntimeError('Automatic native chat opening is configured for Windows only')
+    os.startfile('codex://threads/'+thread_id)
+
+
 class EventListener:
-    def __init__(self, config=DEFAULT_CONFIG):
+    def __init__(self, config=DEFAULT_CONFIG, opener=None):
         self.client = Companion(config)
+        self.opener=opener or open_chat
         self.client.worker_id += '-listener'
         self.folder = self.client.folder / 'notifications'
         self.folder.mkdir(exist_ok=True)
 
     def post(self, action, body=None):
         return self.client.post(action, {'transport':'queue_listener','poll_interval':0, **(body or {})})
+
+    def wake(self,journal,target):
+        value=json.loads(journal.read_text(encoding='utf-8'))
+        if value.get('chat_open_requested') or self.client.config.get('open_chat_on_job',True) is False:return
+        # Persist intent before requesting UI navigation. Neither an uncertain
+        # launch nor a restarted listener sends another message or reopens it.
+        value.update(chat_open_requested=True,chat_open_at=time.time())
+        journal.write_text(json.dumps(value),encoding='utf-8')
+        try:self.opener(target)
+        except Exception as exc:
+            raise DispatchUncertain('Native chat opening failed; the queued message is retained. Open the agent chat manually; no message was resent.') from exc
 
     def tick(self):
         reply = self.post('events', {'wait_seconds':15})
@@ -34,6 +54,8 @@ class EventListener:
         if journal.exists():
             value = json.loads(journal.read_text(encoding='utf-8'))
             if value['status'] != 'sent': raise DispatchUncertain('Uncertain event dispatch; human inspection required')
+            self.wake(journal,target)
+            value=json.loads(journal.read_text(encoding='utf-8'))
             if not value.get('acknowledged'):
                 self.post('notified', {'job_id':job,'thread_id':target})
                 journal.write_text(json.dumps({**value,'acknowledged':True}),encoding='utf-8')
@@ -79,8 +101,10 @@ class EventListener:
             raise DispatchUncertain('Queue delivery is uncertain; inspect the native chat before any retry') from exc
         # Persist sent before the server acknowledgement: reconnecting may retry
         # metadata, never the CLI notification or a model turn.
+        self.wake(journal,target)
         self.post('notified', {'job_id':job,'thread_id':target})
-        journal.write_text(json.dumps({'job_id':job,'status':'sent','acknowledged':True}),encoding='utf-8')
+        value=json.loads(journal.read_text(encoding='utf-8'))
+        journal.write_text(json.dumps({**value,'acknowledged':True}),encoding='utf-8')
         return True
 
 

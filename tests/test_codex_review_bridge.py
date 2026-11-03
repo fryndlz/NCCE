@@ -200,16 +200,19 @@ def test_event_listener_idle_is_free_and_restart_never_duplicates_model_wake():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
         path=Path(folder)/'config.json'
         path.write_text(json.dumps({'base_url':'http://localhost','worker_id':'event-test-worker','thread_id':cq.THREAD_ID,'token':TOKEN,'codex_executable':'codex'}))
-        listener=EventListener(path);listener.post=lambda *a,**k:{'job_id':None}
+        opened=[]
+        listener=EventListener(path,opener=opened.append);listener.post=lambda *a,**k:{'job_id':None}
         with patch('subprocess.run') as run:
             for _ in range(5):assert listener.tick() is False
             run.assert_not_called()
+            assert opened==[]
         listener.post=lambda *a,**k:{'job_id':'review-event-test'}
         with patch('subprocess.run',return_value=SimpleNamespace(returncode=0)) as run,patch('codex_event_listener.time.sleep'):
             assert listener.tick() is True
             assert listener.tick() is False
-            restarted=EventListener(path);restarted.post=listener.post;assert restarted.tick() is False
+            restarted=EventListener(path,opener=opened.append);restarted.post=listener.post;assert restarted.tick() is False
             assert run.call_count==1
+            assert opened==[cq.THREAD_ID], 'A real job must load the existing chat exactly once'
             argv=run.call_args[0][0]
             assert argv[1:4]==['queue','--thread',cq.THREAD_ID]
             assert TOKEN not in ' '.join(argv) and '--job-id review-event-test' in argv[-1]
@@ -223,6 +226,28 @@ def test_event_listener_idle_is_free_and_restart_never_duplicates_model_wake():
             assert run.call_count==1
 
 
+def test_listener_loads_pending_chat_once_without_resending_message():
+    sys.path.insert(0,str(ROOT/'scripts'))
+    from codex_event_listener import EventListener,DispatchUncertain
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
+        path=Path(folder)/'config.json'
+        path.write_text(json.dumps({'base_url':'http://localhost','worker_id':'wake-test-worker','thread_id':cq.THREAD_ID,'token':TOKEN,'codex_executable':'codex'}))
+        opened=[];listener=EventListener(path,opener=opened.append)
+        journal=listener.folder/'review-legacy.json';journal.write_text(json.dumps({'job_id':'review-legacy','status':'sent'}))
+        listener.post=lambda *a,**k:{'job_id':'review-legacy'}
+        with patch('subprocess.run') as cli,patch('codex_event_listener.time.sleep'):
+            listener.tick();listener.tick();assert opened==[cq.THREAD_ID];cli.assert_not_called()
+        broken=listener.folder/'review-broken.json';broken.write_text(json.dumps({'job_id':'review-broken','status':'sent'}))
+        opens=[]
+        def fail_open(target):opens.append(target);raise OSError('No handler')
+        listener=EventListener(path,opener=fail_open);listener.post=lambda *a,**k:{'job_id':'review-broken'}
+        with patch('subprocess.run') as cli,patch('codex_event_listener.time.sleep'):
+            try:listener.tick()
+            except DispatchUncertain:pass
+            else:raise AssertionError('Failed UI launch was hidden')
+            listener.tick();assert len(opens)==1;cli.assert_not_called()
+
+
 def test_listener_routes_only_known_technical_thread_without_idle_model_calls():
     sys.path.insert(0,str(ROOT/'scripts'))
     from codex_event_listener import EventListener
@@ -231,11 +256,12 @@ def test_listener_routes_only_known_technical_thread_without_idle_model_calls():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as folder:
         path=Path(folder)/'config.json'
         path.write_text(json.dumps({'base_url':'http://localhost','worker_id':'event-test-worker','thread_id':cq.THREAD_ID,'storytech_thread_id':TECH_THREAD_ID,'token':TOKEN,'codex_executable':'codex'}))
-        listener=EventListener(path)
+        opened=[];listener=EventListener(path,opener=opened.append)
         listener.post=lambda *a,**k:{'job_id':'tech-test','kind':'technical_investigation','thread_id':TECH_THREAD_ID}
         with patch('subprocess.run',return_value=SimpleNamespace(returncode=0)) as run:
             assert listener.tick();args=run.call_args[0][0]
             assert args[3]==TECH_THREAD_ID and 'Investigations are READ ONLY' in args[-1]
+            assert opened==[TECH_THREAD_ID]
         listener.post=lambda *a,**k:{'job_id':'tech-wrong','kind':'technical_investigation','thread_id':'wrong-thread'}
         with patch('subprocess.run') as run:
             try:listener.tick()
