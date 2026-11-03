@@ -24,7 +24,27 @@ def public_state(values):
 def retire(store):
     prior = store.get_state(MARKER)
     if prior:
-        return json.loads(prior)
+        result = json.loads(prior)
+        # The first rollout could cancel finished/imported audit rows. Restore
+        # only their exact status/error from its own verified preimage; no job
+        # is requeued and no prose or draft is touched.
+        if result.get('audit_revision') != 2:
+            from pathlib import Path
+            backup = Path(result['backup']).resolve()
+            if backup.parent != store.path.resolve().parent or 'pre-writing-retirement-' not in backup.name:
+                raise RuntimeError('Unexpected retirement backup path')
+            corrected = 0
+            with closing(sqlite3.connect(backup.as_uri()+'?mode=ro',uri=True)) as original:
+                if original.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                    raise RuntimeError('Retirement audit repair backup failed integrity verification')
+                with store._lock, store.db:
+                    for table in ('workshop_trials','codex_review_jobs','workshop_review_requests'):
+                        for rowid,status,error in original.execute(f'SELECT rowid,status,error FROM {table}'):
+                            if status in TERMINAL:
+                                corrected += store.db.execute(f"UPDATE {table} SET status=?,error=? WHERE rowid=? AND status='cancelled' AND error='Writing system removed by owner'",(status,error,rowid)).rowcount
+                    result.update(audit_revision=2, restored_terminal_audits=corrected)
+                    store.db.execute('UPDATE system_state SET value=? WHERE key=?',(json.dumps(result),MARKER))
+        return result
     at = datetime.now(timezone.utc).isoformat()
     backup = store.path.with_name(store.path.stem + '-pre-writing-retirement-' +
                                   datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ') + '.db')
@@ -68,7 +88,7 @@ def retire(store):
                     stop(value)
                 store.db.execute('UPDATE system_state SET value=? WHERE key=?',
                                  (json.dumps(value, ensure_ascii=False), key))
-            result = {'version': '0.23.0', 'retired_at': at, 'backup': str(backup), 'cancelled': counts,
+            result = {'version': '0.23.0', 'audit_revision': 2, 'retired_at': at, 'backup': str(backup), 'cancelled': counts,
                       'generation_enabled': False, 'campaign_records_preserved': True}
             store.db.execute('INSERT INTO system_state(key,value) VALUES(?,?)', (MARKER, json.dumps(result)))
     return result
