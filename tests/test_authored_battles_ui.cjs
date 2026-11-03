@@ -12,6 +12,8 @@ assert.equal((html.match(/JOINT PRECINCT INCIDENT REVIEW/g)||[]).length,1);
 assert.match(html,/authored-heading/);assert.match(html,/authored-field/);assert.match(html,/authored-transcript-turn/);
 assert.match(html,/&lt;script&gt;/);assert.match(html,/mark-speaker">TAP:<\/span><\/p>/);
 assert.match(html,/provenance|Mechanical evidence/);
+ctx.cleared={id:7,scenario:'Shootout',notes:null,report_document:null,chronicle:'OLD CLEARED AUTHOR REPORT'};
+assert.doesNotMatch(vm.runInContext('battle(cleared,true)',ctx),/OLD CLEARED AUTHOR REPORT/);
 const css=fs.readFileSync('web/archivum.css','utf8');
 assert.match(css,/#app \.archive-paper \.authored-battle \.authored-record[^}]+color:#2d3a2d/);
 console.log('PASS authored battle rendering: primary authored label, no duplicate/placeholder, headings, metadata, transcript, empty source turn, escaping and paper contrast');
