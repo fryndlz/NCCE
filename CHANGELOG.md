@@ -1,5 +1,9 @@
 # Changelog
 
+### 0.23.1 live verification — 2026-11-04 00:09 CET
+
+Live source `47b7487`, deployment `dep-dbl6iik9v7es73cbo74g`. Health confirms 0.23.1; coverage is authenticated and removed writer endpoints stay unavailable. All 17 regression scripts, authenticated HTTP tests and disposable live-Sheet coverage checks pass. Browser visual inspection was blocked by URL-identification safety checks; verification used HTTP and deployment status. No provider calls.
+
 ## 0.23.1 — Read-only prose coverage
 
 **Implemented:** 2026-11-04 00:07 CET / 2026-11-03 23:07 UTC.

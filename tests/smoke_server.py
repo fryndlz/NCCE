@@ -66,6 +66,9 @@ def main():
                 time.sleep(0.25)
             assert health['schema_version'] == 15 and health['story_revision'] and health['writer']['status']=='removed'
             dashboard = read('/api/dashboard')
+            coverage=read('/api/prose-progress')
+            assert len(coverage['categories'])==15 and coverage['generation_enabled'] is False
+            assert all(0<=r['completed']<=r['written']<=r['total'] for r in coverage['categories'])
             timeline=read('/api/history')
             assert all('playtime_seconds' in battle and 'local_territory_id' in battle for battle in timeline['battles'])
             assert dashboard['writing_policy']['date']['year'] == 998
