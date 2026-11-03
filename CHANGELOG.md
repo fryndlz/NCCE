@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.23.1 — Read-only prose coverage
+
+**Implemented:** 2026-11-04 00:07 CET / 2026-11-03 23:07 UTC.
+
+- Added System → Prose categories, grouped across all 15 retained forms, with the authored Archive collection separately.
+- Added Completed/Written progress bars, exact counts and authored/ready/earlier/unwritten breakdowns. No invented future quotas; zero totals display no entries.
+- Coverage excludes superseded records, empty/header-only prose, paused/error placeholders and unpublished audit drafts. Authored content takes precedence.
+- Added an authenticated read-only reporting endpoint and backend/UI tests; generation remains disabled. Campaign sources, existing prose and timeline are unchanged.
+- Updated current design with exact counting rules. Hosted verification follows.
+
 ### 0.23.0 deployment verification — 2026-11-03 22:45 UTC / 23:45 CET
 
 - Live source `e6c3c89`, deployment `dep-dbl66v0rrt2c73ft8kk0`: health 200/version 0.23.0, protected campaign dashboard 401, removed Workshop/RAG/reviewer/native/legacy generation endpoints 410.

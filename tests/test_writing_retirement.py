@@ -124,7 +124,7 @@ def http_check():
         def request(path,body=None):
             return client.open(Request(base+path,data=None if body is None else json.dumps(body).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer old-bridge-token'}),timeout=10)
         try:
-            assert json.load(request('/healthz'))['version']=='0.23.0'
+            assert json.load(request('/healthz'))['version']=='0.23.1'
             retired=['/api/workshop','/api/workshop/generate','/api/workshop/rag/sync','/api/native-author/publish','/api/reviewer-bridge/claim','/api/writer-diagnostic','/api/writer-runs/mara-latest','/api/territory-writer-runs','/api/fighters/1/write-check']
             for authenticated in (False,True):
                 if authenticated:request('/api/login',{'password':env['NCCE_ACCESS_PASSWORD']}).close()
@@ -133,6 +133,7 @@ def http_check():
                         try:request(path,body);raise AssertionError(path)
                         except HTTPError as error:assert error.code==410,(path,error.code)
             dashboard=json.load(request('/api/dashboard'));assert dashboard['gangs'] and dashboard['writer']['status']=='removed'
+            progress=json.load(request('/api/prose-progress'));assert len(progress['categories'])==15 and progress['generation_enabled'] is False
             assert json.load(request('/api/history'))
             assert b'data-view="workshop"' not in request('/').read()
             for asset in ('workshop.js','retrieval.js','writing_activity.js'):

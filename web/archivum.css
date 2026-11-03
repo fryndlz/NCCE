@@ -168,3 +168,20 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 #app .entity-section-content .grid { grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr)); }
 #app .entity-section-content .card-excerpt { font:14px/1.65 Georgia,serif; }
 @media(max-width:620px) { .entity-record-heading { padding:20px 16px; }.entity-section-content { padding:16px 12px 22px; }.entity-section-description { padding:16px 14px 4px; }.entity-event > summary { grid-template-columns:minmax(0,1fr) 16px; gap:10px; padding:14px 12px; }.entity-event > summary .event-date { grid-column:1/-1; }.entity-event > summary .chronicle-date { flex-direction:row; flex-wrap:wrap; gap:8px; }.entity-event-body { padding:12px; }.entity-event-feed { padding-left:16px; }.entity-event-feed::before { left:1px; }.entity-event::before { left:-19px; }.entity-memory .memory-voice { padding:18px; }.entity-current-mind { display:block; }.entity-current-mind .mind-card { margin-bottom:15px; } }
+/* Read-only prose coverage register on System. */
+#app .prose-progress { margin-block:24px; }
+.prose-progress > p { max-width:85ch; line-height:1.7; }
+.prose-progress section { margin-top:24px; }
+.prose-progress h4 { color:#bba46d; border-bottom:1px solid #45513e; padding-bottom:8px; font:600 12px/1.5 system-ui,sans-serif; text-transform:uppercase; letter-spacing:.08em; }
+.prose-progress ul { padding:0; margin:0; list-style:none; }
+.prose-progress-row { display:grid; grid-template-columns:minmax(220px,2fr) repeat(2,minmax(140px,1fr)); gap:24px; align-items:center; padding:18px 0; border-bottom:1px solid #344031; }
+.prose-progress-row h5 { margin:0 0 6px; color:#e0d8b9; font:600 16px/1.4 system-ui,sans-serif; }
+.prose-progress-row p { margin:0 0 6px; color:#b7bba6; font:13px/1.6 system-ui,sans-serif; }
+.prose-progress-row small { color:#a8af98; font:11px/1.6 system-ui,sans-serif; }
+.prose-meter > div { display:flex; flex-wrap:wrap; gap:6px; justify-content:space-between; font:12px/1.5 system-ui,sans-serif; margin-bottom:8px; }
+.prose-meter strong { color:#d8d3b8; font-variant-numeric:tabular-nums; }
+.prose-meter progress { display:block; width:100%; height:9px; border:0; border-radius:2px; background:#303c2f; accent-color:#b39c65; }
+.prose-meter progress::-webkit-progress-bar { background:#303c2f; border-radius:2px; }
+.prose-meter progress::-webkit-progress-value { background:#b39c65; border-radius:2px; }
+.prose-meter progress::-moz-progress-bar { background:#b39c65; border-radius:2px; }
+@media(max-width:800px) { .prose-progress-row { grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }.prose-progress-row > div:first-child { grid-column:1/-1; } }

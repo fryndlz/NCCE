@@ -1,6 +1,6 @@
-# NCCE 0.23.0 — current technical design
+# NCCE 0.23.1 — current technical design
 
-**Implementation:** 0.23.0. **SQLite schema:** 15. This is the current specification, not a list of desired future features. Historical behavior is in Git and CHANGELOG.md. Hosted source/version and verification are recorded in the changelog; an implementation entry is not proof of live deployment.
+**Implementation:** 0.23.1. **SQLite schema:** 15. This is the current specification, not a list of desired future features. Historical behavior is in Git and CHANGELOG.md. Hosted source/version and verification are recorded in the changelog; an implementation entry is not proof of live deployment.
 
 The owner approved fighter-relevant logical time, a half-life of **10 relevant events**, **one step per distinct meaningful change**, and **no fixed expiry**. Calendar-based cognitive decay in 0.16.0 is superseded. The detailed specification, worked examples, paper comparison and executable verification map are in [Fighter event clock](FIGHTER_EVENT_CLOCK.md).
 
@@ -221,3 +221,14 @@ The earlier single-document entity preview is superseded by dedicated baseline,
 Timeline and related-record sections. Fighters additionally separate Memory from
 Mind. See [Record navigation](RECORD_NAVIGATION.md) for the implemented section
 map, data boundaries, chronology, refresh/keyboard behaviour and verification.
+
+
+## System: prose categories and coverage — 4 November 2026
+
+`prose_progress.py` computes a read-only inventory, served by authenticated `GET /api/prose-progress` only when System is opened. It never reads Workshop trials, reserves work, changes data or invokes a writer. System groups the 15 retained prose categories by Fighters, Gangs, Places, Campaign and Relationships. Archive is a separate two-story collection.
+
+Each row has two native accessible progress bars: **Completed** counts non-empty authored content or published `ready` prose; **Written** also counts published `stale` earlier drafts. Breakdown shows authored, ready, earlier drafts and unwritten. This measures stored coverage/status, not literary quality or word count. Empty text, header-only documents, paused/error placeholders and unpublished audit drafts do not count as written. Zero slots display 0 / 0 and “No entries yet,” never 100%.
+
+Denominators: one biography per fighter in a currently active gang (including remembered/unlisted fighters), one gang backstory/history/current downtime account per active gang, one origin/history per active place, one report per active battle, and one campaign-wide regional chronicle when the campaign exists. Memory/reflection totals use current active logical memory keys; thought totals use active thought rows. Event/scenes totals use existing active logical narrative entry keys, and relationship histories use active artifacts for pairs of current gangs. No future event/scene quotas are invented; open-ended rows say “Existing entries only.” Latest active versions count once. Gang backstories follow the actual UI authority rule: explicit Sheet backstory first, otherwise an existing published native origin; legacy seeded/generated gang baseline text is excluded. Fighter authored backstories supersede generated biography documents.
+
+The endpoint and UI are reporting only. All 0.23.0 retirement restrictions remain in force. No schema changes, new writing controls, timeline changes or provider calls are introduced. Tests: `test_prose_progress.py`, `test_prose_progress_ui.cjs`, existing authenticated HTTP and core regression scripts.

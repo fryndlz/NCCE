@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('web/app.js','utf8');
+const ctx=vm.createContext({document:{querySelector:()=>({})},Intl,Date,console});
+vm.runInContext(fs.readFileSync('web/writing.js','utf8'),ctx);
+vm.runInContext(source.slice(0,source.indexOf('async function api(')),ctx);
+ctx.report={definition:'Ready & authored',categories:[{group:'Fighters',label:'Memory <script>',description:'One event.',total:4,completed:1,written:2,counts:{ready:1,earlier:1,unwritten:2},open_ended:true},{group:'Places',label:'Scenes',total:0,completed:0,written:0,counts:{}}]};
+const html=vm.runInContext('proseProgressMarkup(report)',ctx);
+assert.match(html,/1 \/ 4 · 25%/);assert.match(html,/2 \/ 4 · 50%/);
+assert.match(html,/No entries yet/);assert.match(html,/Existing entries only/);
+assert.match(html,/aria-label="Fighters/);assert.match(html,/Memory &lt;script&gt;/);
+assert.doesNotMatch(html,/<script>|NaN|Infinity|Generate|data-workshop/);
+assert.match(source,/api\('\/api\/prose-progress'\)/);
+console.log('PASS prose progress UI: accessible meters, zero totals, two measures, escaping and no writing action');

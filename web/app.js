@@ -208,6 +208,16 @@ function narrative(value, source, items = [], meta = {}) {
   return `<div class="narrative"><div class="eyebrow">${isAuthored ? 'Authored campaign record' : 'Generated inference'}</div>${authoredBody}</div>${isAuthored ? `<div class="authored-source">${esc(source || 'Authored campaign canon')}</div>` : evidence(basis, {...meta, ...document})}`;
 }
 const empty = message => `<div class="empty-state"><p>${esc(message)}</p></div>`;
+function proseProgressMarkup(report) {
+  const count=value=>Math.max(0,Number(value)||0);
+  const meter=(row,kind)=>{
+    const total=count(row.total),value=Math.min(total,count(row[kind]));
+    return `<div class="prose-meter"><div><span>${kind==='completed'?'Completed':'Written'}</span><strong>${value} / ${total}${total?` · ${Math.round(value/total*100)}%`:''}</strong></div><progress max="${total||1}" value="${value}" aria-label="${esc(row.group)} · ${esc(row.label)} · ${kind}: ${value} of ${total}"></progress>${!total?'<small>No entries yet</small>':''}</div>`;
+  };
+  const row=item=>`<li class="prose-progress-row"><div><h5>${esc(item.label)}</h5><p>${esc(item.description)}</p><small>${count(item.counts?.authored)} authored · ${count(item.counts?.ready)} ready · ${count(item.counts?.earlier)} earlier drafts · ${count(item.counts?.unwritten)} unwritten${item.open_ended?' · Existing entries only':''}</small></div>${meter(item,'completed')}${meter(item,'written')}</li>`;
+  const groups=[...new Set(list(report.categories).map(item=>item.group))];
+  return `<section class="card prose-progress" aria-labelledby="proseProgressTitle"><div class="eyebrow">Scriptorium register · prose coverage</div><h3 id="proseProgressTitle">Prose categories</h3><p class="muted">${esc(report.definition)}</p>${groups.map(group=>`<section><h4>${esc(group)}</h4><ul>${list(report.categories).filter(item=>item.group===group).map(row).join('')}</ul></section>`).join('')}${report.archive?`<section><h4>Archive · authored collection</h4><ul>${row(report.archive)}</ul></section>`:''}</section>`;
+}
 async function api(url, options) {
   const response = await fetch(url, {cache: 'no-store', ...options});
   if (response.status === 401) { location.replace('/login'); throw new Error('Please sign in to continue.'); }
@@ -657,8 +667,10 @@ async function render(view, preserveScroll = false) {
     app.innerHTML = `<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored stories, preserved in their own words.</p>${NCCEArchive.browser('archive',archiveStoryRecords)}`;
   }
   else if (activeView === 'system') {
+    const progress=await api('/api/prose-progress');
+    if (token !== renderToken) return;
     const systemKeys=['engine_version','schema_version','baseline','last_sync','sync_status','sync_last_success','sync_last_error','source_mode'];
-    app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2><section class="card"><h3>Writing paused</h3><p>The previous writing system has been removed. Existing prose and campaign records are preserved. Sheet updates and the campaign timeline continue.</p></section><section class="card system-state">${systemKeys.filter(key=>data.state[key]!=null).map(key=>`<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(data.state[key])}</span></div>`).join('')}</section>`;
+    app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2><section class="card"><h3>Writing paused</h3><p>The previous writing system has been removed. Existing prose and campaign records are preserved. Sheet updates and the campaign timeline continue.</p></section>${proseProgressMarkup(progress)}<section class="card system-state">${systemKeys.filter(key=>data.state[key]!=null).map(key=>`<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(data.state[key])}</span></div>`).join('')}</section>`;
   }
   if (!preserveScroll) window.scrollTo(0, 0);
 }
