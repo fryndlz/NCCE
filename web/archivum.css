@@ -107,4 +107,3 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 #app[data-view="workshop"] .ws-prose-body { background:#eae6d1; color:#2d3a2d; padding:28px; border:1px solid #b7b79b; font:17px/1.8 Georgia,serif; --text-primary:#2d3a2d; --text-secondary:#65705b; --admin-primary:#5d684b; --identity-primary:#4f6345; --entity-highlight:#354430; --status-critical:#9d332e; }
 #app[data-view="workshop"] .ws-prose-body :is(h3,h4,.record-body,.mark-dialogue) { color:#2d3a2d; }
 #app[data-view="workshop"] .ws-prose-body :is(.section-label,.record_termination,.mark-admin_label) { color:#62704d; }
-

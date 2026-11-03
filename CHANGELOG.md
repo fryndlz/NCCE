@@ -485,4 +485,4 @@ Source completed: 2026-10-28 19:19 CET (Europe/Warsaw).
   content was copied. No engine/schema, campaign/canon, writer policy or paid-call
   changes. Unfinished category-population work was excluded.
 - Frontend regression checks and disposable desktop/390px browser verification
-  pass; see docs/FRONTEND_ARCHIVUM.md. Hosted verification pending.
+  pass; see docs/FRONTEND_ARCHIVUM.md. Verified live 3 November 2026, 10:38:03 CET: source `d87d428`, deployment `dep-dbkqmd3bc2fs7386h9h0` (automatic new-commit deployment). Hosted health confirms engine 0.20.1/schema 15/sync ok/zero writer calls. Authenticated hosted checks confirm sidebar, record index/preview, authored C-NINE Sheet prose, separate data/source tab, both Archive stories and disclosure, and both writing-desk section indexes. Mara’s 853-character authored biography is unchanged. Timeline still reports 26 engagements / 276 events / 96h 22m; its source block and styles were not edited. No page overflow observed. Live screenshot retained in output/archivum-live-2026-11-03.png (top portion: output/archivum-live-preview.png).

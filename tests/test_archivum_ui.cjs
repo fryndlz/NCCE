@@ -29,4 +29,3 @@ assert.ok(html.includes('aria-controls="sectionNav"')&&html.includes('archivum.j
 const sourceModule=fs.readFileSync('web/archivum.js','utf8');
 assert.ok(!/fetch\(|\/api\/|localStorage|setInterval/.test(sourceModule));
 console.log('ok (record index escaping, preserved prose, separate source layer, dates, stamps, accessible sidebar/tabs and no paid/network actions)');
-
