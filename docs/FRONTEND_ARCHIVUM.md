@@ -81,3 +81,10 @@ continue to use the existing implementation.
 ## Release
 
 Source completed 3 November 2026, 10:36 CET. Verified live 3 November 2026, 10:38:03 CET: source `d87d428`, deployment `dep-dbkqmd3bc2fs7386h9h0` (automatic new-commit deployment). Hosted health confirms engine 0.20.1/schema 15/sync ok/zero writer calls. Authenticated hosted checks confirm sidebar, record index/preview, authored C-NINE Sheet prose, separate data/source tab, both Archive stories and disclosure, and both writing-desk section indexes. Mara’s 853-character authored biography is unchanged. Timeline still reports 26 engagements / 276 events / 96h 22m; its source block and styles were not edited. No page overflow observed. Live screenshot retained in output/archivum-live-2026-11-03.png (top portion: output/archivum-live-preview.png).
+
+## Current entity organization (supersedes the initial combined document)
+
+The initial pass above is the historical visual reference. Gangs, Fighters and
+Places now use the dedicated sections described in [Record navigation](RECORD_NAVIGATION.md),
+separating static baseline, evolving timeline and (for fighters) Memory and Mind.
+The original two-layer reader remains for battle/archive documents.

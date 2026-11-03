@@ -486,3 +486,18 @@ Source completed: 2026-10-28 19:19 CET (Europe/Warsaw).
   changes. Unfinished category-population work was excluded.
 - Frontend regression checks and disposable desktop/390px browser verification
   pass; see docs/FRONTEND_ARCHIVUM.md. Verified live 3 November 2026, 10:38:03 CET: source `d87d428`, deployment `dep-dbkqmd3bc2fs7386h9h0` (automatic new-commit deployment). Hosted health confirms engine 0.20.1/schema 15/sync ok/zero writer calls. Authenticated hosted checks confirm sidebar, record index/preview, authored C-NINE Sheet prose, separate data/source tab, both Archive stories and disclosure, and both writing-desk section indexes. Mara’s 853-character authored biography is unchanged. Timeline still reports 26 engagements / 276 events / 96h 22m; its source block and styles were not edited. No page overflow observed. Live screenshot retained in output/archivum-live-2026-11-03.png (top portion: output/archivum-live-preview.png).
+
+## Record organization revision — 2026-11-03, 11:24 CET
+
+- Replaced combined entity documents with explicit sections: gangs have Backstory,
+  Timeline, Fighters and Holdings; places Description, Timeline and Battles;
+  fighters Backstory, Timeline, Memory and Mind. All retain Data & sources.
+- Static baselines stay separate from evolving history. Local timelines are dated,
+  expandable event lists. Memory separates baseline memories from later experience;
+  Mind shows only current ready thoughts and pending counts. Evidence stays with
+  its event, and thought links reveal their memory section.
+- Section selection persists across refreshes; keyboard/multi-tab and mobile
+  navigation work. Main Chronicle timeline, narrative content, cognition, policies
+  and campaign data are unchanged. No paid writer calls.
+- Six frontend suites plus new section-contract checks and disposable authenticated
+  browser checks pass. See docs/RECORD_NAVIGATION.md. Hosted verification pending.

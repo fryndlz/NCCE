@@ -107,3 +107,55 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 #app[data-view="workshop"] .ws-prose-body { background:#eae6d1; color:#2d3a2d; padding:28px; border:1px solid #b7b79b; font:17px/1.8 Georgia,serif; --text-primary:#2d3a2d; --text-secondary:#65705b; --admin-primary:#5d684b; --identity-primary:#4f6345; --entity-highlight:#354430; --status-critical:#9d332e; }
 #app[data-view="workshop"] .ws-prose-body :is(h3,h4,.record-body,.mark-dialogue) { color:#2d3a2d; }
 #app[data-view="workshop"] .ws-prose-body :is(.section-label,.record_termination,.mark-admin_label) { color:#62704d; }
+/* Record architecture: baseline, chronology, memories and current mind are
+   independent reading destinations, never one combined paper document. */
+.entity-record-heading { display:flex; justify-content:space-between; gap:18px; align-items:center; padding:24px 24px 20px; border-bottom:1px solid #3b4936; }
+.entity-record-heading small { color:#a5b493; font:10px/1.6 system-ui,sans-serif; }
+#app .entity-record-heading h2 { font:400 clamp(25px,2.5vw,34px)/1.2 Georgia,serif; margin:8px 0 0; }
+.entity-record-heading .status-pill { flex-shrink:0; }
+#app .entity-section-tabs { position:sticky; top:0; z-index:8; background:#1e281f; padding:0 16px; gap:18px; overflow-x:auto; flex-wrap:nowrap; scrollbar-width:thin; }
+#app .entity-section-tabs button { display:inline-flex; align-items:center; gap:7px; flex-shrink:0; white-space:nowrap; font-size:11px; }
+.section-count { display:inline-block; color:#a9b491; background:#33402e; padding:1px 5px; font:9px/1.4 system-ui,sans-serif; border-radius:2px; }
+.entity-section-panel { min-height:360px; }
+.entity-section-description { color:#a8b39a; margin:0; padding:20px 22px 4px; font:12px/1.7 system-ui,sans-serif; }
+.entity-section-content { padding:20px 22px 28px; }
+.entity-section-panel.record-source-panel { padding:0; }
+.entity-section-panel .document-notices { padding-top:8px; }
+.entity-section-panel .archive-paper { margin-top:16px; }
+.entity-event-feed { position:relative; padding-left:20px; }
+.entity-event-feed::before { content:''; position:absolute; width:1px; background:#556047; left:4px; top:18px; bottom:18px; }
+.entity-event { position:relative; margin:0 0 12px; border:1px solid #3d4b36; background:#222e23; }
+.entity-event::before { content:''; position:absolute; left:-21px; top:23px; width:8px; height:8px; border-radius:50%; background:#bba36c; box-shadow:0 0 0 4px #1e281f; }
+.entity-event > summary { display:grid; grid-template-columns:126px minmax(0,1fr) 14px; gap:14px; align-items:start; list-style:none; padding:17px 15px; cursor:pointer; }
+.entity-event > summary::-webkit-details-marker { display:none; }
+.entity-event > summary:hover { background:#2b3828; }
+.entity-event > summary > span:nth-child(2) > small { display:block; font:9px/1.5 system-ui,sans-serif; text-transform:uppercase; color:#9eaf8d; letter-spacing:.1em; margin-bottom:5px; }
+.entity-event > summary strong { display:block; color:#ddd6ba; font:400 18px/1.35 Georgia,serif; overflow-wrap:anywhere; }
+.entity-event > summary .chronicle-date strong { font:11px/1.5 'Courier New',monospace; color:#bebf9f; }
+.entity-event > summary .chronicle-date small { color:#98a68b; font:9px/1.5 system-ui,sans-serif; }
+.event-expand { color:#c2ad73; font:18px/1 system-ui,sans-serif; }
+.entity-event[open] > summary { border-bottom:1px solid #44523a; }
+.entity-event[open] .event-expand { font-size:0; }.entity-event[open] .event-expand::after { content:'−';font-size:18px; }
+.entity-event-body { padding:18px; }
+#app .entity-event-body .event-paper { margin:0; padding:24px; font:17px/1.8 Georgia,serif; }
+#app .entity-event-body .event-paper :is(.record-body,.mark-dialogue,.record-header) { color:#2d3a2d; }
+#app .entity-event-body .event-paper :is(.section-label,.archive-heading,.metadata-group) { color:#59664c; }
+.entity-factual-event { padding:15px; background:#1c2a25; border-left:2px solid #7bafa5; color:#b8d4cd; font:12px/1.8 system-ui,sans-serif; }
+.event-basis { margin:15px 0 0; padding-top:12px; border-top:1px solid #45513b; }
+.event-basis > summary { color:#a6b59a; font:10px/1.6 system-ui,sans-serif; cursor:pointer; }
+.event-basis .evidence { margin-top:12px; }
+.entity-memory .memory-card { padding:18px 0; background:transparent; border:0; border-bottom:1px solid #435038; margin-bottom:18px; }
+#app .entity-memory .memory-voice { padding:24px; background:#eae6d1; color:#2d3a2d; font:17px/1.8 Georgia,serif; margin-top:15px; }
+.entity-memory .memory-trigger { color:#b9c1a5; font:11px/1.6 system-ui,sans-serif; }
+#app .entity-memory .memory-voice :is(p,.mark-dialogue) { color:#2d3a2d; }
+.entity-memory .writer-pending { font:11px/1.6 system-ui,sans-serif; }
+.baseline-memory, .additional-history { margin-top:24px; padding:18px; border:1px solid #45503b; }
+.baseline-memory > summary, .additional-history > summary { font:12px/1.6 system-ui,sans-serif; color:#c5c8aa; cursor:pointer; }
+.baseline-memory > summary small { display:block; color:#96a386; font-size:10px; padding:6px 0 0 14px; }
+.entity-current-mind { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr)); gap:16px; }
+.entity-current-mind .mind-card { background:#273024; border:1px solid #4f583c; padding:20px; }
+#app .entity-current-mind .thought { font:italic 19px/1.7 Georgia,serif; color:#e5dfc6; margin:14px 0; }
+#app .entity-current-mind .mind-card .eyebrow { color:#cfbc80; font-size:10px; }
+#app .entity-section-content .grid { grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr)); }
+#app .entity-section-content .card-excerpt { font:14px/1.65 Georgia,serif; }
+@media(max-width:620px) { .entity-record-heading { padding:20px 16px; }.entity-section-content { padding:16px 12px 22px; }.entity-section-description { padding:16px 14px 4px; }.entity-event > summary { grid-template-columns:minmax(0,1fr) 16px; gap:10px; padding:14px 12px; }.entity-event > summary .event-date { grid-column:1/-1; }.entity-event > summary .chronicle-date { flex-direction:row; flex-wrap:wrap; gap:8px; }.entity-event-body { padding:12px; }.entity-event-feed { padding-left:16px; }.entity-event-feed::before { left:1px; }.entity-event::before { left:-19px; }.entity-memory .memory-voice { padding:18px; }.entity-current-mind { display:block; }.entity-current-mind .mind-card { margin-bottom:15px; } }

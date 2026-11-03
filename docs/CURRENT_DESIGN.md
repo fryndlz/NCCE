@@ -214,3 +214,10 @@ stamps, responsive behaviour and Workshop/Writing context desk indexes are
 specified in [Archival frontend](FRONTEND_ARCHIVUM.md). This is presentation only:
 the event engine, authority hierarchy and protected timeline implementation are
 unchanged. The linked document lists exact ownership boundaries and verification.
+
+### Entity section navigation — revision of 3 November 2026
+
+The earlier single-document entity preview is superseded by dedicated baseline,
+Timeline and related-record sections. Fighters additionally separate Memory from
+Mind. See [Record navigation](RECORD_NAVIGATION.md) for the implemented section
+map, data boundaries, chronology, refresh/keyboard behaviour and verification.
