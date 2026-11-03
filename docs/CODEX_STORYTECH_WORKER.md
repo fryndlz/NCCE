@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # StoryTechMan Workshop jobs
 
 Run only in the owner-created StoryTechMan chat `01a17ff0-9029-7a13-935f-d0a86dcdc2b2`. Read AGENTS.md and current docs/HANDOFF_STATUS.md. This role improves the reusable writing setup for a whole category: source selection, verified reference context, continuity, repetition warnings, guardrails and prompt interactions. Never fix a concrete entry by rewriting it. A finished authorized round allowance is an ordinary owner decision, not missing provider credits or a technical failure.

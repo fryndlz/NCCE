@@ -362,6 +362,8 @@ class Store:
   q=lambda sql,args=():[dict(r) for r in self.db.execute(sql,args)]
   battle_sql='''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 ORDER BY b.date DESC,b.source_row DESC'''
   result={'gangs':q('SELECT * FROM gangs WHERE active=1 ORDER BY reputation DESC,rating DESC'),'battles':q(battle_sql),'territories':q('SELECT * FROM territories WHERE active=1 ORDER BY gang_name,territory'),'regions':q('SELECT * FROM regions'),'downtime':q('SELECT * FROM downtime_reports WHERE id IN (SELECT max(id) FROM downtime_reports GROUP BY gang_id) ORDER BY generated_at DESC'),'state':{r['key']:r['value'] for r in self.db.execute('SELECT * FROM system_state')}}
+  from writing_retirement import public_state
+  result['state']=public_state(result['state'])
   result['writing_policy']=public_policy()
   import llm_writer
   result['writer']=llm_writer.availability()

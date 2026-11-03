@@ -1,4 +1,0 @@
-interface:
-  display_name: "NCCE Backlog Writer"
-  short_description: "Write every NCCE prose form with live context and saved standards"
-  default_prompt: "Use $ncce-backlog-writer to inspect the NCCE backlog and start a small calibration batch in the requested categories, saving drafts before publication."

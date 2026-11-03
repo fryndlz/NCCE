@@ -1,68 +1,13 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current source: **v0.11.0 — direct Writer Workshop**, SQLite schema 11. Story generation is `0.8.2`; campaign archives do not alter mechanical truth. The Render service uses a 1 GB persistent disk at `/var/data`; its database path is `/var/data/ncce-preview.db`.
+Current source: **0.23.0**, SQLite schema **15**. Writer Workshop, JKSimmons, StoryTechMan and RAG have been removed. Prose generation is disabled until a replacement is agreed. Existing authored/generated prose, campaign data, the event ledger, memories and timeline are preserved.
 
-Narrative drafting uses the OpenAI Responses API when `NCCE_OPENAI_API_KEY` is configured on the server. The default writer is `gpt-6-luna` at `medium` reasoning effort; override with `NCCE_WRITER_MODEL` and `NCCE_WRITER_REASONING_EFFORT`. Set the key as a secret environment variable in the local server or Render service. The key is never sent to the browser. Fighter observations use a one-event packet with compact, evidence-labelled identity and stimulus-attention context; the full biography and earlier generated memory prose are not repeated in those calls. Each uncached draft receives the shared runtime writing contract, a form-specific brief and a positive example. Evidence, authored context and generated continuity are separate. Documents include structured headings and remarks; rejected responses remain in the server-side audit. Automatic writing remains disabled on routine syncs. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) for scope and limits.
+The app reads Krakamunda on startup, every 15 minutes and on manual refresh. It keeps factual changes and fighter-relevant memory/thought causes; missing prose is marked paused. No provider key or paid writing setup is required.
 
-Open the [hosted preview](https://ncce-private-preview.onrender.com/) and use your existing invitation passphrase. See [hosting details](docs/HOSTED_DEPLOYMENT.md) for storage, cost, and backup limitations.
+Open the [hosted app](https://ncce-private-preview.onrender.com/) using the existing campaign passphrase. Persistent storage remains `/var/data/ncce-preview.db`. Retirement takes a verified backup beside that file before cancelling unfinished writing queues; historical audit/draft data stays on disk.
 
-Open **Writer Workshop** to edit shared/form writing guidance, inspect a sourced packet, generate at most one draft per click, revise prose and save examples. Saving/importing/editing/inspection are free; only Generate can make a provider request. Activate a saved revision explicitly to use it for future drafting, or restore an earlier revision. Existing prose and authored canon are not rewritten. See [Writer Workshop](docs/WRITER_WORKSHOP.md) for exact behavior and access requirements.
+Run `python src/server.py`, or use **START NECROMUNDA.bat**. Python and its standard library are sufficient. Do not replace or reseed an existing campaign database.
 
-See [Writing Director](docs/WRITING_DIRECTOR.md) for the integrated writing contracts, source documents, identity tags, place/gang streams, ambient fiction, date conversion and implementation limits.
-See [Current technical design](docs/CURRENT_DESIGN.md) for the app's modules, data flow, archive chronology rules and known boundaries.
+See [Current technical design](docs/CURRENT_DESIGN.md), [handoff](docs/HANDOFF_STATUS.md) and [changelog](CHANGELOG.md). Older writing-system specifications are historical and marked retired.
 
-## What this version does
-
-- Reads the authoritative Krakamunda Sheet on startup, every 15 minutes, or on manual refresh.
-- Imports the three read-only Munda Manager archive tabs into a versioned local history ledger and displays a campaign battle registry with a gang-by-gang battle/downtime timeline.
-- Joins battle sessions only by their explicit campaign-battle ID. Session created/updated times are candidate windows, not verified gameplay boundaries; missing, overlapping, and orphaned records remain visible with uncertainty.
-- Shows timestamped activity with its source UUID and original JSON. Positive fighter XP gains inside an involved gang's candidate window may support an explicitly inferred participation; XP loss, allies, and unsupported attendance remain unknown/not inferred.
-- Records factual changes and stable battle identities without writing to the Sheet.
-- Turns meaningful fighter changes and shared gang events into voiced memories with a separate mechanical evidence block.
-- Selects two to four supported current thoughts using importance, recency, relevance and fighter-specific biases.
-- Generates reflections from linked observations, and regenerates histories, battle reports, downtime and campaign narratives when their evidence changes.
-- Preserves authored lore and distinguishes it from generated inference. Generated versions remain traceable to their sources.
-- Adds persistent Places and Gangs event streams, preserved original descriptions, authored fighter writing context, bounded local fiction and dual Imperial/real dates.
-- Provides search and filters for Fighters, Gangs, Places and Battles, with a responsive dossier layout.
-
-Writing is generated by an OpenAI Responses API model when the server-side key is configured. Without credentials, generated prose is marked pending; the old phrase catalogue is not used as a fallback. Memory salience, evidence attribution, event classification, and game state remain deterministic. See [the Writing Director guide](docs/WRITING_DIRECTOR.md) and [Current design](docs/CURRENT_DESIGN.md).
-
-## Local development
-
-The development build includes **Writer Workshop → Improve NCCE's writing setup**:
-bounded automated draft/review rounds on two independent contexts, inactive candidate
-guidance and explicit approval of tested prompts for future NCCE generation. Context
-or pipeline problems stop for human input. See [Writing quality workflow](docs/WRITER_QUALITY_WORKFLOW.md).
-The earlier standalone GUI/CLI are auxiliary prototypes. No bulk filling is enabled.
-
-Double-click **START NECROMUNDA.bat**, or run:
-
-```powershell
-python src/server.py
-```
-
-Python 3 and its standard library are sufficient. The runtime database is derived, ignored by Git, and migrated in place. The seed command refuses to replace an existing database.
-
-## Verification
-
-```powershell
-python tests/test_core.py
-python tests/test_battle_identity.py
-python tests/test_story_engine.py
-python tests/test_voice_prose.py
-python tests/test_writing_director.py
-python tests/test_llm_writer.py
-python tests/test_writer_pipeline.py
-python tests/test_campaign_history.py
-node tests/test_writing_ui.cjs
-node tests/test_campaign_history_ui.cjs
-node --check web/app.js
-```
-
-An additional HTTP check starts a disposable authenticated server and reads the live Sheet:
-
-```powershell
-python tests/smoke_server.py
-```
-
-Mechanical facts remain authoritative. Authored C-NINE lore remains canon. Generated narrative remains inference. Earlier baseline fields do not establish the date or order of older events. Session timestamps are only candidate battle-window proxies, and XP evidence supports an inference rather than proof of a fighter's attendance.
+Run the `tests/test_*.py` scripts with Python and the `tests/test_*_ui.cjs` checks with Node for regression verification. `tests/smoke_server.py` provides an opt-in authenticated HTTP/live read-only Sheet check. Tests use disposable databases and no provider calls.

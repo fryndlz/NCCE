@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # Controlled writing experiments and reviewer calibration
 
 ## Automatic post-study learning and activation (0.19.2)

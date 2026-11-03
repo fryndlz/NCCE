@@ -107,7 +107,7 @@ function blocks(document, fallback = '') {
   const content = list(document?.blocks);
   const statusMessage = document?.writer_status === 'stale'
     ? (document.writer_message || 'Earlier narrative retained; it has not been regenerated with the current writing rules.')
-    : document?.writer_message || (document?.writer_status === 'unconfigured' ? 'Narrative pending · configure the server-side writing provider.' : `Narrative ${document?.writer_status} · an explicit writing run is required.`);
+    : 'Writing is paused while a replacement is prepared.';
   if (!content.length) {
     if (document?.writer_status && document.writer_status !== 'ready') return `<p class="writer-pending" role="status">${esc(statusMessage)}</p>`;
     return prose(fallback);
@@ -215,24 +215,6 @@ async function api(url, options) {
   if (!response.ok) { const error=new Error(result.error || 'The chronicle could not complete that request.'); error.status=response.status; throw error; }
   return result;
 }
-function editorialPreview(state) {
-  const saved = Object.entries(state || {}).find(([key]) => key.startsWith('writer_preview:') && !key.endsWith(':claimed'));
-  if (!saved) return '';
-  let preview;
-  try { preview = JSON.parse(saved[1]); } catch { return ''; }
-  const usage = preview.usage || {};
-  return `<section class="editorial-preview"><h3>Writing preview</h3><p class="muted">Editorial test only. These entries have not been added to campaign history.</p><p>${esc(preview.model || '')} · ${esc(preview.effort || '')} · ${esc(preview.status)} · ${Number(usage.requests_attempted) || 0} requests · ${Number(usage.input_tokens) || 0} input / ${Number(usage.output_tokens) || 0} output tokens · ${Number(usage.cached_input_tokens) || 0} cached input tokens</p>${preview.message ? `<p>${esc(preview.message)}</p>` : ''}${list(preview.entries).map(entry => `<article class="biography"><h4>${esc(entry.label)}</h4>${blocks(entry.document)}</article>`).join('')}</section>`;
-}
-
-function editorialComparison(state) {
-  const saved = Object.entries(state || {}).find(([key]) => key.startsWith('writer_comparison:') && !key.endsWith(':claimed'));
-  if (!saved) return '';
-  let comparison;
-  try { comparison = JSON.parse(saved[1]); } catch { return ''; }
-  const usage = comparison.usage || {};
-  return `<section class="editorial-comparison"><h3>Writing comparison</h3><p class="muted">Three matched cases, two versions each. These are editorial samples, outside campaign history. A/B order is independently shuffled for each case. Judge each pair on its own.</p><p>${esc(comparison.model)} · ${esc(comparison.effort)} · ${esc(comparison.status)} · ${Number(usage.requests_attempted) || 0} requests · ${Number(usage.input_tokens) || 0} input / ${Number(usage.output_tokens) || 0} output tokens · ${Number(usage.cached_input_tokens) || 0} cached input tokens</p><p>Look for an evocative picture, meaningful detail, the subject's identity, natural voice and a developed consequence. Both versions receive the same evidence.</p>${list(comparison.cases).map(item => `<section class="comparison-case"><h4>${esc(item.label)}</h4><details class="evidence"><summary>Shared evidence</summary><pre>${esc(JSON.stringify(item.evidence,null,2))}</pre></details><div class="comparison-pair">${list(item.entries).map(entry => `<article class="biography"><h4>${esc(entry.label)}</h4>${blocks(entry.document)}</article>`).join('')}</div></section>`).join('')}</section>`;
-}
-
 function campaignAccount(document) {
   return document?.writer_status === 'ready' ? `<section class="biography"><h3>Campaign account</h3><div class="eyebrow">Generated inference</div>${blocks(document)}${evidence(document.evidence,document)}</section>` : '';
 }
@@ -268,7 +250,7 @@ async function refreshDashboard(preserve = true) {
     data.campaignEvents = list(ledger.events);
     fightersCache = Array.isArray(data.fighters) ? data.fighters : null;
     if (currentDetail) await openDetail(currentDetail.type, currentDetail.id, true);
-    else if (activeView !== 'workshop') await render(activeView, true);
+    else await render(activeView, true);
     restoreUi(saved);
   } finally { refreshing = false; }
 }
@@ -650,10 +632,7 @@ async function render(view, preserveScroll = false) {
   activeView = view === 'people' ? 'fighters' : view;
   currentDetail = null;
   app.dataset.view=activeView;
-  if(activeView!=='retrieval' && location.hash==='#retrieval')history.replaceState(null,'',location.pathname+location.search);
   document.querySelectorAll('nav button').forEach(button => button.classList.toggle('active', button.dataset.view === activeView));
-  if (activeView === 'retrieval') { location.hash='retrieval'; await window.NCCERetrieval.open(app,api); return; }
-  if (activeView === 'workshop') { await window.NCCEWorkshop.open(app,api,blocks); return; }
   if (activeView === 'fighters') {
     if (!fightersCache) app.innerHTML = '<div class="loading-state" role="status">Opening fighter records…</div>';
     await ensureFighters();
@@ -678,20 +657,8 @@ async function render(view, preserveScroll = false) {
     app.innerHTML = `<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored stories, preserved in their own words.</p>${NCCEArchive.browser('archive',archiveStoryRecords)}`;
   }
   else if (activeView === 'system') {
-    const territoryRun = await api('/api/territory-writer-runs/latest').catch(() => null);
-    const plan = territoryRun?.plan || {};
-    const runStatus = territoryRun?.status || 'unavailable';
-    const runUsed = Boolean(territoryRun?.used);
-    const runLive = ['queued','running'].includes(runStatus);
-    const runCounts = territoryRun?.summary || {};
-    const usage = territoryRun?.request_usage || {};
-    const territorySummary = territoryRun ? runStatus === 'complete'
-      ? `Finished: ${runCounts.writer?.requests_succeeded ?? usage.succeeded ?? 0} successful requests, ${runCounts.writer?.requests_failed ?? usage.failed ?? 0} failed; ${usage.input_tokens || 0} input and ${usage.output_tokens || 0} output tokens. ${JSON.stringify(runCounts.status_counts || {})}`
-      : runStatus === 'error' ? `Run ended: ${territoryRun.error || 'see writer status'}. ${usage.requests || 0} requests recorded.`
-      : runLive ? `Writing is running: ${usage.requests || 0} requests recorded so far.`
-      : `Ready to write ${plan.entries_targeted || 0} territory entries across ${plan.territories || 0} places: origins, histories, and event accounts. One attempt per entry; fighters, gangs, battles, and authored material are excluded.`
-      : 'Could not read territory writer status.';
-    app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2>${editorialComparison(data.state)}${editorialPreview(data.state)}<section class="card writer-check"><div><strong>One-time territory writing pass</strong><p class="muted compact">${esc(territorySummary)}</p></div><button data-territory-writer="true"${!data.writer?.configured || runUsed || runLive ? ' disabled' : ''}>${runUsed ? runStatus === 'complete' ? 'Territory pass complete' : runLive ? 'Territory pass running…' : 'Territory pass already used' : 'Write all territory entries once'}</button><div class="territory-writer-status" role="status">${esc(territoryRun?.error || '')}</div></section><section class="card system-state"><div class="row"><span>Writing provider</span><span class="muted">${esc(data.writer?.status || 'unknown')}${data.writer?.model ? ' · '+esc(data.writer.model) : ''}</span></div>${data.writer?.configured ? `<div class="row"><span>Model calls this refresh</span><span class="muted">${esc(data.writer.calls_used)} / ${esc(data.writer.call_budget)}</span></div>` : ''}${Object.entries(data.state).filter(([key]) => !key.startsWith('writer_preview:') && !key.startsWith('writer_comparison:')).map(([key, value]) => `<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(value)}</span></div>`).join('')}</section>`;
+    const systemKeys=['engine_version','schema_version','baseline','last_sync','sync_status','sync_last_success','sync_last_error','source_mode'];
+    app.innerHTML = `<div class="eyebrow">Engine record</div><h2>System</h2><section class="card"><h3>Writing paused</h3><p>The previous writing system has been removed. Existing prose and campaign records are preserved. Sheet updates and the campaign timeline continue.</p></section><section class="card system-state">${systemKeys.filter(key=>data.state[key]!=null).map(key=>`<div class="row"><span>${esc(human(key))}</span><span class="muted">${esc(data.state[key])}</span></div>`).join('')}</section>`;
   }
   if (!preserveScroll) window.scrollTo(0, 0);
 }
@@ -700,13 +667,13 @@ function fighterEvidence(f) {
 }
 function memoryCard(memory) {
   const type = memory.memory_type === 'reflection' ? 'Reflection' : 'Observation';
-  const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(memory.writer_message || (memory.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${memory.writer_status} · ${memory.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'an explicit writing run is required.'}`))}</p>` : '';
+  const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(memory.writer_message || (memory.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${memory.writer_status} · ${memory.writer_status === 'unconfigured' ? 'writing is paused.' : 'writing is paused.'}`))}</p>` : '';
   return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${dateStamp(memory)}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}${status}<div class="memory-voice">${writtenProse(memory.content,memory.content_runs)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
 }
 function mindCard(thought) {
   const memoryId = thought.memory_id || thought.id;
   const label = thought.label || thought.title || thought.name || list(thought.tags)[0] || 'Current concern';
-  const status = thought.writer_status && thought.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(thought.writer_message || (thought.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${thought.writer_status} · ${thought.writer_status === 'unconfigured' ? 'configure the server-side writing provider.' : 'an explicit writing run is required.'}`))}</p>` : '';
+  const status = thought.writer_status && thought.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(thought.writer_message || (thought.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${thought.writer_status} · ${thought.writer_status === 'unconfigured' ? 'writing is paused.' : 'writing is paused.'}`))}</p>` : '';
   return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div>${status}<div class="thought">${writtenProse(thought.content || thought.thought,thought.content_runs)}</div>${evidence(thought.evidence || [], thought, true)}${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
 }
 function voiceDetails(profile) {
@@ -779,33 +746,20 @@ function placeRecordSections(t, related) {
     {id:'baseline',label:'Description',description:'What this place is: its setting and established background.',paper:true,body:narrative(t.backstory,t.backstory_source || 'inference',t.evidence || [`Current holder: ${short(t.gang_name)}`,`Card: ${t.card || 'Not recorded'}`],t)},
     {id:'history',label:'History',description:'A chronological account connecting this place’s recorded campaign developments. Generated interpretation, grounded in the cited events.',paper:true,paperLabel:'CAMPAIGN HISTORY',body:historyView?blocks(historyView)+evidence(history.evidence || [],history):empty('No territory history has been written yet.')},
     {id:'events',label:'Events',count:events.length,description:'Individual accounts of recorded territory changes, most recent first. These interpret campaign facts; they are separate from fictional local scenes.',body:entityTimeline(events,[])},
-    {id:'scenes',label:'Scenes',count:scenes.length,description:'Invented local incidents and atmosphere. These do not establish battles, casualties, income, ownership changes or other tabletop effects.',body:scenes.length?entityTimeline(scenes,[]):empty('No local scenes yet. Populate Territory scenes in Writer Workshop for a one-off pass, or enable its separate listener for future recorded territory events.')},
+    {id:'scenes',label:'Scenes',count:scenes.length,description:'Invented local incidents and atmosphere. These do not establish battles, casualties, income, ownership changes or other tabletop effects.',body:scenes.length?entityTimeline(scenes,[]):empty('No local scenes have been written.')},
     {id:'battles',label:'Battles',count:related.length,description:'Recorded engagements associated with this territory.',body:related.map(b=>battle(b)).join('') || empty('No battle over this territory is recorded.')}
   ];
 }
 async function showFighter(id, preserveScroll = false) {
   const token = ++renderToken, f = await api('/api/fighters/' + encodeURIComponent(id));
   if (token !== renderToken) return;
-  const isMara = f.name === 'Mara Kel' && /C-NINE story/i.test(String(f.backstory_source || ''));
-  let maraWriterRun = null, writerDiagnostic = null;
-  if (isMara) {
-    [maraWriterRun, writerDiagnostic] = await Promise.all([
-      api('/api/writer-runs/mara-latest').catch(() => null),
-      api('/api/writer-diagnostic').catch(() => null)
-    ]);
-  }
-  if (token !== renderToken) return;
   currentDetail = {type: 'fighter', id};
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const mind = Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead').slice(0, 4);
   const deceased = /killed|dead/i.test(f.status || '');
-  const maraWriterPending = ['queued','running'].includes(maraWriterRun?.status) || Boolean(sessionStorage.getItem('ncce-mara-writer-check') && !maraWriterRun);
-  const maraWriterCanStart = (!maraWriterRun && !maraWriterPending) || maraWriterRun?.can_retry === true || maraWriterRun?.can_final_run === true || maraWriterRun?.can_medium_run === true;
-  const maraWriterCheck = isMara
-    ? `<section class="writer-check"><div><strong>Mara-only writer run</strong><p class="muted compact">This final sample uses medium reasoning effort and at most 5 model requests. It regenerates only Mara’s generated memories and reflection. Her player-authored biography is preserved; other fighters and campaign reports are untouched. Any entries not reached within the five calls keep their previous draft.</p></div><button data-writer-check="${esc(f.id)}"${maraWriterCanStart ? '' : ' disabled'}>${maraWriterRun?.can_medium_run ? 'Try Mara at medium effort (5 calls)' : maraWriterRun?.can_final_run ? 'Regenerate Mara’s memories' : maraWriterRun?.can_retry ? 'Run revised Mara check' : maraWriterRun?.status === 'complete' ? 'Mara check complete' : maraWriterRun?.status === 'error' ? 'Mara check ended with an error' : maraWriterPending ? 'Mara check is running' : 'Test the writer on Mara'}</button><div class="writer-check-status" role="status">${maraWriterRun ? writerRunMarkup(maraWriterRun) : ''}</div><hr><div><strong>One-call diagnostic</strong><p class="muted compact">Asks for one injury memory with a larger output allowance; displays the response and API completion details. Does not save prose to the campaign or change Mara’s record.</p></div><button data-writer-diagnostic="true"${writerDiagnostic?.used ? ' disabled' : ''}>${writerDiagnostic?.used ? 'Diagnostic used' : 'Ask the writer for one sample'}</button><div class="writer-diagnostic-status" role="status">${writerDiagnostic?.used ? writerDiagnosticMarkup(writerDiagnostic) : ''}</div></section>` : '';
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
     fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills]],
-    sections:fighterRecordSections(f,memories,mind,deceased),sourceBody:`${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}${maraWriterCheck}${list(f.events).length?`<details data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e=>`<p><strong>${esc(e.title || human(e.event_type))}</strong><br>${esc(e.detail)}</p>`).join('')}</details>`:''}`});
+    sections:fighterRecordSections(f,memories,mind,deceased),sourceBody:`${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}${list(f.events).length?`<details data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e=>`<p><strong>${esc(e.title || human(e.event_type))}</strong><br>${esc(e.detail)}</p>`).join('')}</details>`:''}`});
   if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
 }
 async function showGang(id, preserveScroll = false) {
@@ -884,71 +838,11 @@ app.addEventListener('click', event => {
   if (target.dataset.battle) task = showBattle(target.dataset.battle);
   if (target.dataset.archive) task = showArchive(target.dataset.archive);
   if (target.dataset.back) task = render(target.dataset.back);
-  if (target.dataset.writerCheck) task = runMaraWriterCheck(target);
-  if (target.dataset.writerDiagnostic) task = runWriterDiagnostic(target);
-  if (target.dataset.territoryWriter) task = runTerritoryWriter(target);
   if (target.dataset.clear) { filters[target.dataset.clear] = {...defaults[target.dataset.clear]}; task = render(target.dataset.clear); }
   if (target.dataset.gangFilter) { filters.fighters.gang = target.dataset.gangFilter; task = render('fighters'); }
   if (target.hasAttribute('data-retry')) task = refreshDashboard(false);
   if (task?.catch) task.catch(handleError);
 });
-function writerRunMarkup(run) {
-  const use=run.request_usage || {}, summary=run.writer || {};
-  const ledger=(use.records||[]).map(r=>`<li><strong>${esc(r.form)}</strong> · ${esc(r.subject_name||'Mara Kel')} · ${esc(r.status)} · ${Number(r.input_tokens)||0} in / ${Number(r.output_tokens)||0} out tokens<br><small>API request: ${esc(r.request_id||'unavailable')} · response: ${esc(r.response_id||'unavailable')}</small>${r.error_text?`<br><small>${esc(r.error_text)}</small>`:''}</li>`).join('');
-  const live=['queued','running'].includes(run.status);
-  const limit=Number(run.call_limit)||13, effort=run.reasoning_effort ? ` · ${esc(run.reasoning_effort)} reasoning` : '';
-  const headline=live ? `Mara only${effort} · ${use.requests||0} of ${limit} model requests attempted so far.` : run.status==='error' ? `Writer check stopped: ${esc(run.error || 'see error status')}. ${use.requests||0} requests recorded.` : `Finished for Mara${effort}: ${summary.requests_succeeded ?? use.succeeded ?? 0} successful requests, ${summary.cache_hits || 0} cached entries, ${summary.requests_failed ?? use.failed ?? 0} failed requests; ${use.input_tokens||0} input and ${use.output_tokens||0} output tokens. No other records were processed.`;
-  const emptyLedger=live ? 'Request identifiers and results are saved when this run finishes.' : 'No provider requests were needed.';
-  return `<p>${headline}</p><details class="writer-ledger"><summary>Request ledger · ${use.requests||0} provider calls</summary><ol>${ledger||`<li>${emptyLedger}</li>`}</ol></details>`;
-}
-async function runMaraWriterCheck(button) {
-  const id=button.dataset.writerCheck, status=button.parentElement.querySelector('.writer-check-status');
-  button.disabled=true; status.textContent='Starting the authorized Mara-only writer run…';
-  try {
-    const started=await api(`/api/fighters/${encodeURIComponent(id)}/write-check`,{method:'POST'});
-    sessionStorage.setItem('ncce-mara-writer-check',started.run_id);
-    let run;
-    while (true) {
-      await new Promise(resolve=>setTimeout(resolve,2000));
-      run=await api(`/api/writer-runs/${encodeURIComponent(started.run_id)}`);
-      status.innerHTML=writerRunMarkup(run);
-      if (run.status==='complete' || run.status==='error') break;
-    }
-    await showFighter(id,true);
-  } catch (error) { status.textContent=error.message; button.disabled=false; }
-}
-function writerDiagnosticMarkup(result) {
-  const details=result.response || {};
-  const metadata=`${esc(details.status || 'no response status')} · ${Number(details.input_tokens)||0} input / ${Number(details.output_tokens)||0} output tokens · ${Number(details.reasoning_tokens)||0} reasoning tokens · incomplete: ${esc(details.incomplete_reason || 'none')} · output types: ${esc((details.output_types || []).join(', ') || 'none')} · request ${esc(details.request_id || 'unavailable')} · response ${esc(details.response_id || 'unavailable')}`;
-  return `<p><strong>${result.status === 'succeeded' ? 'Writer sample' : 'Diagnostic result'}</strong></p>${result.text ? `<blockquote>${esc(result.text)}</blockquote>` : `<p>${esc(result.error || 'No prose was returned.')}</p>`}<small>${metadata}</small>`;
-}
-async function runWriterDiagnostic(button) {
-  const status=button.parentElement.querySelector('.writer-diagnostic-status');
-  button.disabled=true; status.textContent='Sending one isolated writer prompt…';
-  try { const result=await api('/api/writer-diagnostic',{method:'POST'}); status.innerHTML=writerDiagnosticMarkup(result); button.textContent='Diagnostic used'; }
-  catch (error) { status.textContent=error.message; if (!/already been used/i.test(error.message)) button.disabled=false; }
-}
-async function runTerritoryWriter(button) {
-  const status = button.parentElement.querySelector('.territory-writer-status');
-  button.disabled = true; status.textContent = 'Starting the one-time territory-only writer pass…';
-  try {
-    await api('/api/territory-writer-runs', {method:'POST'});
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const run = await api('/api/territory-writer-runs/latest');
-      const use = run.request_usage || {}, result = run.summary || {};
-      if (run.status === 'complete') {
-        const counts = result.status_counts || {};
-        status.textContent = `Complete · ${result.writer?.requests_succeeded ?? use.succeeded ?? 0} successful, ${result.writer?.requests_failed ?? use.failed ?? 0} failed · ${use.input_tokens || 0} input / ${use.output_tokens || 0} output tokens · ${Object.entries(counts).map(([key,value])=>`${key}: ${value}`).join(', ')}`;
-        break;
-      }
-      if (run.status === 'error') { status.textContent = `Stopped · ${run.error || 'writer run failed'} · ${use.requests || 0} provider requests.`; break; }
-      status.textContent = `Writing territory entries · ${use.requests || 0} provider requests so far.`;
-    }
-    await refreshDashboard();
-    await render('system', true);
-  } catch (error) { status.textContent = error.message; button.disabled = false; }
-}
 document.querySelectorAll('nav button').forEach(button => button.addEventListener('click', () => render(button.dataset.view).catch(handleError)));
 syncNow.addEventListener('click', async () => {
   syncNow.disabled = true; syncNow.textContent = 'Requesting…';
@@ -964,8 +858,7 @@ async function startApp() {
   if (session.auth_required && !session.authenticated) { location.replace('/login'); return; }
   if (logout) logout.hidden = !session.auth_required;
   await refreshDashboard(false); await refreshStatus();
-  if (initialView === '#retrieval') await render('retrieval');
-  if (initialView === '#workshop') await render('workshop');
+  if (['#retrieval','#workshop'].includes(initialView)) history.replaceState(null,'',location.pathname+location.search);
   setInterval(() => refreshStatus().catch(error => { health.textContent = 'Could not check the latest Sheet refresh'; health.classList.add('has-error'); console.error(error); }), 15000);
 }
 startApp().catch(handleError);

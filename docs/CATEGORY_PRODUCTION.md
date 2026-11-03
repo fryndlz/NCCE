@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # Category population and automatic writing
 
 Owner decisions recorded 3 November 2026. Implemented in the development branch; live verification is tracked in HANDOFF_STATUS.md.

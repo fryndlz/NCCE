@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # Six-call editorial comparison — 0.10.1
 
 The owner approved six calls on 26 October 2026, after rejecting the 0.10.0 pilot. The reported failures were vague suggestion in place of an evocative picture, narrative space devoted to inconsequential details, and a Bone Shrine reduced to a passage/bridge safety problem.

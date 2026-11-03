@@ -50,11 +50,6 @@ assert.ok(dossier.includes('personnel-section-label') && dossier.includes('Works
 assert.ok(dossier.includes('personnel-quote') && dossier.includes('It’s one workshop'));
 assert.ok(dossier.includes('personnel-watermark') && dossier.includes('C9-MK/a4d4'));
 assert.ok(dossier.includes('personnel-system') && dossier.includes('RECORD TERMINATED'));
-assert.ok(app.includes('Test the writer on Mara') && app.includes('Run revised Mara check') && app.includes('Regenerate Mara’s memories') && app.includes('Try Mara at medium effort (5 calls)') && app.includes('at most 5 model requests'));
-assert.ok(app.includes('writer-ledger') && app.includes('r.request_id') && app.includes('r.response_id'));
-assert.ok(app.includes("/api/writer-runs/mara-latest") && app.includes('writerRunMarkup(run)'));
-assert.ok(app.includes('of ${limit} model requests attempted so far') && app.includes('innerHTML=writerRunMarkup(run)'));
-assert.ok(app.includes('/api/writer-diagnostic') && app.includes('Ask the writer for one sample') && app.includes('writerDiagnosticMarkup'));
 context.profile = {name:'crew / workshop',traits:['practical'],evidence:['Authored maintenance cues'],writer_context:{
   identity:{},inferred_identity:[{label:'Authored work or craft',value:'maintenance fitter',source:'player_authored',basis:'Named in Backstory'}],
   stim_weights:[{topic:'injury',weight:1.3,basis:['voice tendency: enduring']}]
@@ -70,11 +65,7 @@ assert.ok(editor.includes('Correct or add an explicitly known detail'));
 context.staleMemory = {id:'memory',memory_type:'observation',writer_status:'stale',title:'Condition changed',content:'The hurt makes the next shift uncertain.',evidence:['Status changed']};
 assert.ok(run('memoryCard(staleMemory)').includes('Earlier draft retained'));
 const server = fs.readFileSync('src/server.py','utf8');
-assert.ok(server.includes("p=='/api/writer-runs/mara-latest'") && server.includes('requests_attempted'));
-assert.ok(server.includes("p=='/api/writer-diagnostic'") && server.includes("'writer_diagnostic_used'"));
-assert.ok(server.includes("'can_final_run':can_final_run") && server.includes("'can_medium_run':can_medium_run") && server.includes("'mara_writer_check_medium_used'") && server.includes("reasoning_effort='medium'"));
-assert.equal((server.match(/^import llm_writer$/gm)||[]).length,1,'writer module is imported once at module scope so every API route can read its run summary');
-console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, inferred identity/stims, stale drafts, formatted dossier, persistent Mara result and live usage ledger)');
+console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, inferred identity/stims, stale drafts, formatted dossier, retired writing controls)');
 
 // New documents keep application dates outside the diegetic header and escape composition.
 context.composed={document_type:'survey_note', reference:'NC/PREVIEW/1', writer_status:'ready',
@@ -87,17 +78,5 @@ assert.match(composed,/&lt;script&gt;unsafe&lt;\/script&gt;/);
 const diegeticHeader=composed.slice(composed.indexOf('<header'),composed.indexOf('</header>'));
 assert.match(diegeticHeader,/9\.815\.998\.M41/);
 assert.doesNotMatch(diegeticHeader,/2026|District compiler|generated inference/);
-context.previewState={'writer_preview:test:claimed':'1','writer_preview:test':JSON.stringify({status:'complete',usage:{requests_attempted:4,cached_input_tokens:100},entries:[{label:'Hypothetical test',document:context.composed}]})};
-vm.runInContext(app.slice(app.indexOf('function editorialPreview('),app.indexOf('function captureUi(')),context);
-const preview=run('editorialPreview(previewState)');
-assert.match(preview,/not been added to campaign history/);
-assert.match(preview,/4 requests/);
-assert.match(preview,/Hypothetical test/);
-assert.doesNotMatch(preview,/<script>/);
-context.comparisonState={'writer_comparison:test:claimed':'1','writer_comparison:test':JSON.stringify({status:'complete',model:'same model',effort:'low',usage:{requests_attempted:6},cases:[{label:'Matched case',evidence:['<unsafe>'],entries:[{label:'Version A',document:context.composed},{label:'Version B',document:context.composed}]}]})};
-const comparison=run('editorialComparison(comparisonState)');
-assert.match(comparison,/6 requests/);
-assert.match(comparison,/Version A/);
-assert.match(comparison,/Version B/);
-assert.match(comparison,/independently shuffled/);
-assert.doesNotMatch(comparison,/<unsafe>|<script>|candidate|narrative-contract/);
+
+assert.ok(!app.includes('/api/workshop') && !app.includes('data-writer-check'));

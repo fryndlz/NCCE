@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.23.0 — Remove the previous writing ecosystem
+
+**Implemented:** 2026-11-03 22:40 UTC / 23:40 CET.
+
+- Removed Writer Workshop and Writing context navigation, assets, controls and endpoints; removed RAG, JKSimmons/StoryTechMan review/repair jobs, native authoring, category production/population and legacy diagnostic/generation runs.
+- Removed local worker/bridge launchers and installed NCCE backlog-writing skill. No helper process was running at removal.
+- Removed provider transport. Old keys, auto-write flags and enable calls cannot start generation. Missing prose is paused while the replacement is designed.
+- Preserved authored/generated prose, mechanical data, timeline, memory/mind causes and original provenance. The timeline implementation is byte-for-byte unchanged.
+- Added verified pre-retirement SQLite backup, transactional cancellation of unfinished work, disabled policies, durable idempotent audit and filtering of private retired dashboard state. Historical draft/usage/reference documents remain inert for recovery/audit; keys are not revoked at the provider.
+- Updated current design/README and labelled retired specs. Replaced obsolete feature tests with retirement/preservation/HTTP checks; all remaining Python and JavaScript regression scripts pass without paid calls.
+- Deployment verification is recorded separately once live.
+
 ## 0.22.0 - native Codex backlog writing (2026-11-03)
 
 - Expand the installed NCCE writing skill to all 15 prose forms with category-specific guidance, dependency ordering and persistent owner corrections.

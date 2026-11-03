@@ -78,23 +78,9 @@ def test_ambient_is_bounded_persistent_fiction_with_historical_owner():
         tid=store.dashboard()['territories'][0]['id']; records=mechanical_records(store)
         gangs=store.dashboard()['gangs']; territories=store.dashboard()['territories']
         import llm_writer
-        old_key,old_call=llm_writer.API_KEY,llm_writer._call
-        llm_writer.API_KEY='mock-token'; llm_writer._call=lambda form,packet:['Residents keep the old notice beside the new one.']
-        try:
-            with store.db:
-                assert maybe_ambient(store,gangs,territories,at='2026-10-25T12:00:00+00:00',chance=1,limit=2)==1
-                assert maybe_ambient(store,gangs,territories,at='2026-10-25T13:00:00+00:00',chance=1,limit=2)==0
-        finally: llm_writer.API_KEY=old_key; llm_writer._call=old_call
-        ambient=read_stream(store,'territory',tid)[0]
-        assert ambient['provenance_class']=='connective_fiction' and not ambient['source_event_ids']
-        assert 'fiction composed' in ambient['date_display']['realDisplay']
-        after=deepcopy(before); after['captured_at']='2026-10-26T12:00:00Z'; after['territories'][0].update({'Gang ID':'g3','Gang':KLY}); apply(store,after)
-        retained=next(x for x in read_stream(store,'territory',tid) if x['entry_id']==ambient['entry_id'])
-        assert C9 in str(retained['document']['evidence']) and KLY not in str(retained['document']['evidence'])
-        # Ambient never creates a factual event or source snapshot.
-        assert len(records[0])+1==len(mechanical_records(store)[0])
-        with store.db:
-            assert maybe_ambient(store,store.dashboard()['gangs'],store.dashboard()['territories'],at='2026-10-26T12:00:00+00:00',chance=1)==0
+        assert maybe_ambient(store,gangs,territories,at='2026-10-25T12:00:00+00:00',chance=1,limit=2)==0
+        assert mechanical_records(store)==records
+
     _with_store(check)
 
 
@@ -109,7 +95,7 @@ def test_identity_is_authored_persistent_and_changes_only_derived_voice():
         assert all(x['writer_context']['identity'].get('work')==['scout'] for x in result['memories'])
         assert all('player:writer-identities' in x['source_ids'] for x in result['memories'])
         assert all('XP' not in x['content'] for x in result['memories'])
-        assert result['memories'] and all(x['writer_status']=='unconfigured' and x['content']=='' for x in result['memories'])
+        assert result['memories'] and all(x['writer_status']=='paused' and x['content']=='' for x in result['memories'])
         assert store.db.execute('SELECT count(*) FROM writer_identity_revisions').fetchone()[0]==1
         assert records==mechanical_records(store)
     _with_store(check)

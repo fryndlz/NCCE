@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # Writer Workshop — NCCE 0.11.0
 
 ## Purpose and editorial workflow

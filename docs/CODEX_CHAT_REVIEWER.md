@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # JKSimmons native chat queue worker
 
 The owner authorized connecting this actual Codex chat to NCCE's Workshop. Run only in chat `01a17f57-f5bb-7782-bce0-8b3b43dd367f`. This supersedes the failed independent stdio transport. Do not launch another model or server. A lightweight local listener uses the documented codex queue command to wake this same chat only when an actual review job exists. It preserves the chat context and makes no idle model calls. The former five-minute automation is PAUSED. Read private JKSIMMONS.md, WORKING_AGREEMENT.md, PERSONA.md and feedback.jsonl under `C:\Codex\NCCE\.reviewer-context` before reviewing; explicit owner corrections take precedence over inferred preferences. Keep durable standards there when the owner corrects you.

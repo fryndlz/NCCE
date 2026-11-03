@@ -90,25 +90,6 @@ def test_malformed_correction_cycle_is_order_independent():
     assert build(records,fake,1)['ordered_event_ids']==['b']
     assert build(list(reversed(records)),fake,1)['ordered_event_ids']==['b']
 
-def test_three_roles_receive_the_same_versioned_cognitive_policy():
-    import llm_writer, codex_review_queue as queue
-    from fighter_event_clock import policy
-    packet=llm_writer.memory_packet(None,fighter(),{'name':'Gang'},'A thought',['A recorded cause.'],{},form='fighter_mind')
-    assert packet['cognitive_design']==policy()
-    def check(store):
-        job_id=queue.enqueue(store,{'run_id':'test','form':'fighter_mind','rounds':[]},
-                             {'instructions':'One current thought.','packet':packet,'candidates':[]},[],{},'Test rubric')
-        payload=json.loads(store.db.execute('SELECT payload_json FROM codex_review_jobs WHERE job_id=?',(job_id,)).fetchone()[0])
-        assert payload['cognitive_design']==policy() and payload['packet']['cognitive_design']==policy()
-        import workshop_interventions as tech
-        from unittest.mock import patch
-        state={'run_id':'test','form':'fighter_mind','status':'escalated','message':'Test only',
-               'configuration':{},'shared':{},'specific':{},'rounds':[]}
-        with patch.object(tech,'save'):
-            tech.submit(store,state,'technical_investigation')
-        job=json.loads(store.db.execute('SELECT payload_json FROM codex_review_jobs WHERE job_id=?',(state['tech']['job_id'],)).fetchone()[0])
-        assert job['packet']['cognitive_design']==policy()
-    with_store(check)
 
 if __name__=='__main__':
     for name,fn in list(globals().items()):

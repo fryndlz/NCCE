@@ -6,7 +6,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'src'),str(ROOT/'tests')]
 from test_writer_pipeline import with_store
 from test_story_engine import campaign,latest_game,apply
-import fighter_mind as mind, llm_writer as writer, writer_workshop as ws
+import fighter_mind as mind, llm_writer as writer
 from story_engine import read_memories,document_for
 
 AT='2026-10-28T12:00:00+00:00'
@@ -60,27 +60,6 @@ def test_condition_resolves_death_clears_and_calendar_never_expires_thoughts():
         assert mind.candidates({**f,'status':'Active'},[new],'2099-11-10T12:00:00+00:00') == mind.candidates({**f,'status':'Active'},[new],AT)
     with_store(check)
 
-def test_workshop_reflection_matches_production_packet_and_mind_is_selectable():
-    def check(store):
-        before=campaign();apply(store,before);apply(store,latest_game(before))
-        source=next(s for s in ws.catalog(store) if s['form']=='fighter_reflection')
-        selected=ws.sample(store,source['key']);ident=source['key'].split(':')[1]
-        row=dict(store.db.execute('SELECT * FROM story_memories WHERE memory_id=?',(ident,)).fetchone())
-        f=dict(store.db.execute('SELECT * FROM fighters WHERE id=?',(row['fighter_id'],)).fetchone())
-        g=dict(store.db.execute('SELECT * FROM gangs WHERE gang_id=?',(f['gang_id'],)).fetchone())
-        refs=[dict(store.db.execute('SELECT * FROM story_memories WHERE memory_id=?',(mid,)).fetchone()) for mid in json.loads(row['source_observation_ids_json'])]
-        for m in refs:
-            for field in ('tags','evidence','source_event_ids'):m[field]=json.loads(m[field+'_json'])
-        expected=writer.memory_packet(store,f,g,row['title'],json.loads(row['evidence_json']),json.loads(row['writer_context_json']),writer.reflection_observations(refs),form='fighter_reflection')
-        assert selected['packet']==expected
-        assert 'event' not in expected and expected['source_observation_ids']
-        assert 'one recorded event only' not in expected['event_boundary']
-        thought=next(s for s in ws.catalog(store) if s['form']=='fighter_mind')
-        sample=ws.sample(store,thought['key'])
-        saved=store.db.execute('SELECT packet_json FROM fighter_thoughts WHERE thought_id=?',(thought['key'].split(':')[1],)).fetchone()
-        assert sample['packet']==json.loads(saved[0]) and sample['packet']['source_memory_ids']
-        assert 'fighter_mind' in ws.home(store)['forms']
-    with_store(check)
 
 def test_ready_biography_remains_stable_and_battle_dates_are_not_import_dates():
     def check(store):

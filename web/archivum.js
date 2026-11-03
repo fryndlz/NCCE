@@ -2,7 +2,7 @@
 // Presentation only. No provider calls, source mutations or timeline hooks.
 window.NCCEArchive = (() => {
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const labels = {chronicle:'Campaign Chronicle',gangs:'Gang records',fighters:'Fighter records',places:'Territorial archive',battles:'Engagement records',archive:'Authored archive',workshop:'Writer Workshop',retrieval:'Writing context',system:'System records'};
+  const labels = {chronicle:'Campaign Chronicle',gangs:'Gang records',fighters:'Fighter records',places:'Territorial archive',battles:'Engagement records',archive:'Authored archive',system:'System records'};
   function browser(view, rows) {
     const kind = {gangs:'gang',fighters:'fighter',places:'territory',battles:'battle',archive:'archive'}[view];
     return `<div class="record-browser"><section class="record-index" aria-label="${escape(labels[view])} index"><div class="index-heading">RECORD INDEX <span>${rows.length}</span></div>${rows.map((r,i)=> {
@@ -20,7 +20,7 @@ window.NCCEArchive = (() => {
     // Move existing rendered evidence, never alter its wording or source data.
     const evidence=outlet.querySelector('.source-evidence');
     outlet.querySelectorAll('.paper-content .voice-profile, .paper-content .identity-editor').forEach(el=>evidence.append(el));
-    outlet.querySelectorAll('.paper-content .evidence, .paper-content .mechanics-fold, .paper-content .authored-source, .paper-content .writer-check, .paper-content .narrative > .eyebrow').forEach(el=>evidence.append(el));
+    outlet.querySelectorAll('.paper-content .evidence, .paper-content .mechanics-fold, .paper-content .authored-source, .paper-content .narrative > .eyebrow').forEach(el=>evidence.append(el));
     outlet.querySelectorAll('.paper-content .writer-pending').forEach(el=>outlet.querySelector('.document-notices').append(el));
     const app=document.querySelector('#app');
     app.querySelectorAll('.record-index-entry').forEach(button=>{
@@ -83,23 +83,10 @@ window.NCCEArchive = (() => {
   toggle.addEventListener('click',()=>{const open=toggle.getAttribute('aria-expanded')!=='true';toggle.setAttribute('aria-expanded',String(open));sidebar.classList.toggle('sections-open',open);});
   document.querySelectorAll('#sectionNav [data-view]').forEach(button=>button.addEventListener('click',()=>{toggle.setAttribute('aria-expanded','false');sidebar.classList.remove('sections-open');}));
   const app=document.querySelector('#app');
-  function deskNavigation() {
-    if(!['workshop','retrieval'].includes(app.dataset.view))return;
-    const desk=app.querySelector('.writer-workshop');
-    if(!desk || desk.querySelector('.desk-navigation'))return;
-    const headings=[...desk.querySelectorAll('h3')].filter(h=>!h.closest('details')).slice(0,8);
-    if(!headings.length)return;
-    const nav=document.createElement('nav');nav.className='desk-navigation';nav.setAttribute('aria-label','Desk sections');
-    nav.innerHTML='<span>DESK INDEX</span>'+headings.map((h,i)=>{h.id='desk-section-'+i;return `<button type="button" data-desk-target="${h.id}">${String(i+1).padStart(2,'0')} / ${escape(h.textContent)}</button>`;}).join('');
-    const title=desk.querySelector('h2');
-    (title || desk.firstElementChild).after(nav);
-  }
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-desk-target]');if(b){const target=document.getElementById(b.dataset.deskTarget);target?.scrollIntoView({block:'start'});target?.setAttribute('tabindex','-1');target?.focus({preventScroll:true});}});
   new MutationObserver(()=>{
     const view=app.dataset.view || 'chronicle';
     document.querySelector('.site-header h1').textContent=labels[view]||'Campaign Chronicle';
     document.querySelectorAll('#sectionNav [data-view]').forEach(button=>{if(button.dataset.view===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
-    deskNavigation();
   }).observe(app,{attributes:true,attributeFilter:['data-view'],childList:true,subtree:true});
   return {browser,present};
 })();

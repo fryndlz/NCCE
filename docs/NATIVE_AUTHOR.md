@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # Direct Codex backlog authorship
 
 The owner requested direct JKSimmons writing across every category, with context, standards, durable batches and approved publication. The installed `ncce-backlog-writer` skill uses the dedicated `/api/native-author/` POST boundary, separately from review queue jobs and JuniorWriter provider calls. Existing private bridge credentials authenticate it; the server further restricts the declared thread to configured JKSimmons. No new secret, schema migration, scheduled model use or changes to Workshop guideline activation are introduced.

@@ -24,7 +24,7 @@ assert.match(outlet.innerHTML,/Authored &lt;source&gt;/);assert.match(outlet.inn
 const paper=outlet.innerHTML.split('class="archive-paper"')[1].split('id="recordSources"')[0];
 assert.ok(!paper.includes('25 October 2026')); // Real dates remain in the source/UI layer.
 const html=fs.readFileSync('web/index.html','utf8');
-for(const view of ['chronicle','gangs','fighters','places','battles','archive','workshop','retrieval','system'])assert.match(html,new RegExp('data-view="'+view+'"'));
+for(const view of ['chronicle','gangs','fighters','places','battles','archive','system'])assert.match(html,new RegExp('data-view="'+view+'"'));
 assert.ok(html.includes('aria-controls="sectionNav"')&&html.includes('archivum.js'));
 const sourceModule=fs.readFileSync('web/archivum.js','utf8');
 assert.ok(!/fetch\(|\/api\/|localStorage|setInterval/.test(sourceModule));

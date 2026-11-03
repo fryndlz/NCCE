@@ -60,10 +60,6 @@ small, .muted { color: var(--muted); }
 .personnel-quote { margin: 14px 0 20px 18px; padding: 2px 0 2px 15px; border-left: 2px solid #9b9b91; color: #d4d3cb; font-style: italic; }
 .personnel-watermark { margin: 24px 0; color: #343b31; text-align: center; font: 700 clamp(1.3rem, 5vw, 2.1rem)/1.3 ui-monospace, 'Courier New', monospace; letter-spacing: .12em; }
 .personnel-system { margin: 3px 0; color: #36bf77; font: .66rem/1.55 ui-monospace, 'Courier New', monospace; letter-spacing: .04em; }
-.writer-check { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 22px; padding: 13px 15px; border-left: 2px solid #c7b680; background: #1b1c17; font-family: var(--sans); }
-.writer-check strong { font-size: .78rem; }
-.writer-check p { flex-basis: 100%; margin: 0; }
-.writer-check-status { color: #b9d1b1; font-size: .76rem; line-height: 1.5; }
 .writer-ledger { flex-basis: 100%; margin-top: .7rem; padding: .6rem; border: 1px solid var(--line); background: var(--panel); }
 .writer-ledger summary { cursor: pointer; color: var(--accent); }
 .writer-ledger ol { display: grid; gap: .65rem; padding-left: 1.2rem; }

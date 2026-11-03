@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # Writing context and retrieval (RAG)
 
 Owner request, 29 October 2026: build retrieval for NCCE writing with full browser visibility and control. No blind A/B experiment or new literary acceptance workflow is part of this feature.

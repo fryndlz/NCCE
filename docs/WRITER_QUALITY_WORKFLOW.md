@@ -1,3 +1,5 @@
+> **Retired in 0.23.0 (3 November 2026).** Historical specification only. This component, its controls, workers and API have been removed. See [Current design](CURRENT_DESIGN.md).
+
 # JuniorWriter / JKSimmons / StoryTechMan development prototype
 
 ## Primary workflow: improve the actual NCCE writing setup

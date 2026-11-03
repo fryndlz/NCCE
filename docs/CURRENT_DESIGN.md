@@ -1,6 +1,6 @@
-# NCCE 0.17.0 — current technical design
+# NCCE 0.23.0 — current technical design
 
-**Implementation:** 0.17.0. **SQLite schema:** 15. This is the current specification, not a list of desired future features. Historical behavior is in Git and CHANGELOG.md. Hosted source/version and verification are recorded in the changelog; an implementation entry is not proof of live deployment.
+**Implementation:** 0.23.0. **SQLite schema:** 15. This is the current specification, not a list of desired future features. Historical behavior is in Git and CHANGELOG.md. Hosted source/version and verification are recorded in the changelog; an implementation entry is not proof of live deployment.
 
 The owner approved fighter-relevant logical time, a half-life of **10 relevant events**, **one step per distinct meaningful change**, and **no fixed expiry**. Calendar-based cognitive decay in 0.16.0 is superseded. The detailed specification, worked examples, paper comparison and executable verification map are in [Fighter event clock](FIGHTER_EVENT_CLOCK.md).
 
@@ -25,25 +25,25 @@ C-NINE is Geothermal Prospect Detail C-9. Its vocabulary is scoped to its contex
 | `fighter_mind.py` | Separate current-thought prose, causes, ranking/families, persistence and resolution/supersession. |
 | `story_prose.py`, `writing_director.py` | Rule-based identity/voice evidence, stimulus weights, dates and semantic document presentation. These helpers are not the live prose provider. |
 | `narrative_context.py` | Authored/accepted context, historical roster boundary, source-backed document packets and chronology. |
-| `llm_writer.py`, `writer_contract.py` | Responses-provider calls, common/form instructions, active Workshop policy, objective validation, cache, budgets, usage and exact request/response audit. |
-| `writer_planning.py`, `territory_reference.py` | Free source/context planning, verified Dominion type references, pinned plans and compact repetition hints. This is literary planning, not autonomous fighter action planning. |
-| `writer_workshop.py`, `workshop_optimizer.py`, `workshop_guidelines.py` | Source samples, one-call trials, immutable edits/revisions, category studies, fresh-context validation and explicit owner activation. |
-| `codex_review_queue.py`, `workshop_interventions.py` | Actual JKSimmons/StoryTechMan job handoffs, saved assessments, scoped investigation/repair/release gates. |
+| `llm_writer.py` | Passive compatibility adapter for stored prose/rich text. No transport, cache replay, RAG, enabled provider or generation. |
+| `writing_retirement.py` | Verified one-time backup, queue cancellation, disabled category policies, private retired-state filtering and durable retirement audit. |
+| `writer_contract.py` | Preserved historical formatting/form reference, not an executing writer. |
+| `territory_reference.py` | Preserved verified Dominion type reference data. No retrieval or literary planning worker. |
 | `world_streams.py` | Source-linked gang/place event accounts and separately marked connective fiction. |
 | `authored_archive.py` | Read-only source-bounded The Prospect and The Deep Answers excerpts. |
 | `seed.py`, `narrative.py` | Initial compatibility seed and legacy templates. Legacy moodlets are not current Mind. |
-| `server.py`, `access.py` | HTTP API, same-origin/auth gates, single writer lock, startup/manual/scheduled read-only sync. |
-| `web/app.js`, `web/writing.js`, `web/workshop.js`, `web/writing_activity.js` | Dossiers, evidence, timeline, date layers, Workshop controls and saved workflow activity. |
+| `server.py`, `access.py` | HTTP API, same-origin/auth gates, retired-route tombstones, startup/manual/scheduled read-only sync. |
+| `web/app.js`, `web/writing.js`, `web/archivum.js` | Dossiers, evidence, timeline, date layers and archival navigation. |
 
 ## 3. Runtime and persistence
 
-Startup opens or seeds the workspace DB, verifies a consistent backup before any schema upgrade, and applies migrations through schema 15. It prepares derived state without paid startup generation when a provider is configured. Startup, scheduled (normally 15-minute) and manual refreshes then use the same read-only Sheet pipeline. The scheduling interval does not advance cognition.
+Startup opens or seeds the workspace DB, verifies a consistent backup before any schema upgrade, and applies migrations through schema 15. Before derived-state preparation, retirement creates a consistent integrity-checked backup beside the configured DB, cancels unfinished legacy writing/review/study jobs and disables category policies in one transaction. A durable marker makes this step idempotent. No prose/source rows are deleted. If backup verification fails, startup fails before retirement changes are committed. Startup, scheduled (normally 15-minute) and manual refreshes then use the same read-only Sheet pipeline. The scheduling interval does not advance cognition.
 
 Snapshots retain original input. Events retain stable identity, subjects, source/occurrence/observation dates and correction links. Missing fighters stay in historical storage; disappearance is not death. Current projections update mechanics and authored inputs. Regeneration is fingerprinted/idempotent; an unchanged import does not create observations or event-steps. Code/context changes may version derived records, but rewriting prose adds no steps.
 
 `story_memories` stores active and superseded observations/reflections with causes and citations. `story_artifacts` stores generated documents. `fighter_thoughts` stores separate current prose, source memory/factual causes, inspectable generation context, writer status and lifecycle. Old `expires_at` values are compatibility data only and are ignored/cleared on refresh. Historical `fighter_events`, `memories`, `moodlets` remain; API `legacy_moodlets` labels the seeded rows, while `moodlets` aliases the current `mind` list.
 
-Ordinary automatic writing remains paused. Supported causes/candidates can exist with pending/error prose. Dossier reads never call the provider. Exact paid requests/responses and usage are retained independently of the current source packet. Ready thoughts and completed generated biographies are retained across ordinary refresh/policy changes; authored content is protected. This release authorizes no bulk generation or policy activation.
+All prose generation is disabled in code, regardless of old environment variables. Missing prose has status `paused`; factual observations and current-thought candidates still form from meaningful events. Existing prose and authored content are retained; accepted memory content/rich text/status and document provenance remain available. Historical request, draft and review tables remain inert for offline audit. The app exposes no writer inspection, mutation or spending controls.
 
 ## 4. Biography, observations and reflection
 
@@ -175,15 +175,13 @@ These are the **28 implemented topic labels**. They are retrieval/display labels
 | retirement | Leaving the line | status | Current condition |
 | reputation | The gang's name | allegiance | Allegiance |
 
-## 9. Writing and Workshop
+## 9. Writing system removed
 
-Fifteen forms include biography, observation (`fighter_memory`), reflection and current thought (`fighter_mind`) as distinct categories. Authored biographies are read-only sources rather than generated replacement samples. Mind samples inspect the stored current source packet before the shared planning pass; reflection samples reconstruct the same cited-observation structure as production. Exact original model prompts are in the request audit, not inferred from a later updated source packet.
+The owner retired Writer Workshop, Writing context/RAG, JKSimmons, StoryTechMan, native authorship, comparison/optimization and category production/population. Their source modules, browser bundles, helper scripts, local launchers and dedicated skill are removed. No reviewer or technical worker is dispatched. No provider request can be made by the compatibility adapter; neither a stored key nor `NCCE_AUTO_WRITE_ENABLED` can restore it.
 
-JuniorWriter receives active common/form instructions and current source context. JKSimmons receives exact candidate instructions/context/drafts, preceding assessments and the versioned cognitive policy. StoryTechMan job packets include that policy and its role instructs it to read current handoff/design documentation. These are future-job delivery guarantees, not claims that persistent chats were proactively notified or have acknowledged a release.
+Legacy `/api/workshop`, `/api/reviewer-bridge`, `/api/native-author`, `/api/writer-runs`, `/api/writer-diagnostic`, `/api/territory-writer-runs` and fighter `write-check` operations return **410 Gone**, including requests bearing an old token. Old Workshop/context browser bookmarks fall back to Chronicle. Prior private state is excluded from dashboard responses. Auth/session and read-only Sheet sync remain.
 
-Shared/form revisions, owner edits and activation pointers persist separately. Category studies test two distinct contexts with fresh drafts, then fresh-entry validation; the real Codex JKSimmons reviews through the configured bridge. Context/technical/permission issues stop the writing loop and enter scoped owner-approved investigation/repair/release. Activation requires owner action. Environment fingerprints include cognition modules so an old study cannot resume across a changed design. No language-model training or automatic policy promotion occurs.
-
-The writer is configured Luna/medium with a 4,000 total response-token allowance; runtime configuration is authoritative. One ordinary entry attempt has no automatic critique/variant loop. Missing credentials/budget, failures and stale retained prose are explicit; paid output/usage is audited even if validation rejects publication. Workshop category studies have their separately authorized multi-draft limits. Cosmetic agent banter is not evidence of model reasoning or progress.
+No replacement writer is implemented. Preserved reference/guardrail documents and historical audit tables are data, not an active RAG pipeline. Historical specifications are labelled retired. No API secret is transmitted or used; this code change does not revoke keys in the provider's account.
 
 ## 10. Other campaign narratives and interface
 
@@ -193,7 +191,7 @@ Gang/place event streams, histories, battle/downtime/relationship reports retain
 
 The Chronicle timeline reads MUNDA activity/battles/sessions independently, joins sessions by exact battle ID, groups bounded Battle/Downtime activity and supports filters, zoom, clustering and Ctrl-drag. Complete session unions determine engagement duration. Dates/durations are display/history data, not cognitive decay. Detailed archive events are not yet automatically converted into all fighter observations; pre-baseline experience coverage is incomplete and this clock cannot reconstruct missing facts.
 
-Navigation: Chronicle, Gangs, Fighters, Places, Battles, Archive, Writer Workshop, System. Dossiers separate authored/generated narrative from mechanical evidence. Imperial dates are display projections; source timestamps remain in data. Search/filtering and retrieval explanations remain available. Shared-passphrase auth protects campaign/Workshop APIs; mutations require same-origin JSON and writer-pipeline gates. Separate viewer/editor accounts are not implemented.
+Navigation: Chronicle, Gangs, Fighters, Places, Battles, Archive, System. Dossiers separate authored/generated narrative from mechanical evidence. Imperial dates are display projections; source timestamps remain in data. Search/filtering and retrieval explanations remain available. Shared-passphrase auth protects campaign APIs; identity corrections retain their same-origin check. Separate viewer/editor accounts are not implemented.
 
 ## 11. White-paper alignment and implementation limits
 
@@ -203,14 +201,14 @@ The clock measures available supported experiences, not an exhaustive record of 
 
 ## 12. Verification contract
 
-Every approved numerical rule has executable coverage: `test_fighter_event_clock.py` covers 10-step half-life, idle-time invariance, fighter scope, duplicates, corrections, distinct same-import changes, derived-entry exclusion and formation anchors. `test_fighter_mind.py` covers independent prose, ready-only display, persistence/reuse, resolution, no calendar expiry, stable biographies and production/Workshop reflection context. Existing writer/planner/optimizer/bridge/auth/UI suites cover budgets, source integrity, owner gates and rendering. Disposable authenticated HTTP checks exercise the actual app with read-only live Sheet input and no paid writer work.
+Every approved numerical rule has executable coverage: `test_fighter_event_clock.py` covers 10-step half-life, idle-time invariance, fighter scope, duplicates, corrections, distinct same-import changes, derived-entry exclusion and formation anchors. `test_fighter_mind.py` covers independent prose, ready-only display, persistence/reuse, resolution, no calendar expiry, stable biographies. Retirement tests cover queue cancellation, verified backup, idempotence, no provider transport, retained prose and dead legacy endpoints. Core/auth/UI suites cover source integrity and rendering. Disposable authenticated HTTP checks exercise the actual app with read-only live Sheet input and no paid writer work.
 
 Hosted verification and commits are in CHANGELOG.md and HANDOFF_STATUS.md. This design describes source behavior; a release is called live only after Render and workload verification. Future changes must update this document and the executable contract, not merely add an amendment over a contradictory old rule.
 
 ## Frontend presentation — 3 November 2026
 
 The archival sidebar, index/preview navigation, document/source layers, neutral
-stamps, responsive behaviour and Workshop/Writing context desk indexes are
+stamps and responsive behaviour are
 specified in [Archival frontend](FRONTEND_ARCHIVUM.md). This is presentation only:
 the event engine, authority hierarchy and protected timeline implementation are
 unchanged. The linked document lists exact ownership boundaries and verification.

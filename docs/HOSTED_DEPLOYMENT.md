@@ -32,7 +32,7 @@ The existing Python engine runs on the host and reads Krakamunda without writing
 | Sheet refresh | startup, every 900 seconds while running, and manual request |
 | Campaign access | shared passphrase; signed session; secure cookies behind HTTPS |
 
-The existing service displays `On Commit`, but its source is configured as a public Git repository URL rather than a linked Git provider; Render requires manual deploys for this source type. After pushing an app change, deploy the latest commit from the existing NCCE Render service, then check `/healthz` for the intended version and verify a protected campaign API returns 401 without a session. Do not create another site/service or ZIP for an iteration.
+The existing service deploys the main branch on commit (verified 3 November 2026). After pushing an app change, inspect the latest deployment, check `/healthz` for the intended version, and verify protected campaign APIs still require authentication. Do not create another site/service or ZIP for an iteration. Version 0.23.0 removes all old writer/reviewer/RAG execution paths; stored writer credentials are unused. Retirement preserves a verified pre-change backup beside the disk database.
 
 ## Invite access and secrets
 
