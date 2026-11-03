@@ -15,10 +15,10 @@ window.NCCEWorkshop = (() => {
     if(!S.population && history.runs.length)S.population=history.runs[0];
     if(populating())setTimeout(pollPopulation,1500);
   }
-  async function loadProduction(){S.production=await request('/api/workshop/production');}
+  async function loadProduction(){const before=JSON.stringify([S.production?.policies,S.production?.items]);S.production=await request('/api/workshop/production');return before!==JSON.stringify([S.production.policies,S.production.items]);}
   async function pollProduction(ticket){
     if(ticket!==S.productionPoll || !visible())return;
-    try{await loadProduction();paint();}catch(error){S.productionError='Automatic-writing status could not refresh. Existing jobs are retained.';paint();}
+    try{if(await loadProduction())paint();}catch(error){S.productionError='Automatic-writing status could not refresh. Existing jobs are retained.';paint();}
     if(ticket===S.productionPoll && visible())setTimeout(()=>pollProduction(ticket),5000);
   }
   function productionPanel(){
@@ -42,7 +42,7 @@ window.NCCEWorkshop = (() => {
   }
   async function pollPopulation() {
     if(!S.population)return;
-    try{S.population=await request('/api/workshop/population?run_id='+encodeURIComponent(S.population.run_id));paint();if(populating())setTimeout(pollPopulation,1500);}
+    try{const before=JSON.stringify(S.population);S.population=await request('/api/workshop/population?run_id='+encodeURIComponent(S.population.run_id));if(before!==JSON.stringify(S.population))paint();if(populating())setTimeout(pollPopulation,1500);}
     catch(error){S.message='Population status could not refresh. The saved run is retained. Use Refresh population status; do not start another run.';paint();}
   }
   function populationPanel() {
