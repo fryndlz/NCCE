@@ -85,3 +85,10 @@ For now functionality is more important than graphics. Keep backend/API clean en
 
 ## Current implementation
 Read `docs/HANDOFF_STATUS.md` before changing code. Run tests and current application first. Continue the repository; do not rebuild from scratch.
+
+As of 0.23.0, the owner has removed Writer Workshop, JKSimmons, StoryTechMan,
+native-author/category production and the writing RAG pipeline. Do not restore
+these components from historical documents or Git without a newly approved
+design. Prose generation is disabled in code; existing prose, source data,
+timeline and event-based cognition are preserved. Historical writing specs and
+audit tables are retained for reference, not as active implementation.

@@ -1,5 +1,11 @@
 # NCCE Writing Director
 
+> **0.23.0 retirement notice (3 November 2026):** the writer/provider, Workshop,
+> category production, JKSimmons/StoryTechMan and RAG execution paths described
+> historically here have been removed. Only deterministic identity/evidence/date
+> and stored-document presentation helpers remain. This document does not
+> authorize or describe an active generation system; see [Current design](CURRENT_DESIGN.md).
+
 Current source: **0.10.0 / schema 10**. See [Shared narrative pipeline](WRITER_PIPELINE_0_10.md) for the exact modules, runtime rules, source-guide coverage, cache/audit behavior, preview procedure and limitations.
 
 The director separates authoritative evidence, authored canon and generated continuity. All writer forms use the same reviewed writing contract with form-specific positive examples. Reference manuals remain preserved in `writing_sources/`; rendering instructions and calendar arithmetic belong to the app. The model writes finished prose and, for documents, structured headings and remarks. Fighter memories remain personal voices.

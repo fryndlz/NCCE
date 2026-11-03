@@ -1,5 +1,11 @@
 # Changelog
 
+### 0.23.0 deployment verification — 2026-11-03 22:45 UTC / 23:45 CET
+
+- Live source `e6c3c89`, deployment `dep-dbl66v0rrt2c73ft8kk0`: health 200/version 0.23.0, protected campaign dashboard 401, removed Workshop/RAG/reviewer/native/legacy generation endpoints 410.
+- Verified persistent pre-retirement backup in startup logs. Corrected the first rollout's overly broad cancellation of completed audit labels by restoring 53 exact status/error preimages; genuine unfinished work remains cancelled. Stored prose was untouched.
+- Eleven remaining Python and four JavaScript regression scripts, disposable authenticated HTTP and read-only live Sheet smoke checks pass. Hosted verification used HTTP/Render logs; browser automation was unavailable. No model requests were made.
+
 ## 0.23.0 — Remove the previous writing ecosystem
 
 **Implemented:** 2026-11-03 22:40 UTC / 23:40 CET.

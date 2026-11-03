@@ -181,6 +181,8 @@ The owner retired Writer Workshop, Writing context/RAG, JKSimmons, StoryTechMan,
 
 Legacy `/api/workshop`, `/api/reviewer-bridge`, `/api/native-author`, `/api/writer-runs`, `/api/writer-diagnostic`, `/api/territory-writer-runs` and fighter `write-check` operations return **410 Gone**, including requests bearing an old token. Old Workshop/context browser bookmarks fall back to Chronicle. Prior private state is excluded from dashboard responses. Auth/session and read-only Sheet sync remain.
 
+Retirement audit revision 2 cancels only queued/running/claimed/started/in-progress table jobs. Ready/imported/succeeded historical rows remain intact. If revision 1 already ran, revision 2 verifies its same-directory backup and restores only terminal audit status/error preimages bearing the exact retirement cancellation reason; it never requeues work or modifies prose. This repair is idempotent and records its count in the durable retirement marker.
+
 No replacement writer is implemented. Preserved reference/guardrail documents and historical audit tables are data, not an active RAG pipeline. Historical specifications are labelled retired. No API secret is transmitted or used; this code change does not revoke keys in the provider's account.
 
 ## 10. Other campaign narratives and interface
