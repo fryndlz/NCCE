@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('web/app.js','utf8');
+const ctx=vm.createContext({document:{querySelector:()=>({})},Intl,Date,console});
+vm.runInContext(fs.readFileSync('web/writing.js','utf8'),ctx);
+vm.runInContext(source.slice(0,source.indexOf('async function api(')),ctx);
+vm.runInContext(source.slice(source.indexOf('function battleEvidence('),source.indexOf('function downtime(')),ctx);
+ctx.battleSource={id:7,scenario:'Shootout',attacker:'A',defender:'B',notes:'// JOINT PRECINCT INCIDENT REVIEW //\nOrigin: TAP\nThe report <script> is mine.\nFANGS: Leave it open.\nTAP: On what basis?\nFANGS: Previous contact.\nTAP:\n// RECORD ENDS //',report_document:{writer_status:'paused',recorded_notes:{text:'OBSOLETE'},blocks:[]}};
+const html=vm.runInContext('battle(battleSource,true)',ctx);
+assert.match(html,/Player-authored · battle account/);
+assert.doesNotMatch(html,/Generated inference|Writing is paused|recorded-note|OBSOLETE|<script>/);
+assert.equal((html.match(/JOINT PRECINCT INCIDENT REVIEW/g)||[]).length,1);
+assert.match(html,/authored-heading/);assert.match(html,/authored-field/);assert.match(html,/authored-transcript-turn/);
+assert.match(html,/&lt;script&gt;/);assert.match(html,/mark-speaker">TAP:<\/span><\/p>/);
+assert.match(html,/provenance|Mechanical evidence/);
+const css=fs.readFileSync('web/archivum.css','utf8');
+assert.match(css,/#app \.archive-paper \.authored-battle \.authored-record[^}]+color:#2d3a2d/);
+console.log('PASS authored battle rendering: primary authored label, no duplicate/placeholder, headings, metadata, transcript, empty source turn, escaping and paper contrast');

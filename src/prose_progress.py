@@ -62,7 +62,7 @@ def summary(store):
     fighters=rows('SELECT * FROM fighters');fighters=[f for f in fighters if f['gang_id'] in gids]
     fids={str(f['id']) for f in fighters}
     places=rows('SELECT * FROM territories WHERE active=1');tids={str(t['id']) for t in places}
-    battles=rows('SELECT id FROM battles WHERE active=1')
+    battles=rows('SELECT id,notes FROM battles WHERE active=1')
     slots={key:{} for key,*_ in CATEGORIES}
     artifacts={}
     for a in rows('SELECT scope_type,scope_key,document_json FROM story_artifacts WHERE active=1 ORDER BY generated_at,artifact_id'):
@@ -81,7 +81,10 @@ def summary(store):
         slots['gang_origin'][g['gang_id']]=_state(g.get('backstory'),authored=True) if g.get('backstory_source')=='player-authored / campaign Sheet' and str(g.get('backstory') or '').strip() else document('gang_origin',g['gang_id']) if origin.get('native_author') else 'unwritten'
     for t in places:
         for form in ('territory_origin','territory_history'):slots[form][str(t['id'])]=document(form,t['id'])
-    for b in battles:slots['battle_report'][str(b['id'])]=document('battle_report',b['id'])
+    from authored_battles import has_report
+    for b in battles:
+        stored=artifacts.get(('battle_report',str(b['id'])),{})
+        slots['battle_report'][str(b['id'])]='authored' if has_report(b) else 'unwritten' if stored.get('authored_report_revision') else document('battle_report',b['id'])
     if gangs or rows('SELECT id FROM regions'):
         slots['region_history']['campaign']=document('region_history','campaign')
     for m in rows('SELECT fighter_id,memory_key,memory_type,content,writer_status FROM story_memories WHERE active=1 ORDER BY created_at,memory_id'):

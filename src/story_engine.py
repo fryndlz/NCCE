@@ -247,13 +247,14 @@ def _link(store, artifact_type, key, event_id=None, source_id=None):
 
 def _artifact(store, scope, key, document, input_hash, generated_at):
     document = dict(document)
-    document.update(provenance_class="inference", generated_at=generated_at, generation_version=GENERATION)
+    document.setdefault('provenance_class','inference')
+    document.update(generated_at=generated_at, generation_version=GENERATION)
     prior=store.db.execute("SELECT document_json FROM story_artifacts WHERE scope_type=? AND scope_key=? AND active=1 ORDER BY generated_at DESC LIMIT 1",(scope,str(key))).fetchone()
     if prior:
         old=json.loads(prior[0])
     paragraphs,writer_status=llm_writer.write_document(store,scope,key,document)
     document=llm_writer.apply(document,paragraphs,writer_status)
-    if prior:
+    if prior and not (scope=='battle_report' and old.get('provenance_class')=='player_authored' and document.get('provenance_class')!='player_authored'):
         document=llm_writer.retain_previous(document,old,writer_status)
     scope_form={'gang_origin':'gang_history'}.get(scope,scope)
     document = director.direct_document(scope_form,key,document)
@@ -279,8 +280,19 @@ def _artifact(store, scope, key, document, input_hash, generated_at):
 
 
 def document_for(store, scope, key):
+    if scope=='battle_report':
+        battle=store.db.execute('SELECT * FROM battles WHERE id=?',(key,)).fetchone()
+        if battle:
+            from authored_battles import report as authored_report
+            authored=authored_report(dict(battle))
+            if authored:return authored
     row = store.db.execute("SELECT document_json FROM story_artifacts WHERE scope_type=? AND scope_key=? AND active=1 ORDER BY generated_at DESC LIMIT 1", (scope,str(key))).fetchone()
-    return json.loads(row[0]) if row else None
+    document=json.loads(row[0]) if row else None
+    # An explicitly cleared/replaced Sheet report must not resurface from an old
+    # generated projection while the next refresh is preparing derived state.
+    if scope=='battle_report' and document and document.get('authored_report_revision'):
+        return None
+    return document
 
 
 def _document(title, text, evidence, events=()):

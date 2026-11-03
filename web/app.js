@@ -46,15 +46,20 @@ function authoredRecord(value) {
   // translation, invented metadata, or provider call.
   const rows = String(value || '').replace(/\r/g, '').split('\n'), output = [];
   const safe = text => esc(text).replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  const turns = new Map();
+  for (const row of rows) { const match=row.trim().match(/^([A-Z][A-Z '\-]{1,28}):/); if(match)turns.set(match[1],(turns.get(match[1])||0)+1); }
   for (const raw of rows) {
     const text = raw.trim();
     if (!text) continue;
     const plain = text.replace(/^\*\*(.*)\*\*$/, '$1');
     if (/^[+=\-]+.*[+=\-]+$/.test(plain) && !/^\+\+\+/.test(plain)) output.push(`<div class="scene_divider">${safe(text)}</div>`);
     else if (/^(?:\+\+\+|::|\[■\])/.test(plain)) output.push(`<div class="section-label">${safe(text)}</div>`);
+    else if (/^\/\/.*\/\/$/.test(plain) && !/\b(?:END|ENDS|TERMINATED|CLOSED)\b/i.test(plain)) output.push(`<h4 class="section-label authored-heading">${safe(text)}</h4>`);
     else if (/^(?:\/\/|\[SYS\.|\[ERR::)/.test(plain)) output.push(`<div class="record_termination">${safe(text)}</div>`);
     else if (/^(?:#{1,4}\s+|[\p{Extended_Pictographic}]\s*\S)/u.test(plain) || (plain.length < 100 && /[\p{L}]/u.test(plain) && plain === plain.toLocaleUpperCase() && !plain.includes(':'))) output.push(`<h4 class="section-label">${safe(text.replace(/^#{1,4}\s+/, ''))}</h4>`);
     else {
+      const speaker=plain.match(/^([A-Z][A-Z '\-]{1,28}):\s*(.*)$/);
+      if (speaker && ((turns.get(speaker[1])||0)>1 || /(?:REVIEW|REPLY|RESPONSE|TESTIMONY)$/.test(speaker[1]))) { output.push(`<p class="authored-transcript-turn"><span class="mark-speaker">${safe(speaker[1])}:</span>${speaker[2]?' '+safe(speaker[2]):''}</p>`); continue; }
       const field = plain.match(/^([^:\n]{2,48}):\s+(.+)$/);
       if (field) output.push(`<p class="authored-field"><span class="mark-admin_label">${safe(field[1])}:</span> ${safe(field[2])}</p>`);
       else output.push(`<p>${safe(text)}</p>`);
@@ -280,8 +285,10 @@ function battleEvidence(b) {
 function battle(b, expanded = false) {
   const document = b.report_document || b.document;
   const outcome = b.winner ? short(b.winner) + ' won' : 'Outcome not recorded';
-  const notes = document?.recorded_notes;
-  return `<article class="battle-report"><div class="entry-top"><span class="eyebrow">${esc(b.scenario || 'Engagement')}</span><time>${dateStamp({date:b.date})}</time></div><h3>${esc(document?.title || (b.territory ? 'The struggle for ' + b.territory : short(b.attacker) + ' / ' + short(b.defender)))}</h3><div class="battle-parties">${esc(short(b.attacker))}<span>against</span>${esc(short(b.defender))}</div><div class="battle-outcome">${esc(outcome)}${b.territory ? `<span class="tag">${esc(b.territory)}</span>` : ''}</div><details class="report-fold" data-key="battle-${esc(b.id || b.source_row)}"${expanded ? ' open' : ''}><summary>Battle account</summary>${b.chronicle_stale ? '<p class="warning">This account is awaiting regeneration after a corrected source record.</p>' : ''}<div class="report-body"><div class="eyebrow">Generated inference · battle chronicle</div>${blocks(document ? {...document, suppress_date:true} : document, b.chronicle || '')}</div>${notes?.text ? `<aside class="recorded-note"><div class="eyebrow">${esc(notes.label || 'Recorded battle notes')} · authored source</div>${prose(notes.text)}${notes.source_id ? `<div class="authored-source">${esc(notes.source_id)}</div>` : ''}</aside>` : ''}${evidence(document?.evidence?.length ? document.evidence : battleEvidence(b), {...document, source_label: 'Authoritative campaign Sheet · Battles', source_locator: b.source_row ? 'Battles!row ' + b.source_row : null}, false, 6)}</details></article>`;
+  const sourceText = Object.prototype.hasOwnProperty.call(b,'notes') ? b.notes : document?.authored_text || document?.recorded_notes?.text;
+  const isAuthored = Boolean(String(sourceText || '').trim()) || ['player_authored','canon_authored'].includes(document?.provenance_class);
+  const account = isAuthored && String(sourceText || '').trim() ? authoredRecord(sourceText) : blocks(document ? {...document, suppress_date:true} : document, b.chronicle || '');
+  return `<article class="battle-report"><div class="entry-top"><span class="eyebrow">${esc(b.scenario || 'Engagement')}</span><time>${dateStamp({date:b.date})}</time></div><h3>${esc(document?.title || (b.territory ? 'The struggle for ' + b.territory : short(b.attacker) + ' / ' + short(b.defender)))}</h3><div class="battle-parties">${esc(short(b.attacker))}<span>against</span>${esc(short(b.defender))}</div><div class="battle-outcome">${esc(outcome)}${b.territory ? `<span class="tag">${esc(b.territory)}</span>` : ''}</div><details class="report-fold" data-key="battle-${esc(b.id || b.source_row)}"${expanded ? ' open' : ''}><summary>Battle account</summary>${b.chronicle_stale ? '<p class="warning">This account is awaiting regeneration after a corrected source record.</p>' : ''}<div class="report-body${isAuthored?' authored-battle':''}"><div class="eyebrow">${isAuthored?'Player-authored · battle account':'Generated inference · battle chronicle'}</div>${account}</div>${evidence(document?.evidence?.length ? document.evidence : battleEvidence(b), {...document, provenance_class:'mechanical_fact', source_label: 'Authoritative campaign Sheet · Battles', source_locator: b.source_row ? 'Battles!row ' + b.source_row : null}, false, 6)}</details></article>`;
 }
 function downtime(report) {
   const document = report.document || report.report_document;

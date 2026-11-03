@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.23.2 — Authored battle reports and formatting
+
+**Implemented:** 2026-11-04 00:37 CET / 2026-11-03 23:37 UTC.
+
+- Promoted player-written Sheet battle reports from supplementary Notes to the primary authored account; removed inferred mislabelling, duplicate panels and empty generated placeholders.
+- Corrected System coverage to count authored battle Notes; live-source verification confirms five authored reports across 26 current battles.
+- Preserved exact text and authored provenance through reads/regeneration, with immediate source edits/clearing and retained historical versions. Mechanical evidence stays separate.
+- Formatted protocol headings, metadata, paragraphs, transcript speakers and empty source turns without rewriting prose. Removed the dark-on-dark source-note presentation on paper surfaces.
+- Added authored source/coverage/persistence/correction and rendering/contrast regressions; all 19 regression scripts and authenticated HTTP/live-Sheet checks pass. No provider calls or campaign source edits.
+- Updated current design; hosted verification follows.
+
 ### 0.23.1 live verification — 2026-11-04 00:09 CET
 
 Live source `47b7487`, deployment `dep-dbl6iik9v7es73cbo74g`. Health confirms 0.23.1; coverage is authenticated and removed writer endpoints stay unavailable. All 17 regression scripts, authenticated HTTP tests and disposable live-Sheet coverage checks pass. Browser visual inspection was blocked by URL-identification safety checks; verification used HTTP and deployment status. No provider calls.

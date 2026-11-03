@@ -124,7 +124,7 @@ def http_check():
         def request(path,body=None):
             return client.open(Request(base+path,data=None if body is None else json.dumps(body).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer old-bridge-token'}),timeout=10)
         try:
-            assert json.load(request('/healthz'))['version']=='0.23.1'
+            assert json.load(request('/healthz'))['version']=='0.23.2'
             try:request('/api/prose-progress');raise AssertionError('Coverage must require campaign authentication')
             except HTTPError as error:assert error.code==401
             retired=['/api/workshop','/api/workshop/generate','/api/workshop/rag/sync','/api/native-author/publish','/api/reviewer-bridge/claim','/api/writer-diagnostic','/api/writer-runs/mara-latest','/api/territory-writer-runs','/api/fighters/1/write-check']

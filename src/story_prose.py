@@ -627,6 +627,9 @@ def battle_report(battle, gangs, fighters, events):
         evidence.append(f"Territory at stake: {territory}")
     if battle.get("territory_claimer"):
         evidence.append(f"Recorded territory claimant: {_short(battle['territory_claimer'])}")
+    from authored_battles import report as authored_report
+    authored=authored_report(battle,evidence,[e['event_id'] for e in anchors if e.get('event_id')])
+    if authored:return authored
     blocks = []
     if territory:
         blocks.append(_block("paragraph", _PLACES.get(territory, f"The claim to {territory} has become a question the district cannot leave unanswered.")))
