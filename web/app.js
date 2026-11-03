@@ -10,6 +10,7 @@ const defaults = {fighters: {q: '', gang: '', status: '', role: '', listing: ''}
 let filters = JSON.parse(JSON.stringify(defaults));
 const historyFilters = {q: '', gang: '', fighter: '', place: '', action: '', phase: '', battle: '', from: '', to: ''};
 let selectedHistoryEvent = null, selectedHistoryBattle = null;
+let archiveStoryRecords = [];
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
 const short = value => String(value || 'Unknown').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]', 'C-NINE');
@@ -577,7 +578,7 @@ function searchControl(view, placeholder) {
 const uniqueOptions = (values, allLabel) => [{value: '', label: allLabel}, ...[...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b)).map(value => ({value, label: short(value)}))];
 const gangOptions = allLabel => [{value: '', label: allLabel}, ...data.gangs.map(gang => ({value: String(gang.gang_id), label: short(gang.name)})).sort((a, b) => a.label.localeCompare(b.label))];
 function listShell(view, title, description, controls) {
-  return `<div class="sectionhead"><div><div class="eyebrow">Campaign archive</div><h2>${esc(title)}</h2></div><span class="result-count" id="resultCount" aria-live="polite"></span></div><p class="view-intro">${esc(description)}</p><form class="filters" data-filter-form="${esc(view)}" role="search">${controls}<button class="clear-filters" type="button" data-clear="${esc(view)}">Clear filters</button></form><div id="listResults"></div>`;
+  return `<div class="sectionhead"><div><div class="eyebrow">Campaign archive</div><h2>${esc(title)}</h2></div><span class="result-count" id="resultCount" aria-live="polite"></span></div><p class="view-intro">${esc(description)}</p><form class="filters" data-filter-form="${esc(view)}" role="search">${controls}<button class="clear-filters" type="button" data-clear="${esc(view)}">Clear filters</button></form>${view === 'places' ? placeAssociationNotes() : ''}<div id="listResults"></div>`;
 }
 function fighterCard(f) {
   return `<article class="card fighter-card ${f.status === 'Killed' ? 'dead' : ''}"><div class="eyebrow">${esc(short(f.gang_name))}</div><h3><button class="card-title" data-fighter="${esc(f.id)}">${esc(f.name)}</button></h3><div class="card-subtitle">${esc(f.type)} · ${esc(f.class)}</div><div class="status-line"><span class="status-pill">${esc(fighterStatus(f))}</span>${f.listed_in_source === 0 ? '<span class="tag">Not currently listed</span>' : ''}</div><div class="card-excerpt">${prose(cut(f.backstory, 280))}</div>${authored(f.backstory_source) ? '' : evidence([`${f.class || 'Fighter'} · ${f.xp ?? 0} XP · ${f.kills ?? 0} recorded kills${f.effects ? ' · ' + f.effects : ''}`], {}, true)}<div class="card-foot">${esc(storySource(f.backstory_source))}</div></article>`;
@@ -612,10 +613,34 @@ function listResults(view) {
     : `${rows.length} ${noun}`;
   const results = document.querySelector('#listResults');
   if (!rows.length) { results.innerHTML = empty('No records match these filters. Try a different name, gang, or status.'); return; }
-  if (view === 'fighters') results.innerHTML = `<div class="grid">${rows.map(fighterCard).join('')}</div>`;
-  if (view === 'gangs') results.innerHTML = `<div class="grid">${rows.map(gangCard).join('')}</div>`;
-  if (view === 'places') results.innerHTML = `${placeAssociationNotes()}<div class="grid">${rows.map(t => `<article class="card place-card"><div class="eyebrow">Held by ${esc(short(t.gang_name))}</div><h3><button class="card-title" data-territory="${esc(t.id)}">${esc(t.territory)}</button></h3><div class="card-excerpt">${prose(t.backstory)}</div>${evidence([`Holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`], {}, true)}<div class="card-foot">Generated inference · territory record</div></article>`).join('')}</div>`;
-  if (view === 'battles') results.innerHTML = rows.map((record, index) => battle(record, index === 0)).join('');
+  results.innerHTML = NCCEArchive.browser(view, rows);
+
+}
+function recordDetail(kind, id, body, meta) {
+  const views = {fighter:'fighters',gang:'gangs',territory:'places',battle:'battles',archive:'archive',lore:'archive'};
+  const view = views[kind];
+  let outlet = activeView === view ? app.querySelector('.record-preview') : null;
+  if (!outlet) {
+    activeView = view; app.dataset.view = view;
+    app.innerHTML = '<section class="standalone-record"></section>';
+    outlet = app.querySelector('.standalone-record');
+    document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  }
+  NCCEArchive.present(outlet, body, {kind,id,...meta});
+}
+function showBattle(id) {
+  ++renderToken;
+  const b=data.battles.find(row=>String(row.id)===String(id));
+  if(!b)return;
+  currentDetail={type:'battle',id};
+  recordDetail('battle',id,battle(b,true),{title:b.report_document?.title || b.scenario || 'Engagement',date:b.date,source:'Campaign Sheet · Battles',fields:[['Mission',b.scenario],['Attacker',short(b.attacker)],['Defender',short(b.defender)],['Winner',short(b.winner)],['Territory',b.territory]]});
+}
+function showArchive(id) {
+  ++renderToken;
+  const r=archiveStoryRecords.find(row=>String(row.id)===String(id));
+  if(!r)return;
+  currentDetail={type:'archive',id};
+  recordDetail('archive',id,`<h2>${esc(r.title)}</h2>${archiveStories([r])}`,{title:r.title,source:r.source_locator || 'Authored campaign canon'});
 }
 async function render(view, preserveScroll = false) {
   const token = ++renderToken;
@@ -646,7 +671,8 @@ async function render(view, preserveScroll = false) {
     app.innerHTML = '<div class="loading-state" role="status">Retrieving authored stories…</div>';
     const archive = await api('/api/archive');
     if (token !== renderToken) return;
-    app.innerHTML = `<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored stories, preserved in their own words.</p>${archiveStories(archive.stories)}`;
+    archiveStoryRecords = list(archive.stories);
+    app.innerHTML = `<div class="eyebrow">Authored canon</div><h2>Archive</h2><p class="view-intro">The campaign’s authored stories, preserved in their own words.</p>${NCCEArchive.browser('archive',archiveStoryRecords)}`;
   }
   else if (activeView === 'system') {
     const territoryRun = await api('/api/territory-writer-runs/latest').catch(() => null);
@@ -732,37 +758,43 @@ async function showFighter(id, preserveScroll = false) {
   const maraWriterCanStart = (!maraWriterRun && !maraWriterPending) || maraWriterRun?.can_retry === true || maraWriterRun?.can_final_run === true || maraWriterRun?.can_medium_run === true;
   const maraWriterCheck = isMara
     ? `<section class="writer-check"><div><strong>Mara-only writer run</strong><p class="muted compact">This final sample uses medium reasoning effort and at most 5 model requests. It regenerates only Mara’s generated memories and reflection. Her player-authored biography is preserved; other fighters and campaign reports are untouched. Any entries not reached within the five calls keep their previous draft.</p></div><button data-writer-check="${esc(f.id)}"${maraWriterCanStart ? '' : ' disabled'}>${maraWriterRun?.can_medium_run ? 'Try Mara at medium effort (5 calls)' : maraWriterRun?.can_final_run ? 'Regenerate Mara’s memories' : maraWriterRun?.can_retry ? 'Run revised Mara check' : maraWriterRun?.status === 'complete' ? 'Mara check complete' : maraWriterRun?.status === 'error' ? 'Mara check ended with an error' : maraWriterPending ? 'Mara check is running' : 'Test the writer on Mara'}</button><div class="writer-check-status" role="status">${maraWriterRun ? writerRunMarkup(maraWriterRun) : ''}</div><hr><div><strong>One-call diagnostic</strong><p class="muted compact">Asks for one injury memory with a larger output allowance; displays the response and API completion details. Does not save prose to the campaign or change Mara’s record.</p></div><button data-writer-diagnostic="true"${writerDiagnostic?.used ? ' disabled' : ''}>${writerDiagnostic?.used ? 'Diagnostic used' : 'Ask the writer for one sample'}</button><div class="writer-diagnostic-status" role="status">${writerDiagnostic?.used ? writerDiagnosticMarkup(writerDiagnostic) : ''}</div></section>` : '';
-  app.innerHTML = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}${maraWriterCheck}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : (mind.map(mindCard).join('') + (f.mind_status?.pending ? `<p class="writer-pending" role="status">${f.mind_status.pending} current concern${f.mind_status.pending === 1 ? '' : 's'} awaiting writing.${f.mind_status.errors ? ' A writing attempt failed; details are retained in the writer audit.' : ''} Historical memory prose is kept in the memory stream.</p>` : !mind.length ? empty('No current concerns are supported by recent events or an unresolved condition.') : ''))}${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}</aside></div>`;
-  if (!preserveScroll) window.scrollTo(0, 0);
+  const detailBody = `<button class="back" data-back="fighters">← Fighters</button><div class="eyebrow">${esc(short(f.gang_name))} · fighter record</div><div class="fighter-title"><h2>${esc(f.name)}</h2><span class="status-pill">${esc(fighterStatus(f))}</span></div><p class="record-subtitle">${esc(f.type)} · ${esc(f.class)}${f.listed_in_source === 0 ? ' · Not currently listed in source' : ''}</p><div class="fighter-layout"><section class="fighter-history"><section class="biography"><h3>Backstory</h3>${narrative(f.backstory, f.backstory_source, fighterEvidence(f), {...f, source_label: 'Current mechanics and campaign context'})}${maraWriterCheck}</section><div class="sectionhead memory-heading"><div><h3>Memory stream</h3><p class="muted compact">Their recorded history · most recent first</p></div><span class="quiet-label">${memories.length} entries</span></div><div class="memory-stream">${memories.map(memoryCard).join('') || empty('No sourced memories have been generated for this fighter yet.')}</div>${fighterCampaignHistory(f)}<details class="ledger-fold" data-key="fighter-ledger"><summary>Mechanical change tracker <span>${list(f.campaign_events).length}</span></summary><div class="timeline">${list(f.campaign_events).map(campaignEvent).join('') || empty('No changes have been recorded after the baseline.')}</div></details>${list(f.events).length ? `<details class="ledger-fold" data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e => `<div class="baseline-record"><strong>${esc(e.title || human(e.event_type))}</strong><p>${esc(e.detail)}</p><small>Known at baseline · date unknown · ${esc(e.source)}</small></div>`).join('')}</details>` : ''}</section><aside class="fighter-mind"><div class="mind-heading"><div class="eyebrow">Current preoccupations</div><h3>Mind</h3><p>What weighs on them now.</p></div>${deceased ? empty('This fighter has died. Their remembered history remains.') : (mind.map(mindCard).join('') + (f.mind_status?.pending ? `<p class="writer-pending" role="status">${f.mind_status.pending} current concern${f.mind_status.pending === 1 ? '' : 's'} awaiting writing.${f.mind_status.errors ? ' A writing attempt failed; details are retained in the writer audit.' : ''} Historical memory prose is kept in the memory stream.</p>` : !mind.length ? empty('No current concerns are supported by recent events or an unresolved condition.') : ''))}${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}</aside></div>`;
+  recordDetail('fighter',id,detailBody,{title:f.name,source:f.backstory_source,fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills]]});
+  if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
 }
 async function showGang(id, preserveScroll = false) {
   const token = ++renderToken, g = await api('/api/gangs/' + encodeURIComponent(id));
   if (token !== renderToken) return;
   currentDetail = {type: 'gang', id};
   const holdings = list(g.territory_list);
-  app.innerHTML = `<button class="back" data-back="gangs">← Gangs</button><div class="eyebrow">${esc(g.gang_type)} · gang record</div><h2>${esc(short(g.name))}</h2><section class="region-intro">${gangBackstory(g)}</section>${campaignAccount(g.campaign_account_document)}${storyStream(g.narrative_stream, 'gang')}<h3 class="section-title">Between engagements</h3>${list(g.downtime).slice(0, 1).map(downtime).join('') || empty('No downtime account is available.')}<div class="sectionhead"><h3>Fighters</h3><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Find this gang’s fighters →</button></div><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available for this gang.')}</div><h3 class="section-title">Holdings</h3><div class="holdings">${holdings.map(t => `<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span>→</span></button>`).join('') || '<p class="muted">No current holdings are recorded.</p>'}</div><h3 class="section-title">Campaign record</h3>${list(g.battles).map(b => battle(b)).join('')}<details class="mechanics-fold" data-key="gang-mechanics"><summary>Current mechanical evidence</summary><div class="card system-state">${[['Reputation', g.reputation], ['Rating', g.rating], ['Credits', g.credits], ['Territories recorded', g.territories], ['Source updated', g.updated_at]].map(([label, value]) => `<div class="row"><span>${esc(label)}</span><span>${label === 'Source updated' ? esc(date(value,true) || 'Not recorded') : esc(value ?? 'Not recorded')}</span></div>`).join('')}</div></details>`;
-  if (!preserveScroll) window.scrollTo(0, 0);
+  const detailBody = `<button class="back" data-back="gangs">← Gangs</button><div class="eyebrow">${esc(g.gang_type)} · gang record</div><h2>${esc(short(g.name))}</h2><section class="region-intro">${gangBackstory(g)}</section>${campaignAccount(g.campaign_account_document)}${storyStream(g.narrative_stream, 'gang')}<h3 class="section-title">Between engagements</h3>${list(g.downtime).slice(0, 1).map(downtime).join('') || empty('No downtime account is available.')}<div class="sectionhead"><h3>Fighters</h3><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Find this gang’s fighters →</button></div><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available for this gang.')}</div><h3 class="section-title">Holdings</h3><div class="holdings">${holdings.map(t => `<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span>→</span></button>`).join('') || '<p class="muted">No current holdings are recorded.</p>'}</div><h3 class="section-title">Campaign record</h3>${list(g.battles).map(b => battle(b)).join('')}<details class="mechanics-fold" data-key="gang-mechanics"><summary>Current mechanical evidence</summary><div class="card system-state">${[['Reputation', g.reputation], ['Rating', g.rating], ['Credits', g.credits], ['Territories recorded', g.territories], ['Source updated', g.updated_at]].map(([label, value]) => `<div class="row"><span>${esc(label)}</span><span>${label === 'Source updated' ? esc(date(value,true) || 'Not recorded') : esc(value ?? 'Not recorded')}</span></div>`).join('')}</div></details>`;
+  recordDetail('gang',id,detailBody,{title:short(g.name),source:g.backstory_source || 'Campaign Sheet',fields:[['Faction',g.gang_type],['Player',g.player],['Reputation',g.reputation],['Credits',g.credits]]});
+  if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
 }
 async function showTerritory(id, preserveScroll = false) {
   const token = ++renderToken, t = await api('/api/territories/' + encodeURIComponent(id));
   if (token !== renderToken) return;
   currentDetail = {type: 'territory', id};
   const related = data.battles.filter(b => b.territory === t.territory);
-  app.innerHTML = `<button class="back" data-back="places">← Places</button><div class="eyebrow">Territory · held by ${esc(short(t.gang_name))}</div><h2>${esc(t.territory)}</h2><section class="region-intro">${narrative(t.backstory, t.backstory_source || 'inference', t.evidence || [`Current holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`, `Default holding: ${t.is_default ? 'Yes' : 'No'}`, `${related.length} related battle records`], t)}</section>${campaignAccount(t.campaign_account_document)}${storyStream(t.narrative_stream, 'territory')}<h3 class="section-title">Fighting over this ground</h3>${related.map(b => battle(b)).join('') || empty('No battle over this territory is recorded.')}`;
-  if (!preserveScroll) window.scrollTo(0, 0);
+  const detailBody = `<button class="back" data-back="places">← Places</button><div class="eyebrow">Territory · held by ${esc(short(t.gang_name))}</div><h2>${esc(t.territory)}</h2><section class="region-intro">${narrative(t.backstory, t.backstory_source || 'inference', t.evidence || [`Current holder: ${short(t.gang_name)}`, `Card: ${t.card || 'Not recorded'}`, `Default holding: ${t.is_default ? 'Yes' : 'No'}`, `${related.length} related battle records`], t)}</section>${campaignAccount(t.campaign_account_document)}${storyStream(t.narrative_stream, 'territory')}<h3 class="section-title">Fighting over this ground</h3>${related.map(b => battle(b)).join('') || empty('No battle over this territory is recorded.')}`;
+  recordDetail('territory',id,detailBody,{title:t.territory,source:t.backstory_source || 'Generated inference · campaign evidence',fields:[['Held by',short(t.gang_name)],['Card',t.card],['Default holding',t.is_default?'Yes':'No']]});
+  if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
 }
 async function showLore(id, preserveScroll = false) {
   const token = ++renderToken, record = await api('/api/lore/' + encodeURIComponent(id));
   if (token !== renderToken) return;
   currentDetail = {type: 'lore', id};
-  app.innerHTML = `<button class="back" data-back="archive">← Archive</button><div class="eyebrow">${esc(record.source_type)} · authored source</div><h2>${esc(record.title)}</h2><section class="archive-document">${authoredRecord(record.content)}</section>`;
-  if (!preserveScroll) window.scrollTo(0, 0);
+  const detailBody = `<button class="back" data-back="archive">← Archive</button><div class="eyebrow">${esc(record.source_type)} · authored source</div><h2>${esc(record.title)}</h2><section class="archive-document">${authoredRecord(record.content)}</section>`;
+  recordDetail('lore',id,detailBody,{title:record.title,source:record.source_type});
+  if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
 }
 async function openDetail(type, id, preserveScroll = false) {
   if (type === 'gang') return showGang(id, preserveScroll);
   if (type === 'fighter') return showFighter(id, preserveScroll);
   if (type === 'territory') return showTerritory(id, preserveScroll);
   if (type === 'lore') return showLore(id, preserveScroll);
+  if (type === 'battle') return showBattle(id);
+  if (type === 'archive') return showArchive(id);
 }
 function handleError(error) {
   console.error(error);
@@ -771,6 +803,7 @@ function handleError(error) {
 function updateFilter(event) {
   const element = event.target.closest('[data-filter]');
   if (!element) return;
+  ++renderToken; currentDetail = null;
   filters[element.dataset.filterView][element.dataset.filter] = element.value;
   listResults(element.dataset.filterView);
 }
@@ -802,6 +835,8 @@ app.addEventListener('click', event => {
   if (target.dataset.gang) task = showGang(target.dataset.gang);
   if (target.dataset.territory) task = showTerritory(target.dataset.territory);
   if (target.dataset.lore) task = showLore(target.dataset.lore);
+  if (target.dataset.battle) task = showBattle(target.dataset.battle);
+  if (target.dataset.archive) task = showArchive(target.dataset.archive);
   if (target.dataset.back) task = render(target.dataset.back);
   if (target.dataset.writerCheck) task = runMaraWriterCheck(target);
   if (target.dataset.writerDiagnostic) task = runWriterDiagnostic(target);

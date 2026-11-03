@@ -206,3 +206,11 @@ The clock measures available supported experiences, not an exhaustive record of 
 Every approved numerical rule has executable coverage: `test_fighter_event_clock.py` covers 10-step half-life, idle-time invariance, fighter scope, duplicates, corrections, distinct same-import changes, derived-entry exclusion and formation anchors. `test_fighter_mind.py` covers independent prose, ready-only display, persistence/reuse, resolution, no calendar expiry, stable biographies and production/Workshop reflection context. Existing writer/planner/optimizer/bridge/auth/UI suites cover budgets, source integrity, owner gates and rendering. Disposable authenticated HTTP checks exercise the actual app with read-only live Sheet input and no paid writer work.
 
 Hosted verification and commits are in CHANGELOG.md and HANDOFF_STATUS.md. This design describes source behavior; a release is called live only after Render and workload verification. Future changes must update this document and the executable contract, not merely add an amendment over a contradictory old rule.
+
+## Frontend presentation — 3 November 2026
+
+The archival sidebar, index/preview navigation, document/source layers, neutral
+stamps, responsive behaviour and Workshop/Writing context desk indexes are
+specified in [Archival frontend](FRONTEND_ARCHIVUM.md). This is presentation only:
+the event engine, authority hierarchy and protected timeline implementation are
+unchanged. The linked document lists exact ownership boundaries and verification.

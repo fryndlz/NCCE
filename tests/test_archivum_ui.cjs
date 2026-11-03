@@ -1,0 +1,32 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const events={};
+const toggle={addEventListener(){}};
+const sidebar={classList:{remove(){},toggle(){}}};
+const app={dataset:{view:'gangs'},querySelectorAll:()=>[]};
+const document={querySelector:s=>s==='.section-toggle'?toggle:s==='.archive-sidebar'?sidebar:s==='#app'?app:{textContent:''},querySelectorAll:()=>[],addEventListener:(name,fn)=>{(events[name]??=[]).push(fn);}};
+const context=vm.createContext({window:{},document,MutationObserver:class {observe(){}},Intl,Date,console});
+vm.runInContext(fs.readFileSync('web/writing.js','utf8'),context);
+vm.runInContext(fs.readFileSync('web/archivum.js','utf8'),context);
+const ui=context.window.NCCEArchive;
+const index=ui.browser('fighters',[{id:36,name:'Mara <script>bad()</script>',gang_name:'C-NINE',class:'Ganger',status:'Recovery'}]);
+assert.match(index,/data-fighter="36"/);assert.match(index,/Document preview/);assert.match(index,/aria-pressed="false"/);
+assert.ok(index.includes('&lt;script&gt;'));assert.ok(!index.includes('<script>'));
+const gangs=ui.browser('gangs',[{gang_id:'g"1',name:'Test gang',gang_type:'Orlock'}]);assert.match(gangs,/data-gang="g&quot;1"/);
+let moved=[];
+const evidence={append:x=>moved.push(x)};
+const outlet={innerHTML:'',querySelector:()=>evidence,querySelectorAll:()=>[]};
+ui.present(outlet,'<p>Unchanged authored wording.</p>',{kind:'battle',id:'b1',title:'A & B',date:'2026-10-25',source:'Authored <source>',fields:[['Winner','A < B']]});
+assert.match(outlet.innerHTML,/Unchanged authored wording/);assert.match(outlet.innerHTML,/document-stamp/);
+assert.match(outlet.innerHTML,/role="tablist"/);assert.match(outlet.innerHTML,/role="tabpanel"/);
+assert.match(outlet.innerHTML,/id="recordSources"[^>]*hidden/);
+assert.match(outlet.innerHTML,/9\.815\.998\.M41/);assert.match(outlet.innerHTML,/25 October 2026/);
+assert.match(outlet.innerHTML,/Authored &lt;source&gt;/);assert.match(outlet.innerHTML,/A &lt; B/);
+const paper=outlet.innerHTML.split('class="archive-paper"')[1].split('id="recordSources"')[0];
+assert.ok(!paper.includes('25 October 2026')); // Real dates remain in the source/UI layer.
+const html=fs.readFileSync('web/index.html','utf8');
+for(const view of ['chronicle','gangs','fighters','places','battles','archive','workshop','retrieval','system'])assert.match(html,new RegExp('data-view="'+view+'"'));
+assert.ok(html.includes('aria-controls="sectionNav"')&&html.includes('archivum.js'));
+const sourceModule=fs.readFileSync('web/archivum.js','utf8');
+assert.ok(!/fetch\(|\/api\/|localStorage|setInterval/.test(sourceModule));
+console.log('ok (record index escaping, preserved prose, separate source layer, dates, stamps, accessible sidebar/tabs and no paid/network actions)');
+

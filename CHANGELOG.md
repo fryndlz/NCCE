@@ -471,3 +471,18 @@ Source completed: 2026-10-28 19:19 CET (Europe/Warsaw).
 - Reconciled CURRENT_DESIGN.md with implemented behavior, including source scope, model-generated reflection, stable biographies, current-thought persistence and actual Workshop roles. Added FIGHTER_EVENT_CLOCK.md with algorithm/examples, explicit Generative Agents adaptations/gaps and executable test map; updated lifecycle/architecture docs.
 - Schema remains 15. Source/canon and active owner revisions are untouched. Automatic writing remains paused; no paid generation, bulk regeneration or model training.
 - Targeted event-clock/lifecycle tests, 21 offline Python files, four JavaScript suites and disposable authenticated application/Workshop HTTP checks pass. Verified live 2026-10-28 19:27:50 CET: source `e3beb11` (core `514b24a`), deployment `dep-dbh3sp6i0phs73coq6i0`, app 0.17.0 / schema 15. Hosted health/sync are healthy; paid writer calls remain 0. Mara’s 853-character authored biography is unchanged; her logical clock has 11 relevant facts, four pending thoughts and no errors. Repeated reads and the follow-up deploy preserve positions/distances. Workshop has 15 forms and 170 current-thought samples; a live Mara sample confirms cognitive_design fighter-events-v1, 10-event half-life, fixed_expiry=false and the current causal event position. Verification caught and repaired missing policy metadata in pre-existing saved thought contexts; a regression confirms this upgrade retains ready prose without another writer call. Initial restart transitions briefly returned Bad Gateway; subsequent health/fighter/sample reads succeed. No schema migration, policy activation, paid generation or bulk regeneration.
+
+## Archival frontend — 2026-11-03
+
+- Numbered sidebar and responsive section menu; active section indication.
+- Searchable record index plus parchment document preview for Gangs, Fighters,
+  Places and Battles; the same browser for the two preserved authored Archive
+  stories. Separate Narrative record / Data & sources layers, metadata, Imperial
+  dates where supported, neutral archive-copy stamp and keyboard tab controls.
+- Writer Workshop and Writing context keep their functionality and gain a local
+  section index plus the shared archival palette and reading presentation.
+- Timeline renderer/controls and timeline styles are unchanged. No reference-site
+  content was copied. No engine/schema, campaign/canon, writer policy or paid-call
+  changes. Unfinished category-population work was excluded.
+- Frontend regression checks and disposable desktop/390px browser verification
+  pass; see docs/FRONTEND_ARCHIVUM.md. Hosted verification pending.

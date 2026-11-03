@@ -7,8 +7,30 @@
   <title>NCCE — Campaign Chronicle</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/writing.css">
+  <link rel="stylesheet" href="/archivum.css">
 </head>
 <body>
+  <a class="skip-link" href="#app">Skip to records</a>
+  <aside class="archive-sidebar">
+    <div class="archive-brand"><strong>NCCE / 041</strong><span>CAMPAIGN ARCHIVE</span></div>
+    <button class="section-toggle" type="button" aria-controls="sectionNav" aria-expanded="false">Sections <span aria-hidden="true">☰</span></button>
+    <nav id="sectionNav" aria-label="Campaign sections">
+      <div class="nav-caption">CAMPAIGN RECORDS</div>
+      <button data-view="chronicle" class="active"><span aria-hidden="true">I.</span> Chronicle</button>
+      <button data-view="gangs"><span aria-hidden="true">II.</span> Gangs</button>
+      <button data-view="fighters"><span aria-hidden="true">III.</span> Fighters</button>
+      <button data-view="places"><span aria-hidden="true">IV.</span> Places</button>
+      <button data-view="battles"><span aria-hidden="true">V.</span> Battles</button>
+      <button data-view="archive"><span aria-hidden="true">VI.</span> Archive</button>
+      <div class="nav-caption nav-tools">SCRIVENER'S DESK</div>
+      <button data-view="workshop"><span aria-hidden="true">VII.</span> Writer Workshop</button>
+      <button data-view="retrieval"><span aria-hidden="true">VIII.</span> Writing context</button>
+      <button data-view="system"><span aria-hidden="true">IX.</span> System</button>
+    </nav>
+    <div class="sidebar-seal">NCCE<br><span>RECORDS PRESERVED</span></div>
+    <div class="sidebar-access">CAMPAIGN ACCESS</div>
+  </aside>
+  <div class="archive-workspace">
   <header class="site-header">
     <div>
       <div class="brand">NCCE · Dominion Krakamunda</div>
@@ -21,22 +43,14 @@
       <button id="logout" type="button" hidden>Sign out</button>
     </div>
   </header>
-  <nav aria-label="Campaign sections">
-    <button data-view="chronicle" class="active">Chronicle</button>
-    <button data-view="gangs">Gangs</button>
-    <button data-view="fighters">Fighters</button>
-    <button data-view="places">Places</button>
-    <button data-view="battles">Battles</button>
-    <button data-view="archive">Archive</button>
-    <button data-view="workshop">Writer Workshop</button>
-    <button data-view="retrieval">Writing context</button>
-    <button data-view="system">System</button>
-  </nav>
   <main id="app"><div class="loading-state" role="status">Opening the campaign chronicle…</div></main>
+  <footer class="archive-footer"><span>NCCE / ARCHIVUM CAMPAIGN</span><span>Lives remembered. Records preserved.</span></footer>
+  </div>
   <script src="/writing.js"></script>
   <script src="/writing_activity.js"></script>
   <script src="/workshop.js"></script>
   <script src="/retrieval.js"></script>
+  <script src="/archivum.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
