@@ -45,6 +45,15 @@ def main():
                 assert call('/api/workshop/optimization-recover-review',{})[0]==403
                 assert call('/api/reviewer-bridge/notified',{})[0]==401
                 bearer='Bearer '+bridge_token
+                assert call('/api/native-author/catalog',bridge_body)[0]==401
+                assert call('/api/native-author/catalog',{**bridge_body,'thread_id':'unrelated-chat'},authorization=bearer)[0]==400
+                native_catalog=call('/api/native-author/catalog',bridge_body,authorization=bearer)
+                assert native_catalog[0]==200 and len(native_catalog[1]['forms'])==15
+                server._writer_pipeline_guard.acquire()
+                try:
+                    assert call('/api/native-author/publish',bridge_body,authorization=bearer)[0]==409
+                finally:server._writer_pipeline_guard.release()
+                assert call('/api/native-author/start',{**bridge_body,'forms':['territory_origin'],'max_drafts':0,'request_key':'http-native-invalid'},authorization=bearer)[0]==400
                 assert call('/api/reviewer-bridge/claim',bridge_body,authorization=bearer)[0]==200
                 assert call('/api/reviewer-bridge/events',{**bridge_body,'wait_seconds':0},authorization=bearer)[1]=={'job_id':None}
                 assert call('/api/workshop/activate',{},authorization=bearer)[0]==403

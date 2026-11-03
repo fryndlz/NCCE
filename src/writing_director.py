@@ -23,6 +23,7 @@ CONTRACT_FILES = (
     'WRITER_RUNTIME_CONTRACT.md',
 )
 FORMS = {
+    'gang_origin': ('gang_dossier', 'Gang background compiler', 'Gang origin'),
     'battle_report': ('incident_record', 'District archive compiler', 'Collated engagement returns'),
     'territory_origin': ('survey_note', 'District survey compiler', 'Place description'),
     'territory_history': ('territory_history', 'District archive compiler', 'Territory campaign history'),

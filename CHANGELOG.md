@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.22.0 - native Codex backlog writing (2026-11-03)
+
+- Expand the installed NCCE writing skill to all 15 prose forms with category-specific guidance, dependency ordering and persistent owner corrections.
+- Add a dedicated native-author connection for live context, bounded/resumable batches, immutable drafts and explicitly approved publication; no external writer calls or scheduled model checks.
+- Protect authored content, retain generated predecessors/preimages, refuse stale publication and keep scenes outside the mechanical ledger. Approved generated gang origins appear in Backstory without displacing Sheet-authored text.
+- Preserve native provenance across refresh and update memory rich text with its published body. Existing Workshop reviewer, listening and guideline-activation workflows remain separate.
+- Validate against synthetic campaigns, fake transport, authenticated local HTTP and existing story/category/UI regressions. Hosted verification uses read-only requests only.
+
 ## 0.15.6 - owner guideline activation (2026-10-28)
 
 - Promote the guideline reference title and make timeline badges explicit activation buttons. Give the server-confirmed active item a thicker border and distinct background.

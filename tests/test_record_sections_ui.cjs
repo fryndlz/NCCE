@@ -21,6 +21,11 @@ assert.ok(fighter[3].body.includes('I want my hands steady again.')&&fighter[3].
 assert.ok(!fighter[3].body.includes('I remember the fall.'));
 ctx.subject={name:'Gang',backstory:'Only Sheet background.',backstory_source:'player-authored / campaign Sheet',fighters:[{name:'Fighter'}],territory_list:[{id:1,territory:'Shrine'}],battles:[],narrative_stream:[],campaign_history:{events:[]}};
 const gang=run('gangRecordSections(subject)');
+ctx.generatedGang={backstory:'',backstory_source:'not-provided',origin_document:{native_author:{draft_id:'native-draft'},writer_status:'ready',blocks:[{type:'body_paragraph',text:'A newly approved gang origin.'}]}};
+assert.ok(run('gangBackstory(generatedGang)').includes('A newly approved gang origin.'));
+ctx.generatedGang.backstory='Authored text wins.';ctx.generatedGang.backstory_source='player-authored / campaign Sheet';
+assert.ok(run('gangBackstory(generatedGang)').includes('Authored text wins.'));
+assert.ok(!run('gangBackstory(generatedGang)').includes('A newly approved gang origin.'));
 assert.deepEqual(Array.from(gang,s=>s.id),['baseline','timeline','roster','holdings']);
 assert.ok(gang[0].body.includes('Only Sheet background.'));assert.equal(gang[2].count,1);assert.equal(gang[3].count,1);
 ctx.subject={backstory:'A static place.',territory:'Shrine',gang_name:'Gang',narrative_stream:[]};

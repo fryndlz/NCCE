@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.21.1'
+APP_VERSION='0.22.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -343,6 +343,25 @@ class H(BaseHTTPRequestHandler):
   self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
  def do_POST(self):
   p=urlparse(self.path).path
+  if p.startswith('/api/native-author/'):
+   import codex_review_queue as bridge
+   if not bridge.authenticated(self.headers.get('Authorization')):return self.js({'error':'Native author authentication required'},401)
+   action=p.rsplit('/',1)[-1]
+   locked=False
+   try:
+    length=int(self.headers.get('Content-Length','0'))
+    if not 1<=length<=300000:return self.js({'error':'Native author payload too long'},413)
+    body=json.loads(self.rfile.read(length).decode('utf-8'))
+    if not isinstance(body,dict):raise ValueError('Expected an object')
+    if action=='publish':
+     locked=_writer_pipeline_guard.acquire(blocking=False)
+     if not locked:return self.js({'error':'Writing pipeline busy; saved native draft is retained'},409)
+    import native_author
+    with store._lock:result=native_author.dispatch(store,action,body)
+    return self.js(result)
+   except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
+   finally:
+    if locked:_writer_pipeline_guard.release()
   if p.startswith('/api/reviewer-bridge/'):
    import codex_review_queue as bridge
    if not bridge.authenticated(self.headers.get('Authorization')):return self.js({'error':'Reviewer bridge authentication required'},401)

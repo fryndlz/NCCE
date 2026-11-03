@@ -355,8 +355,9 @@ def retain_previous(document,previous,status):
   return document
  result=dict(document)
  result['blocks']=previous.get('blocks',[])
- for key in ('composition','termination','writer_revision'):
+ for key in ('composition','termination','writer_revision','native_author'):
   if key in previous: result[key]=previous[key]
+ if previous.get('native_author'):result['writer_model']=previous.get('writer_model','native-codex')
  result['writer_status']='stale'
  if status.get('status')=='error':
   result['writer_message']='Earlier draft retained; the replacement failed validation or the writing provider failed.'

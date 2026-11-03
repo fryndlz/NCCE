@@ -185,9 +185,9 @@ def recover(store):
             save(store, run)
 
 
-def publish(store, key, before, document, paragraphs):
-    """Replace only an unchanged pending derived record; retain the old document in the run audit."""
-    if record(store, key) != before or eligibility(before) != 'pending':
+def publish(store, key, before, document, paragraphs, allow_existing=False):
+    """Replace unchanged pending prose, or explicitly approved generated prose; keep preimages in the caller's audit."""
+    if record(store, key) != before or eligibility(before) not in (('pending', 'existing') if allow_existing else ('pending',)):
         raise ValueError('The target changed during generation. The paid output is retained in the run; it was not published.')
     kind, _, ident = key.partition(':')
     text = '\n\n'.join(writer.paragraph_text(p) for p in paragraphs)
@@ -202,7 +202,8 @@ def publish(store, key, before, document, paragraphs):
     elif kind == 'entry':
         store.db.execute('UPDATE narrative_entries SET document_json=? WHERE entry_id=?', (ws.packed(document), ident))
     elif kind == 'memory':
-        store.db.execute("UPDATE story_memories SET content=?,writer_status='ready' WHERE memory_id=?", (text, ident))
+        runs = [writer.paragraph_runs(p) for p in paragraphs]
+        store.db.execute("UPDATE story_memories SET content=?,content_runs_json=?,writer_status='ready' WHERE memory_id=?", (text, ws.packed(runs), ident))
     else:
         store.db.execute("UPDATE fighter_thoughts SET content=?,writer_status='ready' WHERE thought_id=?", (text, ident))
 
