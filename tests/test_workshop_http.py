@@ -225,6 +225,38 @@ def main():
                 assert recovered['review_delivery_recovery']['original_job_id']==recover_body['job_id']
                 assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==requests_before
 
+                # Population uses the same authenticated owner/origin and global writer gates.
+                assert call('/api/workshop/population')[0]==401
+                assert call('/api/workshop/population-preview',{'form':'territory_origin'},cookie,'https://foreign.invalid')[0]==403
+                server.store.db.execute("UPDATE codex_review_jobs SET status='cancelled' WHERE status IN ('queued','claimed','reviewing')");server.store.db.commit()
+                code,preview=call('/api/workshop/population-preview',{'form':'territory_origin'},cookie)
+                assert code==200 and preview['items']
+                population_body={'form':'territory_origin','fingerprint':preview['fingerprint'],'call_limit':1,'request_key':'http-population-1'}
+                server._writer_pipeline_guard.acquire()
+                assert call('/api/workshop/population-start',population_body,cookie)[0]==409
+                server._writer_pipeline_guard.release()
+                population_launches=[]
+                def population_worker(rid):
+                    population_launches.append(rid);server._writer_pipeline_guard.release()
+                with patch.object(server,'_run_population',side_effect=population_worker):
+                    code,populated=call('/api/workshop/population-start',population_body,cookie)
+                    assert code==202
+                    assert call('/api/workshop/population-start',population_body,cookie)[0]==200
+                    assert len(population_launches)==1
+                assert call('/api/workshop/population?run_id='+populated['run_id'],cookie=cookie)[1]['status']=='queued'
+                assert call('/api/workshop/population-stop',{'run_id':populated['run_id']},cookie)[1]['stop_requested']
+                assert call('/api/workshop/production')[0]==401
+                decision={'form':'territory_origin','enabled':True,'additional_calls':5,'expected_revision':None,'request_key':'http-production-1'}
+                assert call('/api/workshop/production-configure',decision,cookie,'https://foreign.invalid')[0]==403
+                with patch.object(bridge,'status',return_value={'online':True}):
+                    code,policy=call('/api/workshop/production-configure',decision,cookie)
+                    assert code==200 and policy['enabled'] and policy['remaining']==5
+                    assert call('/api/workshop/production-configure',decision,cookie)[1]['remaining']==5
+                    assert call('/api/workshop/production',cookie=cookie)[1]['items']==[],'Toggle populated backlog'
+                    disabled={**decision,'enabled':False,'additional_calls':0,'expected_revision':policy['revision'],'request_key':'http-production-off'}
+                    assert not call('/api/workshop/production-configure',disabled,cookie)[1]['enabled']
+                assert server.store.db.execute('SELECT count(*) FROM writer_requests').fetchone()[0]==requests_before
+
             print('HTTP workshop passed: auth mandatory, cross-origin denied, busy rejected, duplicate key queued once, no paid calls')
         finally:http.shutdown();http.server_close();thread.join();server.store.close()
 

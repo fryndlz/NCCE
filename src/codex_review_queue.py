@@ -177,6 +177,9 @@ def complete(store, body):
     if payload.get('kind')=='editorial_consolidation':
         from editorial_sync import validate
         validate(result)
+    elif payload.get('kind')=='production_review':
+        from category_production import validate
+        validate(result)
     elif payload.get('kind','review')=='review':
         if payload.get('workflow_version',1)>=3:
             from workshop_experiments import validate_review
@@ -203,7 +206,10 @@ def complete(store, body):
         if payload.get('kind')=='editorial_consolidation':
             from editorial_sync import complete as finish_learning
             finish_learning(store,payload,result,identity)
-        elif payload.get('kind','review')!='review' and not payload.get('diagnostic'):
+        elif payload.get('kind')=='production_review':
+            from category_production import complete as finish_production
+            finish_production(store,payload,result,identity)
+        elif payload.get('kind','review') not in ('review','production_review') and not payload.get('diagnostic'):
             from workshop_interventions import complete as finish_technical
             finish_technical(store,payload,result,identity)
         store.db.execute("UPDATE codex_review_jobs SET status='completed',result_json=?,finished_at=? WHERE job_id=?", (packed(envelope), now(), row['job_id']))
@@ -225,7 +231,7 @@ def started(store, body):
         if payload.get('kind')=='editorial_consolidation':
             from editorial_sync import set_status
             set_status(store,payload,'reviewing','JKSimmons is incorporating your sealed feedback into his standards and candidate guidance.')
-        elif payload.get('kind','review')!='review' and not payload.get('diagnostic'):
+        elif payload.get('kind','review') not in ('review','production_review') and not payload.get('diagnostic'):
             from workshop_interventions import started as technical_started
             technical_started(store,payload)
         store.db.execute("UPDATE codex_review_jobs SET status='reviewing',result_json=?,payload_json=? WHERE job_id=?", (packed(identity), packed(payload), row['job_id']))
@@ -241,6 +247,9 @@ def fail(store, body):
         if payload.get('kind')=='editorial_consolidation':
             from editorial_sync import set_status
             set_status(store,payload,'failed',error)
+        elif payload.get('kind')=='production_review':
+            from category_production import failed
+            failed(store,payload,error)
         elif payload.get('kind','review')!='review' and not payload.get('diagnostic'):
             from workshop_interventions import failed
             failed(store,payload,error)

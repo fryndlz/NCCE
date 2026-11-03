@@ -10,7 +10,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.20.1'
+APP_VERSION='0.21.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -44,13 +44,51 @@ def _run_workshop(trial_id):
  try:
   import writer_workshop
   with store._lock:writer_workshop.execute(store,trial_id)
- finally:_writer_pipeline_guard.release()
+ finally:
+  _writer_pipeline_guard.release()
+  _kick_production()
 import workshop_optimizer
 workshop_optimizer.recover(store)
 import editorial_sync
 editorial_sync.reconcile_active_guidelines(store)
 import writing_rag
 writing_rag.sync_sources(store)
+import category_population
+category_population.recover(store)
+import category_production
+category_production.recover(store)
+
+def _kick_production():
+ # Event handlers call this after sync, a review result or an owner decision.
+ if not _writer_pipeline_guard.acquire(blocking=False):return
+ try:
+  with store.reader() as reader:ready=category_production.runnable(reader)
+  if ready:threading.Thread(target=_run_production,name='ncce-category-production',daemon=True).start()
+  else:_writer_pipeline_guard.release()
+ except Exception:
+  _writer_pipeline_guard.release();raise
+
+def _run_production():
+ completed=False
+ try:
+  worker_store=Store(DB)
+  try:
+   category_production.advance(worker_store)
+   completed=True
+  finally:worker_store.close()
+ finally:
+  _writer_pipeline_guard.release()
+  # A native result can arrive while another production stage is running.
+  if completed:_kick_production()
+
+def _run_population(run_id):
+ try:
+  worker_store=Store(DB)
+  try:category_population.execute(worker_store,run_id)
+  finally:worker_store.close()
+ finally:
+  _writer_pipeline_guard.release()
+  _kick_production()
 _optimizer_stops={}
 def _run_optimization(run_id):
  try:
@@ -60,6 +98,7 @@ def _run_optimization(run_id):
  finally:
   _optimizer_stops.pop(run_id,None)
   _writer_pipeline_guard.release()
+  _kick_production()
 _writer_check_guard=threading.Lock(); _writer_check_active=False; _writer_check_used=store.get_state('mara_writer_check_used')=='1'; _writer_check_review_used=store.get_state('mara_writer_check_review_used')=='1'; _writer_check_final_used=store.get_state('mara_writer_check_final_used')=='1'; _writer_check_medium_used=store.get_state('mara_writer_check_medium_used')=='1'
 _writer_checks={}
 _territory_writer_guard=threading.Lock(); _territory_writer_active=False
@@ -135,6 +174,8 @@ def _run_sync():
    store.set_state('sync_last_events_created',len(result['events_created']))
    store.set_state('sync_current_counts',json.dumps(result['projection'],sort_keys=True))
    store.set_state('campaign_history_sync_result',json.dumps(result['history_import'],ensure_ascii=False,sort_keys=True))
+   category_production.discover(store)
+  _kick_production()
   print(f"Krakamunda Sheet sync succeeded: snapshot {result['snapshot_id']}, {len(result['events_created'])} new events")
  except Exception as exc:
   message=str(exc)[:500]
@@ -200,6 +241,8 @@ class H(BaseHTTPRequestHandler):
    try:
     with store.reader() as reader:
      if p=='/api/workshop':result=workshop.home(reader)
+     elif p=='/api/workshop/population':result=category_population.public(category_population.get(reader,query['run_id'][0])) if query.get('run_id') else category_population.home(reader)
+     elif p=='/api/workshop/production':result=category_production.home(reader)
      elif p.startswith('/api/workshop/rag/'):
       import writing_rag
       result=writing_rag.read(reader,p.rsplit('/',1)[-1],query)
@@ -315,6 +358,7 @@ class H(BaseHTTPRequestHandler):
     if action=='events':result=functions[action](store,body)
     else:
      with store._lock:result=functions[action](store,body)
+    if action in ('complete','fail','heartbeat','events'):_kick_production()
     return self.js(result)
    except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
   if p=='/api/login':
@@ -346,6 +390,27 @@ class H(BaseHTTPRequestHandler):
     if length<1 or length>body_limit:return self.js({'error':'Workshop request is too long'},413)
     body=json.loads(self.rfile.read(length).decode('utf-8'))
     if not isinstance(body,dict):raise ValueError('Expected an object')
+    if p=='/api/workshop/production-configure':
+     with store._lock:result=category_production.configure(store,body)
+     _kick_production()
+     return self.js(result)
+    if p=='/api/workshop/population-preview':
+     with store.reader() as reader:result=category_population.preview(reader,body)
+     return self.js(result)
+    if p=='/api/workshop/population-stop':
+     with store._lock:result=category_population.stop(store,body.get('run_id'))
+     return self.js(result)
+    if p=='/api/workshop/population-start':
+     with store.reader() as reader:prior=category_population.existing(reader,body)
+     if prior:return self.js(category_population.public(prior))
+     if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'Writing is already in progress. No population calls started.'},409)
+     try:
+      with store._lock:item,fresh=category_population.queue(store,body)
+      if fresh:threading.Thread(target=_run_population,args=(item['run_id'],),name='ncce-category-population',daemon=True).start()
+      else:_writer_pipeline_guard.release()
+     except Exception:
+      _writer_pipeline_guard.release();raise
+     return self.js(category_population.public(item),202 if fresh else 200)
     if p.startswith('/api/workshop/rag/'):
      if not _writer_pipeline_guard.acquire(blocking=False):return self.js({'error':'Writing is in progress. Change retrieval after the current writing work finishes.'},409)
      try:

@@ -8,9 +8,15 @@ const sample={key:'test',form:'fighter_memory',label:'Mara',packet:{evidence:['C
 const optimization={run_id:'opt-test',form:'fighter_memory',status:'queued',message:'<unsafe>',writer_reserved:0,writer_limit:4,reviewer_reserved:0,reviewer_limit:2,specific:{instructions:'Candidate <unsafe>'},shared:{label:'Shared',instructions:'Protected'},rounds:[],events:[],coverage:'Two source contexts',reviewer_context:'Saved review brief'};
 optimization.rounds=[{number:1,pairs:[{label:'Review entry',candidates:[{status:'ready',document:bodyDoc},{status:'ready',document:bodyDoc}],review:{summary:'A complete assessment. '+('Evidence and reasoning. '.repeat(25)),candidates:[0,1].map(index=>({index,overall:6,scores:{factual_fidelity:9,distinctiveness:5},issues:[{category:'context',blocking:true,explanation:'Inspect this context. '+('More explanation. '.repeat(20)),evidence:'Exact <unsafe> evidence'}]}))}}]}];
 let ids=0,historyRun=null,activationResolve=null,activationReject=null,guidelinesFail=false;
+let productionPolicy={enabled:false,remaining:0,used:0,revision:null};
 async function api(url,options){
   calls.push([url,options]);
   if(url==='/api/workshop')return home;
+  if(url==='/api/workshop/population')return {runs:[],max_calls:80};
+  if(url==='/api/workshop/production')return {policies:{fighter_memory:productionPolicy},items:[]};
+  if(url.endsWith('/production-configure')){const d=JSON.parse(options.body);productionPolicy={...productionPolicy,enabled:d.enabled,remaining:productionPolicy.remaining+d.additional_calls,revision:'confirmed-policy'};return productionPolicy;}
+  if(url.endsWith('/population-preview'))return {form:'fighter_memory',configured:true,max_calls:80,fingerprint:'preview-identity',counts:{existing:2,attention:1},items:[{key:'memory:one',label:'Mara <unsafe>'}],setup:{specific:{label:'Active saved version',revision_id:'active-one',instructions:'Only the recorded event.'},model:'existing-writer'}};
+  if(url.endsWith('/population-start'))return {run_id:'populate-one',form:'fighter_memory',status:'completed',message:'Saved.',results:[],target_count:1,call_limit:1,remaining_count:0,usage:{requests_attempted:1}};
   if(url.endsWith('/guidelines-activate'))return new Promise((resolve,reject)=>{activationResolve=resolve;activationReject=reject;});
   if(url.startsWith('/api/workshop/guidelines?')){
     if(guidelinesFail)throw new Error('Connection lost');
@@ -42,6 +48,18 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   await context.window.NCCEWorkshop.open(root,api,doc=>escaped(JSON.stringify(doc)));
   assert.equal(calls.filter(c=>c[1]?.method==='POST').length,0,'Opening must not write or spend');
   assert.match(root.innerHTML,/Improve a whole prose category/);
+  assert.match(root.innerHTML,/<h3>Populate category<\/h3>/);
+  click('population-preview');await settle();assert.match(root.innerHTML,/Mara &lt;unsafe&gt;/);
+  assert.match(root.innerHTML,/Active saved version/);assert.match(root.innerHTML,/no automatic retries or extra model reviews/);
+  click('population-start');await settle();assert.equal(calls.filter(c=>c[0].endsWith('/population-start')).length,0,'Declined spending must not queue population');
+  context.window.confirm=()=>true;click('population-start');await settle();
+  assert.equal(calls.filter(c=>c[0].endsWith('/population-start')).length,1);
+  assert.equal(productionPolicy.enabled,false,'One-off population enabled listening');
+  callbacks.change({target:{checked:true,hasAttribute:n=>n==='data-ws-production-toggle'}});await settle();
+  assert.equal(productionPolicy.enabled,true);assert.match(root.innerHTML,/20 writing calls remaining/);
+  assert.equal(calls.filter(c=>c[0].endsWith('/population-start')).length,1,'Toggle populated backlog');
+  callbacks.change({target:{checked:false,hasAttribute:n=>n==='data-ws-production-toggle'}});await settle();assert.equal(productionPolicy.enabled,false);
+  context.window.confirm=()=>false;
   assert.match(root.innerHTML,/<details class="ws-guidelines" data-ws-detail="guidelines-library">/);
   assert.match(root.innerHTML,/Suggested changes · not applied/);assert.match(root.innerHTML,/New &lt;unsafe&gt; guidance/);
   assert.ok(root.innerHTML.indexOf('workshop-optimization')<root.innerHTML.indexOf('class="ws-guidelines"'),'Reference belongs after the study');

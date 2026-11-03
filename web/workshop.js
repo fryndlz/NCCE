@@ -8,6 +8,50 @@ window.NCCEWorkshop = (() => {
   const visible = () => root?.dataset.view === 'workshop' && root?.querySelector('.writer-workshop');
   const formNames={fighter_mind:'Fighter current thoughts',fighter_memory:'Fighter memories',fighter_reflection:'Fighter reflections',fighter_biography:'Fighter biographies',gang_history:'Gang histories',gang_event:'Gang events',gang_origin:'Gang origins',place_event:'Territory events',place_ambient:'Territory scenes',territory_history:'Territory histories',territory_origin:'Territory origins',region_history:'Region histories',battle_report:'Battle reports',downtime:'Downtime reports',relationship:'Relationships'};
   const formName=form=>formNames[form] || String(form || '').replaceAll('_',' ');
+  const populating=()=>['queued','running'].includes(S.population?.status);
+  async function loadPopulation() {
+    const history=await request('/api/workshop/population');
+    S.populationHistory=history.runs;S.populationMax=history.max_calls;
+    if(!S.population && history.runs.length)S.population=history.runs[0];
+    if(populating())setTimeout(pollPopulation,1500);
+  }
+  async function loadProduction(){S.production=await request('/api/workshop/production');}
+  async function pollProduction(ticket){
+    if(ticket!==S.productionPoll || !visible())return;
+    try{await loadProduction();paint();}catch(error){S.productionError='Automatic-writing status could not refresh. Existing jobs are retained.';paint();}
+    if(ticket===S.productionPoll && visible())setTimeout(()=>pollProduction(ticket),5000);
+  }
+  function productionPanel(){
+    const form=S.populationForm || S.optForm,p=S.production?.policies?.[form] || {enabled:false,remaining:0,used:0};
+    const entries=(S.production?.items || []).filter(i=>i.form===form);
+    return `<section class="ws-production"><h4>Automatically populate new entries</h4><p>This is independent of the one-off button. When on, newly eligible records after campaign sync get one draft and a JKSimmons review. Rewrites stop at five total drafts; the highest-rated valid draft is saved if none reaches 8/10. Invalid drafts are never published.</p><label><input type="checkbox" data-ws-production-toggle${p.enabled?' checked':''}${S.productionBusy || S.productionBody?' disabled':''}> Listen for new ${esc(formName(form).toLowerCase())}</label><p>${p.enabled?'On':'Off'} · ${p.remaining} writing calls remaining · ${p.used} authorized call slots used. Each generated draft can also use one native Codex review.</p>${p.guidelines?`<p>Pinned guidelines: ${esc(p.guidelines)}. Turning this on does not populate the current backlog.</p>`:''}<label>Additional writing calls to authorize<input type="number" min="1" max="200" value="${S.productionGrant || 20}" data-ws-production-grant${S.productionBusy?' disabled':''}></label><button data-ws="production-grant"${S.productionBusy || S.productionBody?' disabled':''}>Add writing allowance</button>${S.productionBody?'<button data-ws="production-reconcile">Check submitted decision</button>':''}${S.productionError?`<p role="status">${esc(S.productionError)}</p>`:''}<p>JKSimmons uses the existing local listener. Keep Codex running; a queued review can wait until his chat is loaded. <a href="codex://threads/01a17f57-f5bb-7782-bce0-8b3b43dd367f">Open JKSimmons</a> · <a href="codex://threads/01a17ff0-9029-7a13-935f-d0a86dcdc2b2">Open StoryTechMan for a blocked entry</a></p><details data-ws-detail="production-entries"><summary>Automatic entries · ${entries.length} recent</summary>${entries.map(i=>`<article><h5>${esc(i.label)} · ${esc(i.status.replaceAll('_',' '))}</h5><p>${esc(i.message)}</p><p>Attempt ${i.attempts.length} / 5${i.best!=null?' · best score '+esc(i.attempts[i.best]?.review?.overall)+'/10':''}${i.below_target?' · saved below target after five attempts':''}</p>${i.transport?`<p>Review: ${esc(i.transport.status)}${i.transport.status==='queued'?' · waiting for the native chat to start':''}</p>`:''}${i.attempts.map(a=>`<details><summary>Draft ${a.number} · ${esc(a.status)}${a.review?' · '+esc(a.review.overall)+'/10':''}</summary>${a.document?drawDocument(a.document):''}${a.review?`<p>${esc(a.review.summary)}</p><p>${esc(a.review.feedback)}</p>`:''}</details>`).join('')}</article>`).join('')||'<p>No new automatic entries yet.</p>'}</details></section>`;
+  }
+  async function productionDecision(enabled,grant){
+    const form=S.populationForm || S.optForm,p=S.production?.policies?.[form];
+    if(!p)throw new Error('Refresh automatic-writing status first.');
+    if(S.productionBusy)return;
+    if(!S.productionBody){
+      if(!Number.isInteger(grant) || grant<0 || grant>200)throw new Error('Choose an allowance of 1–200 writing calls.');
+      if((enabled || grant) && !window.confirm(`${enabled?'Enable automatic writing for':'Authorize an allowance for'} ${formName(form).toLowerCase()}? ${grant} additional paid writer calls; each draft may also use a Codex review. Maximum five total drafts per entry. New valid prose is published automatically; current backlog is separate.`)){paint();return;}
+      S.productionBody={form,enabled,additional_calls:grant,expected_revision:p.revision,request_key:crypto.randomUUID()};
+    }
+    S.productionBusy=true;paint();
+    try{await post('production-configure',S.productionBody);S.productionBody=null;S.productionError='';await loadProduction();}
+    catch(error){if(error.status>=400 && error.status<500 && ![408,429].includes(error.status))S.productionBody=null;throw error;}
+    finally{S.productionBusy=false;paint();}
+  }
+  async function pollPopulation() {
+    if(!S.population)return;
+    try{S.population=await request('/api/workshop/population?run_id='+encodeURIComponent(S.population.run_id));paint();if(populating())setTimeout(pollPopulation,1500);}
+    catch(error){S.message='Population status could not refresh. The saved run is retained. Use Refresh population status; do not start another run.';paint();}
+  }
+  function populationPanel() {
+    const p=S.populationPreview,r=S.population,form=S.populationForm || S.optForm;
+    return `<section class="ws-population"><h3>Populate category</h3><p>Happy with this category’s writing setup? Fill its existing pending records using the active guidelines, context retrieval and creative planning.</p><div class="workshop-actions"><label>Category<select data-ws-population-form${populating() || S.populationBody || S.populationBusy?' disabled':''}>${(S.home.forms || []).map(f=>`<option value="${esc(f)}"${form===f?' selected':''}>${esc(formName(f))}</option>`).join('')}</select></label><button data-ws="population-preview"${populating() || S.populationBody || S.populationBusy || watching()?' disabled':''}>Populate category</button><button data-ws="population-refresh">Refresh population status</button></div>
+      ${p?`<div class="ws-decision"><h4>${esc(formName(p.form))} · preview</h4><p><strong>${p.items.length} pending records</strong> · ${p.counts.existing} existing entries preserved · ${p.counts.attention} failed or uncertain records excluded.</p><p>Player-authored and canon prose are protected. This fills records already in NCCE; it does not invent new campaign events.</p><p>Active category guidelines: ${esc(p.setup.specific.label)} · ${esc(p.setup.specific.revision_id || 'built-in')}. Writer: ${esc(p.setup.model)}.</p><details><summary>Entries to fill (${p.items.length})</summary><ul>${p.items.map(i=>`<li>${esc(i.label)}</li>`).join('')}</ul></details><details><summary>Guidelines used for this run</summary>${guidelineText(p.setup.specific.instructions)}</details><label>Maximum writing calls<input data-ws-population-limit type="number" min="1" max="${p.max_calls}" value="${S.populationLimit || Math.min(p.items.length || 1,p.max_calls)}"${S.populationBody || S.populationBusy?' disabled':''}></label><p>Up to one JuniorWriter call per entry; no automatic retries or extra model reviews. Valid output is saved to the campaign immediately. Your approval here is separate from study qualification.</p><button data-ws="population-start"${!p.items.length || !p.configured || watching() || populating() || S.populationBusy?' disabled':''}>${S.populationBody?'Check submitted population run':'Generate and save pending entries'}</button></div>`:''}
+      ${r?`<div class="ws-decision" role="status"><h4>${populating()?'<span class="ws-activation-spinner" aria-hidden="true"></span> ':''}${esc(formName(r.form))} · ${esc(r.status.replaceAll('_',' '))}</h4><p>${esc(r.message)}</p><p>${r.results.filter(e=>e.status==='ready').length} / ${r.target_count} entries saved · ${r.usage?.requests_attempted || 0} / ${r.call_limit} writing calls · ${r.remaining_count} beyond this run’s limit.</p>${populating()?`<button data-ws="population-stop"${r.stop_requested?' disabled':''}>${r.stop_requested?'Stopping after the current request…':'Stop after the current request'}</button>`:''}<details data-ws-detail="population-results-${esc(r.run_id)}"><summary>Saved results and issues</summary>${r.results.map(e=>`<details><summary>${esc(e.label)} · ${esc(e.status)}</summary>${e.document?drawDocument(e.document):''}</details>`).join('') || '<p>No entries generated yet.</p>'}</details></div>`:''}
+      ${S.populationHistory?.length?`<label>Previous population runs<select data-ws-population-history><option value="">Choose run…</option>${S.populationHistory.map(h=>`<option value="${esc(h.run_id)}">${esc(formName(h.form))} · ${esc(h.status)} · ${esc(guidelineTime(h.created_at))}</option>`).join('')}</select></label>`:''}${productionPanel()}</section>`;
+  }
   const paragraphs=text=>String(text || '').split(/\n\s*\n/).map(p=>`<p>${esc(p)}</p>`).join('');
   async function loadQuality() {
     const scope=S.optForm,ticket=S.qualityLoad=(S.qualityLoad || 0)+1;
@@ -192,7 +236,7 @@ window.NCCEWorkshop = (() => {
     const openDetails=new Map([...(root?.querySelectorAll?.('details') || [])].map(d=>[detailKey(d),d.open]));
 
     if (!visible()) return;
-    root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Category writing lab</div><h2>Writer Workshop</h2><p>Develop the writing setup for a whole prose category. Read the fresh drafts first, then their assessment and your next decision.</p><p class="muted">Opening studies and reading results makes no model calls. Starting or continuing a writing test requires your confirmation.</p><p role="status" id="ws-status">${esc(S.message)}</p>${optimizationPanel()}${qualityPanel()}${guidelinesPanel()}</section>`;
+    root.innerHTML=`<section class="writer-workshop"><div class="eyebrow">Category writing lab</div><h2>Writer Workshop</h2><p>Develop the writing setup for a whole prose category. Read the fresh drafts first, then their assessment and your next decision.</p><p class="muted">Opening studies and reading results makes no model calls. Starting or continuing a writing test requires your confirmation.</p><p role="status" id="ws-status">${esc(S.message)}</p>${optimizationPanel()}${populationPanel()}${qualityPanel()}${guidelinesPanel()}</section>`;
     for(const d of root.querySelectorAll?.('details') || []){const key=detailKey(d);if(openDetails.has(key))d.open=openDetails.get(key);}
     if(focusedFlow && /^[a-z-]+$/.test(focusedFlow))root.querySelector('.flow-node[data-flow-node="'+focusedFlow+'"] .flow-node-button')?.focus({preventScroll:true});
     S.pendingPaint=false;
@@ -210,6 +254,28 @@ window.NCCEWorkshop = (() => {
   }
   async function action(button) {
     switch(button.dataset.ws) {
+      case 'production-grant': {const p=S.production?.policies?.[S.populationForm || S.optForm];await productionDecision(!!p?.enabled,Number(S.productionGrant || 20));break;}
+      case 'production-reconcile':await productionDecision(false,0);break;
+      case 'population-preview':
+        if(populating() || watching() || S.populationBusy)return;
+        S.populationBusy=true;paint();
+        try{S.populationPreview=await post('population-preview',{form:S.populationForm || S.optForm});S.populationLimit=Math.min(S.populationPreview.items.length || 1,S.populationPreview.max_calls);S.populationBody=null;}
+        finally{S.populationBusy=false;paint();}
+        break;
+      case 'population-start': {
+        if(populating() || watching() || S.populationBusy || !S.populationPreview)return;
+        const p=S.populationPreview,limit=Number(S.populationLimit);
+        if(!Number.isInteger(limit) || limit<1 || limit>p.max_calls)throw new Error('Choose a valid writing call limit.');
+        if(!S.populationBody && !window.confirm(`Populate ${formName(p.form).toLowerCase()}? Generate and save up to ${Math.min(limit,p.items.length)} pending entries with at most ${limit} paid JuniorWriter calls. Existing prose is preserved. There are no extra model reviews or automatic retries.`))break;
+        S.populationBody ||= {form:p.form,fingerprint:p.fingerprint,call_limit:limit,request_key:crypto.randomUUID()};
+        S.populationBusy=true;paint();
+        try{S.population=await post('population-start',S.populationBody);S.populationBody=null;S.populationPreview=null;await loadPopulation();}
+        catch(error){if(error.status>=400 && error.status<500 && ![408,429].includes(error.status)){S.populationBody=null;S.populationPreview=null;}throw error;}
+        finally{S.populationBusy=false;paint();}
+        break;
+      }
+      case 'population-refresh':await loadPopulation();await loadProduction();if(S.population)await pollPopulation();break;
+      case 'population-stop':if(populating())S.population=await post('population-stop',{run_id:S.population.run_id});break;
       case 'feedback-sync':
         if(S.busy || watching())return;
         S.busy=true;paint();
@@ -360,12 +426,17 @@ window.NCCEWorkshop = (() => {
       if(t.hasAttribute('data-ws-tech-note'))S.techNote=t.value;
       if(t.hasAttribute('data-ws-tech-rejection')){S.rejectionNotes ||= {};S.rejectionNotes[t.dataset.wsTechRejection]=t.value;}
       if(t.hasAttribute('data-ws-hypothesis'))S.hypothesis=t.value;
+      if(t.hasAttribute('data-ws-population-limit'))S.populationLimit=Number(t.value);
+      if(t.hasAttribute('data-ws-production-grant'))S.productionGrant=Number(t.value);
       if(t.hasAttribute('data-ws-candidate')){S.candidateText=t.value;S.candidateDirty=true;}
       if(t.hasAttribute('data-ws-verdict-note')){const k=t.dataset.wsVerdictNote;S.verdictDrafts ||= {};S.verdictDrafts[k] ||= {};S.verdictDrafts[k].note=t.value;}
     });
     root.addEventListener('change',event=>{
       const t=event.target;
       let task;
+      if(t.hasAttribute('data-ws-production-toggle')){const p=S.production?.policies?.[S.populationForm || S.optForm];task=productionDecision(t.checked,t.checked && !p?.remaining?Number(S.productionGrant || 20):0);}
+      if(t.hasAttribute('data-ws-population-form') && !populating() && !S.populationBody){S.populationForm=t.value;S.populationPreview=null;paint(true);}
+      if(t.hasAttribute('data-ws-population-history') && t.value && !populating())task=request('/api/workshop/population?run_id='+encodeURIComponent(t.value)).then(r=>{S.population=r;paint();});
       if(t.hasAttribute('data-ws-verdict-choice')){const k=t.dataset.wsVerdictChoice;S.verdictDrafts ||= {};S.verdictDrafts[k] ||= {};S.verdictDrafts[k].choice=t.value;paint(true);}
       if(t.hasAttribute('data-ws-guide-scope')) {S.guidelineScope=t.value;S.guidelines=null;paint(true);task=loadGuidelines().then(()=>paint(true));}
       if(t.hasAttribute('data-ws-opt-rounds')) {S.optRounds=Number(t.value);paint(true);}
@@ -391,6 +462,9 @@ window.NCCEWorkshop = (() => {
       }
       await loadGuidelines();
       await loadQuality();
+      await loadPopulation();
+      await loadProduction();
+      S.productionPoll=(S.productionPoll || 0)+1;const pollTicket=S.productionPoll;setTimeout(()=>pollProduction(pollTicket),5000);
       paint();
     } catch(error) {if(visible())root.innerHTML='<section class="writer-workshop"><h2>Writer Workshop</h2><p role="alert">'+esc(error.message)+'</p></section>';}
   }

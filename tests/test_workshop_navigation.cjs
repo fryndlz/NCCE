@@ -8,6 +8,7 @@ async function api(url){
   if(url==='/api/workshop')return home;
   if(url==='/api/workshop/optimizations')return {configuration:{},runs:[]};
   if(url==='/api/workshop/population')return {runs:[],max_calls:80};
+  if(url==='/api/workshop/production')return {policies:{},items:[]};
   if(url.startsWith('/api/workshop/guidelines?'))return null;
   if(url.startsWith('/api/workshop/quality'))return {suggested_instructions:'',contract:{rules:[],historical_examples:[],limitations:[]}};
   throw Error('Unexpected '+url);

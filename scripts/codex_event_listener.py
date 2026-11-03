@@ -53,6 +53,13 @@ class EventListener:
                 'Read your actual current native turn ID and claim ONLY this job using codex_chat_worker.py --role storytech claim --job-id '+job+' --turn-id ACTUAL_ID. '
                 'Inspect the actual packet, source and approval record. Investigations are READ ONLY. Repair/release jobs need their exact human approval in the packet. '
                 'Return the required report with complete --role storytech --file. No writer calls, writing-policy activation, authoritative campaign/canon edits, timers, other models or messages to other chats. Never display credentials or leases. Stop after this job.')
+        elif kind=='production_review':
+            message=('NCCE PRODUCTION REVIEW '+job+'. The owner enabled bounded production reviews in this JKSimmons chat. '
+                'Follow C:\\Codex\\NCCE\\writing-quality-dev\\docs\\CODEX_CHAT_REVIEWER.md, especially kind=production_review. '
+                'Read your actual native turn ID and claim ONLY this job using codex_chat_worker.py claim --job-id '+job+' --turn-id ACTUAL_ID. '
+                'Read the complete saved packet with the bounded packet reader. Review this SINGLE draft against its exact source and instructions. '
+                'Return the exact production schema using complete --file. The app controls rewrites and the five-attempt cap. '
+                'No writer calls, guideline activation, source edits, other models, timers or messages to other chats. End after this job.')
         elif kind=='editorial_consolidation':
             message=('NCCE FEEDBACK UPDATE '+job+'. The owner authorized one post-study standards update from sealed app feedback. '
                 'Follow C:\\Codex\\NCCE\\writing-quality-dev\\docs\\CODEX_CHAT_REVIEWER.md. '
