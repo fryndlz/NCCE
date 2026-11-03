@@ -26,10 +26,12 @@ assert.ok(gang[0].body.includes('Only Sheet background.'));assert.equal(gang[2].
 ctx.subject={backstory:'A static place.',territory:'Shrine',gang_name:'Gang',narrative_stream:[]};
 const place=run('placeRecordSections(subject,[])');assert.deepEqual(Array.from(place,s=>s.id),['baseline','history','events','scenes','battles']);
 assert.ok(place[0].body.includes('A static place.'));
-ctx.subject.territory_history_document={writer_status:'ready',blocks:[{type:'body_paragraph',text:'HISTORY OVERVIEW'}]};
+ctx.subject.territory_history_document={writer_status:'ready',document_type:'territory_history',metadata:[{label:'Record',value:'Place description'}],blocks:[{type:'body_paragraph',text:'HISTORY OVERVIEW'}]};
 ctx.subject.narrative_stream=[{entry_id:'event',scope_type:'territory',provenance_class:'inference',title:'A recorded change',document:{blocks:[{type:'body_paragraph',text:'EVENT ACCOUNT'}]}},{entry_id:'scene',scope_type:'territory',provenance_class:'connective_fiction',title:'Local occurrence',document:{blocks:[{type:'body_paragraph',text:'FICTIONAL SCENE'}]}}];
 const categorized=run('placeRecordSections(subject,[])');
 assert.ok(categorized[1].body.includes('HISTORY OVERVIEW')&&!categorized[1].body.includes('EVENT ACCOUNT'));
+assert.ok(categorized[1].body.includes('Territory campaign history')&&!categorized[1].body.includes('Place description'));
+assert.equal(ctx.subject.territory_history_document.metadata[0].value,'Place description','Display labels mutated the saved record');
 assert.ok(categorized[2].body.includes('EVENT ACCOUNT')&&!categorized[2].body.includes('FICTIONAL SCENE'));
 assert.ok(categorized[3].body.includes('FICTIONAL SCENE')&&!categorized[3].body.includes('EVENT ACCOUNT'));
 assert.equal(categorized[2].count,1);assert.equal(categorized[3].count,1);
