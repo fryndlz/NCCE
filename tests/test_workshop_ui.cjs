@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const callbacks={},timers=[],calls=[];
-const root={dataset:{},innerHTML:'',addEventListener:(name,fn)=>{callbacks[name]=fn;},querySelector(selector){if(selector==='.writer-workshop')return this.innerHTML.includes('writer-workshop')?{}:null;if(selector==='#ws-edited-preview')return this.preview ||= {innerHTML:''};return null;}};
+const root={dataset:{view:'workshop'},innerHTML:'',addEventListener:(name,fn)=>{callbacks[name]=fn;},querySelector(selector){if(selector==='.writer-workshop')return this.innerHTML.includes('writer-workshop')?{}:null;if(selector==='#ws-edited-preview')return this.preview ||= {innerHTML:''};return null;}};
 const escaped=s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;');
 const bodyDoc={blocks:[{type:'body_paragraph',text:'Original sample'}],composition:{}};
 const home={model:'same-model',effort:'low',configured:true,review:[{label:'Obsolete comparison',note:'Old feedback',versions:{A:'old',B:'old'}}],forms:['fighter_memory','place_ambient'],focus_options:{fighter_memory:[{value:'recorded_event',label:'Recorded event'}],place_ambient:[{value:'economic',label:'Livelihood'},{value:'historical',label:'History'}]},samples:[{key:'test',form:'fighter_memory',label:'Mara'},{key:'territory',form:'place_ambient',label:'Mine'}],trials:[]};
@@ -138,7 +138,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   // Reopening a paused study must prompt a decision without authorizing work.
   const pendingContext={window:{confirm:()=>false},console,setTimeout:()=>{},crypto:{randomUUID:()=> 'unused'}};
   vm.createContext(pendingContext);vm.runInContext(fs.readFileSync('web/workshop.js','utf8'),pendingContext);
-  const pendingRoot={dataset:{},innerHTML:'',addEventListener:()=>{},querySelector(){return this.innerHTML.includes('writer-workshop')?{}:null;}};
+  const pendingRoot={dataset:{view:'workshop'},innerHTML:'',addEventListener:()=>{},querySelector(){return this.innerHTML.includes('writer-workshop')?{}:null;}};
   const postCount=calls.filter(c=>c[1]?.method==='POST').length;
   await pendingContext.window.NCCEWorkshop.open(pendingRoot,(url,options)=>url==='/api/workshop/optimizations'?Promise.resolve({configuration:{},runs:[{...optimization,status:'budget_exhausted'}]}):api(url,options),doc=>escaped(JSON.stringify(doc)));
   assert.match(pendingRoot.innerHTML,/This test batch is complete/);
@@ -148,7 +148,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
   async function savedView(run){
     const c={window:{confirm:()=>false},console,setTimeout:()=>{},crypto:{randomUUID:()=> 'unused'}};
     vm.createContext(c);vm.runInContext(fs.readFileSync('web/workshop.js','utf8'),c);
-    const r={dataset:{},innerHTML:'',addEventListener:()=>{},querySelector(){return this.innerHTML.includes('writer-workshop')?{}:null;}};
+    const r={dataset:{view:'workshop'},innerHTML:'',addEventListener:()=>{},querySelector(){return this.innerHTML.includes('writer-workshop')?{}:null;}};
     const before=JSON.stringify(run), count=calls.filter(x=>x[1]?.method==='POST').length;
     await c.window.NCCEWorkshop.open(r,(url,options)=>url==='/api/workshop/optimizations'?Promise.resolve({configuration:{},runs:[run]}):api(url,options),doc=>escaped(JSON.stringify(doc)));
     assert.equal(JSON.stringify(run),before,'Rendering must preserve stored status and audit');
