@@ -10,7 +10,8 @@ from datetime import datetime, timezone
 
 MARKER = 'writing_system_retired_v1'
 TERMINAL = {'complete', 'completed', 'published', 'stopped', 'cancelled', 'error',
-            'failed', 'abandoned', 'interrupted', 'finished', 'closed'}
+            'failed', 'abandoned', 'interrupted', 'finished', 'closed', 'ready',
+            'imported', 'succeeded', 'saved', 'reviewed'}
 PRIVATE_PREFIXES = ('category-', 'native-author:', 'reviewer-', 'rag:', 'writing-rag:',
                     'writer_preview:', 'writer_comparison:', 'workshop', 'codex_')
 
@@ -45,7 +46,7 @@ def retire(store):
             for table in ('workshop_trials', 'codex_review_jobs', 'workshop_review_requests'):
                 rows = store.db.execute(f'SELECT rowid,status FROM {table}').fetchall()
                 for row in rows:
-                    if row['status'] not in TERMINAL:
+                    if row['status'] in {'queued', 'running', 'claimed', 'started', 'in_progress'}:
                         store.db.execute(f"UPDATE {table} SET status='cancelled',error=? WHERE rowid=?",
                                          ('Writing system removed by owner', row['rowid']))
                         counts[table] = counts.get(table, 0) + 1
