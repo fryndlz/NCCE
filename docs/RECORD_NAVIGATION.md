@@ -61,6 +61,8 @@ current-thought prose.
 
 ## Navigation behaviour
 
+- Section controls wait for initial campaign data before becoming usable, preventing
+  early navigation from reading an unloaded roster.
 - Section labels include available counts. Mind's count is ready thoughts;
   awaiting-writing counts remain explicit within Mind.
 - The selected section survives ordinary data refreshes for the same entity.

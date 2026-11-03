@@ -260,6 +260,7 @@ async function refreshDashboard(preserve = true) {
   try {
     const [dashboard, ledger] = await Promise.all([api('/api/dashboard'), api('/api/events?limit=12')]);
     data = dashboard;
+    document.querySelectorAll('#sectionNav [data-view]').forEach(button=>{button.disabled=false;});
     for (const field of ['gangs', 'regions', 'downtime', 'battles', 'territories']) data[field] = list(data[field]);
     data.state = data.state || {};
     data.campaignEvents = list(ledger.events);
@@ -948,6 +949,8 @@ syncNow.addEventListener('click', async () => {
 });
 if (logout) logout.addEventListener('click', async () => { await api('/api/logout', {method: 'POST'}); location.replace('/login'); });
 async function startApp() {
+  // Prevent navigation from racing the first campaign-data response.
+  document.querySelectorAll('#sectionNav [data-view]').forEach(button=>{button.disabled=true;});
   const initialView=location.hash;
   const session = await api('/api/session');
   if (session.auth_required && !session.authenticated) { location.replace('/login'); return; }
