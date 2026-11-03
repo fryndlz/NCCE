@@ -39,6 +39,7 @@ def main():
             ctx=call('context',key=key)
             assert ctx['context_hash']==call('context',key=key)['context_hash']
             assert ctx['instructions'] and 'retrieval' in ctx['packet']
+            assert 'rulebook_context' in ctx['packet'] and 'editorial_pattern_warnings' in ctx['packet']
             assert '\n'.join(store.db.iterdump())==before
             origin=next(r['key'] for r in cat['subjects'] if r['form']=='gang_origin')
             ob=call('start',forms=['gang_origin'],keys=[origin],max_drafts=1,request_key='native-gang-origin-batch')

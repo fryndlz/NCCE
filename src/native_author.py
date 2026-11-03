@@ -115,8 +115,16 @@ def context(store, key):
     form = selected['form']
     shared, specific = ws.active(store, 'shared') or ws.defaults('shared'), ws.active(store, form) or ws.defaults(form)
     from editorial_sync import standards
-    retrieval = rag.retrieve(store, form, selected['packet'])
-    packet = {**selected['packet'], 'retrieval': retrieval}
+    import territory_reference
+    import writer_planning as planning
+    packet = dict(selected['packet'])
+    reference = territory_reference.for_packet(form, packet)
+    if reference:
+        packet['rulebook_context'] = reference
+    packet['editorial_pattern_warnings'] = {
+        'boundary': 'Other-subject editorial avoidance hints only, never world history or details to copy.',
+        'patterns': planning.recent(store, packet.get('subject') or key, planning.family_of(form))}
+    packet['retrieval'] = rag.retrieve(store, form, packet)
     value = {'key': key, 'form': form, 'label': selected['label'], 'packet': packet,
              'document': selected['document'], 'source_hash': pop.hashed(before),
              'instructions': ws.compose(form, shared, specific), 'retrieval_revision': rag.corpus(store)[3],
