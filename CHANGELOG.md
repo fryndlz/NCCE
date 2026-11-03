@@ -1,5 +1,9 @@
 # Changelog
 
+### 0.23.2 deployment verification — 04 November 2026, 00:45 CET
+
+Source `57c33a7`, deployment `dep-dbl73l49v7es73cce2j0`, live health 0.23.2. Verified five authored source reports/counts against the live Sheet in a disposable app; source text is unchanged. All regression and authenticated HTTP/live-Sheet checks pass, including suppression of cleared source text in the legacy display fallback. Browser automation failed, so no hosted visual check is claimed. No writing-provider calls.
+
 ## 0.23.2 — Authored battle reports and formatting
 
 **Implemented:** 2026-11-04 00:37 CET / 2026-11-03 23:37 UTC.
