@@ -570,3 +570,6 @@ Source completed: 2026-10-28 19:19 CET (Europe/Warsaw).
 
 
 **0.24.0 release status (4 November 2026):** implemented and committed locally (`e7f5b7d`), not published. Automatic approval review rejected the push/deploy action; explicit owner publication approval is pending. The previous writing ecosystem remains removed.
+
+
+**0.24.0 authorization update — 2026-11-04 09:08 CET:** owner explicitly approved GitHub publication and deployment. Rechecked removed publication controls (410) and disabled writing in an authenticated disposable app. The external tool approval review is not an NCCE feature and remains outside this release. Deployment verification follows.
