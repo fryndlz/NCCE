@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.25.0 — Accepted external prose import
+
+**Implemented and locally tested:** 4 November 2026. **Release resumed:** 5 November 2026, 00:49 CET. Hosted verification follows deployment.
+
+- Owner accepted Mara's READY entry unchanged and explicitly authorized publication. Added its full frozen source packet, exact returned Markdown and explicit existing-memory binding as a reviewed delivery bundle.
+- Schema 16 retains complete deliveries/held drafts and stable receipts. Added exact source/subject/target validation, authored protection, consistent pre-import backup, atomic version replacement and duplicate/conflict constraints. Previous text remains; no second injury or factual/clock change.
+- Startup/refresh imports reviewed accepted files; regeneration reuses accepted prose without a model call. Added authenticated read-only receipt status; old writing controls/routes remain removed.
+- Six importer checks, all 16 Python regression scripts and seven JS suites pass. Disposable actual-history import survives forced regeneration with one active injury memory, exact text and unchanged authored biography/event clock. Authenticated version/schema/receipt HTTP smoke is checked before release.
+- Usage limits prevented the previous documentation/deploy tool batch from executing. Source changes/tests remained saved; no earlier deployment or Google Sheet acknowledgement occurred. Automatic whole-pipeline operation and other prose forms remain future work.
+
 ### Portable writing skill — 4 November 2026, 20:23 CET / 19:23 UTC
 
 - Added skills/ncce-campaign-writing/SKILL.md for the existing writing chat. All 16 forms have input, purpose and evidence/scope guidance; observation, reflection and current thought have distinct responsibilities. Kept existing literary style and authored priority.

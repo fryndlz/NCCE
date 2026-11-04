@@ -41,19 +41,20 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.24.0'}
+                    assert read('/healthz') == {'ok':True,'version':'0.25.0'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
                         raise RuntimeError('App failed to start')
                     time.sleep(0.25)
-            for path,body in [('/api/dashboard',None),('/api/login',{'password':'wrong'})]:
+            for path,body in [('/api/dashboard',None),('/api/writing-exchange',None),('/api/login',{'password':'wrong'})]:
                 try:
                     read(path,body)
                     raise AssertionError('Protected request unexpectedly succeeded')
                 except HTTPError as error:
                     assert error.code == 401
             assert read('/api/login',{'password':env['NCCE_ACCESS_PASSWORD']})['ok']
+            assert isinstance(read('/api/writing-exchange')['deliveries'],list)
             assert any(cookie.name == 'ncce_session' and cookie.has_nonstandard_attr('HttpOnly') for cookie in cookies)
             while True:
                 health = read('/api/health')
@@ -64,7 +65,7 @@ def main():
                 if time.monotonic()>deadline:
                     raise AssertionError('Sheet sync did not finish')
                 time.sleep(0.25)
-            assert health['schema_version'] == 15 and health['story_revision'] and health['writer']['status']=='removed'
+            assert health['schema_version'] == 16 and health['story_revision'] and health['writer']['status']=='removed'
             dashboard = read('/api/dashboard')
             coverage=read('/api/prose-progress')
             assert len(coverage['categories'])==16 and coverage['generation_enabled'] is False

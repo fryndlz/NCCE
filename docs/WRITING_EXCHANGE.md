@@ -1,6 +1,12 @@
 # External writing exchange — framework 1
 
-Prepared 2026-11-04, 14:56 UTC / 15:56 CET. This describes the delivered workbook contract, not a deployed NCCE integration. NCCE remains 0.24.0 with its internal writer disabled.
+Prepared 2026-11-04, 14:56 UTC / 15:56 CET. NCCE 0.25.0/schema 16 adds a bounded accepted-file import adapter; the internal model writer remains disabled. See Current design for implemented behavior and the changelog for hosted verification.
+
+## Accepted pilot import — 0.25.0
+
+The owner accepted the exact READY prose and authorized deployment. The reviewed delivery is data/writing-exchange/accepted/17e7fee1-bc2b-491c-825d-a07f1f014b96.json: original packet, source revision, exact 197-character Markdown and explicit mapping from the source activity to existing memory key 38fba6a8283370d510ec4c0649dd1513. The importer validates both source and target identities, creates no duplicate injury experience, preserves older prose and authored biography, and reuses the accepted text across regeneration/restart. Its verified backup, atomic import, retained held drafts and stable receipt are described in Current design.
+
+The adapter processes reviewed local bundles at startup/after sync, not arbitrary rows from the live Sheet. Only existing inferred fighter observations are supported. The other forms, request export, live Sheet polling/writing, work-chat triggering and automatic acknowledgement remain future work. The coordinator marks IMPORTED only after a committed hosted receipt is verified. Owner acceptance is retained separately from provenance; the generated entry remains inference. No wider roster or paid writing is started.
 
 **Writer skill added 4 November 2026, 20:23 CET / 19:23 UTC:** [ncce-campaign-writing/SKILL.md](../skills/ncce-campaign-writing/SKILL.md) is the portable, self-contained writer briefing. It defines all 16 forms by inputs, literary purpose and evidence boundaries, then explains implemented cognitive rules and deliberate differences from Park et al. The same guidance is in the native Sheet's sixth tab, Writer skill (gid 619892056), with a Guide pointer. All 30 section/text pairs were verified by exact native readback; the native layout was inspected at 100% zoom. The skill's schema validation passes, its 16 keys match prose_progress.py, and the seven event-clock plus three Mind regressions pass. It preserves the existing chat's literary style and does not restart an in-progress request. Mara was observed as WRITING; Queue, Context, frozen revision and existing Writer instructions were not edited by this change. No provider call or importer/deployment change.
 

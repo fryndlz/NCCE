@@ -175,6 +175,9 @@ def _authored(row):
 def _retained_writer_content(store,fighter_id,memory_key,writer_status):
     if writer_status.get('status') not in {'pending','error','unconfigured','paused'}:
         return None
+    from writing_exchange import retained
+    external=retained(store,fighter_id,memory_key)
+    if external:return external
     previous=store.db.execute("""SELECT content,content_runs_json,writer_status FROM story_memories
         WHERE fighter_id=? AND memory_key=? AND writer_status IN ('ready','stale') AND content!=''
         ORDER BY created_at DESC LIMIT 1""",(fighter_id,memory_key)).fetchone()

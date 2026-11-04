@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -857,6 +857,26 @@ def migrate(db: sqlite3.Connection) -> int:
             ''')
             db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(15,?,?)',('separate traceable current fighter thoughts',_now()))
             db.execute('PRAGMA user_version=15');db.commit()
+        except Exception:
+            db.rollback();raise
+    if current < 16:
+        try:
+            db.executescript('''
+                CREATE TABLE external_prose_deliveries(
+                    delivery_hash TEXT PRIMARY KEY, request_id TEXT NOT NULL,
+                    packet_json TEXT NOT NULL, binding_json TEXT NOT NULL,
+                    raw_markdown TEXT NOT NULL, received_at TEXT NOT NULL,
+                    disposition TEXT NOT NULL, error TEXT NOT NULL DEFAULT '',
+                    fighter_id INTEGER, memory_key TEXT, memory_id TEXT,
+                    imported_at TEXT, receipt TEXT);
+                CREATE UNIQUE INDEX external_prose_one_import_per_request
+                    ON external_prose_deliveries(request_id) WHERE disposition='imported';
+                CREATE UNIQUE INDEX external_prose_one_import_per_memory
+                    ON external_prose_deliveries(fighter_id,memory_key) WHERE disposition='imported';
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(16,?,?)',
+                       ('retained external prose deliveries and exact memory import receipts',_now()))
+            db.execute('PRAGMA user_version=16');db.commit()
         except Exception:
             db.rollback();raise
     return SCHEMA_VERSION
