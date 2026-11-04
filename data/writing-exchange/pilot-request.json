@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "request": {
+    "request_id": "17e7fee1-bc2b-491c-825d-a07f1f014b96",
+    "form": "fighter_memory",
+    "entity_type": "fighter",
+    "entity_key": "munda:fighter:c0c219c7-e776-4d0f-8eff-bb05be46a4d4",
+    "entry_key": "munda:gang_logs:b7ddeca9-8326-47e6-8df6-6963d35fda35",
+    "title": "Mara Kel — critical injury memory",
+    "context_id": "ctx:17e7fee1-bc2b-491c-825d-a07f1f014b96",
+    "source_revision": "sha256:d3177ff2273762d21904e03e0839bd082b838656758552b994fb8ab79751626b",
+    "event_at_utc": "2026-10-25T11:20:37.51+00:00",
+    "imperial_date": "9.815.998.M41"
+  },
+  "binding": {
+    "gang_source_id": "b5a33a07-6010-4eb1-a983-4a8ecf16c64f",
+    "fighter_source_id": "c0c219c7-e776-4d0f-8eff-bb05be46a4d4",
+    "fighter_name": "Mara Kel",
+    "source_table": "gang_logs",
+    "source_event_id": "b7ddeca9-8326-47e6-8df6-6963d35fda35",
+    "action_type": "fighter_injured",
+    "source_sheet_id": "1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00",
+    "authoritative_rows_verified": true
+  },
+  "context": [
+    {
+      "section": "brief",
+      "provenance": "instruction",
+      "source_ref": "Owner-approved single-fighter pilot",
+      "text": "Write ONE historical memory entry in Mara Kel's own first-person voice, reacting to this critical injury. Keep the established literary style of this writing chat. Her dossier is background, not the present event to retell. Write a finished memory rather than an administrative case summary or a paraphrase of a roster update. No alternate versions. This pilot does not request a new biography or a current Mind thought."
+    },
+    {
+      "section": "mechanics",
+      "provenance": "mechanical_fact",
+      "source_ref": "https://docs.google.com/spreadsheets/d/1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00/edit#gid=1627292241&range=A199:P199",
+      "event_at_utc": "2026-10-25T11:20:37.51+00:00",
+      "source_event_ids": [
+        "b7ddeca9-8326-47e6-8df6-6963d35fda35"
+      ],
+      "text": "{\n  \"source_table\": \"gang_logs\",\n  \"record_id\": \"b7ddeca9-8326-47e6-8df6-6963d35fda35\",\n  \"fighter_source_id\": \"c0c219c7-e776-4d0f-8eff-bb05be46a4d4\",\n  \"gang_source_id\": \"b5a33a07-6010-4eb1-a983-4a8ecf16c64f\",\n  \"action_type\": \"fighter_injured\",\n  \"description\": \"Fighter \\\"Mara Kel\\\" sustained Lasting Injury: \\\"Critical Injury\\\"\",\n  \"timestamp_basis\": \"Munda Manager activity record Created At, used for historical ordering; the exact injury moment was not separately recorded.\",\n  \"unknowns\": [\n    \"attacker or weapon causing this injury\",\n    \"anatomical wound\",\n    \"specific medical treatment or its cost\",\n    \"a documented link from this activity to a specific battle\"\n  ]\n}"
+    },
+    {
+      "section": "authored_canon",
+      "provenance": "player_authored",
+      "source_ref": "https://docs.google.com/spreadsheets/d/1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00/edit#gid=597013887&range=Z38",
+      "text": "+++ DEPARTMENTO MUNITORUM +++\n+++ HIVE PRIMUS LABOUR ADMINISTRATUM +++\n+++ PERSONNEL DOSSIER: GEOTHERMAL PROSPECT DETAIL C-9 +++\n\nReference: GPD-C9/██/774.M41\nDistribution: Guild Survey Office / Labour Administratum / Departmento Geologica\n\nThought for the Shift:\n\"The Emperor measures a life by its labour.\"\n\nKEL, Mara\n\nDesignation: Maintenance Fitter\nLabour Grade: General Crewman\nMedical Category: Hereditary Deep-Work Variant α \n\nResponsible for maintenance of drilling apparatus, thermal lanterns and geological survey equipment throughout C-9. Workshop inventories indicate significantly reduced equipment wastage compared to neighbouring Details despite operating in substantially harsher conditions.\n\nInspection records note that machinery condemned elsewhere routinely returns to service following repair under Kel's supervision.\n\nWorkshop Audit — 781.M41\n\nSix machines registered as scrapped were found operational, incorporating components from twenty-three other assets. No complete example of the original equipment could subsequently be located.\n\nKel disputed the recorded losses.\n\n“They're not twenty-nine machines. It's one workshop.”\n\n+++ RECORD TERMINATES +++\nEmperor Protects.\nFiled under Labour Archive GPD-C9/██/774.M41.\nFurther correspondence to be directed to Office █████████.\nNo further action required."
+    },
+    {
+      "section": "character_context",
+      "provenance": "inference",
+      "source_ref": "Inference from the supplied authored Mara Kel dossier",
+      "text": "Her work and the workshop audit suggest a practical maintenance fitter who understands repair, salvage and the value of usable equipment. Let that background shape what she notices and cares about, without copying the audit anecdote into the injury event or turning her into a machine. This is a voice inference, not an additional recorded event. C-NINE conventions apply to her own gang only."
+    },
+    {
+      "section": "chronology",
+      "provenance": "instruction",
+      "source_ref": "Historical event cutoff: 2026-10-25T11:20:37.51+00:00",
+      "text": "Write from the historical injury point on 25 October, not the date this request is processed. Use only the injury and established background supplied here. Later recovery/status records exist but are intentionally excluded: do not narrate them as simultaneous or use the current roster as her historical state. Earlier memories and unrelated battle outcomes are not being combined into this one entry. The supplied Imperial date is 9.815.998.M41; real-world dates belong only in the app wrapper."
+    },
+    {
+      "section": "rules",
+      "provenance": "instruction",
+      "source_ref": "No rulebook excerpt required for this narrow subjective injury memory",
+      "text": "The source establishes a Critical Injury. No new rule adjudication or treatment procedure is requested. Do not add a mechanical outcome, a payment, a death or a recovery as recorded fact. Within that boundary, use the literary judgement and fictional detail already established in your writing conversation. No generic NCCE style prompt or retired guardrail library is being supplied."
+    },
+    {
+      "section": "existing_fiction",
+      "provenance": "instruction",
+      "source_ref": "Single-entry pilot continuity boundary",
+      "text": "No earlier machine-written injury prose is supplied as a model to preserve. The source dossier remains authored canon. The returned entry will be classified as generated inference, even though the writer is an existing ChatGPT Project conversation. Put the complete finished Markdown in writer_text_md; keep provenance, source IDs and delivery commentary outside the prose."
+    }
+  ]
+}

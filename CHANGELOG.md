@@ -1,5 +1,11 @@
 # Changelog
 
+### First external writing request — 4 November 2026, 19:51 CET / 18:51 UTC
+
+- Owner confirmed work-chat access. Prepared the sole PENDING exchange request for Mara Kel's historical critical injury, using the live source fighter/event UUIDs and exact authored Sheet dossier. The other 19 request slots remain unused DRAFT.
+- Stored the complete frozen source packet and canonical SHA-256 revision; verified all Queue fields and seven Context blocks by native readback. Preserved historical ordering, separated authored background and excluded later recovery from the writing moment. No prior machine-written prose was supplied as a style model.
+- Core and authenticated disposable-app/live-Sheet smoke checks pass. No app code, automatic importer, model call, authored/source changes or deployment. The writing chat still needs the owner's prompt, and its result is not yet in NCCE. Exact archive-event-to-existing-memory mapping remains required before import.
+
 ### Writing exchange imported — 4 November 2026, 19:16 CET / 18:16 UTC
 
 - Imported the prepared workbook as native Google Sheet `1xokVbI3kya5koTqx9IOyUly2lP22batgLlo4oBlYBas`, in the connected account's ChatGPT folder. Added the complete Writer instructions tab and updated native setup guidance.

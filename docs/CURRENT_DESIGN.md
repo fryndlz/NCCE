@@ -6,6 +6,8 @@
 
 The owner approved fighter-relevant logical time, a half-life of **10 relevant events**, **one step per distinct meaningful change**, and **no fixed expiry**. Calendar-based cognitive decay in 0.16.0 is superseded. The detailed specification, worked examples, paper comparison and executable verification map are in [Fighter event clock](FIGHTER_EVENT_CLOCK.md).
 
+**Writing pilot state — 4 November 2026, 19:51 CET:** owner reports the work chat has access. Exactly one request is now PENDING in the exchange: Mara Kel's critical-injury observation, tied to a live-verified source fighter and activity UUID, with the exact authored Sheet dossier as background. The frozen packet and fingerprint are tracked under data/writing-exchange/pilot-request.json. This is a historical-event writing trial; no authored biography is replaced, later recovery is not folded into the injury and no generated content is published yet. The app importer and exact archive-to-existing-memory target mapping still need implementation. See [Writing exchange](WRITING_EXCHANGE.md) for current status and the explicit no-duplicate-memory requirement.
+
 ## 1. Product and authority
 
 NCCE is an event-driven campaign story engine, not a replacement roster manager or a continuous daily-life simulator. Its loop is Sheet snapshot → factual changes → sourced observations → reflections and current thoughts → campaign narratives. Tabletop mechanics remain authoritative; fiction cannot change them.
