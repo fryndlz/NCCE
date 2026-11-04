@@ -2,6 +2,8 @@
 
 **Implementation:** 0.24.0. **SQLite schema:** 15. This is the current specification, not a list of desired future features. Historical behavior is in Git and CHANGELOG.md. Hosted source/version and verification are recorded in the changelog; an implementation entry is not proof of live deployment.
 
+**External writing exchange framework — 4 November 2026:** a separate offline workbook and [writing-chat instructions](WRITING_CHAT_INSTRUCTIONS.md) define the proposed handoff to the owner's existing Project conversation. The workbook has reserved UUIDs, a six-status queue, frozen context fields and all 16 prose forms. [Writing exchange](WRITING_EXCHANGE.md) documents exact ownership, provenance, chronology and recovery rules. This is a prepared exchange artifact, not runtime integration: no Google Sheet has been published, no exporter/importer or schedule exists and the internal writer remains disabled. NCCE's deployed behavior/version is unchanged.
+
 The owner approved fighter-relevant logical time, a half-life of **10 relevant events**, **one step per distinct meaningful change**, and **no fixed expiry**. Calendar-based cognitive decay in 0.16.0 is superseded. The detailed specification, worked examples, paper comparison and executable verification map are in [Fighter event clock](FIGHTER_EVENT_CLOCK.md).
 
 ## 1. Product and authority

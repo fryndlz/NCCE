@@ -1,5 +1,12 @@
 # Changelog
 
+### Writing exchange framework — 4 November 2026, 15:56 CET / 14:56 UTC
+
+- Prepared a separate Google Sheets-compatible workbook with 20 reserved immutable request UUIDs, DRAFT/PENDING/WRITING/READY/IMPORTED/HOLD status validation, context/provenance fields, full Markdown output and all 16 current prose forms. No real requests are queued.
+- Added instructions for the owner's existing writing Project chat, including access verification, one delivery per entry, authored priority, chronological context, complete composition and manual JSON recovery. No new literary prompt/reviewer or provider calls.
+- Documented the exchange schema and future exact-identity/idempotent import requirements, and updated current design to distinguish the artifact from app behavior. Offline builder verifies unique IDs, category parity, changing status counts, no formula errors and rendered sheets; exported workbook structure is checked separately.
+- Google Drive is not connected and the owner is away from their computer. Native Sheet publication, account tool capability tests and the NCCE exporter/importer remain unfinished. No application code, live data, scheduler, deployment or authoritative Sheet was changed.
+
 ### 0.24.0 deployed — 04 November 2026, 09:11 CET
 
 Owner explicitly authorized publication. Source `be67dd2`, deployment `dep-dblefu97lnhs739kj7r0`, is live; health confirms 0.24.0. Hosted old publish/activate/generate operations return 410; reporting remains authenticated. Rechecked the removed in-app approval controller: no active UI or route remains. External tool approval settings were not disabled. No writing-provider calls.

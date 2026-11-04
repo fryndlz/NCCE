@@ -17,3 +17,6 @@ venv/
 !.env.example
 .DS_Store
 Thumbs.db
+
+# Generated deliverables and approved artifact-tool runtime junctions
+/outputs/
