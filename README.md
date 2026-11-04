@@ -1,6 +1,6 @@
 # NCCE — Necromunda Campaign Chronicle Engine
 
-Current source: **0.23.2**, SQLite schema **15**. Writer Workshop, JKSimmons, StoryTechMan and RAG have been removed. Prose generation is disabled until a replacement is agreed. Existing authored/generated prose, campaign data, the event ledger, memories and timeline are preserved.
+Current source: **0.24.0**, SQLite schema **15**. Writer Workshop, JKSimmons, StoryTechMan and RAG have been removed. Prose generation is disabled until a replacement is agreed. Existing authored/generated prose, campaign data, the event ledger, memories and timeline are preserved.
 
 The app reads Krakamunda on startup, every 15 minutes and on manual refresh. It keeps factual changes and fighter-relevant memory/thought causes; missing prose is marked paused. No provider key or paid writing setup is required.
 

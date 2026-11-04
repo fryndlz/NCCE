@@ -15,7 +15,7 @@ def test_counts_authored_ready_stale_missing_and_is_read_only():
         store.db.execute("UPDATE fighters SET backstory='An authored life.',backstory_source='player-authored / campaign Sheet' WHERE name='Mara Kel'")
         store.db.commit()
         # Archive/missing prose checks require no model and use real source slots.
-        report=summary(store);assert len(report['categories'])==15
+        report=summary(store);assert len(report['categories'])==16
         by={r['key']:r for r in report['categories']}
         assert by['fighter_biography']['counts']['authored']>=1
         assert by['gang_origin']['written']==0

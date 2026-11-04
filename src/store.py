@@ -154,6 +154,8 @@ class Store:
   for row in self.db.execute('SELECT normalized_json FROM campaign_archive_records ORDER BY source_table,record_id,archived_at_utc,version_hash'):
    try: records.append(json.loads(row['normalized_json']))
    except (TypeError,ValueError): continue
+  from fighter_timeline import records as tracked_fighter_records
+  records.extend(tracked_fighter_records(self))
   gang_names={str(row['gang_id']):row['name'] for row in self.db.execute('SELECT gang_id,name FROM gangs')}
   fighter_names={}
   roster={}
@@ -371,6 +373,8 @@ class Store:
   result['place_association_notes']=association_notes(self,result['battles'])
   for g in result['gangs']: self._gang_baseline(g)
   for b in result['battles']:
+   from campaign_authored import attach
+   attach(b)
    b['report_document']=document_for(self,'battle_report',b['id'])
    if b['report_document']: b['chronicle_stale']=False
   for t in result['territories']: t['history_document']=document_for(self,'territory_origin',t['id']) or document_for(self,'territory_history',t['id'])
@@ -390,6 +394,8 @@ class Store:
   g['campaign_history']=self.gang_history(gid)
   g['narrative_stream']=read_stream(self,'gang',gid)
   for b in g['battles']:
+   from campaign_authored import attach
+   attach(b)
    b['report_document']=document_for(self,'battle_report',b['id'])
    if b['report_document']: b['chronicle_stale']=False
   for d in g['downtime']: d['document']=document_for(self,'downtime',gid)

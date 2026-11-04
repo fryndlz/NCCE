@@ -299,6 +299,8 @@ def _is_ally(participant: dict) -> bool:
 
 def _xp_participation(activity: dict, gang_id: str | None, battle: dict | None) -> dict:
     """Infer participation only from a positive XP change in an involved gang."""
+    if activity.get('source_table')=='fighter_ledger' and activity.get('timestamp_basis')=='first_observed':
+        return {"status":"unknown","basis":"observation_time_only","confidence":"unavailable"}
     if not battle or not gang_id or str(gang_id) not in set(battle.get("gang_ids", [])):
         return {"status": "unknown", "basis": None, "confidence": "unavailable"}
     action = str(activity.get("action_type") or "").casefold()
@@ -340,7 +342,7 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
     now_raw, now_utc, _ = parse_instant(now or datetime.now(timezone.utc).isoformat())
     all_battles = latest_versions(records, "campaign_battles")
     sessions = latest_versions(records, "battle_sessions")
-    activities = sorted((record for record in records if record.get("source_table") == "gang_logs"),
+    activities = sorted((record for record in records if record.get("source_table") in {"gang_logs","fighter_ledger"}),
                         key=lambda item: (item.get("created_at_utc") or "", item["record_id"]))
 
     battle_by_id = {item["record_id"]: item for item in all_battles}
@@ -515,6 +517,8 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
         territory_id = record.get("territory_id") or record.get("campaign_territory_id")
         event = {
             "event_id": activity["record_id"],
+            "source_event_id": activity.get('source_event_id'),
+            "timestamp_basis": activity.get('timestamp_basis','recorded_event'),
             "source_table": activity["source_table"],
             "source_tab": activity.get("source_tab"),
             "source_row": activity.get("source_row"),
@@ -538,7 +542,7 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
             "battle_id": battle_id,
             "preceding_battle_id": preceding.get("battle_id") if preceding else None,
             "next_battle_id": next_battle.get("battle_id") if next_battle else None,
-            "evidence": {"timestamp": activity.get("created_at_raw"), "basis": "gang_logs.created_at", "session_window_rule": "candidate proxy: session.created_at through session.updated_at", "not_confirmed_gameplay_boundary": True},
+            "evidence": {"timestamp": activity.get("created_at_raw"), "basis": ('fighter ledger · '+activity.get('timestamp_basis','first_observed')) if activity['source_table']=='fighter_ledger' else "gang_logs.created_at", "source_id":activity.get('source_id'),"source_locator":activity.get('source_locator'),"session_window_rule": "candidate proxy: session.created_at through session.updated_at", "not_confirmed_gameplay_boundary": True},
             "raw_record": record,
             "parse_errors": activity.get("errors", []),
         }
@@ -576,7 +580,7 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
     events.sort(key=lambda item: (item.get("recorded_at") or "", item["event_id"]))
     return {"battles": sorted(battle_items, key=lambda item: (item.get("start_at") or item.get("documented_at") or "", item["battle_id"])),
             "events": events, "warnings": warnings,
-            "stats": {"activity_records": len(activities), "battle_records": len(all_battles),
+            "stats": {"activity_records": len(activities),"tracked_fighter_records":sum(r.get('source_table')=='fighter_ledger' for r in activities), "battle_records": len(all_battles),
                       "session_records": len(sessions), "orphan_sessions": len(orphan_sessions),
                       "timed_battles": sum(1 for item in battle_items if item["start_at"] and item["end_at"]),
                       "classified_during_battle": sum(1 for item in events if item["phase"] == "during_battle"),

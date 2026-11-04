@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('web/app.js','utf8');
+const ctx=vm.createContext({document:{querySelector:()=>({})},Intl,Date,console});
+vm.runInContext(fs.readFileSync('web/writing.js','utf8'),ctx);
+vm.runInContext(source.slice(0,source.indexOf('async function api(')),ctx);
+vm.runInContext(source.slice(source.indexOf('function battleEvidence('),source.indexOf('function downtime(')),ctx);
+vm.runInContext(source.slice(source.indexOf('function battleRecordSections('),source.indexOf('function showBattle(')),ctx);
+ctx.b={id:1,scenario:'Smash & Grab',notes:null,report_document:{provenance_class:'canon_authored',authored_text:'DOC REPORT <script>',writer_status:'ready',blocks:[]},post_battle_addendum:{attachment_count:3,authored_text:'// ATTACHMENT I //\nSource: Krail\nVerbatim <script> addendum.',source_url:'https://docs.google.com/document/d/source',source_label:'Authored source',source_locator:'HOSTILE ENGAGEMENT #2.1'}};
+const sections=vm.runInContext('battleRecordSections(b)',ctx);
+assert.equal(sections.length,2);assert.equal(sections[1].id,'addenda');assert.equal(sections[1].count,3);
+assert.match(sections[0].body,/Authored campaign canon · battle account/);assert.match(sections[0].body,/DOC REPORT &lt;script&gt;/);
+assert.match(sections[1].body,/Original document/);assert.match(sections[1].body,/Verbatim &lt;script&gt; addendum/);
+assert.doesNotMatch(sections[1].body,/<script>|Generated inference/);
+assert.match(source,/sections:battleRecordSections\(b\)/);
+assert.match(source,/First observed · actual event time unknown/);
+console.log('PASS addenda UI: separate battle section, attachment count, canonical report fallback, source links, escaping and observation-time disclosure');

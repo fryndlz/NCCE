@@ -286,6 +286,9 @@ def document_for(store, scope, key):
             from authored_battles import report as authored_report
             authored=authored_report(dict(battle))
             if authored:return authored
+            from campaign_authored import document as canon_document
+            authored=canon_document(dict(battle))
+            if authored:return authored
     row = store.db.execute("SELECT document_json FROM story_artifacts WHERE scope_type=? AND scope_key=? AND active=1 ORDER BY generated_at DESC LIMIT 1", (scope,str(key))).fetchone()
     document=json.loads(row[0]) if row else None
     # An explicitly cleared/replaced Sheet report must not resurface from an old

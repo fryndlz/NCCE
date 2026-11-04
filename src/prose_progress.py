@@ -14,6 +14,7 @@ CATEGORIES = (
     ('place_event','Places','Event entry','A recorded territorial change.'),
     ('place_ambient','Places','Local scene','Existing fictional incidents with no mechanical impact.'),
     ('battle_report','Campaign','Battle report','One recorded engagement.'),
+    ('post_battle_addendum','Campaign','Post-battle addenda','One post-battle dossier per engagement; may contain multiple attachments.'),
     ('downtime','Campaign','Downtime report','The current inter-battle account for each gang.'),
     ('region_history','Campaign','Regional chronicle','The campaign-wide account.'),
     ('relationship','Relationships','Relationship history','Current recorded gang-pair histories.'),
@@ -62,7 +63,7 @@ def summary(store):
     fighters=rows('SELECT * FROM fighters');fighters=[f for f in fighters if f['gang_id'] in gids]
     fids={str(f['id']) for f in fighters}
     places=rows('SELECT * FROM territories WHERE active=1');tids={str(t['id']) for t in places}
-    battles=rows('SELECT id,notes FROM battles WHERE active=1')
+    battles=rows('SELECT * FROM battles WHERE active=1')
     slots={key:{} for key,*_ in CATEGORIES}
     artifacts={}
     for a in rows('SELECT scope_type,scope_key,document_json FROM story_artifacts WHERE active=1 ORDER BY generated_at,artifact_id'):
@@ -82,9 +83,11 @@ def summary(store):
     for t in places:
         for form in ('territory_origin','territory_history'):slots[form][str(t['id'])]=document(form,t['id'])
     from authored_battles import has_report
+    from campaign_authored import document as canon_document
     for b in battles:
         stored=artifacts.get(('battle_report',str(b['id'])),{})
-        slots['battle_report'][str(b['id'])]='authored' if has_report(b) else 'unwritten' if stored.get('authored_report_revision') else document('battle_report',b['id'])
+        slots['battle_report'][str(b['id'])]='authored' if has_report(b) or canon_document(b) else 'unwritten' if stored.get('authored_report_revision') else document('battle_report',b['id'])
+        slots['post_battle_addendum'][str(b['id'])]='authored' if canon_document(b,'addenda') else 'unwritten'
     if gangs or rows('SELECT id FROM regions'):
         slots['region_history']['campaign']=document('region_history','campaign')
     for m in rows('SELECT fighter_id,memory_key,memory_type,content,writer_status FROM story_memories WHERE active=1 ORDER BY created_at,memory_id'):

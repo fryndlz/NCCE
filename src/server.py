@@ -9,7 +9,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.23.2'
+APP_VERSION='0.24.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -32,6 +32,8 @@ import llm_writer
 # Retire execution paths before preparing derived campaign state.
 from writing_retirement import retire
 retirement=retire(store)
+from campaign_authored import register as register_authored_dossiers
+register_authored_dossiers(store)
 print('Writing system removed; verified backup: '+retirement['backup']+'; terminal audit labels restored: '+str(retirement.get('restored_terminal_audits',0)),flush=True)
 regenerate(store,writer_enabled=False)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))

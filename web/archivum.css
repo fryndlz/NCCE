@@ -199,3 +199,7 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 #app .archive-paper .authored-battle .record_termination { color:#5c654a; }
 #app .archive-paper .recorded-note { background:transparent; color:#2d3a2d; border-color:#a7ae92; }
 @media(max-width:620px) { #app .archive-paper .authored-battle .authored-record { font-size:16px; line-height:1.75; } }
+/* Separate authored source variants inside the battle dossier. */
+.alternate-account { margin:1.6em 0 .5em; padding:1em 0; border-top:1px solid #728167; }
+.alternate-account > summary { cursor:pointer; font:600 13px/1.6 system-ui,sans-serif; margin-bottom:1em; }
+#app .archive-paper .alternate-account > summary { color:#4d5d3e; }

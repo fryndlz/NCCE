@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.24.0 — Battle addenda and per-gang fighter history
+
+**Implemented:** 2026-11-04 01:08 CET / 00:08 UTC.
+
+- Imported five source-bounded C-NINE engagement dossiers with source URLs, capture/hash metadata and exact guarded battle links. Backfilled the missing Mine Workings and Sludge Sea reports; preserved existing Sheet reports and exposed alternate Doc accounts.
+- Added a separate Post-battle addenda tab to battle records. Five packets contain 15 numbered attachments; original source discrepancies are retained.
+- Added Post-battle addenda as the 16th prose category, counted per battle packet. Current source coverage: seven authored reports and five authored addenda packets across 26 battles.
+- Added all gangs' existing tracked fighter changes to their campaign timeline lanes, preserving original source/snapshot pointers and distinguishing first-observation time from known occurrence time. No fabricated history or attendance.
+- Kept source facts, cognition and timeline navigation/durations intact; added authority, mapping, coverage, UI and all-gang timeline regressions. No writer/model requests.
+- Updated current design; hosted verification follows.
+
 ### 0.23.2 deployment verification — 04 November 2026, 00:45 CET
 
 Source `57c33a7`, deployment `dep-dbl73l49v7es73cce2j0`, live health 0.23.2. Verified five authored source reports/counts against the live Sheet in a disposable app; source text is unchanged. All regression and authenticated HTTP/live-Sheet checks pass, including suppression of cleared source text in the legacy display fallback. Browser automation failed, so no hosted visual check is claimed. No writing-provider calls.

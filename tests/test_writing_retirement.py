@@ -124,7 +124,7 @@ def http_check():
         def request(path,body=None):
             return client.open(Request(base+path,data=None if body is None else json.dumps(body).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer old-bridge-token'}),timeout=10)
         try:
-            assert json.load(request('/healthz'))['version']=='0.23.2'
+            assert json.load(request('/healthz'))['version']=='0.24.0'
             try:request('/api/prose-progress');raise AssertionError('Coverage must require campaign authentication')
             except HTTPError as error:assert error.code==401
             retired=['/api/workshop','/api/workshop/generate','/api/workshop/rag/sync','/api/native-author/publish','/api/reviewer-bridge/claim','/api/writer-diagnostic','/api/writer-runs/mara-latest','/api/territory-writer-runs','/api/fighters/1/write-check']
@@ -135,8 +135,9 @@ def http_check():
                         try:request(path,body);raise AssertionError(path)
                         except HTTPError as error:assert error.code==410,(path,error.code)
             dashboard=json.load(request('/api/dashboard'));assert dashboard['gangs'] and dashboard['writer']['status']=='removed'
-            progress=json.load(request('/api/prose-progress'));assert len(progress['categories'])==15 and progress['generation_enabled'] is False
+            progress=json.load(request('/api/prose-progress'));assert len(progress['categories'])==16 and progress['generation_enabled'] is False
             assert json.load(request('/api/history'))
+            assert 'tracked_fighter_records' in json.load(request('/api/history'))['stats']
             assert b'data-view="workshop"' not in request('/').read()
             for asset in ('workshop.js','retrieval.js','writing_activity.js'):
                 try:request('/'+asset);raise AssertionError(asset)

@@ -285,11 +285,11 @@ function battleEvidence(b) {
 function battle(b, expanded = false) {
   const document = b.report_document || b.document;
   const outcome = b.winner ? short(b.winner) + ' won' : 'Outcome not recorded';
-  const sourceText = Object.prototype.hasOwnProperty.call(b,'notes') ? b.notes : document?.authored_text || document?.recorded_notes?.text;
+  const sourceText = String(b.notes || '').trim() ? b.notes : document?.provenance_class==='canon_authored' ? document.authored_text : Object.prototype.hasOwnProperty.call(b,'notes') ? b.notes : document?.authored_text || document?.recorded_notes?.text;
   const isAuthored = Boolean(String(sourceText || '').trim()) || ['player_authored','canon_authored'].includes(document?.provenance_class);
   const fallback = Object.prototype.hasOwnProperty.call(b,'report_document') ? '' : b.chronicle || '';
   const account = isAuthored && String(sourceText || '').trim() ? authoredRecord(sourceText) : blocks(document ? {...document, suppress_date:true} : document, fallback);
-  return `<article class="battle-report"><div class="entry-top"><span class="eyebrow">${esc(b.scenario || 'Engagement')}</span><time>${dateStamp({date:b.date})}</time></div><h3>${esc(document?.title || (b.territory ? 'The struggle for ' + b.territory : short(b.attacker) + ' / ' + short(b.defender)))}</h3><div class="battle-parties">${esc(short(b.attacker))}<span>against</span>${esc(short(b.defender))}</div><div class="battle-outcome">${esc(outcome)}${b.territory ? `<span class="tag">${esc(b.territory)}</span>` : ''}</div><details class="report-fold" data-key="battle-${esc(b.id || b.source_row)}"${expanded ? ' open' : ''}><summary>Battle account</summary>${b.chronicle_stale ? '<p class="warning">This account is awaiting regeneration after a corrected source record.</p>' : ''}<div class="report-body${isAuthored?' authored-battle':''}"><div class="eyebrow">${isAuthored?'Player-authored · battle account':'Generated inference · battle chronicle'}</div>${account}</div>${evidence(document?.evidence?.length ? document.evidence : battleEvidence(b), {...document, provenance_class:'mechanical_fact', source_label: 'Authoritative campaign Sheet · Battles', source_locator: b.source_row ? 'Battles!row ' + b.source_row : null}, false, 6)}</details></article>`;
+  return `<article class="battle-report"><div class="entry-top"><span class="eyebrow">${esc(b.scenario || 'Engagement')}</span><time>${dateStamp({date:b.date})}</time></div><h3>${esc(document?.title || (b.territory ? 'The struggle for ' + b.territory : short(b.attacker) + ' / ' + short(b.defender)))}</h3><div class="battle-parties">${esc(short(b.attacker))}<span>against</span>${esc(short(b.defender))}</div><div class="battle-outcome">${esc(outcome)}${b.territory ? `<span class="tag">${esc(b.territory)}</span>` : ''}</div><details class="report-fold" data-key="battle-${esc(b.id || b.source_row)}"${expanded ? ' open' : ''}><summary>Battle account</summary>${b.chronicle_stale ? '<p class="warning">This account is awaiting regeneration after a corrected source record.</p>' : ''}<div class="report-body${isAuthored?' authored-battle':''}"><div class="eyebrow">${isAuthored?(document?.provenance_class==='canon_authored'?'Authored campaign canon · battle account':'Player-authored · battle account'):'Generated inference · battle chronicle'}</div>${account}${b.alternate_report_document?`<details class="alternate-account"><summary>Additional authored account · C-NINE document</summary>${authoredRecord(b.alternate_report_document.authored_text)}<div class="authored-source">${esc(b.alternate_report_document.source_locator)}</div></details>`:''}</div>${evidence(document?.evidence?.length ? document.evidence : battleEvidence(b), {...document, provenance_class:'mechanical_fact', source_label: 'Authoritative campaign Sheet · Battles', source_locator: b.source_row ? 'Battles!row ' + b.source_row : null}, false, 6)}</details></article>`;
 }
 function downtime(report) {
   const document = report.document || report.report_document;
@@ -374,7 +374,7 @@ function historyIcon(event) {
   return /kill|death|dead/.test(type)?'☠':/injur|recover|heal/.test(type)?'✚':/xp|experien/.test(type)?'✦':/advance|skill|promot/.test(type)?'↑':/credit|wealth|income/.test(type)?'¤':/equip|weapon|stash|item/.test(type)?'⚒':/recruit|added|hire/.test(type)?'+':/territor|claim/.test(type)?'⚑':/reputation/.test(type)?'★':/battle/.test(type)?'⚔':'◆';
 }
 function historyEventItem(event) {
-  return `<li><button type="button" class="history-activity-entry" data-history-event="${esc(event.event_id)}"><span class="history-event-icon" aria-label="${esc(human(event.action_type))}">${historyIcon(event)}</span><span>${historyStamp(event.recorded_at)}<span class="timeline-mechanical history-event-description">${esc(event.description || human(event.action_type) || 'Change recorded')}</span></span></button></li>`;
+  return `<li><button type="button" class="history-activity-entry" data-history-event="${esc(event.event_id)}"><span class="history-event-icon" aria-label="${esc(human(event.action_type))}">${historyIcon(event)}</span><span>${historyStamp(event.recorded_at)}${event.timestamp_basis==='first_observed'?'<small class="timeline-mechanical">First observed · actual event time unknown</small>':''}<span class="timeline-mechanical history-event-description">${esc(event.description || human(event.action_type) || 'Change recorded')}</span></span></button></li>`;
 }
 function historyEntityLink(kind,id,name) {
   return id ? `<button class="text-button history-entity-link" data-${kind}="${esc(id)}">${esc(name)}</button>` : esc(name || 'Unrecorded');
@@ -406,7 +406,7 @@ function timelineDetail(event, selectedBattle) {
     return `<article class="timeline-detail"><header class="timeline-diegetic history-record-header"><div class="eyebrow">+++ ENGAGEMENT ARCHIVE // RECORD RETRIEVED +++</div><div class="history-mission"><span>MISSION</span><h4>${esc(b.scenario || 'Battle')}</h4></div><div class="history-participants">${participants}</div><div class="history-record-id">REGISTRY: KRAK/ENG/${esc(b.battle_id)} // ${esc(String(b.status || 'registered').toUpperCase())}</div></header><dl>${b.cycle!==null && b.cycle!==undefined?`<div><dt>Cycle</dt><dd>${esc(b.cycle)}</dd></div>`:''}<div><dt>Time Window</dt><dd><div class="timeline-diegetic history-imperial-window">${esc(historyImperial(b.start_at))} — ${esc(historyImperial(b.end_at))}</div><div class="history-real-window">${esc(historyDate(b.start_at))} — ${esc(historyDate(b.end_at))}<strong>Engagement time: ${historyDuration(historyPlaytime(b))}</strong></div></dd></div><div><dt>Winner</dt><dd>${historyEntityLink('gang',winnerId,b.winner || 'Unrecorded')}</dd></div><div><dt>Campaign Record</dt><dd class="timeline-diegetic history-record-id">RECORD-KEY // ${esc(b.battle_id)}</dd></div>${b.territory?`<div><dt>Territory</dt><dd>${historyEntityLink('territory',placeId,b.territory)}</dd></div>`:''}</dl><section class="timeline-battle-activity"><div class="evidence-label history-events-heading">+++ RECORDED EVENTS // CHRONOLOGICAL INDEX +++</div>${historyActivityGroup(battleRows,'battle')}${historyActivityGroup(downtimeRows,'downtime')}</section></article>`;
   }
   if (!event) return `<div class="timeline-detail muted">Select a battle, event or numbered group.</div>`;
-  return `<article class="timeline-detail"><div class="timeline-diegetic eyebrow">+++ ACTIVITY REGISTER // ${esc(event.event_id)} +++</div><h4>${historyIcon(event)} ${esc(event.entity_label || event.gang_name || 'Campaign event')}</h4>${historyStamp(event.recorded_at)}<div class="timeline-mechanical history-mechanical-panel"><div class="evidence-label">Mechanical record · ${esc(human(event.action_type))}</div><p>${esc(event.description || 'Change recorded')}</p></div>${event.gang_id?`<p>Gang: ${historyEntityLink('gang',event.gang_id,short(event.gang_name))}</p>`:''}${event.local_fighter_id?`<p>Fighter: ${historyEntityLink('fighter',event.local_fighter_id,event.fighter_name)}</p>`:''}</article>`;
+  return `<article class="timeline-detail"><div class="timeline-diegetic eyebrow">+++ ACTIVITY REGISTER // ${esc(event.event_id)} +++</div><h4>${historyIcon(event)} ${esc(event.entity_label || event.gang_name || 'Campaign event')}</h4>${historyStamp(event.recorded_at)}${event.timestamp_basis==='first_observed'?'<p class="timeline-mechanical">First observed at this time; the actual event time is unknown.</p>':''}<div class="timeline-mechanical history-mechanical-panel"><div class="evidence-label">Mechanical record · ${esc(human(event.action_type))}</div><p>${esc(event.description || 'Change recorded')}</p></div>${event.gang_id?`<p>Gang: ${historyEntityLink('gang',event.gang_id,short(event.gang_name))}</p>`:''}${event.local_fighter_id?`<p>Fighter: ${historyEntityLink('fighter',event.local_fighter_id,event.fighter_name)}</p>`:''}</article>`;
 }
 function fighterCampaignHistory(fighter) {
   const events=list(fighter.campaign_history?.events).slice().sort((a,b)=>(b.recorded_at||'').localeCompare(a.recorded_at||''));
@@ -631,12 +631,19 @@ function recordDetail(kind, id, body, meta) {
   }
   NCCEArchive.present(outlet, body, {kind,id,...meta});
 }
+function battleRecordSections(b) {
+  const add=b.post_battle_addendum;
+  return [
+    {id:'baseline',label:'Battle report',paper:true,paperLabel:'ENGAGEMENT ACCOUNT',description:'Authored accounts take precedence over generated interpretation.',body:battle(b,true)},
+    {id:'addenda',label:'Post-battle addenda',count:add?.attachment_count||0,paper:true,paperLabel:'POST-ENGAGEMENT DOSSIER',description:'Attached post-battle records. Authored narrative is separate from mechanical state.',body:add?`<div class="report-body authored-battle"><div class="eyebrow">Authored campaign canon · ${esc(add.source_locator)}</div>${authoredRecord(add.authored_text)}<div class="authored-source">${esc(add.source_label)} · <a href="${esc(add.source_url)}" target="_blank" rel="noopener noreferrer">Original document</a></div></div>`:empty('No post-battle addenda have been provided for this engagement.')}
+  ];
+}
 function showBattle(id) {
   ++renderToken;
   const b=data.battles.find(row=>String(row.id)===String(id));
   if(!b)return;
   currentDetail={type:'battle',id};
-  recordDetail('battle',id,battle(b,true),{title:b.report_document?.title || b.scenario || 'Engagement',date:b.date,source:'Campaign Sheet · Battles',fields:[['Mission',b.scenario],['Attacker',short(b.attacker)],['Defender',short(b.defender)],['Winner',short(b.winner)],['Territory',b.territory]]});
+  recordDetail('battle',id,'',{sections:battleRecordSections(b),title:b.report_document?.title || b.scenario || 'Engagement',date:b.date,source:'Campaign Sheet · Battles',fields:[['Mission',b.scenario],['Attacker',short(b.attacker)],['Defender',short(b.defender)],['Winner',short(b.winner)],['Territory',b.territory]]});
 }
 function showArchive(id) {
   ++renderToken;
@@ -739,7 +746,7 @@ function entityTimeline(entries, facts, battles = []) {
 }
 function fighterRecordSections(f, memories, mind, deceased) {
   const baseline=memories.filter(m=>m.is_baseline || m.baseline), evolving=memories.filter(m=>!m.is_baseline && !m.baseline);
-  const archive=list(f.campaign_history?.events), tracked=list(f.campaign_events), events=archive.length?archive:tracked;
+  const archive=list(f.campaign_history?.events), represented=new Set(archive.map(e=>e.source_event_id).filter(Boolean)), tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id)), events=archive.length?archive:tracked;
   return [
     {id:'baseline',label:'Backstory',description:'Their background and established identity. Later events have their own sections.',paper:true,body:narrative(f.backstory,f.backstory_source,fighterEvidence(f),{...f,source_label:'Current mechanics and campaign context'})},
     {id:'timeline',label:'Timeline',count:events.length,description:'What happened to this fighter, ordered by recorded time. Open an event for its details.',body:entityTimeline([],events)+(archive.length && tracked.length?`<details class="additional-history" data-key="fighter-ledger"><summary>Additional tracked changes · ${tracked.length}</summary>${entityTimeline([],tracked)}</details>`:'')},
