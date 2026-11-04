@@ -1,5 +1,12 @@
 # Changelog
 
+### Portable writing skill — 4 November 2026, 20:23 CET / 19:23 UTC
+
+- Added skills/ncce-campaign-writing/SKILL.md for the existing writing chat. All 16 forms have input, purpose and evidence/scope guidance; observation, reflection and current thought have distinct responsibilities. Kept existing literary style and authored priority.
+- Verified the current code and primary Generative Agents paper. Documented NCCE's deliberate adaptations: fighter-relevant event distance/10-event recency half-life, deterministic importance, bounded batch reflection, weighted retrieval, independent current thoughts and no fixed expiry. Distinguished these from paper mechanisms and from unimplemented semantic/recursive/autonomous planning features. Included identity/stim attention and two-layer formatting rules.
+- Published identical section content in a new Writer skill tab (30 verified section pairs) and added its Guide pointer. Mara was already WRITING; request/context/fingerprint/existing delivery instructions were untouched. Skill validator, exact 16-form parity and all ten focused event-clock/Mind regressions pass; native layout inspected at 100% zoom.
+- No new prose, provider requests, campaign source edits, app mechanics, automatic import, deployment or global skill installation.
+
 ### First external writing request — 4 November 2026, 19:51 CET / 18:51 UTC
 
 - Owner confirmed work-chat access. Prepared the sole PENDING exchange request for Mara Kel's historical critical injury, using the live source fighter/event UUIDs and exact authored Sheet dossier. The other 19 request slots remain unused DRAFT.
