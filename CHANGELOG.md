@@ -1,5 +1,11 @@
 # Changelog
 
+### Writing exchange imported — 4 November 2026, 19:16 CET / 18:16 UTC
+
+- Imported the prepared workbook as native Google Sheet `1xokVbI3kya5koTqx9IOyUly2lP22batgLlo4oBlYBas`, in the connected account's ChatGPT folder. Added the complete Writer instructions tab and updated native setup guidance.
+- Verified all 20 UUIDs exactly against the local manifest, all requests remain unused DRAFT, all 16 forms, three native tables, queue counts/frozen panes and the full 13-block instructions. Explicitly set native dropdown column types and repaired imported text-status conditional rules. Visually inspected all five tabs in native Google Sheets at 100% zoom.
+- No sharing change, work-account access test, actual writing request, provider call, authoritative source edit, runtime bridge, deployment or app data change. NCCE remains 0.24.0 with its internal writer disabled.
+
 ### Writing exchange framework — 4 November 2026, 15:56 CET / 14:56 UTC
 
 - Prepared a separate Google Sheets-compatible workbook with 20 reserved immutable request UUIDs, DRAFT/PENDING/WRITING/READY/IMPORTED/HOLD status validation, context/provenance fields, full Markdown output and all 16 current prose forms. No real requests are queued.

@@ -2,11 +2,13 @@
 
 Prepared 2026-11-04, 14:56 UTC / 15:56 CET. This describes the delivered workbook contract, not a deployed NCCE integration. NCCE remains 0.24.0 with its internal writer disabled.
 
+**Native import verified 4 November 2026, 19:16 CET / 18:16 UTC:** [NCCE Writing Exchange](https://docs.google.com/spreadsheets/d/1xokVbI3kya5koTqx9IOyUly2lP22batgLlo4oBlYBas/edit) is now in the connected account's ChatGPT folder. All 20 reserved IDs match the local manifest exactly and remain blank DRAFT requests. All 16 forms, three native tables, frozen queue identifiers, dropdown column options and formulas survived conversion. Native table dropdown types were set explicitly and the queue's imported text-status conditional formatting was repaired. Writer instructions were added as a fifth tab, preserving all 13 source instruction blocks exactly. All five tabs were visually inspected in Google Sheets at 100% zoom. The workbook is private to its owner; access from the separate work account has not been tested or granted. No actual writing, context export or app import was started.
+
 ## Purpose and current boundary
 
 The owner's existing ChatGPT Project conversation supplies the prose. A separate Google Sheet carries requests, frozen context and returned Markdown. The existing conversation's literary instructions and examples remain its style authority. This framework does not train a model, recreate the removed Workshop/RAG/reviewer pipeline or invoke a provider.
 
-The delivered XLSX is ready for Google Sheets import. Google Drive was unavailable and the owner is away from their computer, so no native Sheet has been published. There is no automatic export, polling, webhook, import, scheduling or new publication controller. A READY row does not yet appear in the app. Those are subsequent integration work.
+The verified native Sheet is the working queue; the local XLSX is its original preparation artifact. There is no automatic export, polling, webhook, app import, scheduling or new publication controller. A READY row does not yet appear in the app. Those are subsequent integration work.
 
 ## Workbook
 
@@ -14,6 +16,7 @@ The delivered XLSX is ready for Google Sheets import. Google Drive was unavailab
 - **Context:** several labelled evidence blocks may share a context_id. Source provenance, event time and IDs stay outside literary output. Source URLs supplied here are a directory, not proof their contents were fetched.
 - **Forms:** all 16 current System prose categories. This list is descriptive, not permission to generate every category. Gang backstories remain authored-only.
 - **Guide:** owner workflow, status definitions and field dictionary.
+- **Writer instructions:** the complete existing-chat delivery instructions, copied into the native Sheet so they can be read without a local file. The Google Sheet Guide now points here instead of asking the owner to upload the workbook.
 
 Queue columns:
 
@@ -84,11 +87,11 @@ READY means written and saved, not published, approved as canon or guaranteed st
 - Store request_id, source revision, source event IDs, provenance and imported artifact revision atomically. Re-importing the same request is a no-op returning the same receipt; conflicting content for that ID is quarantined intact.
 - Mark IMPORTED only after commit. If acknowledgement fails, repeat the import/receipt check, not the generation.
 
-## Setup when the owner returns
+## Using the native Sheet
 
-Upload the XLSX to Google Drive, open with Google Sheets and save it as a native Google Sheet. Keep it separate from Krakamunda. Share only with the work account that needs access. Keep one working copy and retain its URL.
+The import is complete; use the native URL above and keep it separate from Krakamunda. No sharing settings were changed. If the work account cannot read it, the owner will need to grant that specific account access. Keep one working copy; do not import the XLSX again to create another queue.
 
-Give WRITING_CHAT_INSTRUCTIONS.md to the existing Project chat. Test whether it can read and write the Sheet; tool availability and workspace policy have not been verified. If it cannot, attach the workbook/context and use the manual JSON return path. Do not ask it to pretend it has edited Google Sheets.
+Give the native Sheet URL to the existing Project chat and ask it to read Writer instructions, starting with the capability check only. Test whether that chat can read and write the Sheet; its tool availability and workspace policy have not been verified. If it cannot, attach the workbook/context and use the manual JSON return path. Do not ask it to pretend it has edited Google Sheets.
 
 Next integration milestone is an authenticated NCCE exporter/importer and one real request end-to-end. Until then, no timer or whole-roster job is enabled.
 
@@ -96,4 +99,4 @@ Next integration milestone is an authenticated NCCE exporter/importer and one re
 
 `scripts/build_writing_exchange.mjs` builds the workbook offline with the approved artifact-tool runtime. Provide its output directory as the optional first argument; that directory needs a node_modules junction to the approved runtime packages. The output directory's manifest preserves reserved IDs across reruns. A fresh output directory creates a separate workbook identity. Do not run two copies as independent queues sharing the same manifest.
 
-The builder reads the 16 current category definitions from prose_progress.py, verifies 20 unique request UUIDs, tests PENDING/READY/IMPORTED counts, restores all rows to blank DRAFT, scans formula errors and exports visual previews. Exported XLSX structure is separately inspected for category parity, statuses, validations, tables and frozen panes. Native Google Sheets conversion/write access remain untested until the account is connected.
+The builder reads the 16 current category definitions from prose_progress.py, verifies 20 unique request UUIDs, tests PENDING/READY/IMPORTED counts, restores all rows to blank DRAFT, scans formula errors and exports visual previews. Exported XLSX structure is separately inspected for category parity, statuses, validations, tables and frozen panes. Native conversion and this connected account's read/write access were verified as recorded above. The separate work chat's capabilities remain untested.
