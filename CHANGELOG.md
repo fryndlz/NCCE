@@ -1,5 +1,11 @@
 # Changelog
 
+### 0.25.0 deployed and Mara acknowledged — 5 November 2026, 00:55 CET
+
+Source `4fdbbc75e6dec05d5d017796fdc8c10093d27b5e` is live in Render deployment `dep-dblsaj1srm7s7388gof0`. Public health reports 0.25.0; unauthenticated receipt access returns 401. Hosted logs verify schema-15-to-16 backup, successful import for fighter 36 / existing memory key 38fba6a8283370d510ec4c0649dd1513, and reuse of the same receipt after live sync. Imported prose memory ID: e2cea60e38d761b4d335ca77cf863502. Receipt: exchange:17e7fee1-bc2b-491c-825d-a07f1f014b96:65999c6e9709016b. The original exchange row was changed from READY to IMPORTED with its real hosted commit time, then read back; the exact 197-character accepted text is unchanged. No provider call or new writing request.
+
+All 16 Python regression scripts, seven JS suites, six importer cases and final authenticated/live-Sheet HTTP smoke passed. The actual-history-copy test verifies unchanged biography/clock and one active injury observation across forced regeneration. Hosted verification used deployment state, actual HTTP and import/reuse logs. Chrome browser automation failed on session operations, so a signed-in hosted visual check was not completed. Automatic Sheet export/polling/receipts and work-chat triggering remain future work.
+
 ## 0.25.0 — Accepted external prose import
 
 **Implemented and locally tested:** 4 November 2026. **Release resumed:** 5 November 2026, 00:49 CET. Hosted verification follows deployment.
