@@ -1,5 +1,9 @@
 # Changelog
 
+### 0.24.0 deployed — 04 November 2026, 09:11 CET
+
+Owner explicitly authorized publication. Source `be67dd2`, deployment `dep-dblefu97lnhs739kj7r0`, is live; health confirms 0.24.0. Hosted old publish/activate/generate operations return 410; reporting remains authenticated. Rechecked the removed in-app approval controller: no active UI or route remains. External tool approval settings were not disabled. No writing-provider calls.
+
 ## 0.24.0 — Battle addenda and per-gang fighter history
 
 **Implemented:** 2026-11-04 01:08 CET / 00:08 UTC.
