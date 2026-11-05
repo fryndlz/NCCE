@@ -77,7 +77,7 @@ function gangBackstory(g) {
 function archiveStories(records) {
   return list(records).map(record => `<details class="archive-story" data-key="archive-${esc(record.id)}"><summary>${esc(record.title)}</summary><div class="eyebrow">C-NINE · authored story</div>${authoredRecord(record.content)}<div class="authored-source">${esc(record.source_locator)} · <a href="${esc(record.source_url && /^https:\/\//.test(record.source_url) ? record.source_url : '#') }" target="_blank" rel="noopener noreferrer">Authored source</a></div></details>`).join('') || empty('No authored stories are available.');
 }
-function authoredDossier(value, code = '') {
+function authoredDossier(value, code = '', options = {}) {
   const lines = String(value || '').replace(/\r/g, '').split('\n');
   const output = [], fields = [], paragraph = [];
   let inSection = false;
@@ -87,9 +87,26 @@ function authoredDossier(value, code = '') {
   const flush = () => { flushParagraph(); flushFields(); };
   const closeSection = () => { flush(); if(inSection) output.push('</section>'); inSection=false; };
   const section = heading => { closeSection(); output.push(`<section class="personnel-section"><h4 class="personnel-section-label">${inline(heading)}</h4>`); inSection=true; };
-  for (const raw of lines) {
+  for (let index=0; index<lines.length; index++) {
+    const raw=lines[index];
     const text=raw.trim(), line=text.replace(/^\*\*(.*)\*\*$/,'$1');
     if (!line) { flush(); continue; }
+    const shift=line.match(/^\*{0,2}Thought for the Shift\*{0,2}\s*:\*{0,2}\s*(.*)$/i);
+    if(options.c9 && shift) {
+      closeSection();
+      let printed=text;
+      if(!shift[1]) {
+        let next=index+1;
+        while(next<lines.length && !lines[next].trim()) next++;
+        if(next<lines.length && /^[“"‘].*[”"’]$/.test(lines[next].trim())) {
+          printed+=' '+lines[next].trim(); index=next;
+        }
+      }
+      output.push(`<div class="personnel-printout">${inline(printed)}</div>`); continue;
+    }
+    if(options.c9 && /^(?:Emperor Protects[.!]?|Filed under .+Archive\b.*|Further correspondence\b.*|No further (?:action|inspection) required[.!]?|The Day draws near[.!]?|no further ActIOoon REerquide[.!]?)$/i.test(line)) {
+      closeSection(); output.push(`<div class="personnel-printout">${inline(text)}</div>`); continue;
+    }
     // Old document traversal labels are never identifiers for this fighter.
     if (/^[a-z0-9]{2}-(?:MK|AUX|ASSOC)\//i.test(line)) { closeSection(); continue; }
     if (/^(?:\[SYS\.|\[ERR::|[├└│]|\[(?:FILE|SOURCE FILE|ACCESS)\b|RETRIEVAL FAILED)/i.test(line)) {
@@ -145,7 +162,8 @@ function fighterBackstory(f) {
     text=[metadata,read(doc.blocks),doc.termination?.text].filter(Boolean).join('\n\n');
   }
   if(!text && !doc?.writer_status) text=f.backstory;
-  const body=text?authoredDossier(text,f.personnel_code):blocks(doc,f.backstory);
+  const c9=/C-NINE|Geothermal Prospect Detail C-9/i.test(f.gang_name || '');
+  const body=text?authoredDossier(text,f.personnel_code,{c9}):blocks(doc,f.backstory);
   return `<div class="narrative"><div class="eyebrow">${isAuthored?'Authored campaign record':'Generated inference'}</div>${body}</div>${isAuthored?`<div class="authored-source">${esc(f.backstory_source)}</div>`:evidence(doc?.evidence||fighterEvidence(f),{...f,...doc})}`;
 }
 function blocks(document, fallback = '') {

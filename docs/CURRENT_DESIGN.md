@@ -1,4 +1,12 @@
-# NCCE 0.28.5 — current technical design
+# NCCE 0.28.6 — current technical design
+
+## 0.28.6 — C-NINE clerical printouts
+
+C-NINE fighter footers (including the corrupted farewell) render as unindented
+11px Courier machine print. Thought for the Shift and its motto are combined
+into a single printout block. Scope follows gang identity, even without a UUID;
+other gangs retain their current layout. Stored wording/case are unchanged. See
+[Fighter dossier presentation](FIGHTER_DOSSIER_PRESENTATION.md).
 
 ## 0.28.5 — Fighter source authority and shared dossiers
 

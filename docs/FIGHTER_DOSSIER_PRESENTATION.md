@@ -1,5 +1,16 @@
 # Fighter dossier presentation — 0.28.5
 
+**0.28.6 C-NINE printout exception:** fighter gang membership, independent of UUID
+availability, enables full-width 11px Courier machine-print styling for Emperor
+Protects, Filed under ... Archive, Further correspondence, No further action /
+inspection required, The Day draws near, and the authored corrupted `no fURTHer
+ActIOoon REerquide`. Preserve exact wording and case. These lines close any
+indented section. Thought for the Shift and its following quoted motto (across
+blank lines if needed) form one unindented machine-print block; it may wrap
+naturally on small screens. A motto already on the same line stays there.
+Other gangs, and Thought for the Voyage, retain their existing presentation.
+Source text is not edited, and no model call is involved.
+
 Implemented 5 November 2026. This specification supersedes the Orik-only
 formatting exception and older Google-Doc biography imports.
 

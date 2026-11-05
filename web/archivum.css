@@ -103,6 +103,7 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 #app .archive-paper .fighter-dossier .personnel-section-label { font:600 11px/1.6 'Courier New',monospace; letter-spacing:.06em; text-transform:uppercase; margin:0 0 .5em; }
 #app .archive-paper .fighter-dossier .personnel-divider { margin:1.5em 0 .8em; }
 #app .archive-paper .fighter-dossier .personnel-quote { margin:12px 0; }
+#app .archive-paper .fighter-dossier .personnel-printout { margin:3px 0; color:#667052; font:600 11px/1.6 'Courier New',monospace; letter-spacing:.06em; text-transform:none; }
 #app .archive-paper .fighter-dossier .personnel-system,
 #app .archive-paper .personnel-system,
 #app .archive-paper .system_output { color:#88614c; }

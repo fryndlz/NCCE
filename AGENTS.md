@@ -30,6 +30,8 @@ wording and provenance; apply the common dossier presentation to existing and
 future biographies. Use muted paper/ink, rust/plum errors, never monitor green.
 See `docs/FIGHTER_DOSSIER_PRESENTATION.md` for implemented source repair,
 bounded indentation and source-UUID identifier rules. C-NINE retains `c9`.
+For C-NINE only, closing clerical text (including corrupted variants) is machine
+print. Thought for the Shift and its motto share one unindented printout line.
 C-NINE canonical name: `Geothermal Prospect Detail C-9`, shortened to `C-NINE`.
 Do not use old variants.
 
