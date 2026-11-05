@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28.2 — Corrected territory formatting — 5 November 2026
+
+- Fixed the actual missed case: bold Markdown metadata labels were parsed as body prose, and the prior DOM fallback only visited legacy record-body rather than imported authored-record paragraphs. Both now receive machine-print metadata styling; designation/classification also use the existing section-label class.
+- Removed obsolete writer notices and their containers from every territory record layer, including Data & sources. Retains internal statuses/audits and all prose text.
+- Added regression coverage for the exact plain/bold label formats; all eight JavaScript suites pass. Application smoke/deployment checks follow. Browser visual access remains disabled.
+
 ## 0.28.1 — Territory report formatting — 5 November 2026
 
 Live at 20:48 CET / 19:48 UTC: source 67aa628ad7df40565f279eba5c9e59fc1ff578da, deploy dep-dbmdpkbbc2fs73el4000; health confirms 0.28.1. All eight JS suites and authenticated/live-source application smoke pass. Visual verification remains unavailable because browser use is disabled. Production frontend asset reads require an authenticated session (unauthenticated reads return 404); no signed-in visual/asset comparison is claimed.

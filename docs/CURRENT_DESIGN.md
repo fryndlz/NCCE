@@ -1,7 +1,17 @@
-# NCCE 0.28.1 — current technical design
+# NCCE 0.28.2 — current technical design
+
+## 0.28.2 — Corrected territory metadata and notice removal
+
+Imported Markdown metadata recognizes plain labels, `**Label:** value` and
+`**Label**: value`. Territory designation/classification paragraphs are handled
+in both authored-record and legacy record-body wrappers and receive the same
+section-label class as machine-print headings. Obsolete writer notices are
+removed from all territory record layers, including Data & sources, rather
+than moved there. Underlying audit/status/prose/source data is retained.
 
 ## 0.28.1 — Territory report presentation
 
+Historical 0.28.1 behavior (notice routing superseded by 0.28.2):
 Territory Description opens directly on its report, without the generic
 "What this place is" introduction. Technical writing notices from territory
 report panels are collected under Data & sources. Designation/classification

@@ -50,12 +50,12 @@ window.NCCEArchive = (() => {
     // with its event in an explicit disclosure outside the prose surface.
     const source=outlet.querySelector('.source-evidence');
     outlet.querySelectorAll('.baseline-section .evidence,.baseline-section .authored-source,.baseline-section .narrative > .eyebrow').forEach(el=>source.append(el));
-    // Territory prose surfaces carry the report; technical writing status belongs to sources.
+    // Obsolete writer notices are not part of any territory record layer.
     if(meta.kind==='territory') {
-      outlet.querySelectorAll('.entity-section-panel:not(.record-source-panel) .writer-pending').forEach(el=>source.append(el));
-      // Retained structured drafts can store these fields as ordinary paragraphs.
-      outlet.querySelectorAll('.archive-paper .record-body p').forEach(el=>{
-        if(/^(?:Local designation|Classification)\s*:/i.test(el.textContent.trim()))el.classList.add('authored-field');
+      outlet.querySelectorAll('.writer-pending,.document-notices').forEach(el=>el.remove());
+      // Imported Markdown uses authored-record; legacy blocks use record-body.
+      outlet.querySelectorAll('.archive-paper p').forEach(el=>{
+        if(/^(?:Local designation|Classification)\s*:/i.test(el.textContent.trim()))el.classList.add('authored-field','section-label');
       });
     }
     else outlet.querySelectorAll('.baseline-section .writer-pending').forEach(el=>outlet.querySelector('.document-notices').append(el));
