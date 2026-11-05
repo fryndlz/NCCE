@@ -98,3 +98,15 @@ tests verify preservation of partial Markdown and WRITING status while updating
 Context/revision. Frontend tests exclude undated confirmations from battle and
 downtime panels. Startup/live-source HTTP smoke verifies compatibility with
 normal mechanical entity registration.
+
+## Release verification
+
+0.28.0 is live on source `5cad90b206c2a0dd959fbcc75ec4f558132f9f5f`, deployment
+`dep-dbm9bcrm8hqs73d07r30`. The real relay run on 5 November, 15:43:40–15:43:55
+CET amended the paused request in place. Readback verified its unchanged
+900-character draft and WRITING status, new source revision and complete
+Context row 94 correction. The four other territory drafts remained IMPORTED
+with identical text. Private keys, timer and scopes were unchanged. Hosted
+signed-in timeline visual inspection was not performed; date/stream/timeline
+behavior is covered by the tests described above, while deployment health and
+the actual private-Sheet amendment were checked live.
