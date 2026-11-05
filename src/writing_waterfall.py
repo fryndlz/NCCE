@@ -14,6 +14,7 @@ FORM_PHASE={
 def classify(store,items):
     from exchange_automation import target_key,semantic_seal,load
     imported={}
+    pilots={(r['fighter_id'],r['memory_key']) for r in store.db.execute("SELECT fighter_id,memory_key FROM external_prose_deliveries WHERE disposition='imported'")}
     for row in store.db.execute("SELECT * FROM writing_exchange_requests WHERE state='IMPORTED' ORDER BY imported_at"):
         imported[row['target_key']]=dict(row)
     for c in items:
@@ -22,7 +23,8 @@ def classify(store,items):
         # Rolling histories can get another entry when their factual input changes.
         from exchange_automation import ROLLING_FORMS
         same=bool(saved and semantic_seal(store,load(saved['target_json'])['target'])==semantic_seal(store,c))
-        c['approved']=bool(saved and (c['form'] not in ROLLING_FORMS or same))
+        pilot=c['kind']=='memory' and tuple(c['key']) in pilots
+        c['approved']=bool(pilot or (saved and (c['form'] not in ROLLING_FORMS or same)))
         c['legacy']=not c['approved'] and c.get('has_prose',c['ready'])
         c['phase']=FORM_PHASE[c['form']]
     return items

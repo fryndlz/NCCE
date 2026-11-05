@@ -29,6 +29,10 @@ def test_legacy_ready_baselines_are_archived_and_queued_once_authored_and_accept
         s,b,f,m=setup(temp)
         try:
             pilot_import(s,b)
+            pilot=next(c for c in e.candidates(s) if c['kind']=='memory' and c['key']==[f,b['target_binding']['memory_key']])
+            assert pilot['approved']
+            refs=w.context(s,pilot,{e.target_key(pilot):{e.target_key(pilot)}},e.candidates(s))
+            assert refs[0]['text']==b['writer_text_md']
             row=s.db.execute("SELECT * FROM story_artifacts WHERE scope_type='territory_origin' AND active=1").fetchone()
             doc=json.loads(row['document_json']);doc.update(writer_status='ready',blocks=[{'type':'body_paragraph','text':'Old machine placeholder prose.'}])
             s.db.execute('UPDATE story_artifacts SET document_json=? WHERE artifact_id=?',(packed(doc),row['artifact_id']));s.db.commit()

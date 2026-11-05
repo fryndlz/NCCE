@@ -96,7 +96,6 @@ def candidates(store):
     for row in store.db.execute('SELECT * FROM story_memories WHERE active=1 ORDER BY fighter_id,coalesce(occurred_at,observed_at),memory_key'):
         r=dict(row)
         if r['provenance_class'] in ('player_authored','canon_authored'):continue
-        if store.db.execute("SELECT 1 FROM external_prose_deliveries WHERE fighter_id=? AND memory_key=? AND disposition='imported'",(r['fighter_id'],r['memory_key'])).fetchone():continue
         form='fighter_reflection' if r['memory_type']=='reflection' else 'fighter_memory'
         add('memory',[r['fighter_id'],r['memory_key']],form,'fighter',r['fighter_id'],r['title'],
             {k:load(r[k]) for k in ('evidence_json','source_event_ids_json','source_observation_ids_json','tags_json')},
