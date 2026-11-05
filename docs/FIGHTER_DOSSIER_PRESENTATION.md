@@ -1,4 +1,4 @@
-# Fighter dossier presentation — 0.28.5
+# Fighter dossier presentation — 0.28.6
 
 **0.28.6 C-NINE printout exception:** fighter gang membership, independent of UUID
 availability, enables full-width 11px Courier machine-print styling for Emperor
