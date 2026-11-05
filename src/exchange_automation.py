@@ -92,7 +92,7 @@ def candidates(store):
         add('artifact',[form,key],form,entity,key,doc.get('title',form),
             {'evidence':doc.get('evidence',[]),'source_event_ids':doc.get('source_event_ids',[]),'subject':subject},
             document_packet(store,form,key,doc),doc.get('date_display',{}).get('sourceTimestamp'),
-            doc.get('writer_status')=='ready' and bool(body(doc)))
+            doc.get('writer_status')=='ready' and bool(body(doc)),has_prose=bool(body(doc)))
     for row in store.db.execute('SELECT * FROM story_memories WHERE active=1 ORDER BY fighter_id,coalesce(occurred_at,observed_at),memory_key'):
         r=dict(row)
         if r['provenance_class'] in ('player_authored','canon_authored'):continue
@@ -100,25 +100,26 @@ def candidates(store):
         form='fighter_reflection' if r['memory_type']=='reflection' else 'fighter_memory'
         add('memory',[r['fighter_id'],r['memory_key']],form,'fighter',r['fighter_id'],r['title'],
             {k:load(r[k]) for k in ('evidence_json','source_event_ids_json','source_observation_ids_json','tags_json')},
-            load(r['writer_context_json']),r['occurred_at'] or r['observed_at'],r['writer_status']=='ready' and bool(r['content'].strip()))
+            load(r['writer_context_json']),r['occurred_at'] or r['observed_at'],r['writer_status']=='ready' and bool(r['content'].strip()),has_prose=bool(r['content'].strip()))
     for row in store.db.execute("SELECT * FROM fighter_thoughts WHERE lifecycle='active' ORDER BY fighter_id,thought_id"):
         r=dict(row)
         add('thought',[r['thought_id']],'fighter_mind','fighter',r['fighter_id'],r['label'],load(r['source_json']),
-            load(r['packet_json']),'',r['writer_status']=='ready' and bool(r['content'].strip()))
+            load(r['packet_json']),'',r['writer_status']=='ready' and bool(r['content'].strip()),has_prose=bool(r['content'].strip()))
     for row in store.db.execute('SELECT * FROM narrative_entries WHERE active=1 ORDER BY scope_type,scope_key,coalesce(occurred_at,observed_at),entry_key'):
         r=dict(row);doc=load(r['document_json'])
         if authored(doc):continue
         form='gang_event' if r['scope_type']=='gang' else 'place_ambient' if r['provenance_class']=='connective_fiction' else 'place_event'
         add('entry',[r['scope_type'],r['scope_key'],r['entry_key']],form,r['scope_type'],r['scope_key'],doc.get('title',r['title']),
             {'evidence':doc.get('evidence',[]),'source_event_ids':doc.get('source_event_ids',[]),'provenance':r['provenance_class']},
-            doc.get('writer_context',{}),r['occurred_at'] or r['observed_at'],doc.get('writer_status')=='ready' and bool(body(doc)))
-    return result
+            doc.get('writer_context',{}),r['occurred_at'] or r['observed_at'],doc.get('writer_status')=='ready' and bool(body(doc)),has_prose=bool(body(doc)))
+    from writing_waterfall import classify
+    return classify(store,result)
 
 
 def target_key(c):return packed([c['kind'],c['key']])
 
 
-def seal(c):return 'sha256:'+digest(clean_context({k:v for k,v in c.items() if k!='ready'}))
+def seal(c):return 'sha256:'+digest(clean_context({k:v for k,v in c.items() if k not in ('ready','approved','legacy','phase','has_prose')}))
 
 
 def _packet(store,c,rid):
@@ -152,36 +153,122 @@ def _packet(store,c,rid):
     return {'request':request,'context':context}
 
 
-def prepare(store,limit=5):
-    """At most five outstanding packets; never replace or silently requeue a slot."""
+def source_matches(store,c,row):
+    if row['policy_version']==1:
+        return seal(c)==row['source_revision'] or semantic_seal(store,c)==semantic_seal(store,load(row['target_json'])['target'])
+    from writing_waterfall import context
+    items=candidates(store);deps={target_key(c):set(x['target_key'] for x in load(row['dependencies_json']))}
+    references=context(store,c,deps,items)
+    return revision(c,references,store)==row['source_revision']
+
+
+def semantic_seal(store,c):
+    value=deepcopy(c)
+    if c['form'] in ROLLING_FORMS|{'fighter_biography','territory_origin'}:
+        # These records have compilation times, not new campaign events.
+        value['event_at_utc']=''
+    def ref(key):
+        row=store.db.execute('SELECT fighter_id,memory_key FROM story_memories WHERE memory_id=?',(key,)).fetchone()
+        return [row['fighter_id'],row['memory_key']] if row else key
+    def visit(v):
+        if isinstance(v,list):return [visit(x) for x in v]
+        if not isinstance(v,dict):return v
+        return {k:[ref(x) for x in item] if k in ('source_observation_ids_json','source_memory_ids') and isinstance(item,list) else visit(item) for k,item in v.items()}
+    return seal(visit(value))
+
+
+def revision(c,references,store):
+    return 'sha256:'+digest({'source':semantic_seal(store,c),'dependencies':[(r['target_key'],r['text_hash']) for r in references]})
+
+
+def supplements(c,references):
+    result=[dict(section='brief',provenance='instruction',source_ref='NCCE dependency waterfall v2',
+        event_at_utc='',source_event_ids='',text='Queue phase: '+str(c['phase'])+'. '+
+        'This is one replacement of an unapproved legacy/placeholder draft or a missing entry. '
+        'Never copy the old generated wording. Use the accepted prerequisite prose below as fictional continuity, '
+        'not mechanical proof; preserve the requested event date and this chat’s established voice.')]
+    if references:result.append(dict(section='existing_fiction',provenance='inference',source_ref='accepted prerequisite entries',
+        event_at_utc='',source_event_ids='',text=packed(references)))
+    return result
+
+
+def prepare(store,limit=5,client_states=()):
+    """Export the earliest runnable phase, preserving claims, drafts and all IDs."""
+    from writing_waterfall import plan,context,order,retire_legacy,VERSION
     limit=max(0,min(int(limit),5));created=[]
     with store._lock:
         if store.db.in_transaction:raise RuntimeError('Exchange preparation requires its own transaction')
         with store.db:
             available=candidates(store);lookup={target_key(c):c for c in available}
+            retire_legacy(store,available)
+            if client_states is not None:
+                if not isinstance(client_states,list) and client_states!=():raise ValueError('Invalid queue-state snapshot')
+                if len(client_states)>2000:raise ValueError('Queue-state snapshot too large')
+                for entry in client_states:
+                    if not isinstance(entry,dict) or entry.get('status') not in ('DRAFT','PENDING','WRITING','READY','IMPORTED','HOLD'):continue
+                    store.db.execute('UPDATE writing_exchange_requests SET client_state=?,client_has_text=? WHERE request_id=?',
+                        (entry['status'],int(bool(entry.get('has_text'))),str(entry.get('request_id',''))))
+                    if entry['status']=='HOLD':
+                        store.db.execute("UPDATE writing_exchange_requests SET state='HOLD',error=? WHERE request_id=? AND state IN ('PENDING','DEFERRED')",
+                            ('Writer placed this request on HOLD; saved draft remains in the Sheet. '+str(entry.get('note',''))[:1000],str(entry.get('request_id',''))))
             for row in store.db.execute("SELECT request_id,target_key,source_revision FROM writing_exchange_requests WHERE state='PENDING'").fetchall():
                 c=lookup.get(row['target_key'])
-                if not c or seal(c)!=row['source_revision']:
+                request=store.db.execute('SELECT * FROM writing_exchange_requests WHERE request_id=?',(row['request_id'],)).fetchone()
+                if not c or not source_matches(store,c,request):
                     store.db.execute("UPDATE writing_exchange_requests SET state='HOLD',error='Source changed; do not write or regenerate this request' WHERE request_id=?",(row['request_id'],))
-            pending=store.db.execute("SELECT count(*) FROM writing_exchange_requests WHERE state='PENDING'").fetchone()[0]
-            for c in available:
-                if pending>=limit:break
-                query='SELECT 1 FROM writing_exchange_requests WHERE target_key=?'
-                args=[target_key(c)]
-                if c['form'] in ROLLING_FORMS:
-                    query+=' AND source_revision=?';args.append(seal(c))
-                existing=store.db.execute(query,args).fetchone()
-                rolling_update=c['form'] in ROLLING_FORMS and store.db.execute("SELECT 1 FROM writing_exchange_requests WHERE target_key=? AND state='IMPORTED' AND source_revision!=?",(target_key(c),seal(c))).fetchone()
-                if (c['ready'] and not rolling_update) or existing:continue
+            requests=[dict(r) for r in store.db.execute('SELECT * FROM writing_exchange_requests ORDER BY created_at')]
+            bytarget={}
+            for r in requests:bytarget.setdefault(r['target_key'],[]).append(r)
+            def in_progress(r):
+                return r['state']=='PENDING' and (r['client_state'] in ('WRITING','READY') or r['client_has_text'] or (client_states is None and not r['client_state']))
+            protected=[r for r in requests if in_progress(r)]
+            protected_keys={r['target_key'] for r in protected}
+            runnable,deps,blocked=plan(store,available)
+            eligible=[]
+            for c in runnable:
+                rows=bytarget.get(target_key(c),[])
+                if target_key(c) in protected_keys or any(r['state']=='HOLD' for r in rows):continue
+                eligible.append(c)
+            # An in-progress lower-phase draft may finish, but new work comes
+            # only from the earliest runnable frontier.
+            frontier=eligible[0]['phase'] if eligible else None
+            selected=[c for c in eligible if c['phase']==frontier][:max(0,limit-len(protected))]
+            selected_keys={target_key(c) for c in selected}|protected_keys
+            if client_states is not None:
+                for r in requests:
+                    if r['state']=='PENDING' and r['target_key'] not in selected_keys and not in_progress(r):
+                        store.db.execute("UPDATE writing_exchange_requests SET state='DEFERRED' WHERE request_id=?",(r['request_id'],))
+            elif any(r['state']=='PENDING' for r in requests):
+                return [] # Older relay cannot safely report claims; upgrade it first.
+            for rank,c in enumerate(selected):
+                key=target_key(c);references=context(store,c,deps,available)
+                waiting=[r for r in bytarget.get(key,[]) if r['state'] in ('PENDING','DEFERRED')]
+                if waiting:
+                    r=waiting[0]
+                    if not source_matches(store,c,r):continue
+                    # Original source packet/revision remain immutable. Deferred
+                    # v1 requests receive separately retained accepted continuity.
+                    extra=load(r['supplement_json'])
+                    if r['policy_version']==1 and not extra:extra=supplements(c,references)
+                    store.db.execute("UPDATE writing_exchange_requests SET state='PENDING',queue_rank=?,supplement_json=? WHERE request_id=?",(rank,packed(extra),r['request_id']))
+                    continue
                 rid=str(uuid4());packet=_packet(store,c,rid)
-                store.db.execute('INSERT INTO writing_exchange_requests(request_id,target_key,packet_json,target_json,source_revision,state,created_at) VALUES(?,?,?,?,?,\'PENDING\',?)',
-                    (rid,target_key(c),packed(packet),packed({'target':c,'original':projection(store,c)}),seal(c),now()))
-                pending+=1;created.append(rid)
+                from writing_waterfall import scrub
+                for block in packet['context']:
+                    if block['section']=='character_context':block['text']=packed(scrub(load(block['text'])))
+                packet['request']['source_revision']=revision(c,references,store)
+                packet['context']+=supplements(c,references)
+                store.db.execute("INSERT INTO writing_exchange_requests(request_id,target_key,packet_json,target_json,source_revision,state,created_at,policy_version,queue_rank,dependencies_json) VALUES(?,?,?,?,?,'PENDING',?,?,?,?)",
+                    (rid,key,packed(packet),packed({'target':c,'original':projection(store,c)}),packet['request']['source_revision'],now(),VERSION,rank,packed(references)))
+                created.append(rid)
     return created
 
 
 def outbox(store):
-    return [load(r[0]) for r in store.db.execute("SELECT packet_json FROM writing_exchange_requests WHERE state='PENDING' ORDER BY created_at,request_id LIMIT 5")]
+    result=[]
+    for r in store.db.execute("SELECT packet_json,supplement_json FROM writing_exchange_requests WHERE state='PENDING' ORDER BY queue_rank,created_at,request_id LIMIT 5"):
+        packet=load(r['packet_json']);packet['context']+=load(r['supplement_json']);result.append(packet)
+    return result
 
 
 def projection(store,c):
@@ -230,13 +317,13 @@ def deliver(store,payload):
             return dict(status=old['disposition'],request_id=rid,error=old['error'],receipt=request['receipt'] if request else None,imported_at_utc=request['imported_at'] if request else None,reused=True)
         error='';current=None
         if not request:error='Unknown request; routing is owned by NCCE'
-        elif request['state']!='PENDING':error='Request is already imported or held; no replacement authorized'
+        elif request['state'] not in ('PENDING','DEFERRED'):error='Request is already imported or held; no replacement authorized'
         elif payload.get('source_revision')!=request['source_revision']:error='Source revision does not match'
         elif payload.get('status')!='READY':error='Only READY output can publish'
         else:
             found=[c for c in candidates(store) if target_key(c)==request['target_key']]
-            if len(found)!=1 or seal(found[0])!=request['source_revision']:error='Target or source changed; draft retained for reconciliation'
-            elif found[0]['ready'] and not (found[0]['form'] in ROLLING_FORMS and load(request['target_json'])['target']['ready']):error='Slot already contains ready prose; draft retained'
+            if len(found)!=1 or not source_matches(store,found[0],request):error='Target or source changed; draft retained for reconciliation'
+            elif found[0]['approved']:error='Slot already contains accepted external prose; draft retained'
             else:current=found[0]
         if not error:_backup(store,'automation')
         receipt='exchange:'+rid+':'+attempt[:16] if not error else None
@@ -264,18 +351,24 @@ def restore(store):
         with store.db:
             for row in store.db.execute("SELECT * FROM writing_exchange_requests WHERE state='IMPORTED'").fetchall():
                 c=available.get(row['target_key'])
-                if c and seal(c)==row['source_revision']:
+                same=c and semantic_seal(store,c)==semantic_seal(store,load(row['target_json'])['target'])
+                if same:
                     _write(store,c,row['raw_markdown'],row['request_id'])
 
 
 def diagnostics(store):
     rows=[dict(r) for r in store.db.execute('SELECT request_id,state,created_at,imported_at,receipt,error FROM writing_exchange_requests ORDER BY created_at')]
-    return dict(enabled=enabled(),max_outstanding=5,requests=rows,relay_last_seen=store.get_state('exchange_relay_last_seen'),
+    from writing_waterfall import summary
+    return dict(enabled=enabled(),max_outstanding=5,requests=rows,waterfall=summary(store,candidates(store)),relay_last_seen=store.get_state('exchange_relay_last_seen'),
                 policy='One entry once. READY publishes unchanged. Held drafts are retained; no automatic regeneration.')
 
 
 def holds(store):
     return [dict(r) for r in store.db.execute("SELECT request_id,source_revision,error FROM writing_exchange_requests WHERE state='HOLD'")]
+
+
+def deferred(store):
+    return [dict(r) for r in store.db.execute("SELECT request_id,source_revision FROM writing_exchange_requests WHERE state='DEFERRED'")]
 
 
 def guidance():

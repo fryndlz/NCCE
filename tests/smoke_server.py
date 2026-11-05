@@ -42,7 +42,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.26.0'}
+                    assert read('/healthz') == {'ok':True,'version':'0.27.0'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
@@ -66,7 +66,7 @@ def main():
                 if time.monotonic()>deadline:
                     raise AssertionError('Sheet sync did not finish')
                 time.sleep(0.25)
-            assert health['schema_version'] == 17 and health['story_revision'] and health['writer']['status']=='removed'
+            assert health['schema_version'] == 18 and health['story_revision'] and health['writer']['status']=='removed'
             dashboard = read('/api/dashboard')
             coverage=read('/api/prose-progress')
             assert len(coverage['categories'])==16 and coverage['generation_enabled'] is False

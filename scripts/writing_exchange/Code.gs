@@ -170,8 +170,25 @@ function syncNCCE() {
         writeLiteral(queue.getRange(currentRow, 2), [['HOLD']]);
       }
     }
-    const outbox = callNCCE('poll', {});
+    const queueState = dataRows(queue,16).filter(r => r[2] && ['PENDING','WRITING','READY','HOLD'].includes(r[1]))
+      .map(r => ({request_id:r[0],status:r[1],has_text:!!r[11],note:r[12] || ''}));
+    const outbox = callNCCE('poll', {protocol_version:2,queue_state:queueState});
     writeGuidance(book, outbox.guidance);
+    if (outbox.waterfall) {
+      const w=outbox.waterfall;
+      const report='# Writing waterfall\n\nAccepted writing and authored sources are protected. Only PENDING rows are available to the writer. DRAFT rows with a form are deferred, not failed.\n\n'+
+        w.phases.map(p=>'## '+p.phase+' — '+p.name+'\n\n'+p.complete+' accepted / '+p.total+' derived slots; '+p.needs_writing+' need writing; '+p.blocked+' awaiting prerequisites.\n').join('\n')+
+        '\n## Retained work\n\n'+w.legacy_saved+' legacy projections saved in NCCE audit; '+w.deferred+' requests deferred. No generated entry is automatically rewritten twice.';
+      writeGuidance(book,{'Queue status':report});
+    }
+    for (const item of outbox.deferred || []) {
+      const row=findRow(queue,item.request_id,16);
+      if (!row) continue;
+      const current=queue.getRange(row,1,1,16).getDisplayValues()[0];
+      if (current[1]==='PENDING' && !current[11] && current[8]===item.source_revision) {
+        writeLiteral(queue.getRange(row,2),[['DRAFT']]);
+      }
+    }
     for (const hold of outbox.holds || []) {
       const row = findRow(queue, hold.request_id, 16);
       if (!row) continue;
@@ -185,8 +202,9 @@ function syncNCCE() {
       const existing = findRow(queue, request.request_id, 16);
       if (existing) {
         const current = queue.getRange(existing, 1, 1, 16).getDisplayValues()[0];
+        if (['WRITING','READY'].includes(current[1]) || current[11]) continue;
         // Recover only an interrupted relay publication of its own complete DRAFT.
-        if (current[1] === 'DRAFT' && !current[11] && current[8] === request.source_revision && current[7] === request.context_id) {
+        if (current[1] === 'DRAFT' && current[8] === request.source_revision && current[7] === request.context_id) {
           appendContext(context, packet);
           SpreadsheetApp.flush();
           writeLiteral(queue.getRange(existing, 2), [['PENDING']]);

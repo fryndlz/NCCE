@@ -44,10 +44,13 @@ def test_fictional_continuity_is_ordered_and_excludes_legacy_and_future():
         with patch.object(writer,'API_KEY','mock'),patch.object(writer,'write',return_value=(draft()['paragraphs'],{'status':'ready','revision':writer.FORMATTING_REVISION,'composition':draft()['composition']})):
             for name,at in [('past','2026-10-24T20:00:00Z'),('future','2026-10-28T20:00:00Z')]:
                 save_entry(store,'territory',tid,name,'ambient_report',name,[],[],provenance='connective_fiction',created_at=at)
+                row=store.db.execute('SELECT entry_id,document_json FROM narrative_entries WHERE entry_key=?',(name,)).fetchone()
+                doc=json.loads(row['document_json']);doc['external_request_id']='accepted-fixture:'+name
+                store.db.execute('UPDATE narrative_entries SET document_json=? WHERE entry_id=?',(json.dumps(doc),row['entry_id']))
             entries=context.preceding(store,'territory',tid,'2026-10-26T20:00:00Z')
             assert len(entries)==1 and entries[0]['text'].startswith('ASSESSMENT')
             row=store.db.execute("SELECT entry_id,document_json FROM narrative_entries WHERE entry_key='past'").fetchone()
-            doc=json.loads(row['document_json']); doc['writer_revision']='old-guardrails'
+            doc=json.loads(row['document_json']);doc.pop('external_request_id');doc['writer_revision']=writer.FORMATTING_REVISION
             store.db.execute('UPDATE narrative_entries SET document_json=? WHERE entry_id=?',(json.dumps(doc),row['entry_id']))
             assert context.preceding(store,'territory',tid,'2026-10-26T20:00:00Z')==[]
     with_store(check)

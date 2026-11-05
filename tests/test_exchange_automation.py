@@ -18,7 +18,10 @@ TEXT='+++ RECORD +++\n\n**The lamp cells**\n\nThey were still good.\n\n+++ END R
 
 def queue_one(store,c):
     with patch.object(exchange,'candidates',return_value=[c]):
-        exchange.prepare(store,1)
+        # These adapter checks isolate publication; waterfall gates are covered
+        # separately with the complete candidate graph.
+        with patch('writing_waterfall.plan',return_value=([c],{},{})):
+            exchange.prepare(store,1)
     row=store.db.execute('SELECT * FROM writing_exchange_requests WHERE target_key=? ORDER BY created_at DESC',(exchange.target_key(c),)).fetchone()
     request=json.loads(row['packet_json'])['request']
     return dict(request_id=request['request_id'],source_revision=request['source_revision'],status='READY',writer_text_md=TEXT)
@@ -28,9 +31,11 @@ def test_bounded_idempotent_preparation_and_authored_exclusion():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
         s,b,f,m=setup(directory)
         try:
-            first=exchange.prepare(s);assert len(first)==5
+            first=exchange.prepare(s);assert 0<len(first)<=5
+            frozen=exchange.outbox(s)
             assert exchange.prepare(s)==[]
-            assert len(exchange.outbox(s))==5
+            assert exchange.outbox(s)==frozen
+            assert len(exchange.outbox(s))==len(first)
             assert not any(c['form']=='fighter_biography' and c['entity_key']==str(f) for c in exchange.candidates(s))
             assert not any(c['form']=='gang_origin' for c in exchange.candidates(s))
             assert not s.db.in_transaction

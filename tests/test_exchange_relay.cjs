@@ -69,6 +69,15 @@ vm.runInContext('appendContext(contextSheet,growthPacket)',ctx);
 assert.equal(context.rows.filter(r=>r?.[0]==='ctx:growth').length,30);
 assert.ok(context.table.range.endRowIndex>25);
 assert.ok(context.rows.findIndex(r=>r?.[6]==='Do not overwrite')+1>context.table.range.endRowIndex);
+// Reprioritization withdraws only unclaimed, empty rows; claims and text survive.
+outbox.packets=[];outbox.deferred=[{request_id:'another-uuid',source_revision:request.source_revision}];
+run();assert.equal(queue.rows[7][1],'DRAFT');
+queue.rows[7][1]='WRITING';run();assert.equal(queue.rows[7][1],'WRITING');
+queue.rows[7][1]='PENDING';queue.rows[7][11]='Partial saved draft';run();assert.equal(queue.rows[7][1],'PENDING');
+queue.rows[7][11]='';outbox.deferred=[];
+const lastPoll=httpCalls.filter(c=>c.url.endsWith('/poll')).at(-1);
+assert.equal(JSON.parse(lastPoll.options.payload).protocol_version,2);
+assert.ok(JSON.parse(lastPoll.options.payload).queue_state.every(r=>r.status!=='IMPORTED'));
 // Duplicated IDs stop transport rather than attach prose to an arbitrary row.
 queue.rows[8]=queue.rows[7].slice();assert.throws(run,/Duplicate request ID/);
 console.log('PASS Apps Script relay: immutable pilot, literal Markdown, receipts after ACK failure, DRAFT recovery, table growth, duplicate stop');

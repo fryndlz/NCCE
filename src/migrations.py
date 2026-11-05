@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -896,4 +896,23 @@ def migrate(db: sqlite3.Connection) -> int:
         db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(17,?,?)',
                    ('durable private writing exchange requests and retained deliveries',_now()))
         db.execute('PRAGMA user_version=17');db.commit()
+    if current < 18:
+        try:
+            db.executescript('''BEGIN IMMEDIATE;
+                ALTER TABLE writing_exchange_requests ADD COLUMN client_state TEXT NOT NULL DEFAULT '';
+                ALTER TABLE writing_exchange_requests ADD COLUMN client_has_text INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE writing_exchange_requests ADD COLUMN policy_version INTEGER NOT NULL DEFAULT 1;
+                ALTER TABLE writing_exchange_requests ADD COLUMN queue_rank INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE writing_exchange_requests ADD COLUMN dependencies_json TEXT NOT NULL DEFAULT '[]';
+                ALTER TABLE writing_exchange_requests ADD COLUMN supplement_json TEXT NOT NULL DEFAULT '[]';
+                CREATE TABLE writing_legacy_inventory(
+                    target_key TEXT NOT NULL,source_revision TEXT NOT NULL,
+                    projection_json TEXT NOT NULL,recorded_at TEXT NOT NULL,
+                    PRIMARY KEY(target_key,source_revision));
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(18,?,?)',
+                       ('dependency waterfall, retained legacy prose and safe queue deferral',_now()))
+            db.execute('PRAGMA user_version=18');db.commit()
+        except Exception:
+            db.rollback();raise
     return SCHEMA_VERSION

@@ -5,7 +5,7 @@ description: "Write NCCE campaign prose from supplied evidence packets. Distingu
 
 # NCCE campaign writing
 
-Version 2, 5 November 2026. This is a portable writer briefing for the existing Project conversation. It describes NCCE's unchanged event-based cognitive rules and the 0.26.0 private writing exchange. The separate Google relay requires installation/authorization; scheduled writing must be verified in the work chat. This skill alone does not install or activate either.
+Version 3, 5 November 2026. This is a portable writer briefing for the existing Project conversation. It describes NCCE's unchanged event-based cognitive rules and the 0.27.0 dependency waterfall. The Google relay is installed; scheduled writing access must still be demonstrated in the work chat. This skill alone does not install a schedule.
 
 ## Your role
 
@@ -265,6 +265,16 @@ Stimulus weights are attention cues: start at 1.00 per topic, add 0.15 per suppo
 Gang/place/region/relationship histories are narrative projections over evidence. They do not automatically receive independent psychological scores, reflection thresholds or fighter moodlets. An ambient incident likewise does not become every fighter's experience merely because it was written. The engine must provide supported exposure/shared news before it becomes that fighter's cause.
 
 ## Delivery and current operational boundary
+
+The server now replaces unapproved legacy generated text even when it was marked
+ready. It protects authored sources and imported writing-chat entries. Only write
+PENDING rows: DRAFT rows with a form are deferred until prerequisites are accepted.
+The order is baselines → chronological events → cited reflections → current
+thoughts → histories/downtime/relationships → regional chronicle. The separate
+existing_fiction block contains accepted dependencies; use it as continuity,
+never as proof of an unrecorded mechanical event. Do not reuse the old machine
+wording. Queue status shows the current frontier. Started/saved work is preserved;
+do not generate a second version when a row already contains prose.
 
 Use the exchange's immutable request_id, entity_key, entry_key, context_id and source_revision. One requested entry receives one finished delivery, not multiple candidates for a hidden reviewer. Save complete text before READY. Never regenerate an existing result just because saving/import acknowledgement failed; preserve and retransmit it.
 

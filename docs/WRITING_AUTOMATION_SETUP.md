@@ -1,5 +1,7 @@
 # Connect the writing automation — NCCE 0.26.0
 
+**0.27.0 upgrade:** the relay is already installed. Replace its Code.gs with the current tracked version (protocol 2); keep the same private key, manifest and timer. Do not install a second trigger. Queue status documents phases; only PENDING is writable. Legacy generated text is now included in the one-time backlog.
+
 The code is implemented, but installation and Google authorization are required
 before it runs. A deployed server alone does not install a Google trigger or a
 task in your other ChatGPT account. No paid model requests are made by NCCE.

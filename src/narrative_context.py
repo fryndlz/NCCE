@@ -24,7 +24,7 @@ def prose(document):
 
 
 def usable(document):
-    return document.get('writer_status') == 'ready' and (bool(document.get('external_request_id')) or document.get('writer_revision') == writer_contract.REVISION)
+    return document.get('writer_status') == 'ready' and (bool(document.get('external_request_id')) or document.get('provenance_class') in ('player_authored','canon_authored'))
 
 
 def authored(row):
