@@ -59,6 +59,12 @@ def candidates(store):
     """Existing slots only. Authored material is never eligible for replacement."""
     result=[]
     def add(kind,key,form,entity,subject,title,facts,context,at,ready,**extra):
+        if entity=='territory':
+            from territory_history import history_for, ORIGIN_EXCEPTION
+            confirmed=history_for(store,subject)
+            if confirmed:
+                facts={**facts,'confirmed_territory_history':confirmed}
+                if form=='territory_origin':context={**context,'origin_history_exception':ORIGIN_EXCEPTION}
         if entity=='fighter':
             from narrative_context import authored as background
             f=store.db.execute('SELECT * FROM fighters WHERE id=?',(subject,)).fetchone()
@@ -129,10 +135,15 @@ def _packet(store,c,rid):
     if c['event_at_utc']:
         request['imperial_date']=format_date(c['event_at_utc']).get('imperialDisplay','')
     context=[dict(section='mechanics',provenance='mechanical_fact',source_ref='NCCE sealed derived slot',
-                  event_at_utc=c['event_at_utc'],source_event_ids='',text=packed(c['facts'])),
+                  event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['facts'].items() if k!='confirmed_territory_history'})),
              dict(section='character_context',provenance='inference',source_ref='NCCE source-separated writing context',
                   event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['context'].items() if k!='authored_background'}))]
     # Current Sheet/canon biography is a voice lens, never a replay of old events.
+    confirmed=c['facts'].get('confirmed_territory_history',[]) if isinstance(c['facts'],dict) else []
+    if confirmed:
+        context.append(dict(section='confirmed_territory_history',provenance='player_authored',
+            source_ref='Owner-confirmed history supplement; raw Sheet untouched',event_at_utc='',
+            source_event_ids='',text=packed(confirmed)))
     if c['entity_type']=='fighter':
         text=c['context'].get('authored_background')
         if text:context.append(dict(section='authored_canon',provenance='player_authored',source_ref='fighter authored background; prior life only',event_at_utc='',source_event_ids='',text=text))
@@ -210,6 +221,8 @@ def prepare(store,limit=5,client_states=()):
                     if entry['status']=='HOLD':
                         store.db.execute("UPDATE writing_exchange_requests SET state='HOLD',error=? WHERE request_id=? AND state IN ('PENDING','DEFERRED')",
                             ('Writer placed this request on HOLD; saved draft remains in the Sheet. '+str(entry.get('note',''))[:1000],str(entry.get('request_id',''))))
+            from territory_history import amend_paused_origin
+            amend_paused_origin(store,available)
             for row in store.db.execute("SELECT request_id,target_key,source_revision FROM writing_exchange_requests WHERE state='PENDING'").fetchall():
                 c=lookup.get(row['target_key'])
                 request=store.db.execute('SELECT * FROM writing_exchange_requests WHERE request_id=?',(row['request_id'],)).fetchone()

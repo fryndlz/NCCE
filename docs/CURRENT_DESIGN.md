@@ -1,4 +1,18 @@
-# NCCE 0.27.1 — current technical design
+# NCCE 0.28.0 — current technical design
+
+## 0.28.0 — Confirmed territory transformations
+
+Implemented 5 November 2026. Source-cited, owner-confirmed history supplements
+preserve the former Gambling Den identity of Ethernetans' additional Settlement.
+One undated conversion enters the ledger, place stream and gang timeline, with
+confirmation time distinguished from occurrence time. It cannot be assigned to
+a battle/downtime window. A holding-specific origin exception supplies the
+writer with its former identity and conversion. Slag Eaters' second Settlement
+is bridged to its documented capture from Kly, not fabricated as a conversion.
+Starting Settlements remain distinct. The owner-paused origin request can get
+one audited same-ID brief amendment without losing a draft or resetting its
+claim. No source/roster edits, model calls, schema or fighter cognitive changes.
+Exact implemented rules and limitations: [Territory history](TERRITORY_HISTORY.md).
 
 ## 0.27.1 — Explicit operator queue report
 

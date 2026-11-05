@@ -218,6 +218,20 @@ function syncNCCE() {
     const queueState = dataRows(queue,16).filter(r => r[2] && ['PENDING','WRITING','READY','HOLD'].includes(r[1]))
       .map(r => ({request_id:r[0],status:r[1],has_text:!!r[11],note:r[12] || ''}));
     const outbox = callNCCE('poll', {protocol_version:2,queue_state:queueState});
+    // Explicit owner-authorized correction of a paused origin brief. Never touch prose.
+    for (const amendment of outbox.amendments || []) {
+      const row=findRow(queue,amendment.request_id,16);
+      if (!row) continue;
+      const current=queue.getRange(row,1,1,16).getDisplayValues()[0];
+      if (!['PENDING','WRITING'].includes(current[1]) || current[8]!==amendment.previous_revision) continue;
+      appendContext(context,amendment.packet);
+      SpreadsheetApp.flush();
+      const latest=queue.getRange(row,1,1,16).getDisplayValues()[0];
+      if (latest[0]!==current[0] || latest[1]!==current[1] || latest[8]!==current[8] || latest[11]!==current[11]) {
+        throw new Error('Paused brief changed during amendment; draft retained for reconciliation.');
+      }
+      writeLiteral(queue.getRange(row,9),[[amendment.source_revision]]);
+    }
     writeGuidance(book, outbox.guidance);
     for (const item of outbox.deferred || []) {
       const row=findRow(queue,item.request_id,16);

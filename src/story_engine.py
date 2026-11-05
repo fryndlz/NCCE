@@ -358,6 +358,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
     llm_writer.reset_budget(call_budget,writer_run_id)
     llm_writer.set_enabled(writer_enabled)
     with store._lock:
+        import territory_history
+        if target_fighter_ids is None:territory_history.apply(store)
         lore = store.db.execute("SELECT * FROM lore_sources ORDER BY id LIMIT 1").fetchone()
         if lore and not store.db.execute("SELECT 1 FROM provenance_sources WHERE source_id='canon:c-nine-story-export'").fetchone():
             store.record_source("canon:c-nine-story-export","authored_campaign_lore","canon_authored",lore["title"] or "C-NINE Story",source_uri=lore["source_url"],content_hash=hashlib.sha256(lore["content"].encode("utf-8")).hexdigest())

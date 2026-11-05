@@ -42,7 +42,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.27.1'}
+                    assert read('/healthz') == {'ok':True,'version':'0.28.0'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:

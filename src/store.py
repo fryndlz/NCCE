@@ -156,6 +156,8 @@ class Store:
    except (TypeError,ValueError): continue
   from fighter_timeline import records as tracked_fighter_records
   records.extend(tracked_fighter_records(self))
+  import territory_history
+  records.extend(territory_history.records(self))
   gang_names={str(row['gang_id']):row['name'] for row in self.db.execute('SELECT gang_id,name FROM gangs')}
   fighter_names={}
   roster={}
@@ -169,10 +171,10 @@ class Store:
     matches=roster.get((str(gang_id),normalized),[])
     fighter_names[(str(gang_id),str(fighter_id))]=matches[0] if len(matches)==1 else name
   territories={}; territory_links={}
-  for row in self.db.execute('SELECT id,mechanics_json,territory FROM territories'):
+  for row in self.db.execute('SELECT * FROM territories WHERE active=1'):
    try: mechanics=json.loads(row['mechanics_json'] or '{}')
    except (TypeError,ValueError): mechanics={}
-   territory_id=mechanics.get('territory_id') or mechanics.get('territoryId')
+   territory_id=territory_history.source_identity(self,dict(row)) or mechanics.get('territory_id') or mechanics.get('territoryId')
    if territory_id:
     territories[str(territory_id)]=row['territory']
     territory_links.setdefault(str(territory_id),[]).append(row['id'])
@@ -433,6 +435,8 @@ class Store:
   t['territory_history_document']=t['campaign_account_document']
   t['narrative_stream']=read_stream(self,'territory',tid)
   t['mechanics']=json.loads(t.get('mechanics_json') or '{}')
+  from territory_history import history_for
+  t['confirmed_history']=history_for(self,tid)
   return t
  def set_writer_identity(self,fid,identity):
   from writing_director import validate_identity

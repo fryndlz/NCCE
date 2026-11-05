@@ -93,6 +93,16 @@ The keys below are the exact 16 exchange/System keys. A category's existence is 
 
 **Boundary:** do not turn every territory into a passage, toll system or tally office. Begin with the actual territory function. Fictional local history may be invented where authorized; an actual campaign seizure or casualty cannot. This baseline is not the timeline of later ownership changes. Existing authored description remains primary.
 
+**Explicit exception:** when Context supplies `origin_history_exception` or a
+`history_amendment`, follow that holding's owner-confirmed transformation. For
+the confirmed former Gambling Den, establish its former identity and briefly
+acknowledge conversion into the present Settlement. It is the same place, not a
+second holding. A separate event-stream entry records the conversion. Its date
+and owner at conversion remain unknown unless explicitly supplied; neither the
+territory's creation date nor a battle date supplies them. This exception does
+not authorize inventing conversions for other Settlements. Read an amended brief
+before resuming a paused request; preserve and edit any existing draft.
+
 ### 9. territory_history — a place through time
 
 **Inputs:** its baseline, ordered ownership/state changes, related battles, accepted local incidents and a cutoff.

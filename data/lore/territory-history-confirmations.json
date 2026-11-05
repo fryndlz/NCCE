@@ -1,0 +1,32 @@
+{
+  "confirmed_at": "2026-11-05T14:29:05+00:00",
+  "source_id": "player:territory-history-confirmations",
+  "bindings": [
+    {
+      "source_territory_id": "4e5b06e8-bf45-4fb4-835b-7bb3a9ae0dd7",
+      "gang_id": "d3b71b68-8f5e-41bb-a147-b89984ca3061",
+      "current_type": "Settlement",
+      "is_default": false,
+      "former_type": "Gambling Den",
+      "conversion": {
+        "key": "ethernetans-gambling-den-to-settlement",
+        "paused_origin_request_id": "9220a6eb-d32f-4f00-a2fd-c33b32979a68",
+        "cause": "Isotropic fuel rod",
+        "occurred_at": null,
+        "confirmation": "Campaign owner confirmed that Ethernetans' additional Settlement is the former Gambling Den converted with an isotropic fuel rod.",
+        "evidence": [
+          "MAIN!B2 raw dump: campaign territory 4e5b06e8-bf45-4fb4-835b-7bb3a9ae0dd7 is Gambling Den, created 2026-07-17T19:15:28.260762+00:00.",
+          "MUNDA_BATTLES_RAW: battle 85379750-5c9d-44c2-b3a8-60e51de9e6ae references that campaign_territory_id; the corresponding current Battles entry names Settlement.",
+          "Owner confirmation in NCCE development chat, 5 November 2026. Creation and battle dates do not date the conversion."
+        ]
+      }
+    },
+    {
+      "source_territory_id": "2c676e49-7999-42e6-963e-967ee9a4d24b",
+      "gang_id": "148e09b0-08d7-4118-affe-d9aac580fb44",
+      "current_type": "Settlement",
+      "is_default": false,
+      "evidence": "MAIN!B2 names this holding Settlement under Kly. MUNDA_BATTLES_RAW battle 9bbcc8a2-bdea-4682-bfff-bcd1c33b5fda references the same campaign_territory_id; current Battles records The Slag Eaters claiming it from Kly in The Trap on 20 October 2026. This is an identity bridge for a captured Settlement, not evidence of fuel-rod conversion."
+    }
+  ]
+}

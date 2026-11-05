@@ -80,6 +80,16 @@ const lastPoll=httpCalls.filter(c=>c.url.endsWith('/poll')).at(-1);
 assert.equal(JSON.parse(lastPoll.options.payload).protocol_version,2);
 assert.ok(JSON.parse(lastPoll.options.payload).queue_state.every(r=>r.status!=='IMPORTED'));
 // Duplicated IDs stop transport rather than attach prose to an arbitrary row.
+// Owner-paused amendments update context/revision, never the draft, claim or ID.
+queue.rows[7][1]='WRITING';queue.rows[7][11]='Preserved partial draft';
+const originalRevision=queue.rows[7][8];
+outbox.amendments=[{request_id:'another-uuid',previous_revision:originalRevision,source_revision:'amended-revision',
+  packet:{request:{...request,source_revision:'amended-revision'},context:[{section:'history_amendment',text:'Confirmed Gambling Den conversion.'}]}}];
+run();assert.equal(queue.rows[7][8],'amended-revision');assert.equal(queue.rows[7][1],'WRITING');
+assert.equal(queue.rows[7][11],'Preserved partial draft');assert.equal(queue.rows[7][0],'another-uuid');
+assert.ok(context.rows.some(r=>r?.[1]==='history_amendment'&&r?.[6]==='Confirmed Gambling Den conversion.'));
+run();assert.equal(queue.rows[7][11],'Preserved partial draft');
+outbox.amendments=[];queue.rows[7][8]=originalRevision;
 // Operator report reflects actual dispatchable rows AFTER deferral, never a backlog job list.
 outbox.waterfall={legacy_saved:12,deferred:1,categories:Array.from({length:16},(_,i)=>({
   form:'form_'+i,group:'Group',name:'Category '+i,phase:0,policy:'exchange',

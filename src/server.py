@@ -9,7 +9,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.27.1'
+APP_VERSION='0.28.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -169,7 +169,8 @@ class H(BaseHTTPRequestHandler):
       exchange_automation.prepare(store,client_states=payload.get('queue_state') if payload.get('protocol_version')==2 else None)
       store.set_state('exchange_relay_last_seen',exchange_automation.now())
       from writing_waterfall import summary
-      return self.js({'packets':exchange_automation.outbox(store),'holds':exchange_automation.holds(store),'deferred':exchange_automation.deferred(store),'waterfall':summary(store,exchange_automation.candidates(store)),'guidance':exchange_automation.guidance()})
+      from territory_history import amendments
+      return self.js({'packets':exchange_automation.outbox(store),'amendments':amendments(store),'holds':exchange_automation.holds(store),'deferred':exchange_automation.deferred(store),'waterfall':summary(store,exchange_automation.candidates(store)),'guidance':exchange_automation.guidance()})
     if p.endswith('/deliver'):
      with store._lock:
       if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry saved work later'},409)

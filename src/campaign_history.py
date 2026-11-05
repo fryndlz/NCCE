@@ -342,7 +342,7 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
     now_raw, now_utc, _ = parse_instant(now or datetime.now(timezone.utc).isoformat())
     all_battles = latest_versions(records, "campaign_battles")
     sessions = latest_versions(records, "battle_sessions")
-    activities = sorted((record for record in records if record.get("source_table") in {"gang_logs","fighter_ledger"}),
+    activities = sorted((record for record in records if record.get("source_table") in {"gang_logs","fighter_ledger","territory_ledger"}),
                         key=lambda item: (item.get("created_at_utc") or "", item["record_id"]))
 
     battle_by_id = {item["record_id"]: item for item in all_battles}
@@ -509,6 +509,10 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
             phase = "unassigned"
             confidence = "no_timed_battle_for_gang"
 
+        if activity.get('source_table')=='territory_ledger' and activity.get('timestamp_basis')=='first_observed':
+            # Confirmation time locates the dot, not the historical conversion.
+            phase='unavailable';confidence='observation_time_only'
+            battle_id=None;preceding=None;next_battle=None
         action_type = activity.get("action_type") or record.get("action_type")
         matched_battle = next((window for window in candidates if window.get("battle_id") == battle_id), None)
         participation = _xp_participation({**activity, "action_type": action_type,
@@ -520,6 +524,7 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
             "source_event_id": activity.get('source_event_id'),
             "timestamp_basis": activity.get('timestamp_basis','recorded_event'),
             "source_table": activity["source_table"],
+            "provenance_class": record.get('provenance_class','mechanical_fact'),
             "source_tab": activity.get("source_tab"),
             "source_row": activity.get("source_row"),
             "source_version_hash": activity.get("version_hash"),
@@ -530,7 +535,7 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
             "gang_name": gang_names.get(str(gang_id)) if gang_id else None,
             "fighter_id": str(fighter_id) if fighter_id else None,
             "fighter_name": fighter_names.get((str(gang_id or ""), str(fighter_id or ""))) or activity.get("fighter_name_hint"),
-            "entity_label": (fighter_names.get((str(gang_id or ""), str(fighter_id or ""))) or activity.get("fighter_name_hint") or ("Fighter " + str(fighter_id)[:8])) if fighter_id else gang_names.get(str(gang_id)) if gang_id else "Campaign",
+            "entity_label": record.get('territory_label') or ((fighter_names.get((str(gang_id or ""), str(fighter_id or ""))) or activity.get("fighter_name_hint") or ("Fighter " + str(fighter_id)[:8])) if fighter_id else record.get('territory_label') or (gang_names.get(str(gang_id)) if gang_id else "Campaign")),
             "action_type": action_type,
             "territory_id": str(territory_id) if territory_id else None,
             "place_name": territories.get(str(territory_id)) if territory_id else None,
@@ -542,7 +547,7 @@ def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None
             "battle_id": battle_id,
             "preceding_battle_id": preceding.get("battle_id") if preceding else None,
             "next_battle_id": next_battle.get("battle_id") if next_battle else None,
-            "evidence": {"timestamp": activity.get("created_at_raw"), "basis": ('fighter ledger · '+activity.get('timestamp_basis','first_observed')) if activity['source_table']=='fighter_ledger' else "gang_logs.created_at", "source_id":activity.get('source_id'),"source_locator":activity.get('source_locator'),"session_window_rule": "candidate proxy: session.created_at through session.updated_at", "not_confirmed_gameplay_boundary": True},
+            "evidence": {"timestamp": activity.get("created_at_raw"), "basis": (activity['source_table']+' · '+activity.get('timestamp_basis','first_observed')) if activity['source_table'] in ('fighter_ledger','territory_ledger') else "gang_logs.created_at", "source_id":activity.get('source_id'),"source_locator":activity.get('source_locator'),"session_window_rule": "candidate proxy: session.created_at through session.updated_at", "not_confirmed_gameplay_boundary": True},
             "raw_record": record,
             "parse_errors": activity.get("errors", []),
         }

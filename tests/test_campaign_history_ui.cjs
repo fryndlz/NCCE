@@ -26,6 +26,7 @@ assert.match(root.innerHTML,/1h 00m|2h 00m/);
 assert.match(root.innerHTML,/--gang-color:#80d8be/);assert.match(root.innerHTML,/--gang-color:#ecba6a/);
 assert.doesNotMatch(root.innerHTML,/Candidate|candidate|Battle registry|Browse recorded changes|Timing and source notes/);
 const panel=vm.runInContext('timelineDetail(null,b)',ctx);
+assert.equal(vm.runInContext("historyEventPeriod({source_table:'territory_ledger',timestamp_basis:'first_observed',gang_id:'g1',recorded_at:'2026-10-25T10:30:00Z'},b)",ctx),null);
 assert.match(panel,/Time Window|Winner|Campaign Record/);
 assert.match(panel,/data-gang="g1"/);assert.match(panel,/data-territory="99"/);
 assert.match(panel,/history-mission/);assert.match(panel,/history-participants/);

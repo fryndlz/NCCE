@@ -115,7 +115,7 @@ def locate_place(state, territories, name=None):
     source=state.get('source_territory_key') or state.get('Territory ID') or state.get('territory_id')
     card=state.get('Card') or state.get('card')
     if source:
-        candidates=[t for t in territories if str(t.get('source_territory_id'))==str(source)]
+        candidates=[t for t in territories if str(t.get('_history_source_id') or t.get('source_territory_id'))==str(source)]
         if len(candidates)==1:
             return candidates[0]
     if card:
@@ -211,10 +211,16 @@ def gang_event_text(gang, event, battle=None):
 
 
 def places_with_aliases(store, events=None):
+    import territory_history
+    bridges={t['id']:b for b,t in territory_history.bindings(store)}
     all_places=[dict(r) for r in store.db.execute('SELECT * FROM territories ORDER BY active DESC,id')]
     for place in all_places:
         origin=store.db.execute("SELECT document_json FROM story_artifacts WHERE scope_type='territory_origin' AND scope_key=? AND active=1",(str(place['id']),)).fetchone()
         place['_aliases']=[json.loads(origin[0]).get('title')] if origin else []
+        if place['id'] in bridges:
+            bridge=bridges[place['id']]
+            place['_history_source_id']=bridge['source_territory_id']
+            if bridge.get('former_type'):place['_aliases'].append(bridge['former_type'])
     if events is None:
         events=[{'event_type':'territory_type_changed','payload':json.loads(row[0])} for row in store.db.execute("SELECT payload_json FROM campaign_events WHERE event_type='territory_type_changed'")]
     for event in events:

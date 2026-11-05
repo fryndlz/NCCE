@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.28.0 — Territory conversion history — 5 November 2026, 15:29 CET / 14:29 UTC
+
+- Added owner-confirmed Gambling Den → Settlement history for Ethernetans with a separate immutable event, timeline dot and place-event writing slot. Conversion date remains unknown; confirmation time is not assigned to a battle/downtime window.
+- Preserved former identity and added an explicit origin-writing exception. Source-labelled history stays separate from mechanical data and diegetic prose.
+- Traced the Slag Eaters' additional Settlement to its capture from Kly in The Trap, 20 October. Identity bridges keep both gangs' default Settlements separate and leave source rows/snapshots unchanged.
+- Added the owner-authorized paused-origin amendment: same request ID, preserved Markdown/WRITING claim, original brief/revision audit and Context-first relay update. No general regeneration or amendment of READY/imported work.
+- Nineteen Python/eight JavaScript suites pass; new territory-history/amendment tests and UI grouping/relay tests pass. Startup/live-source HTTP smoke passes after fixing an entity provenance collision detected by that check. No model calls or schema change. Deployment/live amendment verification follows.
+
 ## 0.27.1 — Queue reporting clarity — 5 November 2026, 09:31 CET / 08:31 UTC
 
 Live verification 09:34 CET / 08:34 UTC: source 1c4ba8dbec191971b4b3c47ecdd6b798ce191be4 deployed as dep-dbm3u2h7lnhs738kuqcg; health reports 0.27.1. Existing syncNCCE ran 09:33:41–09:33:54 CET successfully. Queue status readback contains five PENDING territory descriptions, a separate complete 16-form backlog and seven authored / one accepted battle report. Five deferred battle rows remain DRAFT; both imported pilot rows/receipts are preserved. Updated Automation instructions read back with operator-only dashboard wording. Native Sheet visual check verified the new table; compact request prefixes retain full IDs in Queue. Relay-only layout changes are tracked separately without another server deploy. No provider calls or source/cognitive changes.
