@@ -121,3 +121,7 @@ safe Script deferral, full queue draining and no requeue after forced regenerati
 All tests use disposable state and make no paid provider call. The real-history
 copy test checks unchanged fighter/event/snapshot counts and phase-0-first output.
 Hosted deployment and live queue reconciliation are recorded in the changelog.
+
+## Hosted verification — 5 November 2026, 09:09 CET
+
+Release source `4a8c3aa91eecd24c6f69edb1d6e2ebc49a24e9ac` is live. Real protocol-2 sync deferred five empty battle jobs and exported five baseline jobs, preserving both imported pilot receipts. The Queue status tab reports 1,332 remaining entries and 750 retained legacy projections. Private keys, the existing timer and authored sources were untouched. The hourly writer limit remains three; its scheduled tool access is not inferred from a successful relay run. Detailed release evidence is in HANDOFF_STATUS.md and CHANGELOG.md.
