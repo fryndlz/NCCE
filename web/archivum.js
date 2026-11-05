@@ -39,6 +39,7 @@ window.NCCEArchive = (() => {
     root.dataset.activeSection=id;
   }
   function presentEntity(outlet,meta) {
+    outlet.dataset.recordKind=meta.kind;
     const identity=meta.kind+':'+meta.id;
     const selected=outlet.dataset.recordIdentity===identity?outlet.dataset.activeSection:'baseline';
     const sections=[...meta.sections,{id:'sources',label:'Data & sources',description:'Mechanical state, provenance, identity tools and source references.',body:`<dl class="source-register">${[['Record',meta.id],['Source',meta.source || 'Campaign record'],...(meta.fields || [])].map(([k,v])=>`<div><dt>${escape(k)}</dt><dd>${escape(v ?? 'Not recorded')}</dd></div>`).join('')}</dl>${meta.sourceBody || ''}<div class="source-evidence"></div>`}];
@@ -49,7 +50,15 @@ window.NCCEArchive = (() => {
     // with its event in an explicit disclosure outside the prose surface.
     const source=outlet.querySelector('.source-evidence');
     outlet.querySelectorAll('.baseline-section .evidence,.baseline-section .authored-source,.baseline-section .narrative > .eyebrow').forEach(el=>source.append(el));
-    outlet.querySelectorAll('.baseline-section .writer-pending').forEach(el=>outlet.querySelector('.document-notices').append(el));
+    // Territory prose surfaces carry the report; technical writing status belongs to sources.
+    if(meta.kind==='territory') {
+      outlet.querySelectorAll('.entity-section-panel:not(.record-source-panel) .writer-pending').forEach(el=>source.append(el));
+      // Retained structured drafts can store these fields as ordinary paragraphs.
+      outlet.querySelectorAll('.archive-paper .record-body p').forEach(el=>{
+        if(/^(?:Local designation|Classification)\s*:/i.test(el.textContent.trim()))el.classList.add('authored-field');
+      });
+    }
+    else outlet.querySelectorAll('.baseline-section .writer-pending').forEach(el=>outlet.querySelector('.document-notices').append(el));
     outlet.querySelectorAll('.entity-section-content .evidence').forEach((el,i)=>{
       if(el.closest('.event-basis'))return;
       const disclosure=document.createElement('details');disclosure.className='event-basis';

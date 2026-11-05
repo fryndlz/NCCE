@@ -772,7 +772,7 @@ function placeRecordSections(t, related) {
   const history=t.territory_history_document || t.campaign_account_document;
   const historyView=history?{...history,metadata:list(history.metadata).map(f=>f.label==='Record'?{...f,value:'Territory campaign history'}:f)}:null;
   return [
-    {id:'baseline',label:'Description',description:'What this place is: its setting and established background.',paper:true,body:narrative(t.backstory,t.backstory_source || 'inference',t.evidence || [`Current holder: ${short(t.gang_name)}`,`Card: ${t.card || 'Not recorded'}`],t)},
+    {id:'baseline',label:'Description',paper:true,body:narrative(t.backstory,t.backstory_source || 'inference',t.evidence || [`Current holder: ${short(t.gang_name)}`,`Card: ${t.card || 'Not recorded'}`],t)},
     {id:'history',label:'History',description:'A chronological account connecting this place’s recorded campaign developments. Generated interpretation, grounded in the cited events.',paper:true,paperLabel:'CAMPAIGN HISTORY',body:historyView?blocks(historyView)+evidence(history.evidence || [],history):empty('No territory history has been written yet.')},
     {id:'events',label:'Events',count:events.length,description:'Individual accounts of recorded territory changes, most recent first. These interpret campaign facts; they are separate from fictional local scenes.',body:entityTimeline(events,[])},
     {id:'scenes',label:'Scenes',count:scenes.length,description:'Invented local incidents and atmosphere. These do not establish battles, casualties, income, ownership changes or other tabletop effects.',body:scenes.length?entityTimeline(scenes,[]):empty('No local scenes have been written.')},

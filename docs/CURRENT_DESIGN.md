@@ -1,4 +1,15 @@
-# NCCE 0.28.0 — current technical design
+# NCCE 0.28.1 — current technical design
+
+## 0.28.1 — Territory report presentation
+
+Territory Description opens directly on its report, without the generic
+"What this place is" introduction. Technical writing notices from territory
+report panels are collected under Data & sources. Designation/classification
+metadata uses the same small Courier print scale, colour and letter spacing as
+the paper's section labels. This applies to imported Markdown field rows and
+matching metadata paragraphs in retained structured documents. Source wording,
+stored prose, request seals, writing jobs, timeline and campaign data are not
+changed. Other entity record layouts retain their existing notices.
 
 ## 0.28.0 — Confirmed territory transformations
 

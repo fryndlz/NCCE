@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28.1 — Territory report formatting — 5 November 2026
+
+- Removed the generic territory Description introduction and moved technical writing-status notices into Data & sources.
+- Styled designation/classification fields as machine-print metadata across imported Markdown and retained structured territory reports. Prose text, timeline and writing queue are unchanged; no regeneration or provider calls.
+- Existing rendering checks and application smoke verification run before publishing. Browser-based visual verification is unavailable because browser use is disabled in the current session.
+
 ## 0.28.0 — Territory conversion history — 5 November 2026, 15:29 CET / 14:29 UTC
 
 Live verification 15:45 CET / 14:45 UTC: source 5cad90b206c2a0dd959fbcc75ec4f558132f9f5f deployed through dep-dbm9bcrm8hqs73d07r30; health reports 0.28.0. Startup/live refresh reused Mara's original receipt. Bound relay saved without changes to scopes/key/timer; syncNCCE completed 15:43:40–15:43:55 CET. Paused request 9220a6eb… remains WRITING with the same ID and exact 900-character draft; revision changed from sha256:3eb7d19258422df352cd7dee566fd683c6fab95753974cdee9b5fe864670f289 to sha256:482cf92dc839033164b95e48e20322775e8e4385236d4ed7dad43e89743c725b. Context!G94 contains the complete history_amendment, read back and visually verified. All four other former WRITING requests are now IMPORTED; exact text/status readbacks before and after this amendment match. No signed-in hosted timeline visual inspection is claimed; timeline/stream/date behavior is covered by the disposable-state and frontend tests. Writer may resume the saved draft after rereading Queue revision and matching Context. No new model call by NCCE/Codex.

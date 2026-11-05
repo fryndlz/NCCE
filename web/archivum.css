@@ -127,6 +127,15 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .section-count { display:inline-block; color:#a9b491; background:#33402e; padding:1px 5px; font:9px/1.4 system-ui,sans-serif; border-radius:2px; }
 .entity-section-panel { min-height:360px; }
 .entity-section-description { color:#a8b39a; margin:0; padding:20px 22px 4px; font:12px/1.7 system-ui,sans-serif; }
+.entity-section-description:empty { display:none; }
+/* Territory designation/classification fields use the report's machine-print scale. */
+#app [data-record-kind="territory"] .archive-paper .authored-field {
+  color:#667052;
+  font:9px/1.6 'Courier New',monospace;
+  letter-spacing:.09em;
+  margin:.4em 0;
+}
+#app [data-record-kind="territory"] .archive-paper .authored-field .mark-admin_label { color:inherit; }
 .entity-section-content { padding:20px 22px 28px; }
 .entity-section-panel.record-source-panel { padding:0; }
 .entity-section-panel .document-notices { padding-top:8px; }
