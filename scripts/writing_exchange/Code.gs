@@ -168,7 +168,17 @@ function writeQueueStatus(book, waterfall, queue) {
   if (JSON.stringify(before) === JSON.stringify(padded)) return;
   writeLiteral(sheet.getRange(1,1,height,8),padded);
   sheet.getRange(1,1,height,8).setWrap(true);
-  [110,280,220,280,90,95,95,100].forEach((width,i) => sheet.setColumnWidth(i+1,width));
+  [110,260,220,190,80,90,85,95].forEach((width,i) => sheet.setColumnWidth(i+1,width));
+  const range=(start,end) => ({sheetId:sheet.getSheetId(),startRowIndex:start,endRowIndex:end,startColumnIndex:0,endColumnIndex:8});
+  const headerRows=[0,3,5+available.length,6+available.length];
+  Sheets.Spreadsheets.batchUpdate({requests:[
+    {repeatCell:{range:range(0,height),cell:{userEnteredFormat:{verticalAlignment:'TOP',
+      backgroundColor:{red:0.96,green:0.97,blue:0.95},textFormat:{fontFamily:'Arial',fontSize:10,bold:false,foregroundColor:{red:0.13,green:0.18,blue:0.15}}}},
+      fields:'userEnteredFormat(verticalAlignment,backgroundColor,textFormat)'}},
+    ...headerRows.map(row => ({repeatCell:{range:range(row,row+1),cell:{userEnteredFormat:{
+      backgroundColor:{red:0.16,green:0.24,blue:0.19},textFormat:{bold:true,foregroundColor:{red:1,green:1,blue:1}}}},
+      fields:'userEnteredFormat(backgroundColor,textFormat.bold,textFormat.foregroundColor)'}}))
+  ]},EXCHANGE_ID);
   sheet.setFrozenRows(1);
   sheet.autoResizeRows(1,height);
 }

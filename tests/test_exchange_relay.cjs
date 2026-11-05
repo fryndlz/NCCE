@@ -32,6 +32,7 @@ const ctx=vm.createContext({console,Set,JSON,Date,Error,
   PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'disposable-test-only-00000000000000',setProperty(){}})},
   Sheets:{Spreadsheets:{get:()=>({sheets:book.sheets.map(s=>({properties:{sheetId:s.id},tables:[s.table]}))}),batchUpdate(payload){
     for(const r of payload.requests){batchRequests.push(r);
+      if(r.repeatCell)continue;
       if(r.updateTable){const t=r.updateTable.table;book.sheets.find(s=>s.table.tableId===t.tableId).table.range=t.range;continue;}
       const u=r.updateCells,s=book.sheets.find(s=>s.id===u.start.sheetId);
       if(failStatus&&s===queue&&u.start.columnIndex===1&&u.rows[0].values[0].userEnteredValue.stringValue==='IMPORTED'){failStatus=false;throw Error('Ack failed');}
