@@ -1,5 +1,8 @@
 # Changelog
 
+**0.26.0 live verification — 5 November 2026, 01:34 CET / 00:34 UTC:** source 5ccf3cc7fba2a77eb31828cb5c3315b14eb35d7e is live in deployment dep-dblst8eq1p3s738v1irg. Health reports 0.26.0; unauthenticated receipt/relay endpoints return 401; removed Workshop remains 410. Hosted logs confirm verified pre-schema-17 backup and unchanged Mara receipt reuse at startup and live sync. Seventeen Python/eight JS suites, authenticated HTTP relay smoke and real-history-copy replay passed. Private Sheet guidance readback matches complete files; four reference layouts verified. No model calls or source edits. No real Google relay trigger, token installation or work-chat schedule has been activated; private-Sheet delivery/scheduled-run verification remains required after the owner completes setup.
+
+
 ## 0.26.0 — Private external writing automation
 
 **Implemented 5 November 2026.** Deployment verification is recorded separately. Added schema-17 durable source-sealed requests and retained delivery/original-projection audits, a maximum-five outbox, exact-slot import for 14 generated prose forms, idempotent receipts, source-change HOLD and restoration after refresh/restart. Authored sources and the accepted Mara pilot remain protected. READY authorizes unchanged external fiction; no internal model/reviewer/RAG pipeline is restored.
