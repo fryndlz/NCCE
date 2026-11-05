@@ -56,6 +56,7 @@ window.NCCEArchive = (() => {
       // Imported Markdown uses authored-record; legacy blocks use record-body.
       outlet.querySelectorAll('.archive-paper p').forEach(el=>{
         if(/^(?:Local designation|Classification)\s*:/i.test(el.textContent.trim()))el.classList.add('authored-field','section-label');
+        if(/^Local designation\s*:/i.test(el.textContent.trim()))el.classList.add('territory-local-name');
       });
     }
     else outlet.querySelectorAll('.baseline-section .writer-pending').forEach(el=>outlet.querySelector('.document-notices').append(el));

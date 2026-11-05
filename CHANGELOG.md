@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.3 — Territory local-name prominence — 5 November 2026
+
+- Promoted Local designation to an 18px uppercase Courier heading, with stronger contrast/spacing. Classification retains its small metadata styling. Covers imported Markdown and retained reports without modifying text or generating prose.
+
 ## 0.28.2 — Corrected territory formatting — 5 November 2026
 
 Live verification 21:03 CET / 20:03 UTC: source efe49c0f5e8b9cdb87fe6ac414d213711873cab9 deployed through dep-dbme0i0ae00c73bgv98g. All eight JavaScript suites, exact-format Markdown regression and authenticated/live-source HTTP smoke pass. Browser visual access remains disabled; the owner's screenshots established the missing imported/bold-label case, now explicitly covered by the parser and DOM selection.

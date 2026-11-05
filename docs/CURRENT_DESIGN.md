@@ -1,4 +1,11 @@
-# NCCE 0.28.2 — current technical design
+# NCCE 0.28.3 — current technical design
+
+## 0.28.3 — Visible territory local names
+
+The Local designation line is a distinct 18px uppercase Courier heading, with
+stronger contrast and spacing. Classification remains small machine-print
+metadata. Capitalization is display-only; source text and writing requests do
+not change. This applies to both imported Markdown and retained report blocks.
 
 ## 0.28.2 — Corrected territory metadata and notice removal
 

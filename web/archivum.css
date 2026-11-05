@@ -136,6 +136,13 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
   margin:.4em 0;
 }
 #app [data-record-kind="territory"] .archive-paper .authored-field .mark-admin_label { color:inherit; }
+#app [data-record-kind="territory"] .archive-paper .territory-local-name {
+  color:#424d39;
+  font:600 18px/1.5 'Courier New',monospace;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  margin:12px 0 16px;
+}
 .entity-section-content { padding:20px 22px 28px; }
 .entity-section-panel.record-source-panel { padding:0; }
 .entity-section-panel .document-notices { padding-top:8px; }
