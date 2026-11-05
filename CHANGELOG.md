@@ -2,6 +2,8 @@
 
 ## 0.28.3 — Territory local-name prominence — 5 November 2026
 
+Live: source d176037b71df3f08386c82cf4ed6f715f37a5298, deployment dep-dbme74h7lnhs739ivbr0 completed 20:14:43 UTC / 21:14:43 CET. All eight JS suites and authenticated/live-source application smoke pass. Browser visual verification remains unavailable.
+
 - Promoted Local designation to an 18px uppercase Courier heading, with stronger contrast/spacing. Classification retains its small metadata styling. Covers imported Markdown and retained reports without modifying text or generating prose.
 
 ## 0.28.2 — Corrected territory formatting — 5 November 2026

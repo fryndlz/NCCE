@@ -1,5 +1,7 @@
 # Handoff status
 
+**0.28.3 live — 5 November 2026, 21:14 CET / 20:14 UTC:** source d176037b71df3f08386c82cf4ed6f715f37a5298, deploy dep-dbme74h7lnhs739ivbr0 live. Local designation is a distinct 18px uppercase Courier heading; classification remains 9px metadata. All eight JS suites and application/live-source smoke pass. No text, sources, queue or timeline edits; browser visual access remains disabled.
+
 **0.28.3 local-name heading — 5 November 2026:** owner wants the territory local name visible, larger and capitalized. Local designation receives a separate 18px uppercase Courier heading style; classification stays small. No source/prose/queue/timeline changes. Rendering/application checks and deployment verification follow. Browser visual access remains disabled.
 
 **0.28.2 live — 5 November 2026, 21:03 CET / 20:03 UTC:** source efe49c0f5e8b9cdb87fe6ac414d213711873cab9, deploy dep-dbme0i0ae00c73bgv98g. Fixed bold Markdown metadata recognition and cover imported authored-record plus legacy record-body paragraphs. Exact designation/classification formats have regression coverage; section-label styling now applies directly. Territory writer notices/containers are removed completely, including from Data & sources. All eight JS suites and application/live-source HTTP smoke pass. Browser use is disabled, so no signed-in visual check claimed. No stored prose, source, queue/seal or timeline change. Earlier 0.28.1 claims are superseded by this correction.
