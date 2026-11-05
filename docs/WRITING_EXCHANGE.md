@@ -1,5 +1,8 @@
 # External writing exchange — framework 1
 
+**Google relay connected — 5 November 2026, 02:04 CET / 01:04 UTC:** owner reports saving the same private key in Google Script properties and Render. Render deploy dep-dblt9i6417fc73bg7f20 is live on source 240672d0683b6c64eb39b8837efb66010f5a46fc. Keys were not read. Google authorization completed; onOpen and then the verified installNCCERelay selection completed. Installer ran 02:02:21–02:02:42 CET. Actual private-Sheet export succeeded: five PENDING battle_report requests at Queue rows 7–11, each with all three supplied Context blocks. Mara remains IMPORTED with its original receipt/time. Trigger UI shows exactly one syncNCCE time-based trigger; edit view confirms every five minutes, then cancelled without changes. Timer installed; first unattended run not yet observed. This demonstrates live key compatibility, Google Sheets service/API access, native table/context export and trigger installation. No paid writing, generated output, authoritative source edit or source-data mutation. Next: existing work writing chat processes ONE pending entry, sets READY last; verify the real relay delivery/receipt/site rendering, then confirm a supported hourly schedule in that separate chat. Do not mark the writing chat scheduled or a new delivery tested yet.
+
+
 ## 0.26.0 — Private external writing automation
 
 Implemented 5 November 2026; schema 17. The server adapter and Google relay code are implemented and locally tested. Google Script installation/authorization, relay key configuration, a real private-Sheet round trip and the separate work-chat schedule are NOT activated by a code deployment. See WRITING_AUTOMATION_SETUP.md for installation and the exact work-chat message.
