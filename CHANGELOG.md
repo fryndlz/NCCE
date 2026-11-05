@@ -2,6 +2,8 @@
 
 ## 0.28.1 — Territory report formatting — 5 November 2026
 
+Live at 20:48 CET / 19:48 UTC: source 67aa628ad7df40565f279eba5c9e59fc1ff578da, deploy dep-dbmdpkbbc2fs73el4000; health confirms 0.28.1. All eight JS suites and authenticated/live-source application smoke pass. Visual verification remains unavailable because browser use is disabled. Production frontend asset reads require an authenticated session (unauthenticated reads return 404); no signed-in visual/asset comparison is claimed.
+
 - Removed the generic territory Description introduction and moved technical writing-status notices into Data & sources.
 - Styled designation/classification fields as machine-print metadata across imported Markdown and retained structured territory reports. Prose text, timeline and writing queue are unchanged; no regeneration or provider calls.
 - Existing rendering checks and application smoke verification run before publishing. Browser-based visual verification is unavailable because browser use is disabled in the current session.
