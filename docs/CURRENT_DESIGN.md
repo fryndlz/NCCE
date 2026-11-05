@@ -1,4 +1,18 @@
-# NCCE 0.25.0 — current technical design
+# NCCE 0.27.1 — current technical design
+
+## 0.27.1 — Explicit operator queue report
+
+Implemented 5 November 2026, 09:31 CET / 08:31 UTC. Queue status is an operator
+dashboard, not a writer input. After reconciling deliveries, holds, deferrals and
+exports, the relay lists only actual PENDING rows with no saved text as available
+work. The separate backlog table exposes every one of the 16 prose forms, its
+stage, form ID, authored count, accepted count, remaining derived slots and
+blocked subset. Gang origins and post-battle addenda are explicitly authored-only.
+Deferred battle reports remain DRAFT in the ledger, preserving IDs and history.
+The writer reads Queue and matching Context; it does not choose waterfall phases
+or treat backlog counts as jobs. Priority rules, schema 18, five-job buffer and
+three-entry work-chat run limit are unchanged. See WRITING_WATERFALL.md for the
+counter definitions and the separation between report and scheduler.
 
 ## 0.27.0 — Dependency waterfall and one-time legacy replacement
 

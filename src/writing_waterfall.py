@@ -176,11 +176,20 @@ def retire_legacy(store,items):
 
 def summary(store,items):
     from exchange_automation import target_key
+    from prose_progress import summary as prose_summary
     runnable,deps,blocked=plan(store,items);rows=[]
     for index,name in enumerate(PHASES):
         subset=[c for c in items if c['phase']==index]
         rows.append(dict(phase=index,name=name,total=len(subset),complete=sum(c['approved'] for c in subset),
                          needs_writing=sum(not c['approved'] for c in subset),blocked=sum(target_key(c) in blocked for c in subset)))
-    return dict(policy_version=VERSION,phases=rows,runnable=len(runnable),
+    categories=[]
+    for category in prose_summary(store)['categories']:
+        key=category['key'];subset=[c for c in items if c['form']==key]
+        categories.append(dict(form=key,group=category['group'],name=category['label'],
+            phase=FORM_PHASE.get(key),policy='authored_only' if key in ('gang_origin','post_battle_addendum') else 'exchange',
+            total=category['total'],authored=category['counts']['authored'],
+            accepted=sum(c['approved'] for c in subset),needs_writing=sum(not c['approved'] for c in subset),
+            blocked=sum(target_key(c) in blocked for c in subset)))
+    return dict(policy_version=VERSION,phases=rows,categories=categories,runnable=len(runnable),
                 legacy_saved=store.db.execute('SELECT count(*) FROM writing_legacy_inventory').fetchone()[0],
                 deferred=store.db.execute("SELECT count(*) FROM writing_exchange_requests WHERE state='DEFERRED'").fetchone()[0])

@@ -273,7 +273,8 @@ The order is baselines → chronological events → cited reflections → curren
 thoughts → histories/downtime/relationships → regional chronicle. The separate
 existing_fiction block contains accepted dependencies; use it as continuity,
 never as proof of an unrecorded mechanical event. Do not reuse the old machine
-wording. Queue status shows the current frontier. Started/saved work is preserved;
+wording. Queue status is an operator dashboard, not a writer input. NCCE selects
+the frontier; the writer takes only PENDING rows from Queue. Started/saved work is preserved;
 do not generate a second version when a row already contains prose.
 
 Use the exchange's immutable request_id, entity_key, entry_key, context_id and source_revision. One requested entry receives one finished delivery, not multiple candidates for a hidden reviewer. Save complete text before READY. Never regenerate an existing result just because saving/import acknowledgement failed; preserve and retransmit it.

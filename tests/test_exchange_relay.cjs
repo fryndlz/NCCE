@@ -79,5 +79,22 @@ const lastPoll=httpCalls.filter(c=>c.url.endsWith('/poll')).at(-1);
 assert.equal(JSON.parse(lastPoll.options.payload).protocol_version,2);
 assert.ok(JSON.parse(lastPoll.options.payload).queue_state.every(r=>r.status!=='IMPORTED'));
 // Duplicated IDs stop transport rather than attach prose to an arbitrary row.
+// Operator report reflects actual dispatchable rows AFTER deferral, never a backlog job list.
+outbox.waterfall={legacy_saved:12,deferred:1,categories:Array.from({length:16},(_,i)=>({
+  form:'form_'+i,group:'Group',name:'Category '+i,phase:0,policy:'exchange',
+  authored:0,accepted:0,needs_writing:2,blocked:1,total:2}))};
+queue.rows[7][1]='PENDING';queue.rows[7][11]='';
+outbox.deferred=[{request_id:'another-uuid',source_revision:request.source_revision}];
+run();
+const status=book.getSheetByName('Queue status');
+assert.equal(status.rows[2][1],'0 jobs after the latest successful reconciliation');
+assert.equal(status.rows.filter(r=>String(r?.[2]).startsWith('form_')).length,16);
+assert.ok(!status.rows.some(r=>r?.[3]==='mara-pilot'||r?.[3]==='another-uuid'));
+outbox.deferred=[];queue.rows[7][1]='PENDING';run();
+assert.equal(status.rows[2][1],'1 jobs after the latest successful reconciliation');
+assert.equal(status.rows[4][3],'another-uuid');
+queue.rows[7][11]='Partial saved prose';run();
+assert.equal(status.rows[2][1],'0 jobs after the latest successful reconciliation');
+assert.ok(!status.rows.some(r=>r?.[3]==='another-uuid')); // Also clears shrinking report tails.
 queue.rows[8]=queue.rows[7].slice();assert.throws(run,/Duplicate request ID/);
 console.log('PASS Apps Script relay: immutable pilot, literal Markdown, receipts after ACK failure, DRAFT recovery, table growth, duplicate stop');

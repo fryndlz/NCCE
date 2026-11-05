@@ -114,6 +114,25 @@ writing still requires actual connected-tool access in that account.
 
 ## Verification
 
+### Operator report versus writer input (0.27.1)
+
+`summary()` exposes all 16 `prose_progress.CATEGORIES` as `categories`, including
+the two authored-only forms. Authored and total counts come from current prose
+slots. Accepted counts require current exchange/pilot protection; old generated
+ready labels do not qualify. To write counts unapproved derived candidates;
+blocked is a subset awaiting causal prerequisites or recovery. Total slots can
+include authored-only or retained non-exchange records, so do not infer remaining
+work by subtracting accepted alone. The two authored-only rows say Not queued.
+
+Apps Script renders Queue status after applying all status/export changes. Its
+available-work section is an exact projection of Queue rows with a form,
+PENDING status and empty writer_text_md. The full backlog is a separate explicit
+16-form count table. DRAFT battle jobs are preserved in Queue for later reuse but
+are absent from available work. This tab never drives eligibility or dispatch;
+the server's existing dependency planner does. Writer instructions explicitly
+exclude the dashboard as a source of jobs and retain the three-PENDING-per-run
+limit. A dashboard refresh does not invoke a model or alter campaign sources.
+
 Tests cover replacement of old ready prose, authored/pilot protection, baseline
 gates and accepted context, source/causal dependencies, same-ID deferral,
 preserved claims and partial drafts, lost-acknowledgement retry, client HOLD,

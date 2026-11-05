@@ -136,6 +136,25 @@ def test_waterfall_drains_without_rewriting_accepted_entries_or_changing_event_c
         finally:s.close()
 
 
+def test_operator_report_lists_all_forms_without_treating_legacy_as_accepted():
+    from prose_progress import CATEGORIES
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as temp:
+        s,b,f,m=setup(temp)
+        try:
+            pilot_import(s,b);e.prepare(s)
+            items=e.candidates(s);report=w.summary(s,items)
+            assert {r['form'] for r in report['categories']}=={r[0] for r in CATEGORIES}
+            assert len(report['categories'])==16
+            for row in report['categories']:
+                subset=[c for c in items if c['form']==row['form']]
+                assert row['accepted']==sum(c['approved'] for c in subset)
+                assert row['needs_writing']==sum(not c['approved'] for c in subset)
+                assert row['blocked']<=row['needs_writing']
+                assert (row['policy']=='authored_only')==(row['form'] in ('gang_origin','post_battle_addendum'))
+            assert sum(r['needs_writing'] for r in report['categories'])==sum(r['needs_writing'] for r in report['phases'])
+        finally:s.close()
+
+
 if __name__=='__main__':
     for name,check in list(globals().items()):
         if name.startswith('test_') and callable(check):check();print('PASS',name)
