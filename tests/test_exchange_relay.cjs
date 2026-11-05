@@ -93,7 +93,7 @@ assert.equal(status.rows.filter(r=>String(r?.[2]).startsWith('form_')).length,16
 assert.ok(!status.rows.some(r=>r?.[3]==='mara-pilot'||r?.[3]==='another-uuid'));
 outbox.deferred=[];queue.rows[7][1]='PENDING';run();
 assert.equal(status.rows[2][1],'1 jobs after the latest successful reconciliation');
-assert.equal(status.rows[4][3],'another-uuid');
+assert.equal(status.rows[4][3],'another-');
 queue.rows[7][11]='Partial saved prose';run();
 assert.equal(status.rows[2][1],'0 jobs after the latest successful reconciliation');
 assert.ok(!status.rows.some(r=>r?.[3]==='another-uuid')); // Also clears shrinking report tails.

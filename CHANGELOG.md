@@ -2,6 +2,8 @@
 
 ## 0.27.1 — Queue reporting clarity — 5 November 2026, 09:31 CET / 08:31 UTC
 
+Live verification 09:34 CET / 08:34 UTC: source 1c4ba8dbec191971b4b3c47ecdd6b798ce191be4 deployed as dep-dbm3u2h7lnhs738kuqcg; health reports 0.27.1. Existing syncNCCE ran 09:33:41–09:33:54 CET successfully. Queue status readback contains five PENDING territory descriptions, a separate complete 16-form backlog and seven authored / one accepted battle report. Five deferred battle rows remain DRAFT; both imported pilot rows/receipts are preserved. Updated Automation instructions read back with operator-only dashboard wording. Native Sheet visual check verified the new table; compact request prefixes retain full IDs in Queue. Relay-only layout changes are tracked separately without another server deploy. No provider calls or source/cognitive changes.
+
 - Replaced the vague phase essay with available jobs plus a separate 16-form backlog table. Exposes exact form IDs, authored/accepted/remaining/blocked counts and authored-only policies.
 - Render the report after actual Sheet status reconciliation; deferred/imported/partial-text rows cannot appear as available writer jobs. Preserve the existing ledger and request IDs.
 - Writer instructions now state that Queue status is for the operator; only Queue PENDING rows are jobs. No scheduling, prose generation, model, campaign, schema or cognitive changes.

@@ -147,8 +147,8 @@ function writeQueueStatus(book, waterfall, queue) {
     ['QUEUE STATUS','Operator dashboard — the writer reads Queue, not this tab.'],
     ['WRITER INPUT','Only PENDING rows without saved prose. DRAFT = deferred; IMPORTED = already on the site.'],
     ['AVAILABLE NOW',String(available.length)+' jobs after the latest successful reconciliation'],
-    ['Status','Prose type / form ID','Entry','Request ID'],
-    ...available.map(r => [r[1],r[2],r[6],r[0]]),
+    ['Status','Prose type / form ID','Entry','Request'],
+    ...available.map(r => [r[1],r[2],r[6],r[0].slice(0,8)]), // Full IDs remain in Queue.
     [],
     ['FULL BACKLOG','All 16 prose types — these are counts, not instructions to write them now.'],
     ['Stage','Prose type','Form ID','Authored','Accepted','To write','Blocked','Total slots'],
@@ -168,7 +168,7 @@ function writeQueueStatus(book, waterfall, queue) {
   if (JSON.stringify(before) === JSON.stringify(padded)) return;
   writeLiteral(sheet.getRange(1,1,height,8),padded);
   sheet.getRange(1,1,height,8).setWrap(true);
-  [110,260,220,190,80,90,85,95].forEach((width,i) => sheet.setColumnWidth(i+1,width));
+  [95,235,180,85,70,70,70,80].forEach((width,i) => sheet.setColumnWidth(i+1,width));
   const range=(start,end) => ({sheetId:sheet.getSheetId(),startRowIndex:start,endRowIndex:end,startColumnIndex:0,endColumnIndex:8});
   const headerRows=[0,3,5+available.length,6+available.length];
   Sheets.Spreadsheets.batchUpdate({requests:[
