@@ -1,4 +1,6 @@
 # Handoff status
+**0.28.4 live — 5 November 2026, 23:06 CET / 22:06 UTC:** source 5c3b3d2094fe3b03fd1190ee6bc58210369aa878, deploy dep-dbmfr067bikc7387k0m0 live; health confirms 0.28.4. Only Orik Sorn's Haulage Incident heading/body gain metadata styling and 18px indentation. Orik-only regression, existing record-section suite and authenticated/live-source HTTP smoke passed. No source text or other personnel changed. Browser visual access remains disabled. Pending source-styled Archive work remains unpublished and was excluded from this hotfix.
+
 **0.28.4 Orik-only formatting:** owner requested a quick metadata heading and indentation for Orik Sorn's Haulage Incident. Renderer detects SORN, Orik, styles that heading and its attached paragraph only, then stops incident styling at the dossier watermark. All wording is retained. Targeted regression verifies another fighter with the same heading is unchanged. This small hotfix is isolated from the unpublished Archive proposal; no private artwork/layout payload is included. Deployment/checks follow.
 
 

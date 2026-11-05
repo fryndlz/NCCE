@@ -1,4 +1,6 @@
 # Changelog
+**0.28.4 live — 5 November 2026, 23:06 CET / 22:06 UTC:** source 5c3b3d2094fe3b03fd1190ee6bc58210369aa878, deploy dep-dbmfr067bikc7387k0m0 live; health confirms 0.28.4. Only Orik Sorn's Haulage Incident heading/body gain metadata styling and 18px indentation. Orik-only regression, existing record-section suite and authenticated/live-source HTTP smoke passed. No source text or other personnel changed. Browser visual access remains disabled. Pending source-styled Archive work remains unpublished and was excluded from this hotfix.
+
 ## 0.28.4 — Orik Sorn incident formatting — 5 November 2026
 
 - Styled only Orik Sorn's Haulage Incident heading as Courier metadata and indented its incident paragraph by 18px. Authored wording and all other personnel entries are unchanged. No source or model work.
