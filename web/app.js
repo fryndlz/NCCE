@@ -109,6 +109,7 @@ function authoredDossier(value) {
   return `<div class="authored-dossier">${output.join('')}</div>`;
 }
 function blocks(document, fallback = '') {
+  if (document?.external_markdown) return authoredRecord(document.external_markdown);
   const content = list(document?.blocks);
   const statusMessage = document?.writer_status === 'stale'
     ? (document.writer_message || 'Earlier narrative retained; it has not been regenerated with the current writing rules.')

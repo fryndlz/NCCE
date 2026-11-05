@@ -9,7 +9,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.25.0'
+APP_VERSION='0.26.0'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -39,6 +39,8 @@ regenerate(store,writer_enabled=False)
 from writing_exchange import import_accepted_files
 EXTERNAL_DELIVERIES=ROOT/'data'/'writing-exchange'/'accepted'
 import_accepted_files(store,EXTERNAL_DELIVERIES)
+import exchange_automation
+exchange_automation.restore(store)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
@@ -49,6 +51,7 @@ def _run_sync():
   with store._lock: store.set_state('sync_status','syncing'); store.set_state('sync_last_attempt',started); store.set_state('sync_last_error','')
   result=sync_live_sheet(store,writer_enabled=False)
   import_accepted_files(store,EXTERNAL_DELIVERIES)
+  exchange_automation.restore(store)
   finished=datetime.now(timezone.utc).isoformat()
   with store._lock:
    store.set_state('last_sync',finished); store.set_state('sync_last_success',finished); store.set_state('sync_status','ok')
@@ -119,7 +122,7 @@ class H(BaseHTTPRequestHandler):
    with store.reader() as reader:return self.js(summary(reader))
   if p=='/api/writing-exchange':
    from writing_exchange import status
-   with store.reader() as reader:return self.js({'deliveries':status(reader)})
+   with store.reader() as reader:return self.js({'deliveries':status(reader),'automation':exchange_automation.diagnostics(reader)})
   if p.startswith('/api/gangs/'):
    with store.reader() as reader:x=reader.gang(unquote(p.split('/api/gangs/',1)[1]))
    return self.js(x if x else {'error':'not found'},200 if x else 404)
@@ -152,6 +155,26 @@ class H(BaseHTTPRequestHandler):
  def do_POST(self):
   p=urlparse(self.path).path
   if retired_route(p):return self.js({'error':'This writing service has been removed.','code':'writing_removed'},410)
+  if p.startswith('/api/writing-exchange/relay/'):
+   if not exchange_automation.authenticated(self.headers.get('Authorization')):
+    return self.js({'error':'Writing relay authentication required'},401)
+   try:
+    length=int(self.headers.get('Content-Length','0'))
+    if length<0 or length>100000:return self.js({'error':'Delivery too large'},413)
+    payload=json.loads(self.rfile.read(length).decode('utf-8'))
+    if not isinstance(payload,dict):raise ValueError('Expected a JSON object')
+    if p.endswith('/poll'):
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry saved work later'},409)
+      exchange_automation.prepare(store)
+      store.set_state('exchange_relay_last_seen',exchange_automation.now())
+      return self.js({'packets':exchange_automation.outbox(store),'holds':exchange_automation.holds(store),'guidance':exchange_automation.guidance()})
+    if p.endswith('/deliver'):
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry saved work later'},409)
+      return self.js(exchange_automation.deliver(store,payload))
+    return self.js({'error':'Unknown relay endpoint'},404)
+   except (ValueError,KeyError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
   if p=='/api/login':
    if not AUTH_REQUIRED:return self.js({'ok':True,'auth_required':False})
    try:

@@ -1,5 +1,7 @@
 # Instructions for the existing writing chat
 
+**0.26.0:** once the private relay is installed, use WRITER_AUTOMATION_PROMPT.md and the Automation instructions tab instead of the earlier manual receipt flow below. READY then authorizes exact-text automatic import; only the relay marks IMPORTED. Without installation, the manual flow remains necessary.
+
 Keep your existing Project instructions, examples and established literary voice. This document explains how to receive campaign evidence and return finished prose to NCCE. It does not replace your writing style or train a model.
 
 ## First message / capability check

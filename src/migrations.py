@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -879,4 +879,21 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute('PRAGMA user_version=16');db.commit()
         except Exception:
             db.rollback();raise
+    if current < 17:
+        db.executescript('''
+            CREATE TABLE writing_exchange_requests(
+                request_id TEXT PRIMARY KEY, target_key TEXT NOT NULL,
+                packet_json TEXT NOT NULL, target_json TEXT NOT NULL,
+                source_revision TEXT NOT NULL, state TEXT NOT NULL,
+                created_at TEXT NOT NULL, imported_at TEXT, receipt TEXT,
+                raw_markdown TEXT, writer_note TEXT, completed_at TEXT,
+                error TEXT NOT NULL DEFAULT '', UNIQUE(target_key,source_revision));
+            CREATE TABLE writing_exchange_attempts(
+                attempt_hash TEXT PRIMARY KEY, request_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL, received_at TEXT NOT NULL,
+                disposition TEXT NOT NULL, error TEXT NOT NULL DEFAULT '');
+        ''')
+        db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(17,?,?)',
+                   ('durable private writing exchange requests and retained deliveries',_now()))
+        db.execute('PRAGMA user_version=17');db.commit()
     return SCHEMA_VERSION

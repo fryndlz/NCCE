@@ -92,3 +92,5 @@ these components from historical documents or Git without a newly approved
 design. Prose generation is disabled in code; existing prose, source data,
 timeline and event-based cognition are preserved. Historical writing specs and
 audit tables are retained for reference, not as active implementation.
+
+0.26.0 adds a private external-Project-chat writing exchange, not an internal writer. See docs/WRITING_AUTOMATION_SETUP.md and docs/CURRENT_DESIGN.md. Keep the removed provider/reviewer/Workshop/RAG components disabled. Google relay and work-chat schedule require separately verified account installation.

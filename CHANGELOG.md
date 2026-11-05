@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.0 — Private external writing automation
+
+**Implemented 5 November 2026.** Deployment verification is recorded separately. Added schema-17 durable source-sealed requests and retained delivery/original-projection audits, a maximum-five outbox, exact-slot import for 14 generated prose forms, idempotent receipts, source-change HOLD and restoration after refresh/restart. Authored sources and the accepted Mara pilot remain protected. READY authorizes unchanged external fiction; no internal model/reviewer/RAG pipeline is restored.
+
+Added a five-minute Google Apps Script relay with literal Markdown writes, complete-context-before-PENDING ordering, native table growth/footer preservation, retry of saved output after lost acknowledgement and abandoned-DRAFT recovery. Existing work-chat instructions limit runs to three entries and forbid variants or automatic regeneration. Published Automation instructions, Automation skill, Voice identity and Relay setup tabs in the private exchange; exact readback verified and instruction layout checked.
+
+All 17 Python and eight JavaScript regression suites and authenticated/live-Sheet HTTP smoke pass, including real relay routes, duplicate receipt reuse, unchanged facts/clock, four target stores and saved-prose restoration. Local Google-service mocks validate acknowledgement failure and table growth. No paid model call or authoritative source edit.
+
+**Not activated by deployment:** Render relay key, Google Apps Script installation/consent/clock trigger, private-Sheet end-to-end delivery and the other-account writing schedule. See [setup and exact work-chat message](docs/WRITING_AUTOMATION_SETUP.md), [design](docs/CURRENT_DESIGN.md) and [interface instructions](docs/WRITER_AUTOMATION_PROMPT.md). An ordinary Project chat is not directly awakened by the relay.
+
 ### 0.25.0 deployed and Mara acknowledged — 5 November 2026, 00:55 CET
 
 Source `4fdbbc75e6dec05d5d017796fdc8c10093d27b5e` is live in Render deployment `dep-dblsaj1srm7s7388gof0`. Public health reports 0.25.0; unauthenticated receipt access returns 401. Hosted logs verify schema-15-to-16 backup, successful import for fighter 36 / existing memory key 38fba6a8283370d510ec4c0649dd1513, and reuse of the same receipt after live sync. Imported prose memory ID: e2cea60e38d761b4d335ca77cf863502. Receipt: exchange:17e7fee1-bc2b-491c-825d-a07f1f014b96:65999c6e9709016b. The original exchange row was changed from READY to IMPORTED with its real hosted commit time, then read back; the exact 197-character accepted text is unchanged. No provider call or new writing request.

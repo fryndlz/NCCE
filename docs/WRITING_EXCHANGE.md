@@ -1,5 +1,24 @@
 # External writing exchange — framework 1
 
+## 0.26.0 — Private external writing automation
+
+Implemented 5 November 2026; schema 17. The server adapter and Google relay code are implemented and locally tested. Google Script installation/authorization, relay key configuration, a real private-Sheet round trip and the separate work-chat schedule are NOT activated by a code deployment. See WRITING_AUTOMATION_SETUP.md for installation and the exact work-chat message.
+
+`exchange_automation.py` discovers existing unwritten or earlier-draft slots, seals a UUID request to its logical target, evidence, source chronology and identity context, and stores the complete original projection and frozen packet. At most five PENDING packets exist. One canonical request is kept per event/baseline slot; rolling gang/place/region/relationship/downtime histories may get another request only for a changed source seal. Ready prose and authored material are excluded; gang origins remain authored-only and post-battle addenda currently have authored source dossiers only. The 14 supported generated forms use four existing target stores: story_artifacts, story_memories, fighter_thoughts and narrative_entries. No new fictitious event slots are invented.
+
+The private Google Apps Script polls at five-minute intervals using a dedicated bearer token (NCCE_EXCHANGE_TOKEN, minimum 32 characters) held in Render environment and Script properties. Without it the relay routes fail closed. POST /api/writing-exchange/relay/poll exports packets and guidance; /deliver accepts READY text by existing request ID/revision, not caller-supplied routing. Standard app login alone does not authorize these routes. Payloads are bounded to 100,000 bytes and text to 30,000 characters. The authenticated read-only exchange endpoint exposes status/receipts and last relay contact. Retired Workshop/provider/reviewer/RAG routes remain 410.
+
+The relay writes complete Context blocks before publishing PENDING, grows native tables, preserves source-directory footers and the accepted Mara pilot, writes literal text (no formula interpretation), and never resets WRITING/READY/HOLD or replaces existing output. Interrupted publication of its own DRAFT can be completed. Work-chat instructions claim one row, create one entry, read it back, set READY last and process at most three entries per run. READY explicitly authorizes exact-text import as inference/connective fiction; it does not promote the text to player-authored canon. Full identity/embodiment/faction guidance is included alongside the cognitive writing skill.
+
+Import validates the current exact slot/source seal, refuses authored or already-completed targets, keeps conflicting/stale-source deliveries on HOLD, and retains all submissions with deterministic hashes and receipts. A successful transaction changes derived prose/status and the story revision used by frontend refresh only. It does not alter fighters, factual events, snapshots, memory dates, salience, causes, lifecycles or event-clock positions. Original prose/projection is retained in the request audit. A single verified pre-automation SQLite backup is reused rather than making a full database backup per entry. Source-unchanged accepted wording is reapplied after startup/sync projection rebuild. Full Markdown remains in the audit and uses the existing safe record renderer; source/evidence/provenance remain outside the literary body.
+
+Receipt loss resends the saved output and reuses its committed receipt, with no new generation. Source changes before delivery hold the request; the relay propagates HOLD without deleting a draft. DB failure returns no success; the saved Sheet draft remains available for retry. There is no autonomous literary reviewer, API model, quality veto, regeneration loop or paid provider transport. Authored battle reports/biographies and source documents remain authoritative.
+
+The clock/cognition algorithms are unchanged: fighter-relevant event distance, ten-event half-life, no wall-clock decay or fixed expiry. Imported prose does not advance that clock. The work-account ordinary chat must separately demonstrate supported scheduled-tool access; NCCE/Apps Script cannot directly wake a Project chat.
+
+Historical implementation notes below describe their respective releases; the 0.26.0 section above supersedes earlier statements that general transport is unimplemented.
+
+
 Prepared 2026-11-04, 14:56 UTC / 15:56 CET. NCCE 0.25.0/schema 16 adds a bounded accepted-file import adapter; the internal model writer remains disabled. See Current design for implemented behavior and the changelog for hosted verification.
 
 ## Accepted pilot import — 0.25.0

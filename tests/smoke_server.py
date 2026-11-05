@@ -25,7 +25,8 @@ def main():
             port = probe.getsockname()[1]
         env = {**os.environ,'NCCE_OPENAI_API_KEY':'','NCCE_DB_PATH':str(Path(directory)/'smoke.db'),'NCCE_HOST':'127.0.0.1','PORT':str(port),
                'NCCE_REQUIRE_AUTH':'1','NCCE_ACCESS_PASSWORD':'disposable-test-passphrase',
-               'NCCE_SESSION_SECRET':'disposable-test-signing-secret-000000000000','NCCE_OPEN_BROWSER':'0','NCCE_SECURE_COOKIES':'0'}
+               'NCCE_SESSION_SECRET':'disposable-test-signing-secret-000000000000','NCCE_OPEN_BROWSER':'0','NCCE_SECURE_COOKIES':'0',
+               'NCCE_EXCHANGE_TOKEN':'disposable-exchange-token-for-http-smoke-000000'}
         process = subprocess.Popen([sys.executable,'src/server.py'],cwd=ROOT,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
         base = f'http://127.0.0.1:{port}'
         cookies = CookieJar()
@@ -41,13 +42,13 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.25.0'}
+                    assert read('/healthz') == {'ok':True,'version':'0.26.0'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
                         raise RuntimeError('App failed to start')
                     time.sleep(0.25)
-            for path,body in [('/api/dashboard',None),('/api/writing-exchange',None),('/api/login',{'password':'wrong'})]:
+            for path,body in [('/api/dashboard',None),('/api/writing-exchange',None),('/api/writing-exchange/relay/poll',{}),('/api/login',{'password':'wrong'})]:
                 try:
                     read(path,body)
                     raise AssertionError('Protected request unexpectedly succeeded')
@@ -65,7 +66,7 @@ def main():
                 if time.monotonic()>deadline:
                     raise AssertionError('Sheet sync did not finish')
                 time.sleep(0.25)
-            assert health['schema_version'] == 16 and health['story_revision'] and health['writer']['status']=='removed'
+            assert health['schema_version'] == 17 and health['story_revision'] and health['writer']['status']=='removed'
             dashboard = read('/api/dashboard')
             coverage=read('/api/prose-progress')
             assert len(coverage['categories'])==16 and coverage['generation_enabled'] is False
@@ -106,6 +107,19 @@ def main():
             edited=read('/api/fighters/'+str(subject['id'])+'/identity',{'identity':{'voice':['patient'],'work':['equipment maintenance']}})
             assert edited['writer_identity']['voice']==['patient']
             assert edited['voice_profile']['writer_context']['identity']['work']==['equipment maintenance']
+            def relay(path,payload):
+                request=Request(base+'/api/writing-exchange/relay/'+path,data=json.dumps(payload).encode(),
+                    headers={'Content-Type':'application/json','Authorization':'Bearer '+env['NCCE_EXCHANGE_TOKEN']})
+                with client.open(request,timeout=10) as response:return json.load(response)
+            packets=relay('poll',{})['packets']
+            assert 0<len(packets)<=5
+            request=packets[0]['request']
+            payload={'request_id':request['request_id'],'source_revision':request['source_revision'],
+                     'status':'READY','writer_text_md':'A disposable HTTP-test account.\n\n**Preserved exactly.**'}
+            delivery=relay('deliver',payload)
+            assert delivery['status']=='imported',delivery
+            assert relay('deliver',payload)['receipt']==delivery['receipt']
+            assert any(r['state']=='IMPORTED' for r in read('/api/writing-exchange')['automation']['requests'])
             try:
                 read('/api/logout',{})
                 read('/api/dashboard')

@@ -5,7 +5,7 @@ description: "Write NCCE campaign prose from supplied evidence packets. Distingu
 
 # NCCE campaign writing
 
-Version 1, 4 November 2026. This is a portable writer briefing for the existing Project conversation. It describes NCCE 0.24.0's implemented cognitive rules and the external writing exchange. It does not enable a model, install an automation or implement the unfinished importer.
+Version 2, 5 November 2026. This is a portable writer briefing for the existing Project conversation. It describes NCCE's unchanged event-based cognitive rules and the 0.26.0 private writing exchange. The separate Google relay requires installation/authorization; scheduled writing must be verified in the work chat. This skill alone does not install or activate either.
 
 ## Your role
 
@@ -268,7 +268,7 @@ Gang/place/region/relationship histories are narrative projections over evidence
 
 Use the exchange's immutable request_id, entity_key, entry_key, context_id and source_revision. One requested entry receives one finished delivery, not multiple candidates for a hidden reviewer. Save complete text before READY. Never regenerate an existing result just because saving/import acknowledgement failed; preserve and retransmit it.
 
-The exchange has a separate Writer instructions tab for exact column ownership and manual JSON fallback. Treat that as the transport contract. The work chat must not mark IMPORTED or claim the text is already in NCCE. The automatic exporter/importer is still unimplemented. This skill does not change that fact or start Mara's pending request.
+The 0.26.0 exchange uses Automation instructions as its transport contract once installed. It exports at most five unfinished requests, and the writing chat processes at most three per run. READY authorizes automatic import of that exact text; the relay alone writes IMPORTED and its committed receipt. The importer supports existing derived slots in 14 forms. Gang origins remain authored-only; post-battle addenda currently use the authored dossiers, with no automatic generated slots. This skill does not start Mara's already imported pilot or install a work-chat schedule. Full race/embodiment/faction guidance is in Voice identity. If the relay is not installed, retain the earlier manual delivery flow and do not claim automatic publication.
 
 ## Maintenance and sources
 
