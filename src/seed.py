@@ -7,22 +7,6 @@ from baseline_data import GANGS,TERRITORIES,BATTLES
 from narrative import *
 ROOT=Path(__file__).resolve().parents[1]
 
-def c9_record(text, needles):
-    lines=text.splitlines(); starts=[]
-    for needle in needles:
-        for i,line in enumerate(lines):
-            if needle.lower() in line.lower(): starts.append(i); break
-    if not starts:return None
-    i=min(starts); end=min(len(lines),i+80)
-    for j in range(i+4,end):
-        if ('C9-MK/' in lines[j] or 'C9-AUX/' in lines[j] or 'C9-ASSOC/' in lines[j] or '+++ RECORD TERMINATES +++' in lines[j] or '[SYS.██] RECORD TERMINATED' in lines[j]):
-            end=j+1; break
-    return '\n'.join(lines[i:end]).strip()
-
-def c9_gang_story(text):
-    a=text.find('THE PROSPECT'); b=text.find('CYCLE 1')
-    return text[a:b].strip() if a>=0 and b>a else 'Geothermal Prospect Detail C-9 is an ancient hereditary deep-work crew pursuing the Prospect beneath Hive Primus.'
-
 def main(path):
     p=Path(path)
     if p.exists():
@@ -43,21 +27,12 @@ def main(path):
     s.db.executemany('''INSERT INTO territories(gang_id,gang_name,territory,card,is_default,ruined,backstory) VALUES(:gang_id,:gang_name,:territory,:card,:is_default,:ruined,:backstory)''',territories)
     for b in battles: b['chronicle']=battle_chronicle(b)
     s.db.executemany('''INSERT INTO battles(source_row,date,scenario,attacker,defender,winner,territory,territory_claimer,notes,chronicle) VALUES(:source_row,:date,:scenario,:attacker,:defender,:winner,:territory,:territory_claimer,:notes,:chronicle)''',battles)
-    aliases={
-      'Canary':['Tunnel Vermin Sample Rho-12'],'Harlon "Mr. Rusk" Rusk':['RUSK, Harlon'],'"Foreman" Jarek Voss':['“Foreman” VOSS, Jarek'],
-      'Dr. Severin Krail, Penal Chirurgeon':['KRAIL, Severin'],'Echo':['Incident Organism Theta-7'],'Daven Holt, Who Heard':['HOLT, Daven'],
-      'Ethmet Griz':['GRIZ, Ethmet'],'Marker':['Uncatalogued Predator Gamma-3'],'Breaker B-01':['“Breaker” HEAVY LABOUR ASSET B-01'],
-      'Garrick Voss':['VOSS, Garrick'],'Kharak "Karr"':['KHARAKH "KARR"'],'Lady Marcella Veyne':['LADY VEYNE, Marcella'],
-      'Veyl "V-ROOK" Rook':['"V-Rook" ROOK, Veyl'],'Grubnak "Eight-Teef"':['GRUBNAK "EIGHT-TEEF"'],'Hask Drenn':['DRENN, Hask'],
-      'Labour Asset K-117':['LABOUR ASSET K-117'],'Elias Renn':['RENN, Elias'],'It That Spoke':['Designation: IT THAT SPOKE'],
-      'Mara Kel':['KEL, Mara'],'Labour Asset R-204':['LABOUR ASSET R-204'],'Orik Sorn':['SORN, Orik']}
     fighter_data=json.loads((ROOT/'data'/'fighters.json').read_text(encoding='utf-8'))
     for gang_name,rows in fighter_data.items():
         g=gang_by_name[gang_name]
         for row in rows:
             name,typ,cls,cost,xp,kills,adv,effects,status,notes=row
-            authored=c9_record(lore_text,aliases.get(name,[])) if gang_name==C9 else None
-            f={'gang_id':g['gang_id'],'gang_name':gang_name,'name':name,'type':typ,'class':cls,'cost':cost,'xp':xp,'kills':kills,'advancements':adv,'effects':effects,'status':status,'notes':notes,'backstory':authored,'backstory_source':'player-authored / C-NINE story' if authored else None}
+            f={'gang_id':g['gang_id'],'gang_name':gang_name,'name':name,'type':typ,'class':cls,'cost':cost,'xp':xp,'kills':kills,'advancements':adv,'effects':effects,'status':status,'notes':notes,'backstory':None,'backstory_source':None}
             back,source=fighter_backstory(f,g,battles); f['backstory']=back; f['backstory_source']=source
             cur=s.db.execute('''INSERT INTO fighters(gang_id,gang_name,name,type,class,cost,xp,kills,advancements,effects,status,notes,backstory,backstory_source) VALUES(:gang_id,:gang_name,:name,:type,:class,:cost,:xp,:kills,:advancements,:effects,:status,:notes,:backstory,:backstory_source)''',f); fid=cur.lastrowid
             events=[]

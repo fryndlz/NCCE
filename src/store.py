@@ -271,9 +271,6 @@ class Store:
        VALUES(?,?,?,?,?,?,?,?,?,?,?,'','not-yet-written',1)''',(gang_id,name,source_name,*values[1:]))
      self.db.execute('UPDATE fighters SET mechanics_json=?,notes=coalesce(?,notes) WHERE gang_id=? AND name=?',
                      (json.dumps(record,ensure_ascii=False,sort_keys=True),record.get('Fighter Notes') or record.get('Notes'),gang_id,source_name))
-     if record.get('Backstory'):
-      self.db.execute("""UPDATE fighters SET backstory=?,backstory_source='player-authored / campaign Sheet',provenance_class='player_authored'
-       WHERE gang_id=? AND name=? AND lower(coalesce(backstory_source,'')) NOT LIKE '%c-nine story%' AND lower(coalesce(backstory_source,'')) NOT LIKE '%canon%'""",(record['Backstory'],gang_id,source_name))
 
    self.db.execute('UPDATE territories SET active=0')
    for territory in payload.get('territories') or []:
@@ -320,6 +317,8 @@ class Store:
     else:
      self.db.execute('''INSERT INTO battles(source_row,date,scenario,attacker,defender,winner,territory,territory_claimer,notes,source_battle_key,active) VALUES(?,?,?,?,?,?,?,?,?,?,1)''',values)
 
+  from fighter_backstories import reconcile
+  reconcile(self)
   return {'gangs':len(gangs),'fighters_listed':sum(len(g.get('fighters') or {}) for g in gangs.values()),'territories':len(payload.get('territories') or []),'battles':len(payload.get('battles') or [])}
  def record_event(self,event_key,event_type,payload,provenance_class,source_id=None,source_locator=None,occurred_at=None,observed_at=None,confidence=1.0,from_snapshot_id=None,to_snapshot_id=None,subjects=None,supersedes_event_id=None,correction_reason=None):
   if provenance_class not in PROVENANCE_CLASSES: raise ValueError(f'Unknown provenance class: {provenance_class}')
@@ -423,6 +422,8 @@ class Store:
   f['campaign_history']=self.fighter_history(fid)
   f['mechanics']=json.loads(f.get('mechanics_json') or '{}')
   f['writer_identity']=json.loads(f.get('writer_identity_json') or '{}')
+  from personnel import identity
+  f.update(identity(self,f))
   return f
  def territory(self,tid):
   from story_engine import document_for

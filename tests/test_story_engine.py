@@ -245,10 +245,10 @@ def test_regeneration_versions_artifacts_and_preserves_authored_and_mechanical_r
         before = campaign()
         gang_text = "+++ EXTRACT +++\nAuthored gang background; deliberate contradictions.\n+++ RECORD TERMINATES +++"
         before['gangs'][C9]['backstory'] = gang_text
+        fighter_text = "KEL, Mara\nWorkshop Audit — 781.M41\n‘It is one workshop.’\n[ERR::INDEX]"
+        before['gangs'][C9]['fighters']['Mara Kel']['Backstory'] = fighter_text
         ingest_snapshot(store, before)
         store.project_snapshot(before)
-        fighter_text = "KEL, Mara\nWorkshop Audit — 781.M41\n‘It is one workshop.’\n[ERR::INDEX]"
-        store.db.execute("UPDATE fighters SET backstory=?,backstory_source='player-authored / C-NINE story' WHERE name='Mara Kel'", (fighter_text,))
         store.db.commit()
         mechanical_before = mechanical_records(store)
         regenerate(store)

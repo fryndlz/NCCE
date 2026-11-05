@@ -1,4 +1,13 @@
 # Changelog
+
+## 0.28.5 — MM-authored fighter dossiers and muted ink — 5 November 2026, 23:43 CET / 22:43 UTC
+
+- Fixed biography authority: Munda Manager text replaces stale C-NINE Doc extracts; old projections retained in internal source audit. New seeds no longer scrape fighter dossiers from the Doc. It That Spoke no longer includes Marcella or inter-entry retrieval output.
+- Generalized Orik styling: uppercase print headings, metadata grid, serif body, independently bounded 18px incident/addendum sections and preserved quotations. Removed the redundant fighter Backstory introduction.
+- Added centered lowercase gang / MK references from verified MM UUID suffixes, retaining source case and c9. Missing IDs stay blank; Data & sources exposes availability. Current export supports 15/92 codes.
+- Removed monitor green declarations; system/error text uses muted rust/plum. Source words, timeline and external writing deliveries are unchanged.
+- Verified 20 Python / 10 JS suites, live export source match, authenticated/startup/live-source HTTP smoke. No model calls, source writes or schema change. Browser visuals unavailable; deployment verification follows.
+
 **0.28.4 live — 5 November 2026, 23:06 CET / 22:06 UTC:** source 5c3b3d2094fe3b03fd1190ee6bc58210369aa878, deploy dep-dbmfr067bikc7387k0m0 live; health confirms 0.28.4. Only Orik Sorn's Haulage Incident heading/body gain metadata styling and 18px indentation. Orik-only regression, existing record-section suite and authenticated/live-source HTTP smoke passed. No source text or other personnel changed. Browser visual access remains disabled. Pending source-styled Archive work remains unpublished and was excluded from this hotfix.
 
 ## 0.28.4 — Orik Sorn incident formatting — 5 November 2026

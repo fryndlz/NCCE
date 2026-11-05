@@ -77,42 +77,76 @@ function gangBackstory(g) {
 function archiveStories(records) {
   return list(records).map(record => `<details class="archive-story" data-key="archive-${esc(record.id)}"><summary>${esc(record.title)}</summary><div class="eyebrow">C-NINE · authored story</div>${authoredRecord(record.content)}<div class="authored-source">${esc(record.source_locator)} · <a href="${esc(record.source_url && /^https:\/\//.test(record.source_url) ? record.source_url : '#') }" target="_blank" rel="noopener noreferrer">Authored source</a></div></details>`).join('') || empty('No authored stories are available.');
 }
-function authoredDossier(value) {
+function authoredDossier(value, code = '') {
   const lines = String(value || '').replace(/\r/g, '').split('\n');
   const output = [], fields = [], paragraph = [];
-  const isOrik = lines.some(line=>/^SORN,\s*ORIK$/i.test(line.trim()));
-  let orikIncident = false;
+  let inSection = false;
   let sawBody = false;
-  const flushParagraph = () => { if (paragraph.length) output.push(`<p${orikIncident?' class="orik-incident-body"':''}>${inline(paragraph.join('\n')).replaceAll('\n','<br>')}</p>`); paragraph.length = 0; };
-  const flushFields = () => { if (fields.length) output.push(`<dl class="personnel-fields">${fields.map(([label,text]) => `<div><dt>${inline(label)}</dt><dd>${inline(text)}</dd></div>`).join('')}</dl>`); fields.length = 0; };
+  const flushParagraph = () => { if (paragraph.length) output.push(`<p>${inline(paragraph.join('\n')).replaceAll('\n','<br>')}</p>`); paragraph.length=0; };
+  const flushFields = () => { if (fields.length) output.push(`<dl class="personnel-fields">${fields.map(([label,text])=>`<div><dt>${inline(label)}</dt><dd>${inline(text)}</dd></div>`).join('')}</dl>`); fields.length=0; };
+  const flush = () => { flushParagraph(); flushFields(); };
+  const closeSection = () => { flush(); if(inSection) output.push('</section>'); inSection=false; };
+  const section = heading => { closeSection(); output.push(`<section class="personnel-section"><h4 class="personnel-section-label">${inline(heading)}</h4>`); inSection=true; };
   for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) { flushParagraph(); continue; }
-    if (isOrik && /^Haulage Incident\b/i.test(line)) {
-      flushParagraph(); flushFields(); sawBody=true; orikIncident=true;
-      output.push(`<h4 class="personnel-section-label orik-incident-heading">${inline(line)}</h4>`); continue;
+    const text=raw.trim(), line=text.replace(/^\*\*(.*)\*\*$/,'$1');
+    if (!line) { flush(); continue; }
+    // Old document traversal labels are never identifiers for this fighter.
+    if (/^[a-z0-9]{2}-(?:MK|AUX|ASSOC)\//i.test(line)) { closeSection(); continue; }
+    if (/^(?:\[SYS\.|\[ERR::|[├└│]|\[(?:FILE|SOURCE FILE|ACCESS)\b|RETRIEVAL FAILED)/i.test(line)) {
+      flush(); output.push(`<div class="personnel-system">${inline(text)}</div>`); continue;
     }
-    if (/^[A-Z][A-Z '-]+,\s*[A-Z][\w '-]+$/.test(line) && !sawBody && !output.length) {
-      flushParagraph(); output.push(`<div class="personnel-designation">${inline(line)}</div>`); continue;
+    if (/^(?:\+\+\+|::|\/\/.*\/\/$)/.test(line)) {
+      closeSection(); output.push(`<div class="personnel-section-label personnel-divider${/\[ERR::/.test(line)?' personnel-system':''}">${inline(text)}</div>`); continue;
     }
-    const field = line.match(/^([^:\n]{2,48}):\s*(.+)$/);
-    if (field && !/^\[ERR::/i.test(line)) { flushParagraph(); fields.push([field[1],field[2]]); continue; }
-    if (/^(Workshop Audit|ATTACHED INCIDENT LOG|SURGICAL RECORD|PERSONNEL TRANSFER|MEDICAL PROCUREMENT AUTHORISATION)\b/i.test(line)) {
-      flushParagraph(); flushFields(); sawBody = true; output.push(`<h4 class="personnel-section-label">${inline(line)}</h4>`); continue;
+    if (/^(?:[“"']?[^,]{1,35}[”"']?\s+)?[\p{Lu}][\p{Lu} '\-]+,\s*[\p{Lu}][\p{L}\w '\-]+$/u.test(line)) {
+      closeSection(); output.push(`<div class="personnel-designation">${inline(text)}</div>`); continue;
     }
-    if (/^C9-(?:MK|AUX|ASSOC)\//i.test(line)) {
-      flushParagraph(); flushFields(); orikIncident=false; output.push(`<div class="personnel-watermark">${inline(line)}</div>`); continue;
+    const heading=/^(?:Haulage Incident|Commendation|Requisition|Archive Annotation|Archive Audit|Workshop (?:Audit|Report)|Medical (?:Review|Annotation|Exemption)|Maintenance Requisition|Evacuation Report|Disciplinary Report|Personnel (?:Update|Transfer)|Operations Order|Incident (?:Report|Note|Organism)|Attached Incident Log|Surgical Record|Medical Procurement Authorisation|Inspector.s Note|Supervisor.s (?:Observation|Remark)|Equipment Issue|Recorded Statement|Margin Note|Outcome|Audio Log|Attachment\b|Automatic cross-reference|Thought for the (?:Shift|Voyage)|Subject.s Response|Reason:|Addendum\b)/i;
+    const markdownHeading=line.match(/^#{1,6}\s+(.+)$/);
+    const capitals=line.length<100 && /[\p{L}]/u.test(line) && line===line.toLocaleUpperCase() && !line.includes(':') && !/[.!?]$/.test(line);
+    if ((markdownHeading && !heading.test(markdownHeading[1]) || !markdownHeading && capitals && !heading.test(line)) && !sawBody) {
+      closeSection(); output.push(`<div class="personnel-designation">${inline(markdownHeading?markdownHeading[1]:text)}</div>`); continue;
     }
-    if (/^\[SYS\.|^\[ERR::|^[├└│]/.test(line)) {
-      flushParagraph(); flushFields(); output.push(`<div class="personnel-system">${inline(line)}</div>`); continue;
+    if (markdownHeading || (line.length<120 && heading.test(line) && !/[.!?]$/.test(line))) {
+      section(markdownHeading?markdownHeading[1]:text); continue;
     }
+    if(capitals) { section(text); continue; }
+    const field=line.match(/^\*{0,2}([^:\n*]{2,48})\*{0,2}:\*{0,2}\s+(.+)$/);
+    if (field) { flushParagraph(); fields.push([field[1],field[2]]); continue; }
     if (/^[“"‘].*[”"’]$/.test(line)) {
-      flushParagraph(); flushFields(); output.push(`<blockquote class="personnel-quote">${inline(line)}</blockquote>`); sawBody = true; continue;
+      flush(); output.push(`<blockquote class="personnel-quote">${inline(text)}</blockquote>`); continue;
     }
-    flushFields(); paragraph.push(line); sawBody = true;
+    flushFields(); paragraph.push(text); sawBody=true;
   }
-  flushParagraph(); flushFields();
-  return `<div class="authored-dossier">${output.join('')}</div>`;
+  closeSection();
+  if (code) output.push(`<div class="personnel-watermark">${esc(code)}</div>`);
+  return `<div class="authored-dossier fighter-dossier">${output.join('')}</div>`;
+}
+function fighterBackstory(f) {
+  const doc=f.biography_document;
+  const isAuthored=f.backstory_source==='player-authored / campaign Sheet';
+  let text=isAuthored?f.backstory:doc?.external_markdown;
+  if(!isAuthored && !text && list(doc?.blocks).length) {
+    const runs=value=>list(value).map(run=>{
+      if(typeof run==='string') return run;
+      const marks=list(run?.marks).map(m=>typeof m==='string'?m:m.type);
+      if(marks.includes('redacted')) return '████';
+      const text=run?.text||'';
+      return marks.includes('doctrine')?`*${text}*`:text;
+    }).join('');
+    const read=items=>list(items).map(b=>{
+      const value=b.text || runs(b.content);
+      const heading=['section_label','heading','subheading'].includes(b.type);
+      const metadata=list(b.fields || b.items).filter(x=>x?.label && x?.value).map(x=>`${x.label}: ${x.value}`).join('\n');
+      const turns=list(b.turns).map(t=>`${t.speaker}: ${t.text||runs(t.content)}`).join('\n');
+      return [(heading?'## ':'')+value,metadata,turns,read(b.blocks)].filter(Boolean).join('\n\n');
+    }).filter(Boolean).join('\n\n');
+    const metadata=list(doc.metadata).filter(x=>x?.label && x?.value).map(x=>`${x.label}: ${x.value}`).join('\n');
+    text=[metadata,read(doc.blocks),doc.termination?.text].filter(Boolean).join('\n\n');
+  }
+  if(!text && !doc?.writer_status) text=f.backstory;
+  const body=text?authoredDossier(text,f.personnel_code):blocks(doc,f.backstory);
+  return `<div class="narrative"><div class="eyebrow">${isAuthored?'Authored campaign record':'Generated inference'}</div>${body}</div>${isAuthored?`<div class="authored-source">${esc(f.backstory_source)}</div>`:evidence(doc?.evidence||fighterEvidence(f),{...f,...doc})}`;
 }
 function blocks(document, fallback = '') {
   if (document?.external_markdown) return authoredRecord(document.external_markdown);
@@ -756,7 +790,7 @@ function fighterRecordSections(f, memories, mind, deceased) {
   const baseline=memories.filter(m=>m.is_baseline || m.baseline), evolving=memories.filter(m=>!m.is_baseline && !m.baseline);
   const archive=list(f.campaign_history?.events), represented=new Set(archive.map(e=>e.source_event_id).filter(Boolean)), tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id)), events=archive.length?archive:tracked;
   return [
-    {id:'baseline',label:'Backstory',description:'Their background and established identity. Later events have their own sections.',paper:true,body:narrative(f.backstory,f.backstory_source,fighterEvidence(f),{...f,source_label:'Current mechanics and campaign context'})},
+    {id:'baseline',label:'Backstory',paper:true,body:fighterBackstory(f)},
     {id:'timeline',label:'Timeline',count:events.length,description:'What happened to this fighter, ordered by recorded time. Open an event for its details.',body:entityTimeline([],events)+(archive.length && tracked.length?`<details class="additional-history" data-key="fighter-ledger"><summary>Additional tracked changes · ${tracked.length}</summary>${entityTimeline([],tracked)}</details>`:'')},
     {id:'memory',label:'Memory',count:memories.length,description:'How this fighter remembers their history: observations and reflections, most recent first.',body:`<div class="memory-stream entity-memory">${evolving.map(memoryCard).join('') || empty('No event memories are available yet.')}</div>${baseline.length?`<details class="baseline-memory" data-key="baseline-memory"><summary>Baseline memories · ${baseline.length}<small>Background known at the start; these are not newly dated incidents.</small></summary><div class="memory-stream entity-memory">${baseline.map(memoryCard).join('')}</div></details>`:''}`},
     {id:'mind',label:'Mind',count:mind.length,description:'Current thoughts and moodlets. These are present concerns, not the full memory stream.',body:deceased?empty('This fighter has died. Their remembered history remains.'):`<div class="entity-current-mind">${mind.map(mindCard).join('')}</div>${f.mind_status?.pending?`<p class="writer-pending" role="status">${f.mind_status.pending} current concern${f.mind_status.pending===1?'':'s'} awaiting writing.${f.mind_status.errors?' A writing attempt failed; details remain in the writer audit.':''}</p>`:!mind.length?empty('No current thoughts have been written. Their recorded history is available in Timeline and Memory.'):''}`}
@@ -793,7 +827,7 @@ async function showFighter(id, preserveScroll = false) {
   const mind = Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead').slice(0, 4);
   const deceased = /killed|dead/i.test(f.status || '');
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
-    fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills]],
+    fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
     sections:fighterRecordSections(f,memories,mind,deceased),sourceBody:`${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}${list(f.events).length?`<details data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e=>`<p><strong>${esc(e.title || human(e.event_type))}</strong><br>${esc(e.detail)}</p>`).join('')}</details>`:''}`});
   if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
 }

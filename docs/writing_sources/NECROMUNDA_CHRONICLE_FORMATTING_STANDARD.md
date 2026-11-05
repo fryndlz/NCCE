@@ -5,6 +5,15 @@
 **Audience:** LLM authoring agents, Codex, renderer/UI implementers, and content editors.  
 **Status:** Design specification. The C-NINE chronicle is the reference implementation, not the only campaign the engine may support.
 
+**Active visual override — 0.28.5:** the owner has retired monitor green in
+favour of a Papers, Please paper-and-ink presentation. Green colour references
+below describe the historical C-NINE reference, not a requirement for the app.
+Use muted olive/grey metadata, rust machine output and plum errors; do not put
+colour markup into submitted prose. All authored fighter biographies must come
+from Munda Manager's own Backstory, not Google Doc extracts. The implemented
+dossier layout, identifier rules and exact palette are specified in
+[Fighter dossier presentation](../FIGHTER_DOSSIER_PRESENTATION.md).
+
 ## 1. Purpose
 
 Present campaign events as an accumulating body of in-universe records: battle reports, incident investigations, transcripts, administrative decisions, personnel dossiers, supplementary evidence, and corrupted machine output. The experience should resemble retrieving material from a dysfunctional Imperial archive rather than reading a conventional campaign diary.

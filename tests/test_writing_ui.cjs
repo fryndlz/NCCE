@@ -43,12 +43,12 @@ context.authored = {biography_document:{blocks:[{type:'paragraph',text:'Generate
 assert.ok(run("narrative('Authored original','player_authored',[],authored)").includes('Authored original'));
 assert.ok(!run("narrative('Authored original','player_authored',[],authored)").includes('Generated replacement'));
 context.maraText = `KEL, Mara\nDesignation: Maintenance Fitter\nLabour Grade: General Crewman\nMedical Category: Hereditary Deep-Work Variant α\nResponsible for maintenance of drilling apparatus.\n\nWorkshop Audit — 781.M41\nSix machines returned to service.\n\n“They’re not twenty-nine machines. It’s one workshop.”\n\nC9-MK/a4d4\n\n[SYS.██] RECORD TERMINATED`;
-context.mara = {backstory_source:'player-authored / C-NINE story'};
-const dossier = run('narrative(maraText,mara.backstory_source,[],mara)');
+context.mara = {backstory_source:'player-authored / campaign Sheet',personnel_code:'c9-MK/a4d4'};
+const dossier = run('fighterBackstory({...mara,backstory:maraText})');
 assert.ok(dossier.includes('class="personnel-fields"') && dossier.includes('Maintenance Fitter'));
 assert.ok(dossier.includes('personnel-section-label') && dossier.includes('Workshop Audit'));
 assert.ok(dossier.includes('personnel-quote') && dossier.includes('It’s one workshop'));
-assert.ok(dossier.includes('personnel-watermark') && dossier.includes('C9-MK/a4d4'));
+assert.ok(dossier.includes('personnel-watermark') && dossier.includes('c9-MK/a4d4') && !dossier.includes('C9-MK/a4d4'));
 assert.ok(dossier.includes('personnel-system') && dossier.includes('RECORD TERMINATED'));
 context.profile = {name:'crew / workshop',traits:['practical'],evidence:['Authored maintenance cues'],writer_context:{
   identity:{},inferred_identity:[{label:'Authored work or craft',value:'maintenance fitter',source:'player_authored',basis:'Named in Backstory'}],

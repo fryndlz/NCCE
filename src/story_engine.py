@@ -363,6 +363,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
         lore = store.db.execute("SELECT * FROM lore_sources ORDER BY id LIMIT 1").fetchone()
         if lore and not store.db.execute("SELECT 1 FROM provenance_sources WHERE source_id='canon:c-nine-story-export'").fetchone():
             store.record_source("canon:c-nine-story-export","authored_campaign_lore","canon_authored",lore["title"] or "C-NINE Story",source_uri=lore["source_url"],content_hash=hashlib.sha256(lore["content"].encode("utf-8")).hexdigest())
+        from fighter_backstories import reconcile as reconcile_backstories
+        reconcile_backstories(store)
         gangs = [dict(r) for r in store.db.execute("SELECT * FROM gangs WHERE active=1 ORDER BY gang_id")]
         fighters = [dict(r) for r in store.db.execute("SELECT * FROM fighters ORDER BY id")]
         if target_fighter_ids is not None and not target_fighter_ids.issubset({int(f["id"]) for f in fighters}):
@@ -486,12 +488,12 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                         e = _current_battle_event(latest,events) or {"occurred_at":latest.get("date")}
                         m = _memory(store,fighter,gang,f"gang-record:{latest.get('source_battle_key') or latest['id']}","gang_battle_outcome",latest,e,baseline=True,context={"attendance":"unknown"},prior=[m['content'] for m in memories[-3:]])
                         memories.append(m)
-                if "C-NINE" in gang.get("name","") or "c-nine story" in normal(fighter.get("backstory_source")):
-                    for m in memories:
-                        m["context_source_ids"] = ["canon:c-nine-story-export"]
-                elif "campaign sheet" in normal(fighter.get("backstory_source")):
+                if "campaign sheet" in normal(fighter.get("backstory_source")):
                     for m in memories:
                         m["context_source_ids"] = ["player:campaign-sheet-lore"]
+                elif "C-NINE" in gang.get("name",""):
+                    for m in memories:
+                        m["context_source_ids"] = ["canon:c-nine-story-export"]
                 if fighter.get('writer_identity_json') not in (None,'','{}'):
                     for m in memories:
                         m.setdefault('context_source_ids',[]).append('player:writer-identities')

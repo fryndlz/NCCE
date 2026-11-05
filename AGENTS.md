@@ -20,6 +20,16 @@ This repository is intended to live at `C:\Codex\NCCE`. Develop in place. Do not
 Never write to or modify the authoritative campaign Sheet unless the user explicitly requests it. The application should read it and keep its own local derived state.
 
 ## Canonical terminology
+
+### Fighter biography authority and visual rule — 0.28.5
+
+All authored fighter backstories come only from the fighter's Munda Manager
+Backstory exported in Krakamunda. Do not seed/fallback to C-NINE Google Doc
+personnel extracts. Archive stories/battle canon remain separate. Preserve raw
+wording and provenance; apply the common dossier presentation to existing and
+future biographies. Use muted paper/ink, rust/plum errors, never monitor green.
+See `docs/FIGHTER_DOSSIER_PRESENTATION.md` for implemented source repair,
+bounded indentation and source-UUID identifier rules. C-NINE retains `c9`.
 C-NINE canonical name: `Geothermal Prospect Detail C-9`, shortened to `C-NINE`.
 Do not use old variants.
 

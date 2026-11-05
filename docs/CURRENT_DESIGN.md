@@ -1,4 +1,16 @@
-# NCCE 0.28.4 — current technical design
+# NCCE 0.28.5 — current technical design
+
+## 0.28.5 — Fighter source authority and shared dossiers
+
+Munda Manager Backstory is the sole authored fighter biography source. Persisted
+C-NINE Doc extracts are repaired from the existing Sheet projection at startup
+and every refresh, with retired text audited. Shared bounded 18px incident
+sections, uppercase print metadata and muted rust/plum errors replace the Orik
+exception and monitor green. Printed references use verified MM UUID suffixes;
+missing IDs remain blank. See [implemented specification](FIGHTER_DOSSIER_PRESENTATION.md)
+for exact rules and the current 15/92 UUID coverage limitation. No model calls,
+source edits, schema or timeline changes.
+
 ## 0.28.4 — Orik Sorn dossier incident
 
 For the SORN, Orik authored dossier only, Haulage Incident is rendered as an 11px Courier metadata heading; its paragraph is indented by 18px. The preceding biography and final watermark remain unindented. Source text and other fighters are unchanged.
