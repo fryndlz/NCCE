@@ -1,5 +1,7 @@
 # Changelog
 
+**0.28.5 live — 5 November 2026, 23:48 CET / 22:48 UTC:** source 28e2939dadcb798913b8ac9e017cbd6eb0fd06ee, deployment dep-dbmgeflckfvc73bpllb0 completed 22:47:30 UTC. Public health confirms 0.28.5. Startup logs confirm the existing Mara external import receipt was reused unchanged. MM-only fighter source repair and common muted-ink dossier renderer are deployed. Twenty Python/ten JS suites and authenticated/live-source HTTP smoke pass, including exact It That Spoke MM biography with no Marcella/retrieval bleed. Production signed-in dossier visuals/API were not inspected; browser access remains disabled. UUID codes are available for 15/92 current export identities; absent IDs stay blank. No source/schema/timeline changes, provider calls or private Archive payload.
+
 ## 0.28.5 — MM-authored fighter dossiers and muted ink — 5 November 2026, 23:43 CET / 22:43 UTC
 
 - Fixed biography authority: Munda Manager text replaces stale C-NINE Doc extracts; old projections retained in internal source audit. New seeds no longer scrape fighter dossiers from the Doc. It That Spoke no longer includes Marcella or inter-entry retrieval output.
