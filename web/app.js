@@ -80,12 +80,18 @@ function archiveStories(records) {
 function authoredDossier(value) {
   const lines = String(value || '').replace(/\r/g, '').split('\n');
   const output = [], fields = [], paragraph = [];
+  const isOrik = lines.some(line=>/^SORN,\s*ORIK$/i.test(line.trim()));
+  let orikIncident = false;
   let sawBody = false;
-  const flushParagraph = () => { if (paragraph.length) output.push(`<p>${inline(paragraph.join('\n')).replaceAll('\n','<br>')}</p>`); paragraph.length = 0; };
+  const flushParagraph = () => { if (paragraph.length) output.push(`<p${orikIncident?' class="orik-incident-body"':''}>${inline(paragraph.join('\n')).replaceAll('\n','<br>')}</p>`); paragraph.length = 0; };
   const flushFields = () => { if (fields.length) output.push(`<dl class="personnel-fields">${fields.map(([label,text]) => `<div><dt>${inline(label)}</dt><dd>${inline(text)}</dd></div>`).join('')}</dl>`); fields.length = 0; };
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) { flushParagraph(); continue; }
+    if (isOrik && /^Haulage Incident\b/i.test(line)) {
+      flushParagraph(); flushFields(); sawBody=true; orikIncident=true;
+      output.push(`<h4 class="personnel-section-label orik-incident-heading">${inline(line)}</h4>`); continue;
+    }
     if (/^[A-Z][A-Z '-]+,\s*[A-Z][\w '-]+$/.test(line) && !sawBody && !output.length) {
       flushParagraph(); output.push(`<div class="personnel-designation">${inline(line)}</div>`); continue;
     }
@@ -95,7 +101,7 @@ function authoredDossier(value) {
       flushParagraph(); flushFields(); sawBody = true; output.push(`<h4 class="personnel-section-label">${inline(line)}</h4>`); continue;
     }
     if (/^C9-(?:MK|AUX|ASSOC)\//i.test(line)) {
-      flushParagraph(); flushFields(); output.push(`<div class="personnel-watermark">${inline(line)}</div>`); continue;
+      flushParagraph(); flushFields(); orikIncident=false; output.push(`<div class="personnel-watermark">${inline(line)}</div>`); continue;
     }
     if (/^\[SYS\.|^\[ERR::|^[├└│]/.test(line)) {
       flushParagraph(); flushFields(); output.push(`<div class="personnel-system">${inline(line)}</div>`); continue;

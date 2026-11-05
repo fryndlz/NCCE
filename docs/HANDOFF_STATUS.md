@@ -1,4 +1,6 @@
 # Handoff status
+**0.28.4 Orik-only formatting:** owner requested a quick metadata heading and indentation for Orik Sorn's Haulage Incident. Renderer detects SORN, Orik, styles that heading and its attached paragraph only, then stops incident styling at the dossier watermark. All wording is retained. Targeted regression verifies another fighter with the same heading is unchanged. This small hotfix is isolated from the unpublished Archive proposal; no private artwork/layout payload is included. Deployment/checks follow.
+
 
 **0.28.3 live — 5 November 2026, 21:14 CET / 20:14 UTC:** source d176037b71df3f08386c82cf4ed6f715f37a5298, deploy dep-dbme74h7lnhs739ivbr0 live. Local designation is a distinct 18px uppercase Courier heading; classification remains 9px metadata. All eight JS suites and application/live-source smoke pass. No text, sources, queue or timeline edits; browser visual access remains disabled.
 

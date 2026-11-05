@@ -1,4 +1,8 @@
 # Changelog
+## 0.28.4 — Orik Sorn incident formatting — 5 November 2026
+
+- Styled only Orik Sorn's Haulage Incident heading as Courier metadata and indented its incident paragraph by 18px. Authored wording and all other personnel entries are unchanged. No source or model work.
+
 
 ## 0.28.3 — Territory local-name prominence — 5 November 2026
 
