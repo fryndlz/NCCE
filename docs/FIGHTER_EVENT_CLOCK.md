@@ -44,7 +44,7 @@ The `at` compatibility argument in retrieval/thought helpers has no cognitive ef
 
 ## Thought lifecycle and costs
 
-Current thought prose remains separate from memories. At most four candidates survive ranking, evidence/label deduplication and one-per-family selection. Battle/equipment families use their newest eligible **event position**, not elapsed age. Current conditions resolve through supported status/effect changes or death. Losing selection for relevance/identity/context is `superseded`, rather than claiming the underlying condition was cured. A relevant stored ready thought can reappear without another model call.
+Current thought prose remains separate from memories. At most three candidates survive ranking, evidence/label deduplication and one-per-family selection. Battle/equipment families use their newest eligible **event position**, not elapsed age. Current conditions resolve through supported status/effect changes or death. Losing selection for relevance/identity/context is `superseded`, rather than claiming the underlying condition was cured. A relevant stored ready thought can reappear without another model call.
 
 Legacy `expires_at` columns/old values are ignored; active refresh clears them. The old `expired` historical rows remain audit history and may be reactivated when their supported cause is eligible. No stored paid prose is deleted. Current candidate context carries `fixed_expiry=false` and event-clock metadata instead of time-to-live. Exact original paid requests remain unchanged in the request audit; current source packets are not represented as immutable copies of those old requests.
 

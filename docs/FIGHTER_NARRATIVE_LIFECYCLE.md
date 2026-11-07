@@ -11,7 +11,7 @@ Schema 15. Current cognition uses the owner-approved [fighter event clock](FIGHT
 
 ## Current-thought causes and lifetime
 
-`fighter_mind.py` ranks factual memory causes with the existing importance/recency/relevance/bias calculation. Baseline and unanchored causes are excluded. At most four candidates are selected, with one per reaction family. Battle/equipment families use their newest eligible cause; one current condition reaction replaces simultaneous critical/recovery repetitions. A source observation need not already have prose: its recorded evidence is sufficient, and stale historical wording is never fed as a positive thought example.
+`fighter_mind.py` ranks factual memory causes with the existing importance/recency/relevance/bias calculation. Baseline and unanchored causes are excluded. At most three candidates are selected, with one per reaction family. Battle/equipment families use their newest eligible cause; one current condition reaction replaces simultaneous critical/recovery repetitions. A source observation need not already have prose: its recorded evidence is sufficient, and stale historical wording is never fed as a positive thought example.
 
 No fixed calendar or event-count expiry exists. Subsequent fighter-relevant events reduce recency; current relevance and explicit resolution determine selection. Formation is anchored to causal event position, not prose-generation or app-access time. Dates only order facts and serve UI/audit purposes. Deceased fighters have no current thoughts. Refresh persists active/resolved/superseded states; old expiry metadata is ignored and cleared. See the event-clock document for exact rules and paper deviations.
 

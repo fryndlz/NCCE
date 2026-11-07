@@ -19,6 +19,7 @@ import story_prose as prose
 import writing_director as director
 import world_streams
 import llm_writer
+from fighter_mind import MAX_THOUGHTS
 
 VERSION = "0.8.2"
 GENERATION = "story-0.8.2"
@@ -642,7 +643,7 @@ def _timestamp(value):
         return None
 
 
-def select_mind(fighter, memories, at=None, limit=4, clock=None):
+def select_mind(fighter, memories, at=None, limit=MAX_THOUGHTS, clock=None):
     if normal(fighter.get("status")) in {"killed","dead"}:
         return []
     # `at` remains accepted for old clients/tests, but wall time has no cognitive
@@ -726,4 +727,4 @@ def fighter_story(store, fighter):
     return {"memories":memories,"mind":thoughts,"mind_status":status,"voice_profile":voice,
             "event_clock":{"basis":clock['basis'],"policy_version":clock['policy_version'],"head":clock['head'],"half_life_events":HALF_LIFE_EVENTS},
             "biography_document":document_for(store,"fighter_biography",fighter["id"]),
-            "mind_policy":{"count":"Up to four ready current thoughts; none for deceased fighters","separate_prose":True,"recency_basis":"fighter_relevant_events","recency_half_life_events":HALF_LIFE_EVENTS,"fixed_expiry":False,"weights":{"importance":0.4,"recency":0.3,"relevance":0.25,"character_bias":0.05}}}
+            "mind_policy":{"count":f"Up to {MAX_THOUGHTS} ready current thoughts, with zero for deceased fighters","separate_prose":True,"recency_basis":"fighter_relevant_events","recency_half_life_events":HALF_LIFE_EVENTS,"fixed_expiry":False,"weights":{"importance":0.4,"recency":0.3,"relevance":0.25,"character_bias":0.05}}}

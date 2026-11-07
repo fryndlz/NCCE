@@ -1,8 +1,8 @@
-# NCCE 0.28.7 — current technical design
+# NCCE 0.28.8 — current technical design
 
 ## 0.28.7 — Tomas Mind preview
 
-Tomas of Kły Sprawiedliwości shows his current Mind in a sticky fighter record header. The browser reads the existing fighter API every 15 seconds while the page is visible, including after externally written thoughts arrive. It displays the first sentence of each current thought, up to four, and labels the type sample when no prose is ready. Deceased status hides the feed. Connection errors pause the animated waveform.
+Tomas of Kły Sprawiedliwości shows his current Mind in a sticky fighter record header. The browser reads the existing fighter API every 15 seconds while the page is visible, including after externally written thoughts arrive. It displays the first sentence of each current thought, up to three, and labels the three-sentence layout sample when no prose is ready. Deceased status hides the feed. Connection errors pause the animated waveform.
 
 ## 0.28.6 — C-NINE clerical printouts
 
@@ -286,7 +286,7 @@ Relevance is 1.0 for current condition/role overlap, 0.65 for battle/equipment/p
 
 Rank causes deterministically, suppress duplicate primary labels and overlapping factual evidence. Exclude death/history-only from concerns, resolved bodily/captivity concerns and unsupported baseline/unanchored causes. Distinguish a concern losing selection (`superseded`) from a changed underlying condition/death (`resolved`). No fixed day/count expiry exists. Important old concerns may remain or return if still relevant.
 
-At most four candidates survive, one per family: condition, battle, grief, equipment, progress, return, social. Battle/equipment use the newest eligible event-position cause; this prevents an old victory/defeat pair filling the current view. The condition family unifies overlapping bodily concerns. Candidate prose is a separate first-person current thought of one or two sentences, target 12–40 words, not a copied memory or a new incident. Ready wording is reused for the same cause/current-condition/identity key.
+At most three candidates survive, one per family: condition, battle, grief, equipment, progress, return, social. Battle/equipment use the newest eligible event-position cause; this prevents an old victory/defeat pair filling the current view. The condition family unifies overlapping bodily concerns. Candidate prose is a separate first-person current thought of one or two sentences, target 12–40 words, not a copied memory or a new incident. Ready wording is reused for the same cause/current-condition/identity key.
 
 Only ready, nonempty current-thought prose appears in cards. `mind_status` reports pending/error/candidate counts; pending prose never fills a visible thought slot. Each thought links to its source memory/events and exposes score components, formation position and subsequent relevant event count. There may be fewer than four or no ready thoughts; there is no generic filler. Deceased fighters have none. Memories remain in history after a concern resolves or is displaced.
 

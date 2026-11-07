@@ -11,6 +11,7 @@ let filters = JSON.parse(JSON.stringify(defaults));
 const historyFilters = {q: '', gang: '', fighter: '', place: '', action: '', phase: '', battle: '', from: '', to: ''};
 let selectedHistoryEvent = null, selectedHistoryBattle = null;
 let archiveStoryRecords = [];
+const MAX_MIND_THOUGHTS = 3;
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
 const short = value => String(value || 'Unknown').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]', 'C-NINE');
@@ -825,11 +826,19 @@ function mindPreviewSentences(thoughts) {
   return list(thoughts).map(thought => {
     const text = String(thought.content || '').replace(/\s+/g, ' ').trim();
     return [...segmenter.segment(text)][0]?.segment.trim();
-  }).filter(Boolean).slice(0,4);
+  }).filter(Boolean).slice(0,MAX_MIND_THOUGHTS);
 }
 function mindPreviewBody(fighter) {
   const sentences = mindPreviewSentences(fighter.mind);
-  if (!sentences.length) return '<small class="mind-preview-sample">Type sample</small><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>';
+  if (!sentences.length) {
+    const samples = [
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
+      'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.'
+    ];
+    return '<small class="mind-preview-sample">Three sample thoughts</small>' +
+      samples.map(sentence => `<p>${sentence}</p>`).join('');
+  }
   return sentences.map(sentence => `<p>${inline(sentence)}</p>`).join('');
 }
 let tomasMindPolling = false;
@@ -886,7 +895,7 @@ async function showFighter(id, preserveScroll = false) {
   if (token !== renderToken) return;
   currentDetail = {type: 'fighter', id};
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
-  const mind = Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead').slice(0, 4);
+  const mind = (Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead')).slice(0,MAX_MIND_THOUGHTS);
   const deceased = /killed|dead/i.test(f.status || '');
   const tomasPreview = isTomasMindPreview(f);
   const sections = fighterRecordSections(f,memories,mind,deceased);

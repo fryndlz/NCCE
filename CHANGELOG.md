@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.8 — Three current thoughts — 7 November 2026
+
+- Cap active Mind candidates and visible thoughts at three per fighter. Existing displaced thoughts are superseded with saved prose retained.
+- Tomas’s empty feed displays three labelled sample sentences to exercise wrapping and scrolling in the sticky header.
+
 ## 0.28.7 — Tomas Mind preview — 7 November 2026
 
 - Tomas has a sticky Mind panel in his fighter record header with status beside his name. The feed reads current server thoughts every 15 seconds while the page is visible. The panel hides on death, pauses its waveform on connection errors and labels its type sample when the feed is empty.

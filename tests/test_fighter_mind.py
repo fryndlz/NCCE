@@ -76,6 +76,24 @@ def test_ready_biography_remains_stable_and_battle_dates_are_not_import_dates():
         assert battles and all(m['occurred_at'] for m in battles)
     with_store(check)
 
+def test_four_existing_thoughts_reduce_to_three_without_losing_saved_prose():
+    def check(store):
+        f=fighter()
+        memories=[memory(tag,[tag]) for tag in ('recovery','battle','equipment','advancement')]
+        gang={'name':'Test gang'}
+        with patch.object(mind,'MAX_THOUGHTS',4), patch.object(writer,'write',return_value=([{'runs':[{'text':'Saved thought.'}]}],{'status':'ready'})):
+            mind.refresh(store,f,gang,memories,AT)
+        assert store.db.execute("SELECT count(*) FROM fighter_thoughts WHERE lifecycle='active'").fetchone()[0]==4
+        thoughts,status=mind.read(store,f,memories,AT)
+        assert len(thoughts)==status['candidate_count']==status['max_thoughts']==3
+        with patch.object(writer,'write') as write:
+            mind.refresh(store,f,gang,memories,AT)
+            write.assert_not_called()
+        assert store.db.execute("SELECT count(*) FROM fighter_thoughts WHERE lifecycle='active'").fetchone()[0]==3
+        assert store.db.execute("SELECT content FROM fighter_thoughts WHERE lifecycle='superseded'").fetchone()[0]=='Saved thought.'
+    with_store(check)
+
+
 if __name__=='__main__':
     for name,fn in list(globals().items()):
         if name.startswith('test_') and callable(fn):fn();print('PASS '+name)

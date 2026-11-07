@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import hashlib, json
 
 VERSION='mind-v1'
+MAX_THOUGHTS=3
 def packed(value):return json.dumps(value,ensure_ascii=False,sort_keys=True)
 def candidates(fighter, memories, at=None, store=None, clock=None):
     from story_engine import select_mind
@@ -37,7 +38,7 @@ def candidates(fighter, memories, at=None, store=None, clock=None):
                            'formation_event_position':memory['score_details']['event_position'],
                            'subsequent_relevant_events':memory['score_details']['subsequent_relevant_events'],
                            'half_life_events':fighter_event_clock.HALF_LIFE_EVENTS,'fixed_expiry':False}})
-        if len(result)==4:break
+        if len(result)==MAX_THOUGHTS:break
     return result
 
 def packet(store,fighter,gang,candidate):
@@ -96,4 +97,4 @@ def read(store,fighter,memories,at=None,clock=None):
                        'content':row['content'],'writer_status':'ready','provenance_class':'inference',
                        'evidence':source['evidence'],'source_event_ids':source['source_event_ids'],
                        'expires_at':None,'event_clock':cause['event_clock'],'selection_score':cause['score'],'score_details':cause['score_details']})
-    return result,{'pending':pending,'errors':errors,'candidate_count':len(selected),'max_thoughts':4,'separate_prose':True,'event_clock_head':clock['head']}
+    return result,{'pending':pending,'errors':errors,'candidate_count':len(selected),'max_thoughts':MAX_THOUGHTS,'separate_prose':True,'event_clock_head':clock['head']}

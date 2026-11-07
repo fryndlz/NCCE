@@ -64,10 +64,14 @@ async function checkTomasFeed() {
   };
   run("app.querySelector=()=>panel; currentDetail={type:'fighter',id:56}");
   await run('refreshTomasMind()');
-  assert.match(body.innerHTML,/Type sample.*Lorem ipsum/);
+  assert.match(body.innerHTML,/Three sample thoughts.*Lorem ipsum/);
+  assert.equal((body.innerHTML.match(/<p>/g)||[]).length,3);
   ctx.fighter.mind = [{content:'The gate is closed. I should check the seal.'}];
   await run('refreshTomasMind()');
   assert.equal(body.innerHTML,'<p>The gate is closed.</p>');
+  ctx.fighter.mind.push({content:'The seal is intact.'},{content:'The relief is late.'},{content:'Fourth thought.'});
+  await run('refreshTomasMind()');
+  assert.equal(body.innerHTML,'<p>The gate is closed.</p><p>The seal is intact.</p><p>The relief is late.</p>');
   ctx.api = async () => { throw Error('Unavailable'); };
   await run('refreshTomasMind()');
   assert.equal(panel.dataset.signal,'offline');
