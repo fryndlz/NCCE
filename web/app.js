@@ -814,6 +814,50 @@ function fighterRecordSections(f, memories, mind, deceased) {
     {id:'mind',label:'Mind',count:mind.length,description:'Current thoughts and moodlets. These are present concerns, not the full memory stream.',body:deceased?empty('This fighter has died. Their remembered history remains.'):`<div class="entity-current-mind">${mind.map(mindCard).join('')}</div>${f.mind_status?.pending?`<p class="writer-pending" role="status">${f.mind_status.pending} current concern${f.mind_status.pending===1?'':'s'} awaiting writing.${f.mind_status.errors?' A writing attempt failed; details remain in the writer audit.':''}</p>`:!mind.length?empty('No current thoughts have been written. Their recorded history is available in Timeline and Memory.'):''}`}
   ];
 }
+function isTomasMindPreview(fighter) {
+  return fighter.name === 'Tomas' && fighter.gang_name === 'Kły Sprawiedliwości';
+}
+function fighterIsDeceased(fighter) {
+  return /^(?:killed|dead|deceased)\b/i.test(String(fighter.status || '').trim());
+}
+function mindPreviewSentences(thoughts) {
+  const segmenter = new Intl.Segmenter('en', {granularity:'sentence'});
+  return list(thoughts).map(thought => {
+    const text = String(thought.content || '').replace(/\s+/g, ' ').trim();
+    return [...segmenter.segment(text)][0]?.segment.trim();
+  }).filter(Boolean).slice(0,4);
+}
+function mindPreviewBody(fighter) {
+  const sentences = mindPreviewSentences(fighter.mind);
+  if (!sentences.length) return '<small class="mind-preview-sample">Type sample</small><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>';
+  return sentences.map(sentence => `<p>${inline(sentence)}</p>`).join('');
+}
+let tomasMindPolling = false;
+async function refreshTomasMind() {
+  const panel = app.querySelector('[data-tomas-mind]');
+  if (!panel || currentDetail?.type !== 'fighter' || tomasMindPolling || document.hidden) return;
+  const {id} = currentDetail;
+  const token = renderToken;
+  tomasMindPolling = true;
+  try {
+    const fighter = await api('/api/fighters/' + encodeURIComponent(id));
+    if (token !== renderToken || !panel.isConnected || !isTomasMindPreview(fighter)) return;
+    const heading = panel.closest('.entity-record-heading');
+    heading.querySelector('.status-pill').textContent = fighterStatus(fighter);
+    panel.hidden = fighterIsDeceased(fighter);
+    panel.dataset.signal = 'live';
+    panel.querySelector('.mind-preview-signal').textContent = 'Live';
+    const body = panel.querySelector('.mind-preview-body');
+    const content = panel.hidden ? '' : mindPreviewBody(fighter);
+    if (body.innerHTML !== content) body.innerHTML = content;
+  } catch {
+    if (token !== renderToken || !panel.isConnected) return;
+    panel.dataset.signal = 'offline';
+    panel.querySelector('.mind-preview-signal').textContent = 'Reconnecting';
+  } finally {
+    tomasMindPolling = false;
+  }
+}
 function gangRecordSections(g) {
   const stream=list(g.narrative_stream), events=list(g.campaign_history?.events), battles=list(g.battles), holdings=list(g.territory_list);
   return [
@@ -844,9 +888,13 @@ async function showFighter(id, preserveScroll = false) {
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const mind = Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead').slice(0, 4);
   const deceased = /killed|dead/i.test(f.status || '');
+  const tomasPreview = isTomasMindPreview(f);
+  const sections = fighterRecordSections(f,memories,mind,deceased);
+  if (tomasPreview) sections.pop(); // Mind moves from the last tab to the sticky heading.
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
+    mindPreview:tomasPreview ? {hidden:fighterIsDeceased(f),body:fighterIsDeceased(f) ? '' : mindPreviewBody(f)} : null,
     fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
-    sections:fighterRecordSections(f,memories,mind,deceased),sourceBody:`${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}${list(f.events).length?`<details data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e=>`<p><strong>${esc(e.title || human(e.event_type))}</strong><br>${esc(e.detail)}</p>`).join('')}</details>`:''}`});
+    sections,sourceBody:`${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}${list(f.events).length?`<details data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e=>`<p><strong>${esc(e.title || human(e.event_type))}</strong><br>${esc(e.detail)}</p>`).join('')}</details>`:''}`});
   if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
 }
 async function showGang(id, preserveScroll = false) {
@@ -946,6 +994,13 @@ async function startApp() {
   if (logout) logout.hidden = !session.auth_required;
   await refreshDashboard(false); await refreshStatus();
   if (['#retrieval','#workshop'].includes(initialView)) history.replaceState(null,'',location.pathname+location.search);
-  setInterval(() => refreshStatus().catch(error => { health.textContent = 'Could not check the latest Sheet refresh'; health.classList.add('has-error'); console.error(error); }), 15000);
+  setInterval(() => {
+    refreshTomasMind();
+    refreshStatus().catch(error => {
+      health.textContent = 'Could not check the latest Sheet refresh';
+      health.classList.add('has-error');
+      console.error(error);
+    });
+  }, 15000);
 }
 startApp().catch(handleError);

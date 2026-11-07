@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.7 — Tomas Mind preview — 7 November 2026
+
+- Tomas has a sticky Mind panel in his fighter record header with status beside his name. The feed reads current server thoughts every 15 seconds while the page is visible. The panel hides on death, pauses its waveform on connection errors and labels its type sample when the feed is empty.
+
 **0.28.6 live — 5 November 2026, 23:57 CET / 22:57 UTC:** source f14e2808121f4b430517458a94df3abcde066a41, deploy dep-dbmgj7h5efls73dssasg completed 22:57:13 UTC. Public health confirms 0.28.6 and hosted startup is healthy. C-NINE-only footer printouts/corrupted farewell and single-line unindented Thought for the Shift are deployed. All ten JS suites and authenticated/live-source HTTP smoke pass; other-gang scope regression passes. Source wording/case unchanged, no provider calls. Browser visual access remains unavailable.
 
 ## 0.28.6 — C-NINE closing printouts — 5 November 2026

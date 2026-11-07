@@ -1,4 +1,8 @@
-# NCCE 0.28.6 — current technical design
+# NCCE 0.28.7 — current technical design
+
+## 0.28.7 — Tomas Mind preview
+
+Tomas of Kły Sprawiedliwości shows his current Mind in a sticky fighter record header. The browser reads the existing fighter API every 15 seconds while the page is visible, including after externally written thoughts arrive. It displays the first sentence of each current thought, up to four, and labels the type sample when no prose is ready. Deceased status hides the feed. Connection errors pause the animated waveform.
 
 ## 0.28.6 — C-NINE clerical printouts
 

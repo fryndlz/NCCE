@@ -1,5 +1,7 @@
 # Handoff status
 
+**0.28.7 Tomas Mind preview — 7 November 2026:** Tomas of Kły Sprawiedliwości is the sole trial record. Current Mind data is fetched from the existing fighter API on a 15-second visible-page cadence. The first sentence of each current thought is shown in the sticky header. Empty live feeds show a labelled type sample. Death hides the panel, and connection errors pause the waveform.
+
 **0.28.6 live — 5 November 2026, 23:57 CET / 22:57 UTC:** source f14e2808121f4b430517458a94df3abcde066a41, deploy dep-dbmgj7h5efls73dssasg completed 22:57:13 UTC. Public health confirms 0.28.6 and hosted startup is healthy. C-NINE-only footer printouts/corrupted farewell and single-line unindented Thought for the Shift are deployed. All ten JS suites and authenticated/live-source HTTP smoke pass; other-gang scope regression passes. Source wording/case unchanged, no provider calls. Browser visual access remains unavailable.
 
 **0.28.6 implementation — 5 November 2026:** C-NINE-only closing boilerplate/corrupted farewell are full-width machine print; Thought for the Shift plus quoted motto becomes one unindented printout block. Other gangs untouched. Exact authored spelling/case retained, no source edits or generation. All ten JS suites and the authenticated/live-source HTTP smoke pass; deployment verification follows.

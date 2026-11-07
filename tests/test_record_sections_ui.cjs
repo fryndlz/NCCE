@@ -49,3 +49,33 @@ assert.ok(timeline.includes('.M41')&&timeline.includes('25 October 2026'));
 assert.ok(!timeline.includes('Date unrecorded'));
 const code=fs.readFileSync('web/archivum.js','utf8');assert.match(code,/outlet\.dataset\.recordIdentity===identity/);assert.match(code,/tabs\.length\)%tabs\.length/);
 console.log('ok (separate baseline/timeline/memory/mind, gang roster/holdings, place battles, sourced dates, chronological order and thought links)');
+
+async function checkTomasFeed() {
+  const badge = {textContent:'Active'};
+  const body = {innerHTML:''};
+  const signal = {textContent:'Live'};
+  const panel = {isConnected:true, hidden:false, dataset:{}, closest:()=>({querySelector:()=>badge}),
+    querySelector:selector=>selector==='.mind-preview-body'?body:signal};
+  ctx.panel = panel;
+  ctx.fighter = {name:'Tomas',gang_name:'Kły Sprawiedliwości',status:'Active',mind:[]};
+  ctx.api = async path => {
+    assert.equal(path,'/api/fighters/56');
+    return ctx.fighter;
+  };
+  run("app.querySelector=()=>panel; currentDetail={type:'fighter',id:56}");
+  await run('refreshTomasMind()');
+  assert.match(body.innerHTML,/Type sample.*Lorem ipsum/);
+  ctx.fighter.mind = [{content:'The gate is closed. I should check the seal.'}];
+  await run('refreshTomasMind()');
+  assert.equal(body.innerHTML,'<p>The gate is closed.</p>');
+  ctx.api = async () => { throw Error('Unavailable'); };
+  await run('refreshTomasMind()');
+  assert.equal(panel.dataset.signal,'offline');
+  ctx.fighter.status = 'Killed';
+  ctx.api = async () => ctx.fighter;
+  await run('refreshTomasMind()');
+  assert.equal(badge.textContent,'Killed');
+  assert.equal(panel.hidden,true);
+  assert.equal(body.innerHTML,'');
+}
+checkTomasFeed().catch(error => { console.error(error); process.exitCode=1; });
