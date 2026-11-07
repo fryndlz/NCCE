@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.10 — Compact Tomas header — 7 November 2026
+
+- Give Tomas’s Mind feed more room beside his name, or the full width below it on narrow records. All three thoughts can be read without a nested scrollbar, and each keeps its own divider. Move the record reference beside his identity and put the tabs directly below the header.
+
 ## 0.28.9 — Mind entry dividers
 
 - Give each thought in Tomas’s preview a padded row with a muted divider between consecutive entries.
