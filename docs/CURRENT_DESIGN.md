@@ -1,4 +1,16 @@
-# NCCE 0.28.8 — current technical design
+# NCCE 0.28.11 — current technical design
+
+## 0.28.11 — Fighter Mind feed
+
+All fighter records use the sticky Mind header. The dossier provides its initial
+state; every 15 seconds while the page is visible, the browser reads the selected
+fighter’s authenticated `/api/fighters/<id>/mind` endpoint. Both reads use the
+same event-based selection and persisted `fighter_thoughts` prose. Only active,
+ready thoughts with text are eligible, up to three. The header shows one
+sentence per entry and links to the source memory. No ready thoughts produces a
+quiet empty state, and death hides the panel and waveform. A failed refresh
+keeps the last available text and pauses the waveform until connection returns.
+Reading the feed does not generate prose or advance the fighter’s event clock.
 
 ## 0.28.7 — Tomas Mind preview
 

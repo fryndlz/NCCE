@@ -1,5 +1,11 @@
 # Handoff status
 
+**0.28.11 Fighter Mind rollout — 7 November 2026:** the compact header now
+applies to every fighter; the sample and old Mind tab are removed. The
+authenticated read-only Mind endpoint uses the same event-ranked saved thoughts
+as the dossier. Up to three ready entries, a quiet empty state, and no feed
+for deceased fighters. No source data or prose modified.
+
 **0.28.8 Mind cap — 7 November 2026:** the backend and visible Mind now cap current thoughts at three. Refresh supersedes displaced fourth entries and preserves their saved wording. Tomas’s empty feed shows three labelled sample sentences in a scrollable body for layout review.
 
 **0.28.7 Tomas Mind preview — 7 November 2026:** Tomas of Kły Sprawiedliwości is the sole trial record. Current Mind data is fetched from the existing fighter API on a 15-second visible-page cadence. The first sentence of each current thought is shown in the sticky header. Empty live feeds show a labelled type sample. Death hides the panel, and connection errors pause the waveform.

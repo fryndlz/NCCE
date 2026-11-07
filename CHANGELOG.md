@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.11 — Live Mind for every fighter — 7 November 2026
+
+- Roll out the compact sticky header to all fighter records. Remove the sample and the separate Mind tab. Show up to three saved thoughts, one sentence each, with links to their source memories.
+- Poll an authenticated, read-only Mind endpoint for the selected fighter. Show an empty state when no thoughts are ready and hide the feed on death.
+
 ## 0.28.10 — Compact Tomas header — 7 November 2026
 
 - Give Tomas’s Mind feed more room beside his name, or the full width below it on narrow records. All three thoughts can be read without a nested scrollbar, and each keeps its own divider. Move the record reference beside his identity and put the tabs directly below the header.

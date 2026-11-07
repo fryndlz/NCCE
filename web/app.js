@@ -758,12 +758,6 @@ function memoryCard(memory) {
   const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(memory.writer_message || (memory.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${memory.writer_status} · ${memory.writer_status === 'unconfigured' ? 'writing is paused.' : 'writing is paused.'}`))}</p>` : '';
   return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${dateStamp(memory)}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}${status}<div class="memory-voice">${writtenProse(memory.content,memory.content_runs)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
 }
-function mindCard(thought) {
-  const memoryId = thought.memory_id || thought.id;
-  const label = thought.label || thought.title || thought.name || list(thought.tags)[0] || 'Current concern';
-  const status = thought.writer_status && thought.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(thought.writer_message || (thought.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${thought.writer_status} · ${thought.writer_status === 'unconfigured' ? 'writing is paused.' : 'writing is paused.'}`))}</p>` : '';
-  return `<article class="mind-card"><div class="eyebrow">${esc(human(label))}</div>${status}<div class="thought">${writtenProse(thought.content || thought.thought,thought.content_runs)}</div>${evidence(thought.evidence || [], thought, true)}${memoryId ? `<a class="memory-link" href="#memory-${esc(memoryId)}">Trace this thought to memory ↓</a>` : ''}${thought.score_details ? `<details class="mind-retrieval"><summary>Why this is on their mind</summary><dl>${Object.entries(thought.score_details).map(([key, value]) => `<div><dt>${esc(human(key))}</dt><dd>${esc(typeof value === 'number' ? Math.round(value * 100) / 100 : displayValue(value))}</dd></div>`).join('')}</dl></details>` : ''}</article>`;
-}
 function voiceDetails(profile) {
   if (!profile || !Object.keys(profile).length) return '';
   const traits = Array.isArray(profile.traits) ? profile.traits.map(evidenceText) : typeof profile.traits === 'object' ? Object.entries(profile.traits).map(([key, value]) => `${human(key)}: ${displayValue(value)}`) : [profile.traits].filter(Boolean);
@@ -805,66 +799,53 @@ function entityTimeline(entries, facts, battles = []) {
   ].sort((a,b)=>recordEventTime(b.record).localeCompare(recordEventTime(a.record)) || a.key.localeCompare(b.key));
   return `<div class="entity-event-feed">${rows.map(r=>`<details class="entity-event" data-key="${esc(r.key)}"><summary><span class="event-date">${dateStamp({...r.record,occurred_at:r.record.occurred_at || r.record.recorded_at || r.record.event_date || r.record.date})}</span><span><small>${esc(r.kind)}</small><strong>${esc(r.label)}</strong></span><span class="event-expand" aria-hidden="true">+</span></summary><div class="entity-event-body">${r.body}</div></details>`).join('') || empty('No evolving events have been recorded here yet.')}</div>`;
 }
-function fighterRecordSections(f, memories, mind, deceased) {
+function fighterRecordSections(f, memories) {
   const baseline=memories.filter(m=>m.is_baseline || m.baseline), evolving=memories.filter(m=>!m.is_baseline && !m.baseline);
   const archive=list(f.campaign_history?.events), represented=new Set(archive.map(e=>e.source_event_id).filter(Boolean)), tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id)), events=archive.length?archive:tracked;
   return [
     {id:'baseline',label:'Backstory',paper:true,body:fighterBackstory(f)},
     {id:'timeline',label:'Timeline',count:events.length,description:'What happened to this fighter, ordered by recorded time. Open an event for its details.',body:entityTimeline([],events)+(archive.length && tracked.length?`<details class="additional-history" data-key="fighter-ledger"><summary>Additional tracked changes · ${tracked.length}</summary>${entityTimeline([],tracked)}</details>`:'')},
     {id:'memory',label:'Memory',count:memories.length,description:'How this fighter remembers their history: observations and reflections, most recent first.',body:`<div class="memory-stream entity-memory">${evolving.map(memoryCard).join('') || empty('No event memories are available yet.')}</div>${baseline.length?`<details class="baseline-memory" data-key="baseline-memory"><summary>Baseline memories · ${baseline.length}<small>Background known at the start; these are not newly dated incidents.</small></summary><div class="memory-stream entity-memory">${baseline.map(memoryCard).join('')}</div></details>`:''}`},
-    {id:'mind',label:'Mind',count:mind.length,description:'Current thoughts and moodlets. These are present concerns, not the full memory stream.',body:deceased?empty('This fighter has died. Their remembered history remains.'):`<div class="entity-current-mind">${mind.map(mindCard).join('')}</div>${f.mind_status?.pending?`<p class="writer-pending" role="status">${f.mind_status.pending} current concern${f.mind_status.pending===1?'':'s'} awaiting writing.${f.mind_status.errors?' A writing attempt failed; details remain in the writer audit.':''}</p>`:!mind.length?empty('No current thoughts have been written. Their recorded history is available in Timeline and Memory.'):''}`}
   ];
-}
-function isTomasMindPreview(fighter) {
-  return fighter.name === 'Tomas' && fighter.gang_name === 'Kły Sprawiedliwości';
 }
 function fighterIsDeceased(fighter) {
   return /^(?:killed|dead|deceased)\b/i.test(String(fighter.status || '').trim());
 }
-function mindPreviewSentences(thoughts) {
-  const segmenter = new Intl.Segmenter('en', {granularity:'sentence'});
-  return list(thoughts).map(thought => {
+function mindFeedBody(fighter) {
+  const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter('en', {granularity:'sentence'}) : null;
+  const rows = list(fighter.mind).flatMap(thought => {
     const text = String(thought.content || '').replace(/\s+/g, ' ').trim();
-    return [...segmenter.segment(text)][0]?.segment.trim();
-  }).filter(Boolean).slice(0,MAX_MIND_THOUGHTS);
+    if (!text || thought.writer_status !== 'ready') return [];
+    const sentence = segmenter?.segment(text).containing(0)?.segment.trim() || (text.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? text);
+    const prose = inline(sentence);
+    return [`<p>${thought.memory_id ? `<a class="mind-source-link" href="#memory-${esc(thought.memory_id)}" title="Trace this thought to its source memory">${prose}</a>` : prose}</p>`];
+  }).slice(0,MAX_MIND_THOUGHTS);
+  return rows.join('') || '<p class="mind-feed-empty">No current thoughts.</p>';
 }
-function mindPreviewBody(fighter) {
-  const sentences = mindPreviewSentences(fighter.mind);
-  if (!sentences.length) {
-    const samples = [
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-      'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.'
-    ];
-    return '<small class="mind-preview-sample">Three sample thoughts</small>' +
-      samples.map(sentence => `<p>${sentence}</p>`).join('');
-  }
-  return sentences.map(sentence => `<p>${inline(sentence)}</p>`).join('');
-}
-let tomasMindPolling = false;
-async function refreshTomasMind() {
-  const panel = app.querySelector('[data-tomas-mind]');
-  if (!panel || currentDetail?.type !== 'fighter' || tomasMindPolling || document.hidden) return;
+const pendingMindFeeds = new WeakSet();
+async function refreshFighterMind() {
+  const panel = app.querySelector('[data-fighter-mind]');
+  if (!panel || currentDetail?.type !== 'fighter' || pendingMindFeeds.has(panel) || document.hidden) return;
   const {id} = currentDetail;
   const token = renderToken;
-  tomasMindPolling = true;
+  pendingMindFeeds.add(panel);
   try {
-    const fighter = await api('/api/fighters/' + encodeURIComponent(id));
-    if (token !== renderToken || !panel.isConnected || !isTomasMindPreview(fighter)) return;
+    const fighter = await api('/api/fighters/' + encodeURIComponent(id) + '/mind');
+    if (token !== renderToken || !panel.isConnected || String(fighter.id) !== String(id)) return;
     const heading = panel.closest('.entity-record-heading');
     heading.querySelector('.status-pill').textContent = fighterStatus(fighter);
     panel.hidden = fighterIsDeceased(fighter);
     panel.dataset.signal = 'live';
     panel.querySelector('.mind-preview-signal').textContent = 'Live';
     const body = panel.querySelector('.mind-preview-body');
-    const content = panel.hidden ? '' : mindPreviewBody(fighter);
+    const content = panel.hidden ? '' : mindFeedBody(fighter);
     if (body.innerHTML !== content) body.innerHTML = content;
   } catch {
     if (token !== renderToken || !panel.isConnected) return;
     panel.dataset.signal = 'offline';
     panel.querySelector('.mind-preview-signal').textContent = 'Reconnecting';
   } finally {
-    tomasMindPolling = false;
+    pendingMindFeeds.delete(panel);
   }
 }
 function gangRecordSections(g) {
@@ -895,13 +876,10 @@ async function showFighter(id, preserveScroll = false) {
   if (token !== renderToken) return;
   currentDetail = {type: 'fighter', id};
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
-  const mind = (Array.isArray(f.mind) ? f.mind : list(f.moodlets).filter(m => m.name !== 'Dead')).slice(0,MAX_MIND_THOUGHTS);
-  const deceased = /killed|dead/i.test(f.status || '');
-  const tomasPreview = isTomasMindPreview(f);
-  const sections = fighterRecordSections(f,memories,mind,deceased);
-  if (tomasPreview) sections.pop(); // Mind moves from the last tab to the sticky heading.
+  const deceased = fighterIsDeceased(f);
+  const sections = fighterRecordSections(f,memories);
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
-    mindPreview:tomasPreview ? {hidden:fighterIsDeceased(f),body:fighterIsDeceased(f) ? '' : mindPreviewBody(f)} : null,
+    mindPreview:{hidden:deceased,body:deceased ? '' : mindFeedBody(f)},
     fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
     sections,sourceBody:`${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}${list(f.events).length?`<details data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e=>`<p><strong>${esc(e.title || human(e.event_type))}</strong><br>${esc(e.detail)}</p>`).join('')}</details>`:''}`});
   if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
@@ -1004,7 +982,7 @@ async function startApp() {
   await refreshDashboard(false); await refreshStatus();
   if (['#retrieval','#workshop'].includes(initialView)) history.replaceState(null,'',location.pathname+location.search);
   setInterval(() => {
-    refreshTomasMind();
+    refreshFighterMind();
     refreshStatus().catch(error => {
       health.textContent = 'Could not check the latest Sheet refresh';
       health.classList.add('has-error');

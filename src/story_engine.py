@@ -19,7 +19,7 @@ import story_prose as prose
 import writing_director as director
 import world_streams
 import llm_writer
-from fighter_mind import MAX_THOUGHTS
+from fighter_mind import MAX_THOUGHTS, is_deceased
 
 VERSION = "0.8.2"
 GENERATION = "story-0.8.2"
@@ -644,7 +644,7 @@ def _timestamp(value):
 
 
 def select_mind(fighter, memories, at=None, limit=MAX_THOUGHTS, clock=None):
-    if normal(fighter.get("status")) in {"killed","dead"}:
+    if is_deceased(fighter):
         return []
     # `at` remains accepted for old clients/tests, but wall time has no cognitive
     # effect. Only supported changes relevant to this fighter advance recency.

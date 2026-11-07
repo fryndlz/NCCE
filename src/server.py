@@ -9,7 +9,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.28.10'
+APP_VERSION='0.28.11'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -126,6 +126,11 @@ class H(BaseHTTPRequestHandler):
   if p.startswith('/api/gangs/'):
    with store.reader() as reader:x=reader.gang(unquote(p.split('/api/gangs/',1)[1]))
    return self.js(x if x else {'error':'not found'},200 if x else 404)
+  if p.startswith('/api/fighters/') and p.endswith('/mind') and p.count('/')==4:
+   try:
+    with store.reader() as reader:x=reader.fighter_mind_feed(int(p.split('/')[3]))
+   except (TypeError,ValueError):x=None
+   return self.js(x if x is not None else {'error':'not found'},200 if x is not None else 404)
   if p.startswith('/api/fighters/'):
    try:
     with store.reader() as reader:x=reader.fighter(int(p.rsplit('/',1)[1]))

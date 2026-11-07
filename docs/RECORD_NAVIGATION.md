@@ -9,7 +9,7 @@ Only one record section is shown at a time.
 | Record | Sections |
 | --- | --- |
 | Gang | Backstory · Timeline · Fighters · Holdings · Data & sources |
-| Fighter | Backstory · Timeline · Memory · Mind · Data & sources |
+| Fighter | Backstory · Timeline · Memory · Data & sources |
 | Place | Description · Timeline · Battles · Data & sources |
 
 Backstory/Description opens first for a newly selected record. It contains only
@@ -49,10 +49,10 @@ Baseline memories are in a separate disclosure explicitly labelled as background
 known at the beginning, not newly dated incidents. Observation/reflection labels,
 importance details and evidence remain accessible.
 
-Mind contains only existing ready current thoughts/moodlets, plus honest pending
-or empty-state messages. It does not copy memories, invent filler thoughts or
-change cognition rules. A thought's memory link selects Memory and opens any
-containing baseline disclosure before scrolling to the cited entry.
+Mind is in the sticky fighter header. It shows the first sentence of up to three
+ready current thoughts from the backend, or a quiet empty state. Deceased
+fighters have no feed. Selecting a linked thought opens Memory and reveals its
+source entry. The feed does not create prose or advance the event clock.
 
 Data & sources contains current mechanical state, baseline provenance, inferred
 voice/identity and stimulus weights, existing known-detail correction controls,
@@ -63,8 +63,7 @@ current-thought prose.
 
 - Section controls wait for initial campaign data before becoming usable, preventing
   early navigation from reading an unloaded roster.
-- Section labels include available counts. Mind's count is ready thoughts;
-  awaiting-writing counts remain explicit within Mind.
+- Section labels include available counts.
 - The selected section survives ordinary data refreshes for the same entity.
   A different entity opens on its baseline. Identity/status stays visible above
   the sections; the selected fighter index status updates with the record.

@@ -1,10 +1,13 @@
 """Persistent present-tense thoughts, separate from the historical memory ledger."""
 from __future__ import annotations
 from datetime import datetime, timezone
-import hashlib, json
+import hashlib, json, re
 
 VERSION='mind-v1'
 MAX_THOUGHTS=3
+def is_deceased(fighter):
+    return bool(re.match(r'^(?:killed|dead|deceased)\b',str(fighter.get('status') or '').strip(),re.I))
+
 def packed(value):return json.dumps(value,ensure_ascii=False,sort_keys=True)
 def candidates(fighter, memories, at=None, store=None, clock=None):
     from story_engine import select_mind
@@ -63,7 +66,7 @@ def refresh(store,fighter,gang,memories,at=None):
         if row['thought_id'] not in ids:
             old_state=json.loads(row['packet_json']).get('current_state',{})
             changed=any(old_state.get(field)!=fighter.get(field) for field in ('status','effects'))
-            state='resolved' if (row['family']=='condition' and changed) or str(fighter.get('status','')).lower() in ('dead','killed') else 'superseded'
+            state='resolved' if (row['family']=='condition' and changed) or is_deceased(fighter) else 'superseded'
             store.db.execute('UPDATE fighter_thoughts SET lifecycle=?,ended_at=? WHERE thought_id=?',(state,at,row['thought_id']))
     for candidate in selected:
         saved=store.db.execute('SELECT * FROM fighter_thoughts WHERE thought_id=?',(candidate['id'],)).fetchone()

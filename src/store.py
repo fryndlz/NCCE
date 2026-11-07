@@ -406,6 +406,14 @@ class Store:
   if g.get('backstory_source')!='player-authored / campaign Sheet':
    g['backstory']=''; g['backstory_source']='not-provided'
   g['history_document']=None
+ def fighter_mind_feed(self,fid):
+  row=self.db.execute('SELECT * FROM fighters WHERE id=?',(fid,)).fetchone()
+  if not row:return None
+  from story_engine import read_memories
+  from fighter_mind import read
+  fighter=dict(row)
+  thoughts,status=read(self,fighter,read_memories(self,fid))
+  return {'id':fid,'status':fighter['status'],'mind':thoughts,'mind_status':status}
  def fighter(self,fid):
   r=self.db.execute('SELECT * FROM fighters WHERE id=?',(fid,)).fetchone()
   if not r:return None

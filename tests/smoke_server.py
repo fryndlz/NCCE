@@ -42,7 +42,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.28.10'}
+                    assert read('/healthz') == {'ok':True,'version':'0.28.11'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
@@ -87,6 +87,9 @@ def main():
             for name in ('Mara Kel','Maex'):
                 fighter = next(f for f in fighters if f['name'] == name)
                 detail = read('/api/fighters/'+str(fighter['id']))
+                feed = read('/api/fighters/'+str(fighter['id'])+'/mind')
+                assert feed == {key:detail[key] for key in ('id','status','mind','mind_status')}
+                assert len(feed['mind']) <= 3 and all(thought['writer_status']=='ready' for thought in feed['mind'])
                 assert detail['event_clock']['basis']=='fighter_relevant_events' and detail['event_clock']['half_life_events']==10
                 assert detail['mind_policy']['fixed_expiry'] is False
                 assert detail['memories'] and all(m['writer_status'] in ('ready','stale','paused') for m in detail['memories'])
@@ -94,6 +97,8 @@ def main():
                 assert all(m['date_display']['imperialDisplay'] for m in detail['memories'])
                 if name == 'Mara Kel' and 'Critical Injury' in str(detail.get('effects')):
                     assert detail['mind_status']['separate_prose'] and detail['mind_status']['pending'] >= 1
+            deceased=next(f for f in fighters if f['status']=='Killed')
+            assert read('/api/fighters/'+str(deceased['id'])+'/mind')['mind']==[]
             gang_details=[read('/api/gangs/'+gang['gang_id']) for gang in dashboard['gangs']]
             assert any(gang['narrative_stream'] for gang in gang_details)
             assert all(g['history_document'] is None for g in gang_details)
