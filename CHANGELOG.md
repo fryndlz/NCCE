@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.9 — Mind entry dividers
+
+- Give each thought in Tomas’s preview a padded row with a muted divider between consecutive entries.
+
 ## 0.28.8 — Three current thoughts — 7 November 2026
 
 - Cap active Mind candidates and visible thoughts at three per fighter. Existing displaced thoughts are superseded with saved prose retained.
