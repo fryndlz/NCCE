@@ -256,6 +256,8 @@ class Store:
     self.db.execute('UPDATE gangs SET backstory=?,backstory_source=?,provenance_class=? WHERE gang_id=?',
                     (backstory,'player-authored / campaign Sheet' if backstory else 'not-provided',
                      'player_authored' if backstory else 'inference',gang_id))
+    if gang.get('fighters_available') is False:
+     continue
     self.db.execute('UPDATE fighters SET listed_in_source=0 WHERE gang_id=?',(gang_id,))
     fighter_rows=self.db.execute('SELECT id,name FROM fighters WHERE gang_id=?',(gang_id,)).fetchall()
     existing={re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(row['name'] or '')).strip().casefold()):row['id'] for row in fighter_rows}

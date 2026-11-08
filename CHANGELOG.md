@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.12 — Missing roster protection — 9 November 2026
+
+- Preserve existing fighter records when a gang's worksheet omits its fighter table. Skip fighter deltas across that gap until two consecutive exports provide comparable rosters. Patrol's actual roster still requires a complete source export.
+
 ## 0.28.11 — Live Mind for every fighter — 7 November 2026
 
 - Roll out the compact sticky header to all fighter records. Remove the sample and the separate Mind tab. Show up to three saved thoughts, one sentence each, with links to their source memories.

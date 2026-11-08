@@ -192,7 +192,7 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
         drafts.append(_event(
             f"snapshot:{target_snapshot_id}:gang:{gang_id}:joined", "gang_joined_campaign",
             f"gang:{gang_id}",
-            {field: gang.get(field) for field in GANG_FIELDS} | {"fighter_count": len(gang.get("fighters") or {})},
+            {field: gang.get(field) for field in GANG_FIELDS} | {"fighter_count": None if gang.get("fighters_available") is False else len(gang.get("fighters") or {})},
             [{**gang_subject, "role": "affected"}],
         ))
         for name, record in sorted((gang.get("fighters") or {}).items(), key=lambda item: _key(item[0])):
@@ -236,6 +236,9 @@ def snapshot_event_drafts(before: dict | None, after: dict, target_snapshot_id: 
                 f"gang:{gang_id}:{field}", {"field": field, **delta[field]}, [gang_subject],
             ))
 
+        # Missing fighter tables cannot establish roster changes in either direction.
+        if any(g.get("fighters_available") is False for g in (old, new)):
+            continue
         old_fighters, new_fighters = old.get("fighters") or {}, new.get("fighters") or {}
         old_by_key = {_key(name): (name, record) for name, record in old_fighters.items()}
         new_by_key = {_key(name): (name, record) for name, record in new_fighters.items()}

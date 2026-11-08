@@ -7,6 +7,7 @@ from store import Store, SCHEMA
 from access import SESSION_MAX_AGE, configured_bool, effective_session_key, make_session_token, valid_session_token
 from snapshot import build_snapshot_from_sheets, parse_battles, parse_gang_tab, read_xlsx_sheets
 from sync import ingest_snapshot
+from diff import snapshot_event_drafts
 
 def test_store():
     with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'data') as d:
@@ -48,6 +49,31 @@ def test_invite_sessions():
 def test_gang_parser():
     rows=[['Gang'],[],['Gang ID','1'],['Gang Type','House Orlock'],['Credits','5'],['Reputation','2'],['Rating','100'],['Alignment','Law Abiding'],[],['FIGHTERS'],['Name','Type','Class'],['A','Gunner','Ganger']]
     g=parse_gang_tab(rows); assert g['gang_id']=='1' and g['fighters']['A']['Class']=='Ganger'
+
+def test_omitted_roster_preserves_records_without_claiming_roster_changes():
+    meta = [['Gang'], ['Gang ID', 'g1']]
+    header = [['FIGHTERS'], ['Name', 'Type', 'Class', 'Status']]
+    def snapshot(rows):
+        return {'snapshot_version':1, 'gangs':{'Gang':parse_gang_tab(rows)}}
+    full = snapshot(meta + header + [['Rook', 'Gunner', 'Ganger', 'Active']])
+    missing = snapshot(meta)
+    empty = snapshot(meta + header)
+    assert not snapshot_event_drafts(full, missing, 2)
+    assert not snapshot_event_drafts(missing, full, 3)
+    assert [event['event_type'] for event in snapshot_event_drafts(full, empty, 4)] == ['fighter_unlisted']
+    with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'data') as directory:
+        store = Store(Path(directory)/'roster.db')
+        try:
+            store.project_snapshot(full)
+            original = store.gang('g1')['fighters'][0]
+            store.project_snapshot(missing)
+            assert store.gang('g1')['fighters'] == [original]
+            store.project_snapshot(full)
+            assert store.gang('g1')['fighters'] == [original]
+            store.project_snapshot(empty)
+            assert store.gang('g1')['fighters'][0]['listed_in_source'] == 0
+        finally:
+            store.close()
 
 def test_live_sheet_snapshot_shape():
     tabs={
@@ -193,4 +219,6 @@ def test_snapshot_ingest_diff_and_retry():
         finally:
             s.close()
 
-if __name__=='__main__': test_store(); test_read_only_snapshot_remains_available_during_writer_transaction(); test_invite_sessions(); test_gang_parser(); test_live_sheet_snapshot_shape(); test_stdlib_xlsx_reader(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')
+if __name__=='__main__':
+    test_omitted_roster_preserves_records_without_claiming_roster_changes()
+    test_store(); test_read_only_snapshot_remains_available_during_writer_transaction(); test_invite_sessions(); test_gang_parser(); test_live_sheet_snapshot_shape(); test_stdlib_xlsx_reader(); test_durable_ledger_and_snapshot_deduplication(); test_legacy_database_provenance_migration(); test_snapshot_ingest_diff_and_retry(); print('ok')

@@ -152,9 +152,11 @@ def parse_gang_tab(rows: list[list[Any]]) -> dict[str, Any]:
             meta[str(row[0])] = row[1]
 
     fighters: dict[str, dict[str, Any]] = {}
+    fighters_available = False
     if fighter_start is not None and fighter_start + 1 < len(rows):
         header = rows[fighter_start + 1]
         if header and header[0] == "Name":
+            fighters_available = True
             for row in rows[fighter_start + 2:]:
                 if not row or row[0] in (None, ""):
                     continue
@@ -175,6 +177,7 @@ def parse_gang_tab(rows: list[list[Any]]) -> dict[str, Any]:
         "notes": notes,
         "backstory": backstory,
         "backstory_available": backstory_available,
+        "fighters_available": fighters_available,
         "fighters": fighters,
     }
 
