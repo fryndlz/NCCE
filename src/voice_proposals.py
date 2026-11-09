@@ -203,6 +203,9 @@ def review(store,key,expected_hash,decision,tags=None,register=None):
 
 def apply_approved(store,layers,gang_id,fighter_id):
  """Only reviewed exact-source profiles add style to a *future* writer packet."""
+ # Safe for tests, old read-only DBs, and a first launch before migration.
+ if not store.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='voice_proposals'").fetchone():
+  return layers
  # Called during exchange packet creation with already-prepared DB.
  for key,target in (("gang:"+str(gang_id),"gang"),("fighter:"+str(fighter_id),"individual")):
   row=store.db.execute("SELECT * FROM voice_proposals WHERE proposal_key=?",(key,)).fetchone()
