@@ -1,14 +1,14 @@
 """One reviewed runtime specification for every narrative form; no provider calls."""
 from pathlib import Path
 
-REVISION = 'narrative-contract-v7-layered-voice'
+REVISION = 'narrative-contract-v8-portable-craft'
 RUNTIME_PATH = Path(__file__).resolve().parents[1] / 'docs/writing_sources/WRITER_RUNTIME_CONTRACT.md'
 PERSONAL = {'fighter_memory', 'fighter_reflection', 'fighter_mind'}
 BRIEFS = {
     'fighter_mind': 'CURRENT THOUGHT. First person, one or two sentences, 12–40 words. Express one immediate concern, feeling or intention caused by the supplied experiences and current condition. Use the fighter’s faction, gang and individual voice layers, respecting awareness. Do not retell a memory, announce a status update, quote mechanics, or invent an incident. No heading, date, documentary wrapper or generic moral.',
     'fighter_memory': 'OBSERVATION. One bounded first-person memory, approximately 350–400 characters including Markdown (flexible where evidence requires), grounded in one sealed experience or an explicitly undated baseline. Compose the fighter’s personal voice from the source event, faction, gang and individual editorial layers. Background supplies a lens, not a new event or a biography recap. No automatic document heading, official register, moral or invented battle action.',
     'fighter_reflection': 'REFLECTION. First person, 60–130 words. Connect the cited experiences into a particular concern or intention, using the faction, gang and individual voice layers without changing factual sources. No generic life lesson or document heading.',
-    'fighter_biography': 'BASELINE. A distinctive third-person life sketch, 140–240 words. Separate formative fictional background from undated current recorded condition. Respect authored history and embodiment.',
+    'fighter_biography': 'BASELINE. A distinctive source-grounded formative character sketch or genre-appropriate in-world record. New fighter biographies target 1,900–2,000 characters INCLUDING complete Markdown, with a hard ceiling of 2,300 characters. Earlier accepted/imported entries remain unedited at their original lengths. Vary document type by culture, speaker, audience and individual; no equipment-list biography. Do not project later injuries or victories into an undated past.',
     'gang_origin': 'BASELINE. Establish a particular gang culture and background, 140–240 words. Use its own faction and composition; no invented campaign victories or roster relationships.',
     'gang_history': 'HISTORY. A coherent account of this gang across the supplied dated changes, 150–260 words. Preserve its established character and the sequence of events.',
     'territory_origin': 'BASELINE. Establish a memorable inhabited place, 150–240 words. Use physical setting, local practice and a distinctive historical detail. An Imperial territorial assessment is suitable unless context suggests another author.',
