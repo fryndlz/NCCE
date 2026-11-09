@@ -159,6 +159,14 @@ def _packet(store,c,rid):
             if not profile_context.get('affiliation') and not profile_context.get('faction'):
                 profile_context['affiliation']=fighter_row['roster_faction']
         layers=build_voice_layers(profile_context)
+        # Approved, source-sealed editorial suggestions are persisted in the app
+        # database. Apply to this newly prepared packet only; never mutate the
+        # campaign facts or an already issued packet.
+        from voice_proposals import apply_approved
+        if fighter_row:
+            layers=apply_approved(store,layers,store.db.execute(
+                'SELECT gang_id FROM fighters WHERE id=?',(c['entity_key'],)).fetchone()['gang_id'],
+                int(c['entity_key']))
         context.append(dict(section='voice_layers',provenance='style_guidance',
             source_ref='NCCE validated versioned voice registry; editorial layer, never event evidence',
             event_at_utc='',source_event_ids='',text=packed(layers)))
