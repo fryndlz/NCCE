@@ -9,7 +9,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.28.13'
+APP_VERSION='0.28.14'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -124,6 +124,26 @@ class H(BaseHTTPRequestHandler):
   if p=='/api/prose-progress':
    from prose_progress import summary
    with store.reader() as reader:return self.js(summary(reader))
+  if p=='/api/portable-writing-packet.zip':
+   try:
+    from portable_packet import build_portable_zip
+    blob,manifest=build_portable_zip()
+    self.send_response(200)
+    self.send_header('Content-Type','application/zip')
+    self.send_header('Content-Disposition','attachment; filename="ncce-writing-packet-'+manifest['packet_version']+'.zip"')
+    self.send_header('Cache-Control','no-store')
+    self.send_header('X-Content-Type-Options','nosniff')
+    self.send_header('Content-Length',str(len(blob)))
+    self.end_headers();self.wfile.write(blob)
+    return
+   except (OSError,ValueError) as exc:return self.js({'error':'Portable packet unavailable: '+str(exc)},503)
+  if p=='/api/portable-writing-packet/status':
+   from literary_policy import load_literary_policy
+   from portable_packet import EXPORTED_FILES
+   info=load_literary_policy()
+   return self.js({'version':info['policy_version'],'files':len(EXPORTED_FILES)+2,
+     'scope':'literary policy and cited excerpts; not live campaign snapshot',
+     'download':'/api/portable-writing-packet.zip','requires_owner_approval_for_learning':True})
   if p=='/api/voice-proposals':
    try:
     status=parse_qs(parsed.query).get('status',['all'])[0]
