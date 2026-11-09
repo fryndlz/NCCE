@@ -1,0 +1,634 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-11-09.1",
+  "source_policy": "Style guidance only; mechanics and character knowledge outrank every profile.",
+  "factions": {
+    "Ironhead Squat Prospectors": {
+      "tags": [
+        "ancestral_charters",
+        "kinship",
+        "claims_and_shares",
+        "independent_prospecting",
+        "engineering",
+        "inheritance"
+      ],
+      "lens": "Necromundan Ironhead Kin: ancestral Great Charters, fierce claim rights, prospecting, mechanical ingenuity, wealth and reputation. Lost Urlish Core is NOT an active oracle; no generic fantasy dwarf dialect.",
+      "provenance": "rulebook_lore_and_accepted_campaign_style",
+      "source": "Necromunda: Halls of the Ancients; accepted Helmaeth biographies, NCCE faction biography styles"
+    },
+    "House Van Saar": {
+      "tags": [
+        "technological_specialisation",
+        "clearance_hierarchy",
+        "equipment_maintenance",
+        "controlled_knowledge",
+        "radiation_risk"
+      ],
+      "lens": "Van Saar technology and House hierarchy: capability is not clearance, instruments may fail to capture human consequences, technical work carries hidden costs. STC access is restricted and NEVER generic fighter knowledge.",
+      "provenance": "rulebook_lore_and_accepted_campaign_style",
+      "source": "Necromunda: House of Artifice; accepted Ethernetans biographies, NCCE faction biography styles"
+    },
+    "House Ran Lo": {
+      "tags": [
+        "financial_patronage",
+        "credit_and_debt",
+        "auditing_conclave",
+        "noble_house_interest"
+      ],
+      "lens": "Noble House financial influence: mutual profit, patronage, auditing, debt and commercially motivated armed support. An allied auditor is not a Squat and does not necessarily oppose the gang.",
+      "provenance": "rulebook_lore_and_accepted_campaign_style",
+      "source": "Necromunda: House of Iron; accepted Eliot Ness Gelt-scrivener document and owner direction for Frank J. WIlson"
+    },
+    "House Helmawr": {
+      "tags": [
+        "noble_household_authority",
+        "sealed_orders",
+        "protective_duty",
+        "privilege_and_access",
+        "custody"
+      ],
+      "lens": "The Palanite Household protects the Imperial House's assigned interests under sealed authority. Its Companions are privileged attachments, NOT ordinary precinct Enforcers or Van Saar technicians.",
+      "provenance": "accepted_campaign_style",
+      "source": "Accepted Dredd 2D and Dredd 3D Household attachment directives; NCCE faction biography styles"
+    },
+    "House Orlock": {
+      "tags": [
+        "industrial_labour",
+        "mining",
+        "haulage",
+        "road_crews",
+        "crew_reputation"
+      ],
+      "lens": "Working House of Iron: freight, dangerous labour, roads and crew ties. Do not assume every Orlock works on the road.",
+      "provenance": "rulebook_lore",
+      "source": "Necromunda: House of Iron"
+    },
+    "Genestealer Cults": {
+      "tags": [
+        "brood_culture_potential",
+        "mutant_labour_cover",
+        "distributed_kinship"
+      ],
+      "lens": "Genestealer Cult biology and social structures may matter when actually known to this fighter. Faction label alone does NOT grant awareness of the Patriarch, psychic communion, genetic origin or hidden objectives.",
+      "provenance": "rulebook_and_player_authored_campaign_context",
+      "source": "Necromunda: Book of Ruin; Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records"
+    },
+    "Palanite Enforcers": {
+      "tags": [
+        "precinct_chain_of_command",
+        "enforcement",
+        "imperial_jurisdiction"
+      ],
+      "lens": "Palanite Enforcers: local enforcement, precinct structures, assigned authority. Do not assume all precincts share doctrine, hidden allegiance, temperament or knowledge.",
+      "provenance": "rulebook_lore",
+      "source": "Necromunda 2023 Core Rulebook and Book of Judgement"
+    }
+  },
+  "gangs": {
+    "Helmaeth Expeditionary Force": {
+      "faction": "Ironhead Squat Prospectors",
+      "tags": [
+        "helmaeth_kin",
+        "speculative_claims",
+        "dangerous_recovery",
+        "hard_bargains",
+        "ancestral_reputation",
+        "raider_heritage"
+      ],
+      "register": "Kin among the prospectors: plain, stubborn, commercially sharp; talk about shares, seams, recoveries, the Charter, tools, claimed ground and family names. Dry wry humour, not bureaucratic compliance prose or generic fantasy-dwarf speech. Helmaeth's pirate/poison-sea history is heritage, not an assumed current Dominion mission.",
+      "provenance": "accepted_generated_fiction_style_with_owner_correction",
+      "source": "Accepted Helmaeth Charter Roll entries and owner correction (8 Nov 2026), NCCE Faction biography styles"
+    },
+    "Ethernetans 2.0": {
+      "faction": "House Van Saar",
+      "tags": [
+        "field_tech_detail",
+        "data_and_measurement",
+        "technical_risk",
+        "clearance_conflict",
+        "equipment_recovery"
+      ],
+      "register": "Technically precise, restrained and dryly sardonic; people register calibration, failure modes, risk, permissions and recoverability in different ways. A field Tek-hunter need not sound like an Archeotek or a maintenance Subtek. No generic 'logical' robot talk.",
+      "provenance": "accepted_generated_fiction_style",
+      "source": "Accepted Maex, Sigmund, Larz Pulse and Peter Apex records; NCCE Faction biography styles"
+    },
+    "Auditing Conclave": {
+      "faction": "House Ran Lo",
+      "tags": [
+        "allied_financial_delegation",
+        "profit_protection",
+        "debt_service"
+      ],
+      "register": "Controlled and sharp language of credit, risks, obligations and collection. Avoid assuming hostility to the ally; Auditor and indebted Gelt-scrivener have different interests and voices.",
+      "provenance": "owner_editorial_and_accepted_generated_fiction",
+      "source": "Approved Eliot Ness bonded service, Queue row 107; owner-described Ran Lo alliance"
+    },
+    "Palanite Household Companions": {
+      "faction": "House Helmawr",
+      "tags": [
+        "sealed_household_orders",
+        "protective_attachment",
+        "independent_chain_of_command",
+        "controlled_information"
+      ],
+      "register": "Restrained, severe and economical. Duty defined by sealed Household interest; high authority without public explanation. First-person thoughts need not sound like directives. Avoid automatic fanatical belief, mindlessness or clone kinship.",
+      "provenance": "accepted_generated_fiction_style",
+      "source": "Accepted Dredd 2D / Dredd 3D directives, NCCE Faction biography styles"
+    },
+    "The Slag Eaters": {
+      "faction": "House Orlock",
+      "tags": [
+        "texan_road_gang",
+        "working_road_crew",
+        "rough_wit",
+        "truckers_and_outlaws"
+      ],
+      "register": "Texan-flavoured road-gang English: natural colloquial rhythm, dry humour, plain-speaking, road and iron vocabulary. Avoid phonetic caricature, forced yeehaws and identical accents.",
+      "provenance": "owner_editorial",
+      "source": "NCCE writing conversation, owner approval 2026-11-09; accepted Slag Eaters biographies"
+    },
+    "Geothermal Prospect Detail C-9": {
+      "faction": "Genestealer Cults",
+      "tags": [
+        "hereditary_deep_work",
+        "crew_before_assets",
+        "the_prospect",
+        "unregistered_surveys",
+        "shift_and_labour_idioms",
+        "shared_presence_when_known"
+      ],
+      "register": "C-NINE workers think through shifts, tunnels, survey marks, heat, breathing machinery, lost crew and the Prospect. Plain, practical, familial, understated; their emotions need not be bureaucratic. Administrative dossier / corrupted printout style applies to external RECORDS, not automatically to personal memories. Psychic communion/hidden truth must match personal awareness at the event.",
+      "provenance": "player_authored_canon",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "identity_scope": "gang",
+      "review_status": "approved"
+    },
+    "Kły Sprawiedliwości": {
+      "faction": "Palanite Enforcers",
+      "tags": [
+        "poison_sea_prefecture",
+        "black_red_orange_wolf_heraldry",
+        "rigid_discipline",
+        "procedural_enforcement",
+        "predatory_image"
+      ],
+      "register": "Precinct's public voice: clipped, rigid, militarised, wolf-pack pursuit symbolism and uncompromising procedure; the individual's own memory may question that. Keep Polish names and the source language's terms where appropriate. Public-facing records never reveal GM-only operational truth. Do not automatically equate this precinct with all Enforcers or with Helmawr Household Companions.",
+      "provenance": "player_authored_canon",
+      "source": "Player-authored Kły Sprawiedliwości GANG BACKSTORY in definitive Krakamunda gang Sheet; accepted Tomas dossier",
+      "review_status": "approved",
+      "restricted_guardrail": "Source has a separate GM-ONLY hidden-history section. Never expose its contents in gang-level or baseline fighter writing context unless explicit source establishes this fighter's awareness and access at the event."
+    },
+    "Peregrine's Due": {
+      "faction": "Independent",
+      "tags": [
+        "voidborne_trade",
+        "salvage_and_recovery",
+        "cold_trade_risks"
+      ],
+      "register": "Independent voidfaring salvage and trade, blunt port authority friction; individual crew have distinct backgrounds and must not inherit C-NINE brood thinking.",
+      "provenance": "player_authored_canon",
+      "source": "C-NINE fighter authored dossiers: Marcella Veyne, Harlon Rusk and ship's crew",
+      "review_status": "approved"
+    },
+    "Independent Medical Retainer": {
+      "faction": "Independent",
+      "tags": [],
+      "register": "No default personality; use the individual's actual authored medical/labour background, without inherited host-gang cult beliefs.",
+      "provenance": "source_separated_external_role",
+      "source": "C-NINE campaign narrative on Dr. Severin Krail",
+      "review_status": "approved"
+    }
+  },
+  "individuals": {
+    "Helmaeth Expeditionary Force::Horgar": {
+      "tags": [
+        "speculative_ambition",
+        "discoverer_credit"
+      ],
+      "register": "Would rather risk a new strike than take safe sorting wages; cares that the discoverer's name is recorded.",
+      "source": "Accepted Horgar sign-on, Queue row 90"
+    },
+    "Helmaeth Expeditionary Force::Dwalin": {
+      "tags": [
+        "hands_on_machine_judgement",
+        "crew_before_cargo"
+      ],
+      "register": "Machine operator listens to stressed plant; willing to cut loose valuable cargo to bring kin back.",
+      "source": "Accepted Dwalin sign-on, Queue row 91"
+    },
+    "Helmaeth Expeditionary Force::Snarn": {
+      "tags": [
+        "survey_precision",
+        "shared_kin_maps"
+      ],
+      "register": "Trusts soundings and maps more than assurances; wants routes recorded for the kin.",
+      "source": "Accepted Snarn sign-on, Queue row 92"
+    },
+    "Helmaeth Expeditionary Force::Bimbur": {
+      "tags": [
+        "apprentice_credit",
+        "hard_bargaining"
+      ],
+      "register": "Hard-headed Exo Master who insists junior labour gets named and paid, even at personal cost.",
+      "source": "Accepted Bimbur sign-on, Queue row 93"
+    },
+    "Helmaeth Expeditionary Force::Tofur": {
+      "tags": [
+        "independent_accountability",
+        "quiet_reliability"
+      ],
+      "register": "Dependable stores hand who wants to be judged and paid for work, without another kin vouching.",
+      "source": "Accepted Tofur sign-on, Queue row 94"
+    },
+    "Helmaeth Expeditionary Force::Dorin": {
+      "tags": [
+        "skeptical_questions",
+        "recorded_dissent"
+      ],
+      "register": "Questions instructions and who owns their consequences; maintains the right to record an objection, not to disregard an order.",
+      "source": "Accepted Dorin sign-on, Queue row 95"
+    },
+    "Helmaeth Expeditionary Force::Brokk": {
+      "tags": [
+        "measurement_integrity",
+        "refuses_false_certainty"
+      ],
+      "register": "Precise specialist; distinguishes sound measurement from guarantees about yield.",
+      "source": "Accepted Brokk sign-on, Queue row 96"
+    },
+    "Helmaeth Expeditionary Force::Dazor": {
+      "tags": [
+        "parley_before_battle",
+        "defends_claim_rights"
+      ],
+      "register": "Claim defender who wants authority to negotiate before risking a fight; not a pacifist or a claim adjudicator.",
+      "source": "Accepted Dazor sign-on, Queue row 99"
+    },
+    "Helmaeth Expeditionary Force::Thrain": {
+      "tags": [
+        "charter_master",
+        "claims_and_common_account"
+      ],
+      "register": "Leads the expedition and weighs opportunity against claim rights, crew shares and communal risk.",
+      "source": "Accepted Thrain charter, Queue row 103"
+    },
+    "Helmaeth Expeditionary Force::Brint": {
+      "tags": [
+        "battle_hardened_claim_guard",
+        "withdrawal_responsibility"
+      ],
+      "register": "Veteran Drill Master; remembers kin lost defending untenable seams; insists retreat and stand-fast orders carry responsibility.",
+      "source": "Accepted Brint sign-on, Queue row 105"
+    },
+    "Ethernetans 2.0::Gravittar Beta": {
+      "tags": [
+        "load_bearing_risk",
+        "generous_with_charge_packs",
+        "tracks_borrowed_equipment"
+      ],
+      "register": "Augmek who notices suspended loads, blast spread and who will stand beneath failing supports; shares equipment but wants exact returns.",
+      "source": "Accepted Gravittar Beta field record, Queue row 82"
+    },
+    "Ethernetans 2.0::Cyberachnid": {
+      "tags": [
+        "bio_mechanical_organism",
+        "vibration_sense",
+        "conditioned_handler_response",
+        "feeding_and_defense_drives"
+      ],
+      "register": "Nonhuman Cyberachnid: sensory, stimulus and learned handler cues only; DO NOT write human speech, first-person reflective language or inferred sentience.",
+      "source": "Accepted Cyberachnid equipment specification, Queue row 85"
+    },
+    "Ethernetans 2.0::Maex": {
+      "tags": [
+        "curious_salvager",
+        "tests_clearance_boundaries"
+      ],
+      "register": "Quick with repairs; curiosity about the next sealed mechanism exceeds assigned access.",
+      "source": "Accepted Maex personnel register, Queue row 84"
+    },
+    "Ethernetans 2.0::Sigmund": {
+      "tags": [
+        "private_exposure_records",
+        "distrusts_nominal_safety"
+      ],
+      "register": "Exacting Tek-hunter; notices symptoms dismissed by passing instrument readings; quietly keeps a second ledger.",
+      "source": "Accepted Sigmund reliability register, Queue row 86"
+    },
+    "Ethernetans 2.0::Larz Pulse": {
+      "tags": [
+        "fire_control_geometry",
+        "collateral_awareness"
+      ],
+      "register": "Practical field specialist; thinks in lines of fire, secondary effects and where a shot goes after impact.",
+      "source": "Accepted Larz Pulse fire-control record, Queue row 87"
+    },
+    "Ethernetans 2.0::Peter Apex": {
+      "tags": [
+        "restricted_archeotek_perspective",
+        "underhive_salvage_origin",
+        "humility_before_ancient_technology"
+      ],
+      "register": "Archeotek once valued devices for salvage; an exceptionally permitted partial view of ancient STC apparatus sharpened caution about what should be opened. Do NOT generalize this clearance.",
+      "source": "Accepted Peter Apex restricted record, Queue row 88"
+    },
+    "Helmaeth Expeditionary Force::Eliot Ness": {
+      "tags": [
+        "bonded_debt_service",
+        "insists_on_debt_reduction"
+      ],
+      "register": "Indebted Gelt-scrivener assigned to the Auditor; presses for service pay to reduce the ledger rather than roll into further charges.",
+      "source": "Approved Eliot Ness document, Queue row 107"
+    },
+    "Ethernetans 2.0::Dredd 2D": {
+      "tags": [
+        "sealed_household_duty",
+        "conditioned_guard",
+        "no_local_reassignment"
+      ],
+      "register": "Household protective attachment, conditioned for service; obeys sealed interests rather than Ethernetans' recovery priorities. Private beliefs remain unknown.",
+      "source": "Accepted Dredd 2D attachment directive, Queue row 80"
+    },
+    "Ethernetans 2.0::Dredd 3D": {
+      "tags": [
+        "independent_household_authority",
+        "sealed_service_particulars",
+        "no_local_reassignment"
+      ],
+      "register": "Household Companion who may act to protect sealed interests without technical officers' permission; personal motives and earlier service remain unknown.",
+      "source": "Accepted Dredd 3D attachment directive, Queue row 89"
+    },
+    "The Slag Eaters::John Bullet": {
+      "tags": [
+        "sharp_tongued",
+        "supplier_sceptic",
+        "trader_pragmatism"
+      ],
+      "register": "Suspicious ammo merchant; sly, practical, speaks of stock, faults, suppliers and prices."
+    },
+    "The Slag Eaters::Boomer": {
+      "tags": [
+        "impulsive",
+        "risk_taker",
+        "fast_conversational"
+      ],
+      "register": "Young hotshot; quicker and more animated, minimizes danger, never claims unrecorded heroics."
+    },
+    "The Slag Eaters::Eisen": {
+      "tags": [
+        "economical",
+        "commanding",
+        "methodical"
+      ],
+      "register": "Seasoned road captain; concise and authoritative; preparation rather than bravado."
+    },
+    "Geothermal Prospect Detail C-9::\"Foreman\" Jarek Voss": {
+      "tags": [
+        "crew_recovery",
+        "quiet_worksite_authority",
+        "the_prospect"
+      ],
+      "register": "Practical Foreman, values all Crew including restricted labourers; speaks plainly, guides without needless speeches. Not a generic cult preacher.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Garrick Voss": {
+      "tags": [
+        "survey_accuracy",
+        "unofficial_maps",
+        "calm_defiance"
+      ],
+      "register": "Survey engineer: charts matter because the ground is real; succinctly resists orders to falsify them.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Daven Holt, Who Heard": {
+      "tags": [
+        "former_compliance_foreman",
+        "joined_shared_awareness",
+        "recorded_status_conflict"
+      ],
+      "register": "Former outside official whose grasp of the Crew altered after the collapse; knowledge and mental access must be anchored to before/after that event.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Breaker B-01": {
+      "tags": [
+        "nonstandard_communication",
+        "heavy_excavation",
+        "accepted_as_crew"
+      ],
+      "register": "Aberrant heavy excavation worker and member of the Crew, safe around the Detail's children. Do not force articulate human speech or assume lack of feeling.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Hask Drenn": {
+      "tags": [
+        "protective_of_young_workers",
+        "shift_ends_when_all_return"
+      ],
+      "register": "Steadfast tunnel driller; won't leave assigned kin behind. Direct, workman's manner.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Ethmet Griz": {
+      "tags": [
+        "ventilation_and_airflow",
+        "future_occupancy"
+      ],
+      "register": "Thermal systems technician, tracks ducts, exchanger capacity and air supply to unauthorized future galleries. No contemporary condition leaked into earlier memory.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Labour Asset K-117": {
+      "tags": [
+        "silent_advance_prospecting",
+        "restricted_labour"
+      ],
+      "register": "Dependable advance scout, seldom complains or explains; do not automatically assign particular psychic knowledge or verbose speech.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Labour Asset R-204": {
+      "tags": [
+        "advance_route_finding",
+        "hazardous_descent"
+      ],
+      "register": "Advance prospecting specialist known to locate passages; how they know must not be asserted beyond established event knowledge.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Orik Sorn": {
+      "tags": [
+        "geological_worksite_instinct"
+      ],
+      "register": "Crewman attuned to unsafe stone; no specific prescient/psychic event may be invented.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Elias Renn": {
+      "tags": [
+        "survey_pegs",
+        "armed_survey_reassignment"
+      ],
+      "register": "Quiet survey technician familiar with private routes; later assigned armed escort after Toll Crossing. Preserve chronology.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Mara Kel": {
+      "tags": [
+        "maintenance_fitter",
+        "hands_on_service"
+      ],
+      "register": "Maintenance fitter: practical physical repair perspective. Later injury belongs only in sourced injury memories.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Veyl \"V-ROOK\" Rook": {
+      "tags": [
+        "perimeter_observer",
+        "quiet_long_range_watch"
+      ],
+      "register": "Advance survey labourer reassigned to perimeter observation; reserved watchfulness, not proof of unsourced kills.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Kły Sprawiedliwości::Tomas": {
+      "tags": [
+        "literal_warrant_checking",
+        "probationary_formality",
+        "reluctant_to_waive_procedure"
+      ],
+      "register": "Checkpoint recruit who checks permits even when an official's status would normally excuse inspection; official reprimands do not prove personal corruption.",
+      "source": "Accepted Tomas fighter biography, NCCE Queue row 71",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Kły Sprawiedliwości::Gaius \"Czarne Serce\"": {
+      "tags": [
+        "command_authority",
+        "publicly_uncompromising"
+      ],
+      "register": "Captain of the unit in public precinct chain of command. Do not reveal sealed investigative mission, underlying affiliation or motive without explicitly scoped character knowledge.",
+      "source": "Player-authored Kły Sprawiedliwości GANG BACKSTORY in definitive Krakamunda gang Sheet; accepted Tomas dossier",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Peregrine's Due::Lady Marcella Veyne": {
+      "tags": [
+        "commercial_fixer",
+        "disputed_charter"
+      ],
+      "register": "Independent salvage broker, polished and commercially calculating; not C-NINE kin.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Peregrine's Due::Harlon \"Mr. Rusk\" Rusk": {
+      "tags": [
+        "voidmaster",
+        "hard_nosed_crew_boss"
+      ],
+      "register": "Gruff experienced bosun, wary of C-NINE personnel, accustomed to crews, dock gangs and cargo.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Peregrine's Due::Kharak \"Karr\"": {
+      "tags": [
+        "kroot_scout",
+        "xenos_interpreter"
+      ],
+      "register": "Kroot tracker and mercenary; do not write as an ordinary human or invent psychic knowledge.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Peregrine's Due::Grubnak \"Eight-Teef\"": {
+      "tags": [
+        "ork_freebooter",
+        "boarding_specialist"
+      ],
+      "register": "Ork freebooter with documented Low Gothic and payment in weapons; preserve authentic nonhuman perspective, not generic Road Crew voice.",
+      "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    }
+  },
+  "attachments": {
+    "Helmaeth Expeditionary Force::Frank J. WIlson": [
+      "House Ran Lo",
+      "Auditing Conclave"
+    ],
+    "Helmaeth Expeditionary Force::Eliot Ness": [
+      "House Ran Lo",
+      "Auditing Conclave"
+    ],
+    "Helmaeth Expeditionary Force::Bop": [
+      "",
+      "Independent Hired Gun"
+    ],
+    "Helmaeth Expeditionary Force::Alrik III": [
+      "",
+      "Independent Prospecting Retainer"
+    ],
+    "Ethernetans 2.0::Dredd 2D": [
+      "House Helmawr",
+      "Palanite Household Companions"
+    ],
+    "Ethernetans 2.0::Dredd 3D": [
+      "House Helmawr",
+      "Palanite Household Companions"
+    ],
+    "Geothermal Prospect Detail C-9::Harlon \"Mr. Rusk\" Rusk": [
+      "Independent",
+      "Peregrine's Due"
+    ],
+    "Geothermal Prospect Detail C-9::Lady Marcella Veyne": [
+      "Independent",
+      "Peregrine's Due"
+    ],
+    "Geothermal Prospect Detail C-9::Kharak \"Karr\"": [
+      "Independent",
+      "Peregrine's Due"
+    ],
+    "Geothermal Prospect Detail C-9::Grubnak \"Eight-Teef\"": [
+      "Independent",
+      "Peregrine's Due"
+    ],
+    "Geothermal Prospect Detail C-9::Dr. Severin Krail, Penal Chirurgeon": [
+      "Independent",
+      "Independent Medical Retainer"
+    ]
+  },
+  "aliases": {
+    "THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]": "Geothermal Prospect Detail C-9",
+    "THE C-NINE +++ GEOTHERMAL PROSPECT DETAIL C-9": "Geothermal Prospect Detail C-9",
+    "C-NINE": "Geothermal Prospect Detail C-9"
+  },
+  "excluded_gangs": [
+    "Patrol do spraw alkoholu i broni"
+  ],
+  "onboarding": {
+    "registration_state": "pending_editorial",
+    "required": [
+      "name",
+      "faction",
+      "source"
+    ],
+    "approval_rule": "Only an explicitly approved profile contributes gang-specific tags or register. Unknown/new gangs receive faction-level factual lens and empty gang/individual stylistic tags.",
+    "documentation": "docs/VOICE_REGISTRY.md"
+  }
+}
