@@ -78,6 +78,29 @@ class VoiceProposalTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,"Source changed"):
    review(self.store,p["proposal_key"],p["source_hash"],"approved",["survey_and_routes"],"Old voice")
 
+ def test_pending_source_modified_without_rescan_is_rejected(self):
+  self.store.gang("orlock","The Slag Eaters","House Orlock")
+  self.store.fighter(12,"orlock","Clerk","He keeps a careful record of cargo fees and shipments.")
+  scan(self.store)
+  p=proposals(self.store,"pending")[0]
+  self.store.edit_fighter_bio(12,"New wording: the clerk now repairs broken equipment.")
+  with self.assertRaisesRegex(ValueError,"Authored source changed"):
+   review(self.store,p["proposal_key"],p["source_hash"],"approved",
+          ["trade_and_debt"],"Based on stale fees.")
+
+ def test_changed_source_cannot_keep_active_profile_before_rescan(self):
+  self.store.gang("orlock","The Slag Eaters","House Orlock")
+  self.store.fighter(13,"orlock","Watcher","He maps tunnels and watches for hidden routes.")
+  scan(self.store)
+  p=proposals(self.store,"pending")[0]
+  review(self.store,p["proposal_key"],p["source_hash"],"approved",
+         ["survey_and_routes"],"Route-conscious watcher.")
+  v=build_voice_layers({"gang":"The Slag Eaters","subject_name":"Watcher"})
+  self.assertEqual(apply_approved(self.store,v,"orlock",13)["individual"]["tags"],["survey_and_routes"])
+  self.store.edit_fighter_bio(13,"He repairs machinery and checks each damaged component.")
+  fresh=build_voice_layers({"gang":"The Slag Eaters","subject_name":"Watcher"})
+  self.assertEqual(apply_approved(self.store,fresh,"orlock",13)["individual"]["tags"],[])
+
  def test_new_patrol_gang_stays_neutral_until_approved(self):
   text="The precinct's checks focus on transit warrants and the handling of confiscated cargo."
   self.store.gang("patrol","Patrol do spraw alkoholu i broni","Palanite Enforcers",text)
