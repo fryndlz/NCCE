@@ -1,0 +1,31 @@
+name: NCCE voice registry
+on:
+  push:
+    paths:
+      - 'config/voice_registry.v1.json'
+      - 'src/voice_layers.py'
+      - 'scripts/voice_registry_cli.py'
+      - 'tests/test_voice_layers.py'
+      - 'tests/test_voice_packets.py'
+      - '.github/workflows/voice-registry-tests.yml'
+  pull_request:
+    paths:
+      - 'config/voice_registry.v1.json'
+      - 'src/voice_layers.py'
+      - 'scripts/voice_registry_cli.py'
+      - 'tests/test_voice_layers.py'
+      - 'tests/test_voice_packets.py'
+      - '.github/workflows/voice-registry-tests.yml'
+
+jobs:
+  voice-profile-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate source registry and run voice tests
+        run: |
+          python scripts/voice_registry_cli.py validate
+          python -m unittest discover -s tests -p 'test_voice_*.py' -v

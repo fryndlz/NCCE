@@ -1,5 +1,11 @@
 # NCCE 0.28.11 — current technical design
 
+
+## Unreleased — versioned layered memory voices
+
+A source-separated JSON registry (`config/voice_registry.v1.json`) resolves a character's recorded faction, authored gang culture and supported individual lens for *newly prepared* fighter biography/memory/reflection/Mind writing packets. Onboarding is staged, source-cited and approval-gated via `scripts/voice_registry_cli.py`. C-NINE and Kły public lore add distinct profiles without leaking the latter's GM-only account; the Patrol is excluded pending its own approved lore. Externally attached House Helmawr, Ran Lo and Peregrine's Due personnel do not inherit host-gang cultures. Nonhuman profiles retain sensory/cognitive boundaries; later C-NINE revelations are not timeless tags. Prose/chronology/roster/source revision/import receipts and existing WRITING/READY/IMPORTED queue rows are untouched. See [Voice registry](VOICE_REGISTRY.md) and [canonical identity rules](WRITER_IDENTITY_TAGS.md). Registry/packet unit tests run in GitHub Actions; deployment remains separate.
+
+
 ## 0.28.11 — Fighter Mind feed
 
 All fighter records use the sticky Mind header. The dossier provides its initial
