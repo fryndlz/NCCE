@@ -108,7 +108,7 @@ class VoiceLayersTest(unittest.TestCase):
         })
         self.assertEqual(v["gang"]["name"], "Geothermal Prospect Detail C-9")
         self.assertIn("unofficial_maps", v["individual"]["tags"])
-        self.assertIn("voice", v["purpose"])
+        self.assertEqual(v["purpose"], "writer_style_guidance_only")
         self.assertNotIn("texan_road_gang", v["gang"]["tags"])
 
     def test_kly_public_profile_does_not_leak_gm_secret(self):
