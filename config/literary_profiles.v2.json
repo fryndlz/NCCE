@@ -1,0 +1,212 @@
+{
+  "schema_version": 2,
+  "policy_version": "2.1.0",
+  "source_packet": "ncce-prose-portability-v2.0.0.zip (owner-authored decisions; original exemplars)",
+  "owner_authority": "Owner's latest explicit scoped instruction; mechanics and authored canon must not be silently contradicted.",
+  "form_overrides": {
+    "fighter_biography": {
+      "target_characters": [
+        1900,
+        2000
+      ],
+      "hard_max_characters": 2300,
+      "count_includes_markdown": true,
+      "applies_to": "new prose only; no retrospective edit of accepted examples",
+      "genre": "third-person authored baseline or fitting institutional document"
+    },
+    "fighter_memory": {
+      "target_characters": [
+        350,
+        400
+      ],
+      "hard_max_characters": null,
+      "count_includes_markdown": true,
+      "applies_to": "new prose only; flexible evidence-bound target"
+    },
+    "fighter_reflection": {
+      "target_words": [
+        60,
+        130
+      ]
+    },
+    "fighter_mind": {
+      "target_words": [
+        12,
+        40
+      ]
+    }
+  },
+  "universal_craft": [
+    "Evidence and chronology come before style. Distinguish documented character knowledge at event time, intended audience, and genre in that order.",
+    "Person over fighter card: choose a specific formative choice, work habit, competing obligation or institutional response; no equipment-list characterisation.",
+    "Connected sentences and concrete consequences; no trailer fragments, cryptic metaphors, robotic three-line reveals, generic grimdark or compulsory punchline.",
+    "Diegetic document identifiers, seals and historical dates may appear when a real in-world document calls for them; never duplicate app-rendered system IDs, dates or source revisions.",
+    "Faction is a shared culture/rule-set, not a gang personality. Two player gangs of the same faction do not inherit each other's local voices.",
+    "Exemplars are illustrative, non-exhaustive literary evidence, never reusable templates or facts about another subject.",
+    "Nonhuman minds and external attachments do not inherit human worker interiority or hosting-gang identity."
+  ],
+  "faction_profiles": {
+    "Palanite Enforcers": {
+      "frame": "Imperial enforcement and Palanite institutions; neither Kły's pack culture nor Patrol's future local history is universal.",
+      "source": "Portable skill references/palanites.md and NCCE voice registry"
+    },
+    "House Orlock": {
+      "frame": "House of Iron road crews and transport trade; do not prescribe Slag Eaters diction to unrelated Orlock gangs.",
+      "source": "Portable skill references/slag-eaters.md"
+    },
+    "House Van Saar": {
+      "frame": "Technical clan expertise, scarcity, radiation burden and restricted access, not generic technology jargon.",
+      "source": "Portable skill references/van-saar.md"
+    },
+    "Ironhead Squat Prospectors": {
+      "frame": "Independent acquisitive armed claim-holders, kin, great charters and practical dangerous technology.",
+      "source": "Portable skill references/helmaeth.md"
+    },
+    "Genestealer Cults": {
+      "frame": "Biological and kinship context only when a character is aware; no omniscient cult knowledge.",
+      "source": "Portable skill references/c-nine.md"
+    }
+  },
+  "gang_profiles": {
+    "Geothermal Prospect Detail C-9": {
+      "source": "references/c-nine.md; C-NINE canonical authored narrative",
+      "institutional_record": "Labour Administratum dossier: purposeful codes, redactions, inconsistent ledgers, credible material discrepancies, restrained implication; bureaucracy reports its own priorities.",
+      "personal_voice": "Plain deep-work labour Crew, shared routines, fatigue, responsibility; close-third or direct personal thought rather than mandatory cogitator terminology.",
+      "disclosure": "Author's specific knowledge at event time first; audience/genre determine disclosure. Do not reveal secrets merely from faction classification.",
+      "document_genres": [
+        "industrial personnel dossier",
+        "incident appendix",
+        "intimate scene",
+        "worksite recollection"
+      ]
+    },
+    "The Slag Eaters": {
+      "source": "references/slag-eaters.md; Queue L39 L47",
+      "register": "Orlock hauler/road-crew idiom, workshop pragmatism and dry humour. Spoken contractions sparingly, not every fighter forced into parody dialect.",
+      "documents": "Road-cap file, dispatch, workshop margin note, hire/beast handling as purpose warrants. No compulsory addendum punchline.",
+      "document_genres": [
+        "road crew file",
+        "dispatch",
+        "workshop remark",
+        "personal memory"
+      ]
+    },
+    "Kły Sprawiedliwości": {
+      "source": "references/palanites.md; Queue L71",
+      "upper_authority": "Report to superiors makes credible effort at formal professional terminology; pack loyalty and pursuit mentality reveal themselves in decisions.",
+      "internal": "Operations and between-officer speech is human, direct, pack-minded; fighter personalities still vary. No robotic permanent cogitator register.",
+      "secrecy": "Never expose GM-only gang backstory without documented awareness.",
+      "document_genres": [
+        "precinct command record",
+        "superior-facing report",
+        "operational order",
+        "private officer memory"
+      ]
+    },
+    "Ethernetans 2.0": {
+      "source": "references/van-saar.md; Queue L84 L88",
+      "register": "Specific field engineering, Tek-Nik-El restricted knowledge, radiation and maintenance consequences; never generic fake techno-poetry.",
+      "documents": "Induction, recovery report, field workshop, Archeotek restriction, cyberachnid equipment sheet as appropriate; unique knowledge cannot be generalized.",
+      "document_genres": [
+        "technical induction",
+        "recovery memo",
+        "restricted access record",
+        "personal memory"
+      ]
+    },
+    "Helmaeth Expeditionary Force": {
+      "source": "references/helmaeth.md; Queue L91 L103",
+      "register": "Prospector ambition, hard bargaining, mining, defended claim, kin inheritance, willingness to risk for reward; not modern compliance office or fantasy dwarf caricature.",
+      "documents": "Actual role-specific charter, retainer, equipment custody, kin witnessing only where warranted; no mandatory ancestor consultation or four-section template.",
+      "document_genres": [
+        "charter roll",
+        "independent retainer",
+        "equipment custody",
+        "personal recollection"
+      ]
+    }
+  },
+  "excluded_gang_defaults": [
+    "Patrol do spraw alkoholu i broni"
+  ],
+  "example_library": [
+    {
+      "id": "slag-eisen",
+      "gang": "The Slag Eaters",
+      "form": "fighter_biography",
+      "source": "NCCE Writing Exchange Queue!L39",
+      "status": "IMPORTED; individual editorial approval not separately established",
+      "snippet": "A dry gun, according to Eisen, is just poor plannin' with louder consequences.",
+      "technique": "Character voice through pragmatism and job competence; not a standard tagline."
+    },
+    {
+      "id": "slag-gregg",
+      "gang": "The Slag Eaters",
+      "form": "fighter_biography",
+      "source": "NCCE Writing Exchange Queue!L47",
+      "status": "IMPORTED; approval not separately established",
+      "snippet": "He ain't loud unless there's a reason to be.",
+      "technique": "Shows restraint and crew authority through concrete relationships."
+    },
+    {
+      "id": "kly-tomas",
+      "gang": "Kły Sprawiedliwości",
+      "form": "fighter_biography",
+      "source": "NCCE Writing Exchange Queue!L71",
+      "status": "IMPORTED; previously treated as accepted writing reference",
+      "snippet": "The warrant was subsequently found to be invalid, but the delay was deemed a metric deficit.",
+      "technique": "Institutional absurdity through administrative judgment, not authorial explanation."
+    },
+    {
+      "id": "van-maex",
+      "gang": "Ethernetans 2.0",
+      "form": "fighter_biography",
+      "source": "NCCE Writing Exchange Queue!L84",
+      "status": "IMPORTED; cited as accepted in Faction biography styles",
+      "snippet": "Maex is quick with a faulty regulator and slow to accept that repairing a device does not confer permission to understand it.",
+      "technique": "Technical competence and curiosity in conflict with clearance boundaries."
+    },
+    {
+      "id": "hel-dwalin",
+      "gang": "Helmaeth Expeditionary Force",
+      "form": "fighter_biography",
+      "source": "NCCE Writing Exchange Queue!L91",
+      "status": "IMPORTED; cited as accepted in Faction biography styles",
+      "snippet": "Dwalin has demanded written authority to abandon cargo or sever a working cable when continued recovery imperils the crew.",
+      "technique": "Meaningful, specific kin-and-material risk in charter language."
+    },
+    {
+      "id": "hel-thrain",
+      "gang": "Helmaeth Expeditionary Force",
+      "form": "fighter_biography",
+      "source": "NCCE Writing Exchange Queue!L103",
+      "status": "IMPORTED; owner-approval explicitly noted in Faction biography styles",
+      "snippet": "No creditor may recover an expedition debt from an individual kin's wages without a separate obligation.",
+      "technique": "Power and fairness expressed as charter rights and stakes."
+    },
+    {
+      "id": "c9-jarek",
+      "gang": "Geothermal Prospect Detail C-9",
+      "form": "fighter_biography",
+      "source": "Krakamunda C-NINE Jarek Voss Backstory",
+      "status": "PLAYER-AUTHORED CANON, not a mandated document template",
+      "snippet": "Continuation of the Prospect.",
+      "technique": "Omission and bureaucratic irregularity carry the dread."
+    },
+    {
+      "id": "c9-prospect",
+      "gang": "Geothermal Prospect Detail C-9",
+      "form": "campaign_story",
+      "source": "C-NINE canonical story The Prospect",
+      "status": "PLAYER-AUTHORED CANON excerpt",
+      "snippet": "He's Crew.",
+      "technique": "Intimate emotional recognition without an archival narrator."
+    }
+  ],
+  "policy_boundaries": {
+    "biography_chars": "Count full Markdown character length. Target 1900-2000 inclusive; >2300 fails hard. Existing imported examples at different lengths preserved.",
+    "faction_vs_gang": "Palanite Enforcers is faction; Kły and Patrol are distinct gangs. Do not infer Patrol's voice from Kły.",
+    "knowledge": "Character documented knowledge at event time takes precedence; then audience, then genre. Literary pattern cannot override chronology.",
+    "new_category": "Unknown prose forms fall back to existing runtime restrictions; owner refinements are scoped and versioned, not guessed."
+  }
+}
