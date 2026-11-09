@@ -18,6 +18,16 @@ from test_voice_packets import StoreStub, request_for
 
 
 class PortableLiteraryTests(unittest.TestCase):
+    def test_process_page_explains_real_identity_and_deployment_boundary(self):
+        page=(ROOT/"web/writing-process.html").read_text(encoding="utf-8")
+        self.assertIn("Palanite Enforcers",page)
+        self.assertIn("Kły Sprawiedliwości",page)
+        self.assertIn("Patrol do spraw alkoholu i broni",page)
+        self.assertIn("Other prose forms",page)
+        self.assertIn("Render deployment is not yet verified",page)
+        self.assertIn("/api/portable-writing-packet.zip",page)
+        self.assertNotIn("Gang Biography</strong><p>1,900",page)
+
     def test_form_specific_lengths_and_hard_cap(self):
         self.assertTrue(measure_prose("fighter_biography","a"*2000)["hard_limit_ok"])
         self.assertEqual(measure_prose("fighter_biography","x"*2300)["status"],"outside_target_review")
