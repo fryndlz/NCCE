@@ -66,7 +66,7 @@ def safe_source(value):
  for marker in SKIP_SECTIONS:
   found = re.search(marker, text, flags=re.I)
   if found: text = text[:found.start()]
- return text[:15000].strip()
+ return text.strip()
 
 
 def source_hash(text):
@@ -75,7 +75,7 @@ def source_hash(text):
 
 def excerpt_and_tags(text):
  # Short, exact readable evidence span, rather than invented psychological summary.
- paragraphs = [re.sub(r"\s+", " ", p).strip() for p in re.split(r"\n\s*\n",text) if p.strip()]
+ paragraphs = [re.sub(r"\s+", " ", p).strip() for p in re.split(r"\n\s*\n",text[:20000]) if p.strip()]
  paragraphs = [p for p in paragraphs if not p.startswith(("+++","[","**")) and len(p) >= 35] or paragraphs
  if not paragraphs:return "",[]
  ranked = []
@@ -110,13 +110,16 @@ def _accepted_bio(store, fid):
 
 def _put(store,key,kind,gid,fid,name,host,faction,source,source_kind):
  source=safe_source(source)
- h=source_hash(source) if source else ""
+ h=source_hash(source_kind+"\n"+source) if source else ""
  quote,tags=excerpt_and_tags(source)
  status="pending" if quote else "awaiting_source"
  # Explicit citation gives reviewers exactly the authored source, not an invented event.
  hint=("Evidence excerpt (not an inferred personality): "+quote) if quote else ""
  old=store.db.execute("SELECT source_hash,status FROM voice_proposals WHERE proposal_key=?",(key,)).fetchone()
- if old and old["source_hash"]==h:return False
+ if old and old["source_hash"]==h:
+  store.db.execute("UPDATE voice_proposals SET name=?,host_name=?,faction=?,source_kind=? WHERE proposal_key=?",
+   (name,host,faction,source_kind,key))
+  return False
  if old:
   store.db.execute("""UPDATE voice_proposals SET name=?,host_name=?,faction=?,source_kind=?,
    source_hash=?,source_excerpt=?,proposed_tags_json=?,proposed_register=?,status=?,
