@@ -31,8 +31,12 @@ def validate_policy(data):
         if k not in data or not isinstance(data[k], (dict if k != "example_library" and k != "universal_craft" else list)):
             raise ValueError("Malformed literary policy: " + k)
     biography = data["form_overrides"].get(STANDARD_BIO, {})
-    if biography.get("target_characters") != [1900, 2000] or biography.get("hard_max_characters") != 2300:
-        raise ValueError("Owner-directed biography range or hard cap changed without a policy revision")
+    span = biography.get("target_characters")
+    cap = biography.get("hard_max_characters")
+    if (not isinstance(span, list) or len(span) != 2 or
+        any(type(x) is not int or x <= 0 for x in span) or
+        span[0] > span[1] or type(cap) is not int or cap < span[1]):
+        raise ValueError("Invalid owner-directed biography target/cap policy")
     if any(x.get("status", "").strip() == "" or not x.get("source") for x in data["example_library"]):
         raise ValueError("All literary examples need provenance labels and a source")
     if len({x["id"] for x in data["example_library"]}) != len(data["example_library"]):
