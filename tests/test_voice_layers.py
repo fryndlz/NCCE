@@ -26,6 +26,67 @@ class VoiceLayersTest(unittest.TestCase):
         self.assertEqual(result["gang"]["tags"], [])
         self.assertEqual(result["individual"]["tags"], [])
 
+    def test_helmaeth_profile_keeps_individuals_distinct(self):
+        base = {"gang": "Helmaeth Expeditionary Force",
+                "affiliation": "Ironhead Squat Prospectors"}
+        horgar = build_voice_layers({**base, "subject_name": "Horgar"})
+        brint = build_voice_layers({**base, "subject_name": "Brint"})
+        self.assertIn("ancestral_charters", horgar["faction"]["tags"])
+        self.assertIn("helmaeth_kin", brint["gang"]["tags"])
+        self.assertNotEqual(horgar["individual"]["tags"], brint["individual"]["tags"])
+        self.assertEqual(brint["individual"]["provenance"], "accepted_biography_voice_inference")
+
+    def test_ethernetans_profile_respects_rare_archeotek_clearance(self):
+        base = {"gang": "Ethernetans 2.0", "affiliation": "House Van Saar"}
+        maex = build_voice_layers({**base, "subject_name": "Maex"})
+        apex = build_voice_layers({**base, "subject_name": "Peter Apex"})
+        self.assertEqual(maex["gang"]["tags"], apex["gang"]["tags"])
+        self.assertNotIn("restricted_archeotek_perspective", maex["individual"]["tags"])
+        self.assertIn("restricted_archeotek_perspective", apex["individual"]["tags"])
+
+    def test_palanite_attachment_not_van_saar_voice(self):
+        base = {"gang": "Ethernetans 2.0", "affiliation": "House Van Saar",
+                "inferred_identity": [{"label": "Recorded role", "value": "Champion",
+                                       "source": "mechanical_fact"}]}
+        for name in ("Dredd 2D", "Dredd 3D"):
+            with self.subTest(name=name):
+                voice = build_voice_layers({**base, "subject_name": name})
+                self.assertEqual(voice["faction"]["name"], "House Helmawr")
+                self.assertEqual(voice["gang"]["name"], "Palanite Household Companions")
+                self.assertEqual(voice["gang"]["host_gang"], "Ethernetans 2.0")
+                self.assertIn("sealed_household_orders", voice["gang"]["tags"])
+                self.assertEqual(voice["individual"]["role"], "Champion")
+                self.assertNotIn("clearance_conflict", voice["gang"]["tags"])
+
+    def test_allied_and_hired_fighters_do_not_inherit_squat_kin_voice(self):
+        base = {"gang": "Helmaeth Expeditionary Force", "affiliation": "Ironhead Squat Prospectors"}
+        for name in ("Frank J. WIlson", "Eliot Ness"):
+            with self.subTest(name=name):
+                v = build_voice_layers({**base, "subject_name": name})
+                self.assertEqual(v["faction"]["name"], "House Ran Lo")
+                self.assertEqual(v["gang"]["name"], "Auditing Conclave")
+                self.assertEqual(v["gang"]["host_gang"], "Helmaeth Expeditionary Force")
+                self.assertNotIn("helmaeth_kin", v["gang"]["tags"])
+        for name in ("Bop", "Alrik III"):
+            with self.subTest(name=name):
+                v = build_voice_layers({**base, "subject_name": name})
+                self.assertEqual(v["faction"]["name"], "")
+                self.assertEqual(v["gang"]["tags"], [])
+                self.assertNotIn("helmaeth_kin", v["gang"]["tags"])
+
+    def test_cyberachnid_is_profiled_nonhuman_without_human_voice(self):
+        v = build_voice_layers({"gang": "Ethernetans 2.0", "affiliation": "House Van Saar",
+                                "subject_name": "Cyberachnid"})
+        self.assertIn("bio_mechanical_organism", v["individual"]["tags"])
+        self.assertIn("DO NOT write human speech", v["individual"]["register"])
+
+    def test_unprofiled_ethernetans_fighter_gets_gang_not_personality(self):
+        voice = build_voice_layers({"gang": "Ethernetans 2.0",
+                                    "affiliation": "House Van Saar",
+                                    "subject_name": "Unknown Tek-hunter"})
+        self.assertIn("field_tech_detail", voice["gang"]["tags"])
+        self.assertEqual(voice["individual"]["tags"], [])
+
     def test_no_identity_guessed_from_name(self):
         result = build_voice_layers({"subject_name": "Boomer"})
         self.assertEqual(result["individual"]["tags"], [])
