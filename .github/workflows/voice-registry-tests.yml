@@ -6,6 +6,7 @@ on:
       - 'src/voice_layers.py'
       - 'scripts/voice_registry_cli.py'
       - 'tests/test_voice_layers.py'
+      - 'tests/test_voice_packets.py'
       - '.github/workflows/voice-registry-tests.yml'
   pull_request:
     paths:
@@ -13,6 +14,7 @@ on:
       - 'src/voice_layers.py'
       - 'scripts/voice_registry_cli.py'
       - 'tests/test_voice_layers.py'
+      - 'tests/test_voice_packets.py'
       - '.github/workflows/voice-registry-tests.yml'
 
 jobs:
@@ -26,4 +28,4 @@ jobs:
       - name: Validate source registry and run voice tests
         run: |
           python scripts/voice_registry_cli.py validate
-          python -m unittest discover -s tests -p 'test_voice_layers.py' -v
+          python -m unittest discover -s tests -p 'test_voice_*.py' -v
