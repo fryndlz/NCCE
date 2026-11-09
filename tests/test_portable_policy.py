@@ -71,6 +71,14 @@ class PortableLiteraryTests(unittest.TestCase):
         self.assertIn("redactions",value["gang"]["profile"]["institutional_record"])
         self.assertIn("dossier",value["gang"]["profile"]["document_genres"][0])
 
+    def test_live_post_battle_addendum_has_explicit_safe_form_contract(self):
+        from writer_contract import BRIEFS, contract
+        self.assertIn("post_battle_addendum",BRIEFS)
+        self.assertIn("one recorded engagement",BRIEFS["post_battle_addendum"])
+        self.assertIn("REQUESTED FORM: post_battle_addendum",contract("post_battle_addendum"))
+        resolved=resolve_literary_policy("post_battle_addendum")
+        self.assertNotIn("hard_max_characters",resolved["form_rules"])
+
     def test_unknown_category_is_safe_general_fallback(self):
         other=resolve_literary_policy("new_category_not_yet_reviewed")
         self.assertTrue(other["unlisted_form"])
