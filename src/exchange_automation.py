@@ -142,9 +142,25 @@ def _packet(store,c,rid):
     # Only new sealed packets receive it; in-flight requests retain their frozen context.
     if c['entity_type']=='fighter' and c['form'] in ('fighter_biography','fighter_memory','fighter_reflection','fighter_mind'):
         from voice_layers import build_voice_layers
-        layers=build_voice_layers(c['context'])
+        # Some older/baseline writer contexts do not carry the roster's gang and
+        # House names. Add identity-only fallback without copying current injury,
+        # weapon, promotion or status into a past event's narrative context.
+        profile_context=dict(c['context'])
+        fighter_row=store.db.execute(
+            'SELECT f.name AS fighter_name, f.gang_name AS host_name, '
+            'g.name AS roster_gang, g.gang_type AS roster_faction '
+            'FROM fighters f LEFT JOIN gangs g ON g.gang_id=f.gang_id '
+            'WHERE f.id=?',(c['entity_key'],)).fetchone()
+        if fighter_row:
+            if not profile_context.get('subject_name'):
+                profile_context['subject_name']=fighter_row['fighter_name']
+            if not profile_context.get('gang'):
+                profile_context['gang']=fighter_row['roster_gang'] or fighter_row['host_name']
+            if not profile_context.get('affiliation') and not profile_context.get('faction'):
+                profile_context['affiliation']=fighter_row['roster_faction']
+        layers=build_voice_layers(profile_context)
         context.append(dict(section='voice_layers',provenance='style_guidance',
-            source_ref='NCCE voice_layers v1; owner-approved gang style and accepted biographies',
+            source_ref='NCCE validated versioned voice registry; editorial layer, never event evidence',
             event_at_utc='',source_event_ids='',text=packed(layers)))
     # Current Sheet/canon biography is a voice lens, never a replay of old events.
     confirmed=c['facts'].get('confirmed_territory_history',[]) if isinstance(c['facts'],dict) else []
