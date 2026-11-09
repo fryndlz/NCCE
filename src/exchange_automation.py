@@ -398,12 +398,14 @@ def prospective_biography_length_error(request, markdown):
     policy=next((load(x['text']) for x in blocks if x.get('section')=='literary_policy'),None)
     if not isinstance(policy,dict):
         return ''
-    if policy.get('literary_version')!='2.1.0':
+    # Cap is carried by the SEALED request, not the current mutable policy.
+    # Later owner decisions cannot retroactively change an in-flight draft.
+    if not policy.get('literary_version') or policy.get('form')!='fighter_biography':
         return ''
-    from literary_policy import measure_prose
-    outcome=measure_prose('fighter_biography',markdown)
-    if not outcome['hard_limit_ok']:
-        return ('Fighter biography exceeds the owner-approved 2,300-character hard cap '
+    rule=policy.get('form_rules') or {}
+    cap=rule.get('hard_max_characters')
+    if type(cap) is int and len(markdown)>cap:
+        return (f'Fighter biography exceeds the owner-approved {cap:,}-character hard cap '
                 '(including Markdown); save draft for editorial revision, do not publish')
     return ''
 
