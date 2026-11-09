@@ -26,7 +26,7 @@ class PortableLiteraryTests(unittest.TestCase):
     def test_distinct_palanite_gangs_never_share_local_register(self):
         kly=resolve_literary_policy("fighter_biography",gang="Kły Sprawiedliwości",faction="Palanite Enforcers")
         patrol=resolve_literary_policy("fighter_biography",gang="Patrol do spraw alkoholu i broni",faction="Palanite Enforcers")
-        self.assertIn("wolf-pack", kly["gang"]["profile"]["upper_authority"])
+        self.assertIn("pack loyalty", kly["gang"]["profile"]["upper_authority"])
         self.assertIsNone(patrol["gang"]["profile"])
         self.assertIsNotNone(patrol["faction"]["profile"])
 
