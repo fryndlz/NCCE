@@ -229,3 +229,15 @@ Memory prose target while establishing the new format: about **350–400 charact
 
 For each new entry, show reviewers the sourced cause, recorded role/status, cited observation/event IDs or explicit baseline absence, approved personal continuity, and mark connective fictional details separately. Do not stamp dialect onto non-verbal minds; do not assign a voice profile solely from a fighter's name or roster category.
 
+
+
+### Runtime registry, C-NINE, Kły and new-gang onboarding (9 Nov 2026)
+
+The authoritative machine-readable policy is now `config/voice_registry.v1.json`, loaded by `src/voice_layers.py`. It contains separate sourced faction, gang and individual profiles; named external attachments; canonical name aliases; a review status; and an explicit excluded/pending list. `docs/VOICE_REGISTRY.md` gives full tag and provenance policy and the review checklist. A new gang can be registered with `scripts/voice_registry_cli.py` (pending, neutral), approved after source review, then given character-specific cues without modifying the Python resolver. A registry edit does not authorize regeneration of an already approved or in-progress entry. The writer receives only resolved, source-labelled voice guidance.
+
+**C-NINE — Geothermal Prospect Detail C-9.** The player-authored C-NINE story *The Prospect*, gang Backstory and individual fighter Backstories are canonical. Faction Genestealer Cults is a mechanical classification, not an omniscient voice: different characters may know different things before/after the Prospect. Gang language is shared worksite pragmatism, hereditary Crew identity, heat, tunnels, air, surveys, delayed evacuations and the Prospect. An Administratum/industrial dossier is the correct voice for C-NINE records, not necessarily for first-person memories. Individual notes include Jarek Voss, Garrick, Daven Holt, Breaker B-01, K-117, R-204, Mara Kel and other directly documented workers; nonhuman minds never become generic workers. Marcella Veyne, Harlon Rusk, Karr, Grubnak and Dr Krail have **external** identities and do not automatically share the brood's interior life. Do not infer psychic awareness or private access from gang affiliation.
+
+**Kły Sprawiedliwości.** Its player-authored gang Backstory explicitly separates a public Poison Sea Prefecture policing/discipline account from a GM-only secret. Source-backed public styling includes wolf-pack heraldry, black/red armour, orange visors, strict procedure and ruthless threat posture; these do not prove every rookie's convictions. The hidden account must NEVER enter undifferentiated fighter-memory prompts. Tomas's approved dossier supports a particular literal-minded checkpoint inspection voice. Kły is a different precinct culture from `Patrol do spraw alkoholu i broni`; the two must not inherit one another's gang style.
+
+**Patrol do spraw alkoholu i broni.** Current excluded/pending profile; basic mechanical faction can still be recorded, but it receives no inferred gang voice, inherited Kły doctrine or personal personality until the owner supplies and approves its own gang lore. Registration and approval are separate auditable stages.
+
