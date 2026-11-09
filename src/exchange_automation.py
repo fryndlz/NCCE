@@ -380,6 +380,34 @@ def _write(store,c,text,rid):
         store.db.execute('UPDATE '+table+' SET document_json=? WHERE '+where,(packed(doc),*c['key']))
 
 
+def prospective_biography_length_error(request, markdown):
+    """Enforce hard cap for only NEW packets carrying the v2 literary policy.
+
+    Older sealed requests and imported biographies retain their original
+    contract; never retroactively hold or rewrite them.
+    """
+    if not request:
+        return ''
+    packet_raw=request['packet_json'] if 'packet_json' in request.keys() else None
+    if not packet_raw:
+        return ''
+    packet=load(packet_raw)
+    if not isinstance(packet,dict) or packet.get('request',{}).get('form')!='fighter_biography':
+        return ''
+    blocks=packet.get('context',[])
+    policy=next((load(x['text']) for x in blocks if x.get('section')=='literary_policy'),None)
+    if not isinstance(policy,dict):
+        return ''
+    if policy.get('literary_version')!='2.1.0':
+        return ''
+    from literary_policy import measure_prose
+    outcome=measure_prose('fighter_biography',markdown)
+    if not outcome['hard_limit_ok']:
+        return ('Fighter biography exceeds the owner-approved 2,300-character hard cap '
+                '(including Markdown); save draft for editorial revision, do not publish')
+    return ''
+
+
 def deliver(store,payload):
     """READY grants publication, not authorship. Freeze output even on rejection."""
     if not isinstance(payload,dict):raise ValueError('Expected a delivery object')
@@ -399,6 +427,7 @@ def deliver(store,payload):
         elif request['state'] not in ('PENDING','DEFERRED'):error='Request is already imported or held; no replacement authorized'
         elif payload.get('source_revision')!=request['source_revision']:error='Source revision does not match'
         elif payload.get('status')!='READY':error='Only READY output can publish'
+        elif prospective_biography_length_error(request,text):error=prospective_biography_length_error(request,text)
         else:
             found=[c for c in candidates(store) if target_key(c)==request['target_key']]
             if len(found)!=1 or not source_matches(store,found[0],request):error='Target or source changed; draft retained for reconciliation'
