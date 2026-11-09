@@ -138,6 +138,14 @@ def _packet(store,c,rid):
                   event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['facts'].items() if k!='confirmed_territory_history'})),
              dict(section='character_context',provenance='inference',source_ref='NCCE source-separated writing context',
                   event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['context'].items() if k!='authored_background'}))]
+    # Voice is a separate, provenance-labelled writing lens, not mechanical evidence.
+    # Only new sealed packets receive it; in-flight requests retain their frozen context.
+    if c['entity_type']=='fighter' and c['form'] in ('fighter_biography','fighter_memory','fighter_reflection','fighter_mind'):
+        from voice_layers import build_voice_layers
+        layers=build_voice_layers(c['context'])
+        context.append(dict(section='voice_layers',provenance='style_guidance',
+            source_ref='NCCE voice_layers v1; owner-approved gang style and accepted biographies',
+            event_at_utc='',source_event_ids='',text=packed(layers)))
     # Current Sheet/canon biography is a voice lens, never a replay of old events.
     confirmed=c['facts'].get('confirmed_territory_history',[]) if isinstance(c['facts'],dict) else []
     if confirmed:
