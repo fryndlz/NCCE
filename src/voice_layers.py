@@ -132,6 +132,16 @@ INDIVIDUAL_PROFILES = {
         "register": "Veteran Drill Master; remembers kin lost defending untenable seams; insists retreat and stand-fast orders carry responsibility.",
         "source": "Accepted Brint sign-on, Queue row 105",
     },
+    ("Ethernetans 2.0", "Gravittar Beta"): {
+        "tags": ["load_bearing_risk", "generous_with_charge_packs", "tracks_borrowed_equipment"],
+        "register": "Augmek who notices suspended loads, blast spread and who will stand beneath failing supports; shares equipment but wants exact returns.",
+        "source": "Accepted Gravittar Beta field record, Queue row 82",
+    },
+    ("Ethernetans 2.0", "Cyberachnid"): {
+        "tags": ["bio_mechanical_organism", "vibration_sense", "conditioned_handler_response", "feeding_and_defense_drives"],
+        "register": "Nonhuman Cyberachnid: sensory, stimulus and learned handler cues only; DO NOT write human speech, first-person reflective language or inferred sentience.",
+        "source": "Accepted Cyberachnid equipment specification, Queue row 85",
+    },
     ("Ethernetans 2.0", "Maex"): {
         "tags": ["curious_salvager", "tests_clearance_boundaries"],
         "register": "Quick with repairs; curiosity about the next sealed mechanism exceeds assigned access.",
