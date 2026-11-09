@@ -2,6 +2,7 @@
 import io
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from zipfile import ZipFile
@@ -11,6 +12,8 @@ sys.path.insert(0,str(ROOT/"src"))
 from literary_policy import load_literary_policy, resolve_literary_policy, measure_prose
 from portable_packet import build_portable_zip
 from exchange_automation import _packet, prospective_biography_length_error
+sys.path.insert(0,str(ROOT/'scripts'))
+from record_owner_literary_decision import record_owner_decision
 from test_voice_packets import StoreStub, request_for
 
 
@@ -63,6 +66,31 @@ class PortableLiteraryTests(unittest.TestCase):
         self.assertTrue(other["unlisted_form"])
         self.assertEqual(other["illustrative_examples"],[])
         self.assertEqual(other["form_rules"],{})
+
+    def test_versioned_owner_decision_requires_scoped_changed_reference(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            (root/"config").mkdir()
+            (root/"skills/ncce-prose-portability").mkdir(parents=True)
+            shutil.copy(ROOT/"config/literary_profiles.v2.json",
+                        root/"config/literary_profiles.v2.json")
+            (root/"skills/ncce-prose-portability/CHANGELOG.md").write_text("# Changes\\n")
+            (root/"skills/ncce-prose-portability/decisions.jsonl").write_text("")
+            (root/"scope-ref.md").write_text("Owner approved example: no copied templates.")
+            result=record_owner_decision(
+                root=root,expected_version="2.1.0",new_version="2.1.1",
+                scope="form",decision="A new specifically scoped form rule",
+                source="Explicit owner chat correction",changed_files=["scope-ref.md"])
+            self.assertEqual(result["new_version"],"2.1.1")
+            self.assertEqual(json.loads((root/"config/literary_profiles.v2.json").read_text())["policy_version"],"2.1.1")
+            self.assertIn("form", (root/"skills/ncce-prose-portability/CHANGELOG.md").read_text())
+            self.assertEqual(len((root/"skills/ncce-prose-portability/decisions.jsonl").read_text().splitlines()),1)
+            with self.assertRaises(ValueError):
+                record_owner_decision(
+                    root=root,expected_version="2.1.0",new_version="2.1.2",
+                    scope="form",decision="Unverified",source="User",
+                    changed_files=["scope-ref.md"])
 
     def test_export_is_valid_and_identifies_exact_source_files(self):
         binary,manifest=build_portable_zip()
