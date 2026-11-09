@@ -7,6 +7,7 @@ Approved overrides are SQLite-backed and participate only in *future* packets.
 """
 from __future__ import annotations
 import hashlib
+from copy import deepcopy
 import json
 import re
 from datetime import datetime, timezone
@@ -171,6 +172,10 @@ def proposals(store, status=None):
   item=dict(row)
   for key in ("proposed_tags_json","approved_tags_json"):
    item[key[:-5]]=json.loads(item.pop(key))
+  item["source_url"]=("https://docs.google.com/spreadsheets/d/1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00/edit"
+   if item["source_kind"].startswith("player_authored") else
+   "https://docs.google.com/spreadsheets/d/1xokVbI3kya5koTqx9IOyUly2lP22batgLlo4oBlYBas/edit")
+  item["source_locator"]=(item["host_name"]+" / "+("GANG BACKSTORY" if item["kind"]=="gang" else item["name"]+" / Backstory"))
   rows.append(item)
  return rows
 
@@ -214,6 +219,14 @@ def apply_approved(store,layers,gang_id,fighter_id):
   tags=json.loads(row["approved_tags_json"])
   if target=="gang" and layers["gang"].get("provenance") not in ("unknown","recorded_affiliation"):continue
   if target=="individual" and layers["individual"].get("tags"):continue  # Accepted static profile wins.
+  # The excluded Patrol has no faction styles before approval.
+  # On approval restore its generic faction frame, never a sibling precinct.
+  if target=="gang" and layers["gang"].get("review_status")=="excluded_until_onboarded":
+   faction_name=layers["faction"].get("name","")
+   if faction_name:
+    faction_profile=load_registry()["factions"].get(faction_name)
+    if faction_profile and faction_profile.get("review_status","approved")=="approved":
+     layers["faction"].update(deepcopy(faction_profile))
   section=layers[target]
   section.update(tags=tags,register=row["approved_register"],
      provenance="owner_approved_source_grounded_proposal",
