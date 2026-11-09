@@ -1,13 +1,13 @@
 """One reviewed runtime specification for every narrative form; no provider calls."""
 from pathlib import Path
 
-REVISION = 'narrative-contract-v6'
+REVISION = 'narrative-contract-v7-layered-voice'
 RUNTIME_PATH = Path(__file__).resolve().parents[1] / 'docs/writing_sources/WRITER_RUNTIME_CONTRACT.md'
 PERSONAL = {'fighter_memory', 'fighter_reflection', 'fighter_mind'}
 BRIEFS = {
-    'fighter_mind': 'CURRENT THOUGHT. First person, one or two sentences, 12–40 words. Express one immediate concern, feeling or intention caused by the supplied experiences and current condition. Use this fighter’s identity and voice. Do not retell a memory, announce a status update, quote mechanics, or invent an incident. No heading, date, documentary wrapper or generic moral.',
-    'fighter_memory': 'EVENT. One short first-person memory, 40–100 words. Start with this experience and develop a specific reaction. Background is a lens, never a recap. No document heading or institutional voice.',
-    'fighter_reflection': 'REFLECTION. First person, 60–130 words. Connect the cited experiences into a particular present concern or intention. No generic life lesson or document heading.',
+    'fighter_mind': 'CURRENT THOUGHT. First person, one or two sentences, 12–40 words. Express one immediate concern, feeling or intention caused by the supplied experiences and current condition. Use the fighter’s faction, gang and individual voice layers, respecting awareness. Do not retell a memory, announce a status update, quote mechanics, or invent an incident. No heading, date, documentary wrapper or generic moral.',
+    'fighter_memory': 'OBSERVATION. One bounded first-person memory, approximately 350–400 characters including Markdown (flexible where evidence requires), grounded in one sealed experience or an explicitly undated baseline. Compose the fighter’s personal voice from the source event, faction, gang and individual editorial layers. Background supplies a lens, not a new event or a biography recap. No automatic document heading, official register, moral or invented battle action.',
+    'fighter_reflection': 'REFLECTION. First person, 60–130 words. Connect the cited experiences into a particular concern or intention, using the faction, gang and individual voice layers without changing factual sources. No generic life lesson or document heading.',
     'fighter_biography': 'BASELINE. A distinctive third-person life sketch, 140–240 words. Separate formative fictional background from undated current recorded condition. Respect authored history and embodiment.',
     'gang_origin': 'BASELINE. Establish a particular gang culture and background, 140–240 words. Use its own faction and composition; no invented campaign victories or roster relationships.',
     'gang_history': 'HISTORY. A coherent account of this gang across the supplied dated changes, 150–260 words. Preserve its established character and the sequence of events.',
