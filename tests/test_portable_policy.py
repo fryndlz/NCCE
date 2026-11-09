@@ -88,12 +88,20 @@ class PortableLiteraryTests(unittest.TestCase):
         self.assertEqual(literary["purpose"],"literary_craft_guidance_only")
         self.assertEqual(sections["literary_policy"]["provenance"],"style_guidance")
 
+    def test_sealed_cap_survives_policy_version_update(self):
+        meta={"literary_version":"2.9.3","form":"fighter_biography",
+              "form_rules":{"hard_max_characters":2450}}
+        req={"packet_json":json.dumps({"request":{"form":"fighter_biography"},
+            "context":[{"section":"literary_policy","text":json.dumps(meta)}]})}
+        self.assertEqual(prospective_biography_length_error(req,"b"*2450),"")
+        self.assertIn("2,450",prospective_biography_length_error(req,"b"*2451))
+
     def test_retroactive_cap_does_not_touch_old_issued_packet(self):
         request={"packet_json":json.dumps({"request":{"form":"fighter_biography"},"context":[]})}
         self.assertEqual(prospective_biography_length_error(request,"a"*3000),"")
 
     def test_prospective_cap_only_for_new_bio_requests(self):
-        meta={"literary_version":"2.1.0"}
+        meta={"literary_version":"2.1.0","form":"fighter_biography","form_rules":{"hard_max_characters":2300}}
         req={"packet_json":json.dumps({"request":{"form":"fighter_biography"},
                "context":[{"section":"literary_policy","text":json.dumps(meta)}]})}
         error=prospective_biography_length_error(req,"**"+("a"*2300)+"**")
