@@ -62,6 +62,7 @@ function render(p){
  const card=node("article",undefined,"card"),head=node("header");
  head.append(node("h2",p.name),node("mark",p.status),node("small",p.kind+" / "+p.host_name));
  card.append(head,node("p","Faction: "+(p.faction||"unknown")+" · Source: "+p.source_kind,"sub"));
+ if(p.source_url){const link=node("a","View source: "+p.source_locator);link.href=p.source_url;link.target="_blank";link.rel="noopener noreferrer";card.append(link)}
  if(p.source_excerpt)card.append(node("div",p.source_excerpt,"source"));
  else card.append(node("p","No authored lore or accepted fighter biography is available yet. Nothing to approve.","sub"));
  if(p.status!=="awaiting_source"){
@@ -81,8 +82,7 @@ function render(p){
        method:"POST",credentials:"same-origin",
        headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await r.json();if(!r.ok)throw Error(data.error||"Review failed");
-      message.textContent=p.name+": "+data.status+" (applies to future writer packets only)";
-      await load();
+      await load();message.textContent=p.name+": "+data.status+" (applies to future writer packets only)";
      }catch(e){message.textContent=e.message;b.disabled=false}
     };
     actions.append(b);
