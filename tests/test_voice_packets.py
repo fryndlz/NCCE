@@ -15,7 +15,7 @@ class StoreStub:
         self.db.row_factory = sqlite3.Row
         self.db.executescript("""
             CREATE TABLE gangs (gang_id TEXT PRIMARY KEY, name TEXT, gang_type TEXT);
-            CREATE TABLE fighters (id INTEGER PRIMARY KEY, name TEXT, gang_id TEXT, gang_name TEXT);
+            CREATE TABLE fighters (id INTEGER PRIMARY KEY, name TEXT, gang_id TEXT, gang_name TEXT, writer_identity_json TEXT);
             CREATE TABLE campaign_events (
                 event_id TEXT, event_type TEXT, occurred_at TEXT,
                 observed_at TEXT, payload_json TEXT
@@ -25,7 +25,7 @@ class StoreStub:
     def add(self, fighter_id, fighter_name, gang_name, faction):
         gang_id = "gang-" + str(fighter_id)
         self.db.execute("INSERT INTO gangs VALUES (?, ?, ?)", (gang_id, gang_name, faction))
-        self.db.execute("INSERT INTO fighters VALUES (?, ?, ?, ?)",
+        self.db.execute("INSERT INTO fighters (id,name,gang_id,gang_name) VALUES (?, ?, ?, ?)",
                         (fighter_id, fighter_name, gang_id, gang_name))
 
 
@@ -55,6 +55,16 @@ class VoicePacketTests(unittest.TestCase):
         voice = json.loads(sections["voice_layers"]["text"])
         self.assertEqual(voice["gang"]["name"], "Geothermal Prospect Detail C-9")
         self.assertIn("survey_accuracy", voice["individual"]["tags"])
+
+    def test_owner_authored_identity_is_explicit_and_prioritized(self):
+        store = StoreStub()
+        store.add(10, "New Fighter", "The Slag Eaters", "House Orlock")
+        store.db.execute("UPDATE fighters SET writer_identity_json=? WHERE id=10",
+                         (json.dumps({"voice": ["terse", "careful"], "narration_mode": "sapient"}),))
+        packet = _packet(store, request_for(10, "New Fighter"), "request-authored-identity")
+        voice = json.loads(next(x["text"] for x in packet["context"] if x["section"] == "voice_layers"))
+        self.assertEqual(voice["individual"]["authored_identity"]["voice"], ["terse", "careful"])
+        self.assertEqual(voice["individual"]["authored_identity_source"], "player_authored_identity")
 
     def test_patrol_new_roster_identity_stays_neutral(self):
         store = StoreStub()
