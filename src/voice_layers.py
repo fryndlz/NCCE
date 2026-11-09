@@ -21,6 +21,12 @@ FACTION_PROFILES = {
         "provenance": "rulebook_lore_and_accepted_campaign_style",
         "source": "Necromunda: House of Artifice; accepted Ethernetans biographies, NCCE faction biography styles",
     },
+    "House Ran Lo": {
+        "tags": ["financial_patronage", "credit_and_debt", "auditing_conclave", "noble_house_interest"],
+        "lens": "Noble House financial influence: mutual profit, patronage, auditing, debt and commercially motivated armed support. An allied auditor is not a Squat and does not necessarily oppose the gang.",
+        "provenance": "rulebook_lore_and_accepted_campaign_style",
+        "source": "Necromunda: House of Iron; accepted Eliot Ness Gelt-scrivener document and owner direction for Frank J. WIlson",
+    },
     "House Helmawr": {
         "tags": ["noble_household_authority", "sealed_orders", "protective_duty", "privilege_and_access", "custody"],
         "lens": "The Palanite Household protects the Imperial House's assigned interests under sealed authority. Its Companions are privileged attachments, NOT ordinary precinct Enforcers or Van Saar technicians.",
@@ -49,6 +55,13 @@ GANG_PROFILES = {
         "register": "Technically precise, restrained and dryly sardonic; people register calibration, failure modes, risk, permissions and recoverability in different ways. A field Tek-hunter need not sound like an Archeotek or a maintenance Subtek. No generic 'logical' robot talk.",
         "provenance": "accepted_generated_fiction_style",
         "source": "Accepted Maex, Sigmund, Larz Pulse and Peter Apex records; NCCE Faction biography styles",
+    },
+    "Auditing Conclave": {
+        "faction": "House Ran Lo",
+        "tags": ["allied_financial_delegation", "profit_protection", "debt_service"],
+        "register": "Controlled and sharp language of credit, risks, obligations and collection. Avoid assuming hostility to the ally; Auditor and indebted Gelt-scrivener have different interests and voices.",
+        "provenance": "owner_editorial_and_accepted_generated_fiction",
+        "source": "Approved Eliot Ness bonded service, Queue row 107; owner-described Ran Lo alliance",
     },
     "Palanite Household Companions": {
         "faction": "House Helmawr",
@@ -139,6 +152,11 @@ INDIVIDUAL_PROFILES = {
         "register": "Archeotek once valued devices for salvage; an exceptionally permitted partial view of ancient STC apparatus sharpened caution about what should be opened. Do NOT generalize this clearance.",
         "source": "Accepted Peter Apex restricted record, Queue row 88",
     },
+    ("Helmaeth Expeditionary Force", "Eliot Ness"): {
+        "tags": ["bonded_debt_service", "insists_on_debt_reduction"],
+        "register": "Indebted Gelt-scrivener assigned to the Auditor; presses for service pay to reduce the ledger rather than roll into further charges.",
+        "source": "Approved Eliot Ness document, Queue row 107",
+    },
     ("Ethernetans 2.0", "Dredd 2D"): {
         "tags": ["sealed_household_duty", "conditioned_guard", "no_local_reassignment"],
         "register": "Household protective attachment, conditioned for service; obeys sealed interests rather than Ethernetans' recovery priorities. Private beliefs remain unknown.",
@@ -167,6 +185,10 @@ INDIVIDUAL_PROFILES = {
 # Explicit, accepted external attachments: the host gang does not supply the
 # individual's faction or local voice. Never guess these from fighter rank alone.
 ATTACHMENTS = {
+    ("Helmaeth Expeditionary Force", "Frank J. WIlson"): ("House Ran Lo", "Auditing Conclave"),
+    ("Helmaeth Expeditionary Force", "Eliot Ness"): ("House Ran Lo", "Auditing Conclave"),
+    ("Helmaeth Expeditionary Force", "Bop"): ("", "Independent Hired Gun"),
+    ("Helmaeth Expeditionary Force", "Alrik III"): ("", "Independent Prospecting Retainer"),
     ("Ethernetans 2.0", "Dredd 2D"): ("House Helmawr", "Palanite Household Companions"),
     ("Ethernetans 2.0", "Dredd 3D"): ("House Helmawr", "Palanite Household Companions"),
 }
