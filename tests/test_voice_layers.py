@@ -58,6 +58,28 @@ class VoiceLayersTest(unittest.TestCase):
                 self.assertEqual(voice["individual"]["role"], "Champion")
                 self.assertNotIn("clearance_conflict", voice["gang"]["tags"])
 
+    def test_allied_and_hired_fighters_do_not_inherit_squat_kin_voice(self):
+        base = {"gang": "Helmaeth Expeditionary Force", "affiliation": "Ironhead Squat Prospectors"}
+        for name in ("Frank J. WIlson", "Eliot Ness"):
+            with self.subTest(name=name):
+                v = build_voice_layers({**base, "subject_name": name})
+                self.assertEqual(v["faction"]["name"], "House Ran Lo")
+                self.assertEqual(v["gang"]["name"], "Auditing Conclave")
+                self.assertEqual(v["gang"]["host_gang"], "Helmaeth Expeditionary Force")
+                self.assertNotIn("helmaeth_kin", v["gang"]["tags"])
+        for name in ("Bop", "Alrik III"):
+            with self.subTest(name=name):
+                v = build_voice_layers({**base, "subject_name": name})
+                self.assertEqual(v["faction"]["name"], "")
+                self.assertEqual(v["gang"]["tags"], [])
+                self.assertNotIn("helmaeth_kin", v["gang"]["tags"])
+
+    def test_cyberachnid_is_profiled_nonhuman_without_human_voice(self):
+        v = build_voice_layers({"gang": "Ethernetans 2.0", "affiliation": "House Van Saar",
+                                "subject_name": "Cyberachnid"})
+        self.assertIn("bio_mechanical_organism", v["individual"]["tags"])
+        self.assertIn("DO NOT write human speech", v["individual"]["register"])
+
     def test_unprofiled_ethernetans_fighter_gets_gang_not_personality(self):
         voice = build_voice_layers({"gang": "Ethernetans 2.0",
                                     "affiliation": "House Van Saar",
