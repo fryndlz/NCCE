@@ -407,10 +407,9 @@
     "Geothermal Prospect Detail C-9::Daven Holt, Who Heard": {
       "tags": [
         "former_compliance_foreman",
-        "joined_shared_awareness",
-        "recorded_status_conflict"
+        "documented_turning_point_requires_temporal_check"
       ],
-      "register": "Former outside official whose grasp of the Crew altered after the collapse; knowledge and mental access must be anchored to before/after that event.",
+      "register": "Former outside compliance foreman. Personal knowledge changes at a specific canonical episode; never grant later Crew awareness to an earlier memory. Resolve before/after from actual source, not current roster designation.",
       "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
       "provenance": "player_authored_canon_interpretation",
       "review_status": "approved"
@@ -478,9 +477,9 @@
     "Geothermal Prospect Detail C-9::Elias Renn": {
       "tags": [
         "survey_pegs",
-        "armed_survey_reassignment"
+        "private_route_familiarity"
       ],
-      "register": "Quiet survey technician familiar with private routes; later assigned armed escort after Toll Crossing. Preserve chronology.",
+      "register": "Quiet survey technician familiar with routes absent from official charts. Armed assignment is a separate later sourced change; do not apply retrospectively.",
       "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
       "provenance": "player_authored_canon_interpretation",
       "review_status": "approved"
@@ -563,6 +562,66 @@
       ],
       "register": "Ork freebooter with documented Low Gothic and payment in weapons; preserve authentic nonhuman perspective, not generic Road Crew voice.",
       "source": "Player-authored C-NINE GANG BACKSTORY in definitive Krakamunda gang Sheet; C-NINE story 'The Prospect' and approved C-NINE fighter dossier records",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Canary": {
+      "tags": [
+        "psychic_familiar",
+        "nonhuman_sensory_cognition"
+      ],
+      "register": "A documented Psychic Familiar: preserve species-appropriate subjective perception; do not infer human speech, human memories or specific unsourced telepathy.",
+      "source": "Krakamunda C-NINE roster Psychic Familiar designation and authored specimen/incident dossier where present.",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Echo": {
+      "tags": [
+        "psychic_familiar",
+        "nonhuman_sensory_cognition"
+      ],
+      "register": "A documented Psychic Familiar: preserve species-appropriate subjective perception; do not infer human speech, human memories or specific unsourced telepathy.",
+      "source": "Krakamunda C-NINE roster Psychic Familiar designation and authored specimen/incident dossier where present.",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::Marker": {
+      "tags": [
+        "psychic_familiar",
+        "nonhuman_sensory_cognition"
+      ],
+      "register": "A documented Psychic Familiar: preserve species-appropriate subjective perception; do not infer human speech, human memories or specific unsourced telepathy.",
+      "source": "Krakamunda C-NINE roster Psychic Familiar designation and authored specimen/incident dossier where present.",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Geothermal Prospect Detail C-9::It That Spoke": {
+      "tags": [
+        "purestrain_genestealer",
+        "anomalous_c9_record",
+        "nonhuman_subjectivity"
+      ],
+      "register": "Purestrain nonhuman entity with an anomalous authored dossier; no normal labourer first-person voice or automatic revelation of private psychic speech. Any special awareness must come from the exact canonical event.",
+      "source": "Krakamunda C-NINE roster type; authored anomalous It That Spoke dossier.",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "The Slag Eaters::The Corporal": {
+      "tags": [
+        "cargo_servitor",
+        "nonordinary_cognition"
+      ],
+      "register": "Orlock Lugger Cargo Servitor. Do not supply independent human thoughts or emotional narration absent explicit continuity evidence.",
+      "source": "Krakamunda Slag Eaters roster fighter type: Orlock 'Lugger' Cargo Servitor.",
+      "provenance": "player_authored_canon_interpretation",
+      "review_status": "approved"
+    },
+    "Kły Sprawiedliwości::Vigil-Psi": {
+      "tags": [
+        "haunt_psyker_designation"
+      ],
+      "register": "Known Haunt profile; psychic capacity is not proof of a particular vision, telepathic connection or private motive.",
+      "source": "Krakamunda Kły Sprawiedliwości roster fighter type: Haunt.",
       "provenance": "player_authored_canon_interpretation",
       "review_status": "approved"
     }
