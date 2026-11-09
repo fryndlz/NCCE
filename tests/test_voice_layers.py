@@ -1,10 +1,15 @@
 """Regression checks for layered identity in NCCE writer packets."""
 import sys
 import unittest
+import json
+import tempfile
+from copy import deepcopy
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from voice_layers import build_voice_layers
+from voice_layers import build_voice_layers, load_registry, validate_registry
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from voice_registry_cli import update_registry
 
 
 class VoiceLayersTest(unittest.TestCase):
@@ -86,6 +91,105 @@ class VoiceLayersTest(unittest.TestCase):
                                     "subject_name": "Unknown Tek-hunter"})
         self.assertIn("field_tech_detail", voice["gang"]["tags"])
         self.assertEqual(voice["individual"]["tags"], [])
+
+    def test_live_registry_has_all_five_current_gangs(self):
+        registry = load_registry()
+        for name in ("The Slag Eaters", "Geothermal Prospect Detail C-9",
+                     "Kły Sprawiedliwości", "Ethernetans 2.0",
+                     "Helmaeth Expeditionary Force"):
+            self.assertEqual(registry["gangs"][name]["review_status"] if "review_status" in registry["gangs"][name] else "approved", "approved")
+        self.assertIn("Patrol do spraw alkoholu i broni", registry["excluded_gangs"])
+
+    def test_cnine_alias_and_fighter_knowledge_boundaries(self):
+        v = build_voice_layers({
+            "gang": "THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]",
+            "affiliation": "Genestealer Cults",
+            "subject_name": "Garrick Voss",
+        })
+        self.assertEqual(v["gang"]["name"], "Geothermal Prospect Detail C-9")
+        self.assertIn("unofficial_maps", v["individual"]["tags"])
+        self.assertIn("voice", v["purpose"])
+        self.assertNotIn("texan_road_gang", v["gang"]["tags"])
+
+    def test_kly_public_profile_does_not_leak_gm_secret(self):
+        v = build_voice_layers({
+            "gang": "Kły Sprawiedliwości",
+            "affiliation": "Palanite Enforcers", "subject_name": "Tomas",
+        })
+        self.assertIn("literal_warrant_checking", v["individual"]["tags"])
+        self.assertIn("rigid_discipline", v["gang"]["tags"])
+        self.assertNotIn("Adeptus Arbites", json.dumps(v))
+        self.assertNotIn("undercover", json.dumps(v).lower())
+
+    def test_patrol_excluded_and_neutral_until_approved(self):
+        v = build_voice_layers({"gang": "Patrol do spraw alkoholu i broni",
+                                "affiliation": "Palanite Enforcers",
+                                "subject_name": "Any Patrol Fighter"})
+        self.assertEqual(v["gang"]["tags"], [])
+        self.assertEqual(v["individual"]["tags"], [])
+        self.assertEqual(v["faction"]["tags"], [])
+        self.assertEqual(v["gang"]["review_status"], "excluded_until_onboarded")
+
+    def test_new_gang_registration_pending_then_approved(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "registry.json"
+            path.write_text(json.dumps(deepcopy(load_registry())), encoding="utf-8")
+            pending = update_registry(path, "register",
+                                      gang="Patrol do spraw alkoholu i broni",
+                                      faction="Palanite Enforcers",
+                                      source="Player-authored Patrol source version X")
+            v = build_voice_layers({"gang": "Patrol do spraw alkoholu i broni",
+                                    "affiliation": "Palanite Enforcers"},
+                                   registry=pending)
+            self.assertEqual(v["gang"]["tags"], [])
+            self.assertEqual(v["gang"]["review_status"], "pending_editorial")
+            active = update_registry(path, "approve",
+                                     gang="Patrol do spraw alkoholu i broni",
+                                     register="Distinct owner-reviewed patrol register",
+                                     tags="licensed_raid,permit_check",
+                                     source="Editorial approval reference Y")
+            v = build_voice_layers({"gang": "Patrol do spraw alkoholu i broni",
+                                    "affiliation": "Palanite Enforcers"},
+                                   registry=active)
+            self.assertEqual(v["gang"]["tags"], ["licensed_raid", "permit_check"])
+            self.assertNotIn("rigid_discipline", v["gang"]["tags"])
+            with self.assertRaises(ValueError):
+                update_registry(path, "register",
+                                gang="Patrol do spraw alkoholu i broni",
+                                faction="Palanite Enforcers", source="duplicate")
+            added = update_registry(path, "add-fighter",
+                                    gang="Patrol do spraw alkoholu i broni",
+                                    fighter="Fighter A", register="Cited preference",
+                                    tags="cautious", source="Accepted fighter account Z")
+            vv = build_voice_layers({"gang": "Patrol do spraw alkoholu i broni",
+                                     "subject_name": "Fighter A"}, registry=added)
+            self.assertIn("cautious", vv["individual"]["tags"])
+
+    def test_foreign_crew_under_cnine_uses_external_register(self):
+        v = build_voice_layers({"gang": "THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]",
+                                "affiliation": "Genestealer Cults",
+                                "subject_name": "Lady Marcella Veyne"})
+        self.assertEqual(v["gang"]["name"], "Peregrine's Due")
+        self.assertEqual(v["faction"]["name"], "Independent")
+        self.assertIn("commercial_fixer", v["individual"]["tags"])
+        self.assertNotIn("hereditary_deep_work", v["gang"]["tags"])
+
+    def test_missing_gang_profile_does_not_guess_individual(self):
+        v = build_voice_layers({"gang": "Unregistered Gang",
+                                "affiliation": "House Orlock",
+                                "subject_name": "Boomer"})
+        self.assertEqual(v["gang"]["tags"], [])
+        self.assertEqual(v["individual"]["tags"], [])
+
+    def test_bad_alias_or_schema_rejected(self):
+        bad = deepcopy(load_registry())
+        bad["aliases"]["bad"] = "nonexistent"
+        with self.assertRaises(ValueError):
+            validate_registry(bad)
+        bad = deepcopy(load_registry())
+        bad["schema_version"] = 2
+        with self.assertRaises(ValueError):
+            validate_registry(bad)
 
     def test_no_identity_guessed_from_name(self):
         result = build_voice_layers({"subject_name": "Boomer"})
