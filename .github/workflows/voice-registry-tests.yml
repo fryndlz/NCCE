@@ -12,6 +12,14 @@ on:
       - 'src/exchange_automation.py'
       - 'src/server.py'
       - 'web/voice-review.html'
+      - 'config/literary_profiles.v2.json'
+      - 'src/literary_policy.py'
+      - 'src/portable_packet.py'
+      - 'src/writer_contract.py'
+      - 'docs/writing_sources/WRITER_RUNTIME_CONTRACT.md'
+      - 'skills/ncce-prose-portability/**'
+      - 'tests/test_portable_policy.py'
+      - 'web/index.html'
       - '.github/workflows/voice-registry-tests.yml'
   pull_request:
     paths:
@@ -25,6 +33,14 @@ on:
       - 'src/exchange_automation.py'
       - 'src/server.py'
       - 'web/voice-review.html'
+      - 'config/literary_profiles.v2.json'
+      - 'src/literary_policy.py'
+      - 'src/portable_packet.py'
+      - 'src/writer_contract.py'
+      - 'docs/writing_sources/WRITER_RUNTIME_CONTRACT.md'
+      - 'skills/ncce-prose-portability/**'
+      - 'tests/test_portable_policy.py'
+      - 'web/index.html'
       - '.github/workflows/voice-registry-tests.yml'
 
 jobs:
@@ -39,3 +55,4 @@ jobs:
         run: |
           python scripts/voice_registry_cli.py validate
           python -m unittest discover -s tests -p 'test_voice_*.py' -v
+          python -m unittest discover -s tests -p 'test_portable_policy.py' -v

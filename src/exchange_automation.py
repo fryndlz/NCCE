@@ -140,6 +140,7 @@ def _packet(store,c,rid):
                   event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['context'].items() if k!='authored_background'}))]
     # Voice is a separate, provenance-labelled writing lens, not mechanical evidence.
     # Only new sealed packets receive it; in-flight requests retain their frozen context.
+    literary_layers=None
     if c['entity_type']=='fighter' and c['form'] in ('fighter_biography','fighter_memory','fighter_reflection','fighter_mind'):
         from voice_layers import build_voice_layers
         # Some older/baseline writer contexts do not carry the roster's gang and
@@ -180,6 +181,7 @@ def _packet(store,c,rid):
         context.append(dict(section='voice_layers',provenance='style_guidance',
             source_ref='NCCE validated versioned voice registry; editorial layer, never event evidence',
             event_at_utc='',source_event_ids='',text=packed(layers)))
+        literary_layers=layers
     # Current Sheet/canon biography is a voice lens, never a replay of old events.
     confirmed=c['facts'].get('confirmed_territory_history',[]) if isinstance(c['facts'],dict) else []
     if confirmed:
@@ -197,6 +199,29 @@ def _packet(store,c,rid):
             event=dict(row);event['facts']=load(event.pop('payload_json'));events.append(event)
     events.sort(key=lambda e:(e['occurred_at'] or e['observed_at'] or '',e['event_id']))
     if events:context.append(dict(section='chronology',provenance='mechanical_fact',source_ref='cited factual event ledger only',event_at_utc='',source_event_ids=','.join(event_ids),text=packed(events)))
+    # Portable literary craft is a separate instruction block for EVERY prose
+    # form. It must never supply new campaign facts or change a sealed request.
+    from literary_policy import resolve_literary_policy
+    style_gang=style_faction=''
+    if c['entity_type']=='gang':
+        gang_row=store.db.execute('SELECT name,gang_type FROM gangs WHERE gang_id=?',
+                                  (c['entity_key'],)).fetchone()
+        if gang_row:
+            style_gang=gang_row['name'] or ''
+            style_faction=gang_row['gang_type'] or ''
+    else:
+        style_gang=c['context'].get('gang') or c['context'].get('name') or ''
+        style_faction=c['context'].get('affiliation') or c['context'].get('faction') or ''
+    literary=resolve_literary_policy(
+        form=c['form'],voice_layers=literary_layers,
+        gang=style_gang,faction=style_faction,
+        audience=c['context'].get('intended_audience'),
+        genre=c['context'].get('document_genre'))
+    context.append(dict(
+        section='literary_policy',provenance='style_guidance',
+        source_ref='NCCE portable literary policy '+literary['literary_version']+
+                   '; examples illustrative only, source event facts unchanged',
+        event_at_utc='',source_event_ids='',text=packed(literary)))
     context.append(dict(section='brief',provenance='instruction',source_ref='owner-approved exchange policy',event_at_utc='',source_event_ids='',text=
         'Write this one entry once, in the established style of this chat. Preserve the chronological boundary. '
         'Authored background supplies voice, not new events. Mechanics are evidence, not language to copy. '
@@ -355,6 +380,36 @@ def _write(store,c,text,rid):
         store.db.execute('UPDATE '+table+' SET document_json=? WHERE '+where,(packed(doc),*c['key']))
 
 
+def prospective_biography_length_error(request, markdown):
+    """Enforce hard cap for only NEW packets carrying the v2 literary policy.
+
+    Older sealed requests and imported biographies retain their original
+    contract; never retroactively hold or rewrite them.
+    """
+    if not request:
+        return ''
+    packet_raw=request['packet_json'] if 'packet_json' in request.keys() else None
+    if not packet_raw:
+        return ''
+    packet=load(packet_raw)
+    if not isinstance(packet,dict) or packet.get('request',{}).get('form')!='fighter_biography':
+        return ''
+    blocks=packet.get('context',[])
+    policy=next((load(x['text']) for x in blocks if x.get('section')=='literary_policy'),None)
+    if not isinstance(policy,dict):
+        return ''
+    # Cap is carried by the SEALED request, not the current mutable policy.
+    # Later owner decisions cannot retroactively change an in-flight draft.
+    if not policy.get('literary_version') or policy.get('form')!='fighter_biography':
+        return ''
+    rule=policy.get('form_rules') or {}
+    cap=rule.get('hard_max_characters')
+    if type(cap) is int and len(markdown)>cap:
+        return (f'Fighter biography exceeds the owner-approved {cap:,}-character hard cap '
+                '(including Markdown); save draft for editorial revision, do not publish')
+    return ''
+
+
 def deliver(store,payload):
     """READY grants publication, not authorship. Freeze output even on rejection."""
     if not isinstance(payload,dict):raise ValueError('Expected a delivery object')
@@ -374,6 +429,7 @@ def deliver(store,payload):
         elif request['state'] not in ('PENDING','DEFERRED'):error='Request is already imported or held; no replacement authorized'
         elif payload.get('source_revision')!=request['source_revision']:error='Source revision does not match'
         elif payload.get('status')!='READY':error='Only READY output can publish'
+        elif prospective_biography_length_error(request,text):error=prospective_biography_length_error(request,text)
         else:
             found=[c for c in candidates(store) if target_key(c)==request['target_key']]
             if len(found)!=1 or not source_matches(store,found[0],request):error='Target or source changed; draft retained for reconciliation'
