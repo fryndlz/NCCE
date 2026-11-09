@@ -137,8 +137,8 @@ def _put(store,key,kind,gid,fid,name,host,faction,source,source_kind):
 def scan(store):
  """Idempotently discover missing profiles after a successfully imported roster."""
  data=load_registry()
+ ensure(store)
  with store._lock,store.db:
-  ensure(store)
   changed=0
   for g in store.db.execute("SELECT gang_id,name,gang_type,backstory,backstory_source FROM gangs WHERE active=1").fetchall():
    gid,host,faction=g["gang_id"],g["name"],g["gang_type"] or ""
@@ -160,7 +160,6 @@ def scan(store):
 
 
 def proposals(store, status=None):
- ensure(store)
  query="SELECT * FROM voice_proposals"
  params=()
  if status and status!="all":
@@ -181,7 +180,6 @@ def review(store,key,expected_hash,decision,tags=None,register=None):
  if not isinstance(key,str) or len(key)>128:raise ValueError("Invalid proposal key")
  if not isinstance(expected_hash,str):raise ValueError("Source hash required")
  with store._lock,store.db:
-  ensure(store)
   row=store.db.execute("SELECT * FROM voice_proposals WHERE proposal_key=?",(key,)).fetchone()
   if not row:raise ValueError("Unknown voice proposal")
   if row["source_hash"]!=expected_hash:raise ValueError("Source changed; refresh review")
