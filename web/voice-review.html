@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>NCCE — Voice review</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#0b1017;color:#e8edf1}
+*{box-sizing:border-box}body{margin:0;line-height:1.5}
+header{background:#121b24;border-bottom:1px solid #34404b;padding:20px clamp(16px,5vw,64px)}
+a{color:#a4d2df}h1{font-size:1.6rem;margin:8px 0}h2{font-size:1.05rem;margin:0}
+main{max-width:1120px;margin:0 auto;padding:28px 20px}
+small,.sub{color:#a9b5bf}p{margin:10px 0}
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+select,input,textarea,button{background:#192531;border:1px solid #536471;color:#f2f5f7;border-radius:6px;font:inherit;padding:9px}
+button{cursor:pointer}button:hover{background:#243645}button:disabled{opacity:.55;cursor:wait}
+button.approve{border-color:#8eb9a2}button.reject{border-color:#c79797}
+.cards{display:grid;gap:16px}
+.card{background:#141e28;border:1px solid #354450;border-radius:10px;padding:18px}
+.card header{padding:0;background:none;border:none;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+mark{background:#273746;color:#bed0df;padding:2px 8px;border-radius:20px;font-size:.75rem}
+.source{white-space:pre-wrap;background:#0c141b;border-left:3px solid #526c80;padding:12px;margin:12px 0;color:#d5e0e5}
+label{display:block;font-size:.85rem;color:#b9c8d1;margin:12px 0 5px}
+textarea,input{width:100%}textarea{min-height:100px}
+.actions{display:flex;gap:9px;margin-top:14px}
+.notice{padding:12px 16px;border:1px solid #4f626e;border-radius:6px;margin-bottom:18px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header><a href="/">← Campaign Chronicle</a><h1>Writer identity / Editorial review</h1>
+<p class="sub">Source-grounded suggestions only. No tags become active until reviewed. Only future writing packets use approved profiles.</p></header>
+<main>
+<div class="notice">A proposed tag identifies a topic explicitly present in cited lore, <strong>not a verified psychological trait</strong>. Edit the wording before approval. Missing source material remains on hold. An edited source revokes its previous approval.</div>
+<div class="controls"><label for="status">Show</label><select id="status"><option value="pending">Needs review</option><option value="awaiting_source">Awaiting authored lore</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></select><button id="reload" type="button">Refresh</button><span id="counts" class="sub"></span></div>
+<div id="message" role="status" aria-live="polite"></div><div id="items" class="cards"></div>
+</main>
+<script>
+"use strict";
+const items=document.querySelector("#items"), message=document.querySelector("#message");
+const status=document.querySelector("#status");
+document.querySelector("#reload").addEventListener("click",load);
+status.addEventListener("change",load);
+function node(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e}
+function labelled(card,label,value,multiline){
+ const l=node("label",label);const field=node(multiline?"textarea":"input");
+ if(!multiline)field.type="text";field.value=value||"";card.append(l,field);return field
+}
+async function load(){
+ message.textContent="";items.replaceChildren();
+ try{
+  const r=await fetch("/api/voice-proposals?status="+encodeURIComponent(status.value),{credentials:"same-origin"});
+  if(r.status===401){message.textContent="Sign in through the campaign home page first.";return}
+  const body=await r.json();if(!r.ok)throw Error(body.error||"Request failed");
+  const rows=body.proposals||[];
+  document.querySelector("#counts").textContent=rows.length+" entries";
+  if(!rows.length){items.append(node("p","No entries in this category."));return}
+  rows.forEach(render);
+ }catch(e){message.textContent="Cannot load proposals: "+e.message}
+}
+function render(p){
+ const card=node("article",undefined,"card"),head=node("header");
+ head.append(node("h2",p.name),node("mark",p.status),node("small",p.kind+" / "+p.host_name));
+ card.append(head,node("p","Faction: "+(p.faction||"unknown")+" · Source: "+p.source_kind,"sub"));
+ if(p.source_url){const link=node("a","View source: "+p.source_locator);link.href=p.source_url;link.target="_blank";link.rel="noopener noreferrer";card.append(link)}
+ if(p.source_excerpt)card.append(node("div",p.source_excerpt,"source"));
+ else card.append(node("p","No authored lore or accepted fighter biography is available yet. Nothing to approve.","sub"));
+ if(p.status!=="awaiting_source"){
+  const tags=labelled(card,"Suggested topic tags (comma-separated)",(p.status==="approved"?p.approved_tags:p.proposed_tags).join(", "),false);
+  const register=labelled(card,"Editorial voice guidance — edit to reflect this character's voice",p.status==="approved"?p.approved_register:p.proposed_register,true);
+  if(p.status==="pending"||p.status==="approved"||p.status==="rejected"){
+   const actions=node("div",undefined,"actions");
+   for(const [decision,text,cls] of [["approved","Approve voice","approve"],["rejected","Reject","reject"]]){
+    const b=node("button",text,cls);b.type="button";
+    b.onclick=async()=>{
+     if(decision==="approved"&&!register.value.trim()){message.textContent="A voice description is required.";return}
+     b.disabled=true;message.textContent="";
+     try{
+      const payload={proposal_key:p.proposal_key,source_hash:p.source_hash,decision,
+       tags:tags.value.split(",").map(s=>s.trim()).filter(Boolean),register:register.value};
+      const r=await fetch("/api/voice-proposals/review",{
+       method:"POST",credentials:"same-origin",
+       headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      const data=await r.json();if(!r.ok)throw Error(data.error||"Review failed");
+      await load();message.textContent=p.name+": "+data.status+" (applies to future writer packets only)";
+     }catch(e){message.textContent=e.message;b.disabled=false}
+    };
+    actions.append(b);
+   }
+   card.append(actions);
+  }
+ }
+ items.append(card);
+}
+load();
+</script>
+</body></html>

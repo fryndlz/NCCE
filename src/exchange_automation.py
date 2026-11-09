@@ -147,7 +147,7 @@ def _packet(store,c,rid):
         # weapon, promotion or status into a past event's narrative context.
         profile_context=dict(c['context'])
         fighter_row=store.db.execute(
-            'SELECT f.name AS fighter_name, f.gang_name AS host_name, '
+            'SELECT f.name AS fighter_name, f.gang_name AS host_name, f.writer_identity_json AS authored_identity_json, '
             'g.name AS roster_gang, g.gang_type AS roster_faction '
             'FROM fighters f LEFT JOIN gangs g ON g.gang_id=f.gang_id '
             'WHERE f.id=?',(c['entity_key'],)).fetchone()
@@ -159,6 +159,24 @@ def _packet(store,c,rid):
             if not profile_context.get('affiliation') and not profile_context.get('faction'):
                 profile_context['affiliation']=fighter_row['roster_faction']
         layers=build_voice_layers(profile_context)
+        # Existing owner-authored identity fields outrank inferred/reviewed
+        # tags. Keep them inspectable and source-labelled, not merged silently.
+        if fighter_row and fighter_row['authored_identity_json']:
+            try: authored_identity=load(fighter_row['authored_identity_json'])
+            except (ValueError,TypeError): authored_identity={}
+            if isinstance(authored_identity,dict) and authored_identity:
+                allowed=('voice','writer_tags','work','occupation','culture','narration_mode','life_history')
+                layers['individual']['authored_identity']={
+                    key:authored_identity[key] for key in allowed if key in authored_identity}
+                layers['individual']['authored_identity_source']='player_authored_identity'
+        # Approved, source-sealed editorial suggestions are persisted in the app
+        # database. Apply to this newly prepared packet only; never mutate the
+        # campaign facts or an already issued packet.
+        from voice_proposals import apply_approved
+        if fighter_row:
+            layers=apply_approved(store,layers,store.db.execute(
+                'SELECT gang_id FROM fighters WHERE id=?',(c['entity_key'],)).fetchone()['gang_id'],
+                int(c['entity_key']))
         context.append(dict(section='voice_layers',provenance='style_guidance',
             source_ref='NCCE validated versioned voice registry; editorial layer, never event evidence',
             event_at_utc='',source_event_ids='',text=packed(layers)))

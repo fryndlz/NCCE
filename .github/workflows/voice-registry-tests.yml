@@ -7,6 +7,11 @@ on:
       - 'scripts/voice_registry_cli.py'
       - 'tests/test_voice_layers.py'
       - 'tests/test_voice_packets.py'
+      - 'tests/test_voice_proposals.py'
+      - 'src/voice_proposals.py'
+      - 'src/exchange_automation.py'
+      - 'src/server.py'
+      - 'web/voice-review.html'
       - '.github/workflows/voice-registry-tests.yml'
   pull_request:
     paths:
@@ -15,6 +20,11 @@ on:
       - 'scripts/voice_registry_cli.py'
       - 'tests/test_voice_layers.py'
       - 'tests/test_voice_packets.py'
+      - 'tests/test_voice_proposals.py'
+      - 'src/voice_proposals.py'
+      - 'src/exchange_automation.py'
+      - 'src/server.py'
+      - 'web/voice-review.html'
       - '.github/workflows/voice-registry-tests.yml'
 
 jobs:

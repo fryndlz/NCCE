@@ -241,3 +241,7 @@ The authoritative machine-readable policy is now `config/voice_registry.v1.json`
 
 **Patrol do spraw alkoholu i broni.** Current excluded/pending profile; basic mechanical faction can still be recorded, but it receives no inferred gang voice, inherited Kły doctrine or personal personality until the owner supplies and approves its own gang lore. Registration and approval are separate auditable stages.
 
+
+
+### Automatic voice proposal lifecycle
+The live roster sync now detects newly arriving gangs and fighters. It stages citation-bearing *text excerpts* and keyword-bound attention tags from explicit authored gang/fighter Backstory or accepted fighter biography; no missing personality is fabricated by an LLM. A private, source-fingerprint-matched owner review in `/voice-review.html` can approve/reject and edit the proposed individual/gang writing register. Approvals persist in independent SQLite tables and join only future writer packets; source edits invalidate them. Existing authored `writer_identity_json` outranks extracted suggestions. Unknown or GM-sealed content is not admitted as ordinary rank-and-file memory knowledge; Patrol remains unprofiled until its own lore is approved. See `docs/VOICE_REGISTRY.md` for exact policy.
