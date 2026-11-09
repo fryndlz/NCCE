@@ -108,6 +108,26 @@ def _accepted_bio(store, fid):
  return ""
 
 
+def _current_fingerprint(store, row):
+ """Read live authoritative source before approval or insertion into any packet."""
+ if row["kind"]=="gang":
+  g=store.db.execute("SELECT backstory,backstory_source,active FROM gangs WHERE gang_id=?",
+   (row["gang_id"],)).fetchone()
+  if not g or not g["active"]:return ""
+  text=safe_source(g["backstory"] if g["backstory_source"]=="player-authored / campaign Sheet" else "")
+  source_kind="player_authored_gang_backstory"
+ else:
+  f=store.db.execute("SELECT mechanics_json,listed_in_source FROM fighters WHERE id=? AND gang_id=?",
+   (row["fighter_id"],row["gang_id"])).fetchone()
+  if not f or not f["listed_in_source"]:return ""
+  try: raw=json.loads(f["mechanics_json"] or "{}")
+  except (ValueError,TypeError):raw={}
+  text=safe_source(raw.get("Backstory") or "")
+  source_kind="player_authored_fighter_backstory" if text else "accepted_fighter_biography"
+  if not text:text=_accepted_bio(store,row["fighter_id"])
+ return source_hash(source_kind+"\n"+text) if text else ""
+
+
 def _put(store,key,kind,gid,fid,name,host,faction,source,source_kind):
  source=safe_source(source)
  h=source_hash(source_kind+"\n"+source) if source else ""
@@ -191,6 +211,7 @@ def review(store,key,expected_hash,decision,tags=None,register=None):
   row=store.db.execute("SELECT * FROM voice_proposals WHERE proposal_key=?",(key,)).fetchone()
   if not row:raise ValueError("Unknown voice proposal")
   if row["source_hash"]!=expected_hash:raise ValueError("Source changed; refresh review")
+  if _current_fingerprint(store,row)!=expected_hash:raise ValueError("Authored source changed since discovery; refresh sync and review")
   if row["status"] not in ("pending","approved","rejected"):raise ValueError("No authored source to approve")
   if decision=="approved":
    if tags is None:tags=json.loads(row["proposed_tags_json"])
@@ -218,6 +239,7 @@ def apply_approved(store,layers,gang_id,fighter_id):
  for key,target in (("gang:"+str(gang_id),"gang"),("fighter:"+str(fighter_id),"individual")):
   row=store.db.execute("SELECT * FROM voice_proposals WHERE proposal_key=?",(key,)).fetchone()
   if not row or row["status"]!="approved" or row["reviewed_hash"]!=row["source_hash"]:continue
+  if _current_fingerprint(store,row)!=row["source_hash"]:continue
   if target=="gang" and layers["gang"].get("host_gang"):continue  # Outsider never inherits host.
   tags=json.loads(row["approved_tags_json"])
   if target=="gang" and layers["gang"].get("provenance") not in ("unknown","recorded_affiliation"):continue
