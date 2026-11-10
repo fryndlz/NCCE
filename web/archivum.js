@@ -3,6 +3,16 @@
 window.NCCEArchive = (() => {
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const labels = {chronicle:'Campaign Chronicle',gangs:'Gang records',fighters:'Fighter records',places:'Territorial archive',battles:'Engagement records',archive:'Authored archive',system:'System records'};
+  const ethernetansMasthead = `<header class="ethernetans-masthead">
+    <svg class="ethernetans-sigil" viewBox="0 0 84 84" width="76" height="76" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M25 5h34l20 20v34L59 79H25L5 59V25Z M29 11h26l18 18v26L55 73H29L11 55V29Z"/>
+      <path d="M25 61V48l10-10V24m24 37V48L49 38V24M33 62V51l9-9V21m8 41V53l-8-8"/>
+      <g fill="currentColor" stroke="none"><circle cx="25" cy="63" r="3"/><circle cx="59" cy="63" r="3"/><circle cx="35" cy="23" r="3"/><circle cx="49" cy="23" r="3"/><circle cx="42" cy="19" r="3"/><circle cx="33" cy="63" r="3"/><circle cx="50" cy="63" r="3"/></g>
+      <path fill="currentColor" stroke="none" d="M38 38a4 4 0 1 1 8 0v5h-2v3h-4v-3h-2z"/><path stroke="#f4efde" stroke-width="1.4" d="M40 39h1m2 0h1"/>
+    </svg>
+    <div><small>House Van Saar</small><strong>Ethernetans 2.0</strong><span>Technical personnel register</span></div>
+    <span class="ethernetans-stamp">VAN SAAR<small>ARCHIVE COPY</small></span>
+  </header>`;
   function browser(view, rows) {
     const kind = {gangs:'gang',fighters:'fighter',places:'territory',battles:'battle',archive:'archive'}[view];
     return `<div class="record-browser"><section class="record-index" aria-label="${escape(labels[view])} index"><div class="index-heading">RECORD INDEX <span>${rows.length}</span></div>${rows.map((r,i)=> {
@@ -45,6 +55,13 @@ window.NCCEArchive = (() => {
     const sections=[...meta.sections,{id:'sources',label:'Data & sources',description:'Mechanical state, provenance, identity tools and source references.',body:`<dl class="source-register">${[['Record',meta.id],['Source',meta.source || 'Campaign record'],...(meta.fields || [])].map(([k,v])=>`<div><dt>${escape(k)}</dt><dd>${escape(v ?? 'Not recorded')}</dd></div>`).join('')}</dl>${meta.sourceBody || ''}<div class="source-evidence"></div>`}];
     const paper=section=>{
       const cnine=section.paperStyle==='cnine-personnel';
+      if (section.paperStyle==='ethernetans-personnel') {
+        return `<div class="document-notices" role="status"></div><div class="archive-paper ethernetans-paper">
+          <div class="paper-metadata"><span>CAMPAIGN ARCHIVE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
+          ${ethernetansMasthead}<div class="paper-content">${section.body}</div>
+          <div class="ethernetans-end"><span>HOUSE VAN SAAR</span><span>// RECORD ENDS //</span></div>
+        </div>`;
+      }
       const masthead=cnine?`<div class="cnine-paper-heading"><svg viewBox="0 0 60 22" width="45" height="17" aria-hidden="true" fill="currentColor"><path id="cnine-aquila-half" d="M30 19 27 22 26 15 22 17 23 11 19 15 15 15 18 10 12 13 8 12 13 8 6 10 2 7 10 5 0 4 0 1 16 2 23 7 25 5 23 4 22 2 27 2 29 5 30 9Z"/><use href="#cnine-aquila-half" transform="translate(60) scale(-1 1)"/></svg><span>Geothermal Prospect Detail C-9</span><small>Labour archive · Personnel record</small></div>`:'';
       return `<div class="document-notices" role="status"></div><div class="archive-paper${cnine?' cnine-personnel-paper':''}"><div class="paper-metadata"><span>CAMPAIGN ARCHIVE · ${escape(meta.kind.toUpperCase())}</span><span>${escape(section.paperLabel || 'BASELINE RECORD')}</span></div>${masthead}<div class="paper-content">${section.body}</div><div class="paper-end"><span class="document-stamp">${cnine?'GPD-C9':'NCCE'}<br><small>ARCHIVE COPY</small></span><span>${cnine?'THE EMPEROR PROTECTS':'// RECORD ENDS //'}</span></div></div>`;
     };

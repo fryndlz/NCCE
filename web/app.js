@@ -12,6 +12,8 @@ const historyFilters = {q: '', gang: '', fighter: '', place: '', action: '', pha
 let selectedHistoryEvent = null, selectedHistoryBattle = null;
 let archiveStoryRecords = [];
 const MAX_MIND_THOUGHTS = 3;
+const selectedPaperPreview = () => new URLSearchParams(location.search).get('paper-preview');
+const isWernerMatrix = fighter => fighter.name==='Werner Matrix' && fighter.gang_name==='Ethernetans 2.0';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
 const short = value => String(value || 'Unknown').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]', 'C-NINE');
@@ -878,9 +880,11 @@ async function showFighter(id, preserveScroll = false) {
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const deceased = fighterIsDeceased(f);
   const sections = fighterRecordSections(f,memories);
-  if (String(id)==='38' && f.name==='Orik Sorn' && new URLSearchParams(location.search).get('paper-preview')==='orik') {
+  const paperPreview = selectedPaperPreview();
+  if (String(id)==='38' && f.name==='Orik Sorn' && paperPreview==='orik') {
     sections[0].paperStyle='cnine-personnel';
   }
+  if (paperPreview==='werner' && isWernerMatrix(f)) sections[0].paperStyle='ethernetans-personnel';
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
     mindPreview:{hidden:deceased,body:deceased ? '' : mindFeedBody(f)},
     fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
@@ -983,7 +987,12 @@ async function startApp() {
   if (session.auth_required && !session.authenticated) { location.replace('/login'); return; }
   if (logout) logout.hidden = !session.auth_required;
   await refreshDashboard(false); await refreshStatus();
-  if (new URLSearchParams(location.search).get('paper-preview')==='orik') await showFighter(38);
+  const paperPreview = selectedPaperPreview();
+  if (paperPreview==='orik') await showFighter(38);
+  if (paperPreview==='werner') {
+    const fighter=(await ensureFighters()).find(isWernerMatrix);
+    if (fighter) await showFighter(fighter.id);
+  }
   if (['#retrieval','#workshop'].includes(initialView)) history.replaceState(null,'',location.pathname+location.search);
   setInterval(() => {
     refreshFighterMind();
