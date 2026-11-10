@@ -100,17 +100,32 @@ def source_hash(text):
  return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+VOICE_SELECTOR_VERSION = 2
+DOSSIER_FIELD = re.compile(
+ r"^\s*(?:[-*]\s+)?\*{0,2}(?:survey instrument|armament|protection|equipment|"
+ r"loadout|weapons?|armou?r|designation|classification|status)\s*\*{0,2}:", re.I)
+
+
 def excerpt_and_tags(text, offset=0):
- # Short, exact readable evidence span, rather than invented psychological summary.
- paragraphs = [re.sub(r"\s+", " ", p).strip() for p in re.split(r"\n\s*\n",text[:20000]) if p.strip()]
- paragraphs = [p for p in paragraphs if not p.startswith(("+++","[","**")) and len(p) >= 35] or paragraphs
- if not paragraphs:return "",[]
- ranked = []
- for i,p in enumerate(paragraphs):
-  cues = [key for key,patterns in CUES.items() if any(re.search(pat,p,re.I) for pat in patterns)]
-  ranked.append((len(cues), min(len(p),350), -i, p, cues))
- _,_,_,winner,tags = sorted(ranked,reverse=True)[offset % len(ranked)]
- return winner[:340].rstrip(),tags[:5]
+ paragraphs = []
+ for block in re.split(r"\n\s*\n", text):
+  lines = [line.strip() for line in block.splitlines() if line.strip()]
+  narrative = [line for line in lines if not DOSSIER_FIELD.match(line)
+               and not line.startswith(("+++", "# ", "## "))]
+  paragraph = " ".join(" ".join(narrative).split())
+  if paragraph:
+   paragraphs.append(paragraph)
+ if not paragraphs:
+  return " ".join(text.split())[:340].rstrip(), []
+ evidence = [(p, {tag for tag, patterns in CUES.items() if any(re.search(pattern, p, re.I) for pattern in patterns)})
+             for p in paragraphs]
+ counts = {tag: sum(tag in cues for _, cues in evidence) for tag in CUES}
+ tags = sorted((tag for tag in counts if counts[tag]), key=counts.get, reverse=True)[:5]
+ # Rank the display quote separately. Retrying changes the evidence shown,
+ # while the suggested topics continue to represent the whole source.
+ ranked = sorted(evidence, key=lambda item: (sum(counts[tag] for tag in tags if tag in item[1]),
+                                            min(len(item[0]), 340)), reverse=True)
+ return ranked[offset % len(ranked)][0][:340].rstrip(), tags
 
 
 def ensure(store):
@@ -170,6 +185,14 @@ def _put(store,key,kind,gid,fid,name,host,faction,source,source_kind):
  if old and old["source_hash"]==h:
   store.db.execute("UPDATE voice_proposals SET name=?,host_name=?,faction=?,source_kind=? WHERE proposal_key=?",
    (name,host,faction,source_kind,key))
+  if old["status"]=="pending" and not store.db.execute("""SELECT 1 FROM voice_proposal_audit
+   WHERE proposal_key=? AND source_hash=? AND json_extract(details_json,'$.selector_version')=? LIMIT 1""",
+   (key,h,VOICE_SELECTOR_VERSION)).fetchone():
+   store.db.execute("""UPDATE voice_proposals SET source_excerpt=?,proposed_tags_json=?,proposed_register=?,updated_at=?
+    WHERE proposal_key=?""", (quote,json.dumps(tags),hint,now(),key))
+   store.db.execute("""INSERT INTO voice_proposal_audit(proposal_key,action,source_hash,details_json,at)
+    VALUES(?,?,?,?,?)""", (key,"suggestion_refreshed",h,json.dumps({"excerpt":quote,"selector_version":VOICE_SELECTOR_VERSION}),now()))
+   return True
   return False
  if old:
   store.db.execute("""UPDATE voice_proposals SET name=?,host_name=?,faction=?,source_kind=?,
@@ -185,7 +208,7 @@ def _put(store,key,kind,gid,fid,name,host,faction,source,source_kind):
    (key,kind,gid,fid,name,host,faction,source_kind,h,quote,json.dumps(tags),hint,status,now()))
   action="detected"
  store.db.execute("""INSERT INTO voice_proposal_audit(proposal_key,action,source_hash,details_json,at)
-  VALUES(?,?,?,?,?)""",(key,action,h,json.dumps({"source_kind":source_kind,"excerpt":quote},ensure_ascii=False),now()))
+  VALUES(?,?,?,?,?)""",(key,action,h,json.dumps({"source_kind":source_kind,"excerpt":quote,"selector_version":VOICE_SELECTOR_VERSION},ensure_ascii=False),now()))
  return True
 
 
@@ -256,7 +279,7 @@ def review(store,key,expected_hash,decision,tags=None,register=None):
    store.db.execute("""UPDATE voice_proposals SET source_excerpt=?,proposed_tags_json=?,proposed_register=?,
     status='pending',updated_at=? WHERE proposal_key=?""",(quote,json.dumps(tags),register,stamp,key))
    store.db.execute("INSERT INTO voice_proposal_audit(proposal_key,action,source_hash,details_json,at) VALUES(?,?,?,?,?)",
-    (key,"regenerated",expected_hash,json.dumps({"attempt":attempts+1,"excerpt":quote,"tags":tags,"register":register},ensure_ascii=False),stamp))
+    (key,"regenerated",expected_hash,json.dumps({"attempt":attempts+1,"excerpt":quote,"tags":tags,"register":register,"selector_version":VOICE_SELECTOR_VERSION},ensure_ascii=False),stamp))
    return {"proposal_key":key,"status":"pending","tags":tags}
   if decision=="rejected" and row["status"]=="rejected":raise ValueError("This proposal is already rejected")
   if row["status"] not in ("pending","approved","rejected"):raise ValueError("No authored source to approve")

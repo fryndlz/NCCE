@@ -47,6 +47,23 @@ class VoiceProposalTests(unittest.TestCase):
  def tearDown(self):
   self.store.close()
 
+ def test_refresh_uses_multiple_passages_and_excludes_equipment(self):
+  self.store.gang("orlock","The Slag Eaters","House Orlock")
+  self.store.fighter(42,"orlock","Surveyor",
+   "Survey Instrument: Augurspex\nArmament: Shotgun\nProtection: Hazard suit\n\n"
+   "She charts a route through the lower tunnels before the others wake.\n\n"
+   "The crew trusts her with its cargo ledger.")
+  scan(self.store)
+  initial=proposals(self.store,"pending")[0]
+  self.store.db.execute("UPDATE voice_proposal_audit SET details_json='{}'")
+  self.store.db.execute("UPDATE voice_proposals SET source_excerpt='Survey Instrument: Augurspex'")
+  self.assertEqual(scan(self.store),1)
+  refreshed=proposals(self.store,"pending")[0]
+  self.assertEqual(refreshed["source_hash"],initial["source_hash"])
+  self.assertIn("crew trusts",refreshed["source_excerpt"])
+  self.assertEqual(set(refreshed["proposed_tags"]),{"survey_and_routes","crew_solidarity","trade_and_debt"})
+  self.assertEqual(scan(self.store),0)
+
  def test_new_fighter_detected_then_owner_approved(self):
   self.store.gang("orlock","The Slag Eaters","House Orlock")
   self.store.fighter(42,"orlock","New Driver","He checks each freight load twice. The crew relies on his accurate cargo records.")
