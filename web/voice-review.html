@@ -67,7 +67,8 @@ function render(p){
  else card.append(node("p","No authored lore or accepted fighter biography is available yet. Nothing to approve.","sub"));
  if(p.status!=="awaiting_source"){
   const tags=labelled(card,"Suggested topic tags (comma-separated)",(p.status==="approved"?p.approved_tags:p.proposed_tags).join(", "),false);
-  const register=labelled(card,"Editorial voice guidance — edit to reflect this character's voice",p.status==="approved"?p.approved_register:p.proposed_register,true);
+  const register=labelled(card,p.status==="approved"?"Approved voice guidance":"Suggested writing guidance — edit before approval",p.status==="approved"?p.approved_register:p.proposed_register,true);
+  register.placeholder="Describe how the subject speaks, what they notice, or what vocabulary fits.";
   if(p.status==="pending"||p.status==="approved"||p.status==="rejected"){
    const actions=node("div",undefined,"actions");
    for(const [decision,text,cls] of [["approved","Approve voice","approve"],["rejected","Reject","reject"]]){

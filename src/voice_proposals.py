@@ -1,8 +1,8 @@
 """Detect and review source-grounded fighter/gang voice suggestions.
 
-No external model, no automatic approval. Proposal text is extracted verbatim
-from player-authored material or accepted fighter biography; lexical hints are
-not psychological findings. GM-only material is excluded from review packets.
+The source excerpt comes from player-authored material or an accepted fighter
+biography. Topic cues suggest writing directions for editorial review. GM-only
+material is excluded from review packets.
 Approved overrides are SQLite-backed and participate only in *future* packets.
 """
 from __future__ import annotations
@@ -55,6 +55,26 @@ CUES = {
 }
 SKIP_SECTIONS = (r"\bTajna Prawda\b", r"\bOnly for (?:the )?(?:GM|Arbiter)\b",
                  r"\bGM[- ]ONLY\b", r"\bTYLKO DLA OCZU ARBITRA\b", r"\bsecret for the arbiter\b")
+LEGACY_EXCERPT_PREFIX = "Evidence excerpt (not an inferred personality): "
+VOICE_SUGGESTIONS = {
+ "tools_and_repairs": "When relevant, name the part, symptom, or check the subject would recognize.",
+ "survey_and_routes": "Describe routes through landmarks and practical choices about where to go next.",
+ "crew_solidarity": "When crew ties matter, show them through who gets warned, helped, or trusted.",
+ "trade_and_debt": "When a bargain matters, show what is owed, who owes it, and what changes the price.",
+ "orders_and_checks": "When procedure matters, distinguish what was ordered from what the subject actually checked.",
+ "hazards_and_exposure": "Describe danger through the signs the subject could notice and the precautions they could take.",
+ "tracking_and_watch": "Separate what the subject saw from what they inferred about someone’s movements.",
+}
+
+
+def suggested_register(tags):
+ return " ".join(VOICE_SUGGESTIONS[tag] for tag in tags if tag in VOICE_SUGGESTIONS)
+
+
+def editable_register(value, tags):
+ if value.startswith(LEGACY_EXCERPT_PREFIX):
+  return suggested_register(tags)
+ return value
 
 
 def now():
@@ -134,7 +154,7 @@ def _put(store,key,kind,gid,fid,name,host,faction,source,source_kind):
  quote,tags=excerpt_and_tags(source)
  status="pending" if quote else "awaiting_source"
  # Explicit citation gives reviewers exactly the authored source, not an invented event.
- hint=("Evidence excerpt (not an inferred personality): "+quote) if quote else ""
+ hint=suggested_register(tags)
  old=store.db.execute("SELECT source_hash,status FROM voice_proposals WHERE proposal_key=?",(key,)).fetchone()
  if old and old["source_hash"]==h:
   store.db.execute("UPDATE voice_proposals SET name=?,host_name=?,faction=?,source_kind=? WHERE proposal_key=?",
@@ -195,6 +215,7 @@ def proposals(store, status=None):
   item=dict(row)
   for key in ("proposed_tags_json","approved_tags_json"):
    item[key[:-5]]=json.loads(item.pop(key))
+  item["proposed_register"]=editable_register(item["proposed_register"],item["proposed_tags"])
   item["source_url"]=("https://docs.google.com/spreadsheets/d/1Ofh1kDys_xp4a-idPc1NA2I1GCqndbVGjxenatezh00/edit"
    if item["source_kind"].startswith("player_authored") else
    "https://docs.google.com/spreadsheets/d/1xokVbI3kya5koTqx9IOyUly2lP22batgLlo4oBlYBas/edit")
@@ -215,7 +236,9 @@ def review(store,key,expected_hash,decision,tags=None,register=None):
   if row["status"] not in ("pending","approved","rejected"):raise ValueError("No authored source to approve")
   if decision=="approved":
    if tags is None:tags=json.loads(row["proposed_tags_json"])
-   if register is None:register=row["proposed_register"]
+   if register is None:register=editable_register(row["proposed_register"],json.loads(row["proposed_tags_json"]))
+   if isinstance(register,str) and (register.strip().startswith(LEGACY_EXCERPT_PREFIX) or register.strip()==row["source_excerpt"]):
+    raise ValueError("Enter voice guidance distinct from the source excerpt")
    if not isinstance(tags,list) or len(tags)>12 or any(not isinstance(x,str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,55}",x) for x in tags):
     raise ValueError("Invalid proposed tags")
    if not isinstance(register,str) or not register.strip() or len(register)>1200:

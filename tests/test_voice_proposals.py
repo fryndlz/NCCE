@@ -55,6 +55,14 @@ class VoiceProposalTests(unittest.TestCase):
   self.assertEqual(row["kind"],"fighter")
   self.assertIn("cargo",row["source_excerpt"])
   self.assertIn("trade_and_debt",row["proposed_tags"])
+  self.assertIn("what changes the price",row["proposed_register"])
+  self.assertNotIn(row["source_excerpt"],row["proposed_register"])
+  old_register="Evidence excerpt (not an inferred personality): "+row["source_excerpt"]
+  self.store.db.execute("UPDATE voice_proposals SET proposed_register=?",(old_register,))
+  self.store.db.commit()
+  self.assertEqual(proposals(self.store,"pending")[0]["proposed_register"],row["proposed_register"])
+  with self.assertRaisesRegex(ValueError,"distinct from the source"):
+   review(self.store,row["proposal_key"],row["source_hash"],"approved",register=old_register)
   neutral=build_voice_layers({"gang":"The Slag Eaters","subject_name":"New Driver"})
   self.assertEqual(neutral["individual"]["tags"],[])
   candidate=request_for(42,"New Driver")
