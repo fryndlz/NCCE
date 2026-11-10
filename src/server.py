@@ -43,7 +43,6 @@ import exchange_automation
 exchange_automation.restore(store)
 import voice_proposals
 voice_proposals.ensure(store)
-voice_proposals.scan(store)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
 except ValueError: SYNC_INTERVAL_SECONDS=900
 _worker_guard=threading.Lock(); _worker_active=False
@@ -55,7 +54,6 @@ def _run_sync():
   result=sync_live_sheet(store,writer_enabled=False)
   import_accepted_files(store,EXTERNAL_DELIVERIES)
   exchange_automation.restore(store)
-  voice_proposals.scan(store)
   finished=datetime.now(timezone.utc).isoformat()
   with store._lock:
    store.set_state('last_sync',finished); store.set_state('sync_last_success',finished); store.set_state('sync_status','ok')
@@ -109,6 +107,8 @@ class H(BaseHTTPRequestHandler):
    if p=='/':return self._serve_login()
    if p.startswith('/api/'):return self.js({'error':'authentication required'},401)
    return self.send_error(404)
+  if p=='/voice-review.html':
+   self.send_response(303);self.send_header('Location','/writing-process.html');self.end_headers();return
   if p=='/api/dashboard':
    with store.reader() as reader:return self.js(reader.dashboard())
   if p=='/api/health':
@@ -145,11 +145,7 @@ class H(BaseHTTPRequestHandler):
      'scope':'literary policy and cited excerpts; not live campaign snapshot',
      'download':'/api/portable-writing-packet.zip','requires_owner_approval_for_learning':True})
   if p=='/api/voice-proposals':
-   try:
-    status=parse_qs(parsed.query).get('status',['all'])[0]
-    with store.reader() as reader:
-     return self.js({'proposals':voice_proposals.proposals(reader,status)})
-   except ValueError as exc:return self.js({'error':str(exc)},400)
+   return self.js({'error':'Voice proposal review has been retired.'},410)
   if p=='/api/writing-exchange':
    from writing_exchange import status
    with store.reader() as reader:return self.js({'deliveries':status(reader),'automation':exchange_automation.diagnostics(reader)})
@@ -233,19 +229,7 @@ class H(BaseHTTPRequestHandler):
    return
   if AUTH_REQUIRED and not self._authenticated():return self.js({'error':'authentication required'},401)
   if p=='/api/voice-proposals/review':
-   origin=self.headers.get('Origin')
-   if origin and urlparse(origin).netloc!=self.headers.get('Host'):
-    return self.js({'error':'Cross-origin edits are not allowed'},403)
-   try:
-    length=int(self.headers.get('Content-Length','0'))
-    if length<=0 or length>4096:return self.js({'error':'Review payload too large or empty'},413)
-    body=json.loads(self.rfile.read(length).decode('utf-8'))
-    if not isinstance(body,dict):raise ValueError('Expected a JSON object')
-    with store._lock:
-     result=voice_proposals.review(store,body.get('proposal_key'),body.get('source_hash'),
-                                   body.get('decision'),body.get('tags'),body.get('register'))
-    return self.js(result)
-   except (ValueError,TypeError,UnicodeDecodeError) as exc:return self.js({'error':str(exc)},400)
+   return self.js({'error':'Voice proposal review has been retired.'},410)
   if p.startswith('/api/fighters/') and p.endswith('/identity'):
    origin=self.headers.get('Origin')
    if origin and urlparse(origin).netloc!=self.headers.get('Host'):return self.js({'error':'Cross-origin edits are not allowed'},403)
