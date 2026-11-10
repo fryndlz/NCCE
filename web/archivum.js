@@ -55,6 +55,17 @@ window.NCCEArchive = (() => {
     const sections=[...meta.sections,{id:'sources',label:'Data & sources',description:'Mechanical state, provenance, identity tools and source references.',body:`<dl class="source-register">${[['Record',meta.id],['Source',meta.source || 'Campaign record'],...(meta.fields || [])].map(([k,v])=>`<div><dt>${escape(k)}</dt><dd>${escape(v ?? 'Not recorded')}</dd></div>`).join('')}</dl>${meta.sourceBody || ''}<div class="source-evidence"></div>`}];
     const paper=section=>{
       const cnine=section.paperStyle==='cnine-personnel';
+      if (section.paperStyle==='kly-personnel' || section.paperStyle==='patrol-personnel') {
+        const kly=section.paperStyle==='kly-personnel';
+        const masthead=kly
+          ? `<header class="kly-docket"><span class="kly-fangs" aria-hidden="true"><i></i><i></i><i></i></span><div><small>Palanite Enforcers</small><strong>Kły Sprawiedliwości</strong></div><span class="kly-docket-label">PERSONNEL<br>DOCKET</span></header>`
+          : `<header class="patrol-docket"><div><small>Palanite Enforcers</small><strong>Patrol do spraw<br>alkoholu i broni</strong></div><span class="patrol-docket-label">KARTA<br>EWIDENCYJNA</span></header>`;
+        return `<div class="document-notices" role="status"></div><div class="archive-paper police-paper ${kly?'kly-paper':'patrol-paper'}">
+          <div class="paper-metadata"><span>CAMPAIGN ARCHIVE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
+          ${masthead}<div class="paper-content">${section.body}</div>
+          <footer class="police-paper-end"><span>// RECORD ENDS //</span><span>${kly?'PRECINCT COPY':'KOPIA ARCHIWALNA'}</span></footer>
+        </div>`;
+      }
       if (section.paperStyle==='helmaeth-personnel') {
         return `<div class="document-notices" role="status"></div><div class="archive-paper helmaeth-paper">
           <div class="paper-metadata"><span>EXPEDITION CHARTER OFFICE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>

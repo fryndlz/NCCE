@@ -15,6 +15,9 @@ const MAX_MIND_THOUGHTS = 3;
 const selectedPaperPreview = () => new URLSearchParams(location.search).get('paper-preview');
 const isWernerMatrix = fighter => fighter.name==='Werner Matrix' && fighter.gang_name==='Ethernetans 2.0';
 const isBofur = fighter => fighter.name==='Bofur' && fighter.gang_name==='Helmaeth Expeditionary Force';
+const klyGang = 'Kły Sprawiedliwości';
+const patrolGang = 'Patrol do spraw alkoholu i broni';
+let policePreviewFighterId = null;
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
 const short = value => String(value || 'Unknown').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]', 'C-NINE');
@@ -887,6 +890,10 @@ async function showFighter(id, preserveScroll = false) {
   }
   if (paperPreview==='werner' && isWernerMatrix(f)) sections[0].paperStyle='ethernetans-personnel';
   if (paperPreview==='bofur' && isBofur(f)) sections[0].paperStyle='helmaeth-personnel';
+  if (String(id)===String(policePreviewFighterId)) {
+    if (paperPreview==='kly' && f.gang_name===klyGang) sections[0].paperStyle='kly-personnel';
+    if (paperPreview==='patrol' && f.gang_name===patrolGang) sections[0].paperStyle='patrol-personnel';
+  }
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
     mindPreview:{hidden:deceased,body:deceased ? '' : mindFeedBody(f)},
     fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
@@ -994,6 +1001,18 @@ async function startApp() {
   if (paperPreview==='werner' || paperPreview==='bofur') {
     const fighter=(await ensureFighters()).find(paperPreview==='werner'?isWernerMatrix:isBofur);
     if (fighter) await showFighter(fighter.id);
+  }
+  if (paperPreview==='kly' || paperPreview==='patrol') {
+    const fighters=await ensureFighters();
+    const patrol=fighters.filter(fighter=>fighter.gang_name===patrolGang && fighter.listed_in_source!==0);
+    const fighter=paperPreview==='kly'
+      ? fighters.find(fighter=>fighter.gang_name===klyGang && fighter.name==='Tomas')
+      : patrol.find(fighter=>authored(fighter.backstory_source) && fighter.backstory?.trim())
+        || patrol.find(fighter=>fighter.backstory?.trim()) || patrol[0];
+    if (fighter) {
+      policePreviewFighterId=fighter.id;
+      await showFighter(fighter.id);
+    }
   }
   if (['#retrieval','#workshop'].includes(initialView)) history.replaceState(null,'',location.pathname+location.search);
   setInterval(() => {
