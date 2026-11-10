@@ -3,6 +3,7 @@
 window.NCCEArchive = (() => {
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const labels = {chronicle:'Campaign Chronicle',gangs:'Gang records',fighters:'Fighter records',places:'Territorial archive',battles:'Engagement records',archive:'Authored archive',system:'System records'};
+  const aquila = `<svg class="paper-aquila" viewBox="0 0 60 22" width="45" height="17" aria-hidden="true" fill="currentColor"><path d="M30 19 27 22 26 15 22 17 23 11 19 15 15 15 18 10 12 13 8 12 13 8 6 10 2 7 10 5 0 4 0 1 16 2 23 7 25 5 23 4 22 2 27 2 29 5 30 9Z"/><path d="M30 19 27 22 26 15 22 17 23 11 19 15 15 15 18 10 12 13 8 12 13 8 6 10 2 7 10 5 0 4 0 1 16 2 23 7 25 5 23 4 22 2 27 2 29 5 30 9Z" transform="translate(60) scale(-1 1)"/></svg>`;
   const ethernetansMasthead = `<header class="ethernetans-masthead">
     <svg class="ethernetans-sigil" viewBox="0 0 84 84" width="76" height="76" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5">
       <path d="M25 5h34l20 20v34L59 79H25L5 59V25Z M29 11h26l18 18v26L55 73H29L11 55V29Z"/>
@@ -58,7 +59,7 @@ window.NCCEArchive = (() => {
       if (section.paperStyle==='slag-eaters-personnel') {
         return `<div class="document-notices" role="status"></div><div class="archive-paper slag-eaters-paper">
           <div class="paper-metadata"><span>CAMPAIGN ARCHIVE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
-          <header class="slag-eaters-masthead"><span class="slag-eaters-wheel" aria-hidden="true"></span><div><small>House Orlock</small><strong>The Slag Eaters</strong></div></header>
+          <header class="slag-eaters-masthead"><span class="slag-eaters-wheel" aria-hidden="true"></span><div><small>House Orlock · House of Iron</small><strong>The Slag Eaters</strong></div></header>
           <div class="paper-content">${section.body}</div>
           <footer class="slag-eaters-footer"><span>// RECORD ENDS //</span><span class="slag-eaters-stamp">DISPATCH OFFICE<br><small>ARCHIVE COPY</small></span></footer>
         </div>`;
@@ -66,8 +67,8 @@ window.NCCEArchive = (() => {
       if (section.paperStyle==='kly-personnel' || section.paperStyle==='patrol-personnel') {
         const kly=section.paperStyle==='kly-personnel';
         const masthead=kly
-          ? `<header class="kly-docket"><span class="kly-fangs" aria-hidden="true"><i></i><i></i><i></i></span><div><small>Palanite Enforcers</small><strong>Kły Sprawiedliwości</strong></div><span class="kly-docket-label">PERSONNEL<br>DOCKET</span></header>`
-          : `<header class="patrol-docket"><div><small>Palanite Enforcers</small><strong>Patrol do spraw<br>alkoholu i broni</strong></div><span class="patrol-docket-label">KARTA<br>EWIDENCYJNA</span></header>`;
+          ? `<header class="kly-docket"><span class="kly-fangs" aria-hidden="true"><i></i><i></i><i></i></span><div><small>Palanite Enforcers</small><strong>Kły Sprawiedliwości</strong></div><span class="kly-docket-label">${aquila}PERSONNEL DOCKET</span></header>`
+          : `<header class="patrol-docket"><div><small>Palanite Enforcers</small><strong>Patrol do spraw<br>alkoholu i broni</strong></div><span class="patrol-docket-label">${aquila}KARTA<br>EWIDENCYJNA</span></header>`;
         return `<div class="document-notices" role="status"></div><div class="archive-paper police-paper ${kly?'kly-paper':'patrol-paper'}">
           <div class="paper-metadata"><span>CAMPAIGN ARCHIVE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
           ${masthead}<div class="paper-content">${section.body}</div>
@@ -77,7 +78,7 @@ window.NCCEArchive = (() => {
       if (section.paperStyle==='helmaeth-personnel') {
         return `<div class="document-notices" role="status"></div><div class="archive-paper helmaeth-paper">
           <div class="paper-metadata"><span>EXPEDITION CHARTER OFFICE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
-          <header class="helmaeth-masthead"><small>Ironhead Kin · Personnel Register</small><strong>Helmaeth Expeditionary Force</strong><span aria-hidden="true">◆</span></header>
+          <header class="helmaeth-masthead"><small>Ironhead Kin · Expedition Charter Roll</small><strong>Helmaeth Expeditionary Force</strong><span aria-hidden="true">◆</span></header>
           <div class="paper-content">${section.body}</div>
           <footer class="helmaeth-end"><span>CHARTER OFFICE · ARCHIVE COPY</span><div class="helmaeth-seal" aria-hidden="true">
             <svg viewBox="0 0 48 48" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter"><path d="M11 37 33 13m4 24L15 13M27 11l7 2 6 6M21 11l-7 2-6 6M18 39h12"/></svg>
@@ -91,7 +92,7 @@ window.NCCEArchive = (() => {
           <div class="ethernetans-end"><span>HOUSE VAN SAAR</span><span>// RECORD ENDS //</span></div>
         </div>`;
       }
-      const masthead=cnine?`<div class="cnine-paper-heading"><svg viewBox="0 0 60 22" width="45" height="17" aria-hidden="true" fill="currentColor"><path id="cnine-aquila-half" d="M30 19 27 22 26 15 22 17 23 11 19 15 15 15 18 10 12 13 8 12 13 8 6 10 2 7 10 5 0 4 0 1 16 2 23 7 25 5 23 4 22 2 27 2 29 5 30 9Z"/><use href="#cnine-aquila-half" transform="translate(60) scale(-1 1)"/></svg><span>Geothermal Prospect Detail C-9</span><small>Labour archive · Personnel record</small></div>`:'';
+      const masthead=cnine?`<div class="cnine-paper-heading">${aquila}<span>Geothermal Prospect Detail C-9</span><small>Hive Primus Labour Administratum</small></div>`:'';
       return `<div class="document-notices" role="status"></div><div class="archive-paper${cnine?' cnine-personnel-paper':''}"><div class="paper-metadata"><span>CAMPAIGN ARCHIVE · ${escape(meta.kind.toUpperCase())}</span><span>${escape(section.paperLabel || 'BASELINE RECORD')}</span></div>${masthead}<div class="paper-content">${section.body}</div><div class="paper-end"><span class="document-stamp">${cnine?'GPD-C9':'NCCE'}<br><small>ARCHIVE COPY</small></span><span>${cnine?'THE EMPEROR PROTECTS':'// RECORD ENDS //'}</span></div></div>`;
     };
     outlet.dataset.recordIdentity=identity;
