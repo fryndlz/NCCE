@@ -15,6 +15,7 @@ const MAX_MIND_THOUGHTS = 3;
 const selectedPaperPreview = () => new URLSearchParams(location.search).get('paper-preview');
 const isWernerMatrix = fighter => fighter.name==='Werner Matrix' && fighter.gang_name==='Ethernetans 2.0';
 const isBofur = fighter => fighter.name==='Bofur' && fighter.gang_name==='Helmaeth Expeditionary Force';
+const isEisen = fighter => fighter.name==='Eisen' && fighter.gang_name==='The Slag Eaters';
 const klyGang = 'Kły Sprawiedliwości';
 const patrolGang = 'Patrol do spraw alkoholu i broni';
 let policePreviewFighterId = null;
@@ -890,6 +891,7 @@ async function showFighter(id, preserveScroll = false) {
   }
   if (paperPreview==='werner' && isWernerMatrix(f)) sections[0].paperStyle='ethernetans-personnel';
   if (paperPreview==='bofur' && isBofur(f)) sections[0].paperStyle='helmaeth-personnel';
+  if (paperPreview==='eisen' && isEisen(f)) sections[0].paperStyle='slag-eaters-personnel';
   if (String(id)===String(policePreviewFighterId)) {
     if (paperPreview==='kly' && f.gang_name===klyGang) sections[0].paperStyle='kly-personnel';
     if (paperPreview==='patrol' && f.gang_name===patrolGang) sections[0].paperStyle='patrol-personnel';
@@ -998,8 +1000,9 @@ async function startApp() {
   await refreshDashboard(false); await refreshStatus();
   const paperPreview = selectedPaperPreview();
   if (paperPreview==='orik') await showFighter(38);
-  if (paperPreview==='werner' || paperPreview==='bofur') {
-    const fighter=(await ensureFighters()).find(paperPreview==='werner'?isWernerMatrix:isBofur);
+  const previewMatch=new Map([['werner',isWernerMatrix],['bofur',isBofur],['eisen',isEisen]]).get(paperPreview);
+  if (previewMatch) {
+    const fighter=(await ensureFighters()).find(previewMatch);
     if (fighter) await showFighter(fighter.id);
   }
   if (paperPreview==='kly' || paperPreview==='patrol') {

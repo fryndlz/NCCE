@@ -55,6 +55,14 @@ window.NCCEArchive = (() => {
     const sections=[...meta.sections,{id:'sources',label:'Data & sources',description:'Mechanical state, provenance, identity tools and source references.',body:`<dl class="source-register">${[['Record',meta.id],['Source',meta.source || 'Campaign record'],...(meta.fields || [])].map(([k,v])=>`<div><dt>${escape(k)}</dt><dd>${escape(v ?? 'Not recorded')}</dd></div>`).join('')}</dl>${meta.sourceBody || ''}<div class="source-evidence"></div>`}];
     const paper=section=>{
       const cnine=section.paperStyle==='cnine-personnel';
+      if (section.paperStyle==='slag-eaters-personnel') {
+        return `<div class="document-notices" role="status"></div><div class="archive-paper slag-eaters-paper">
+          <div class="paper-metadata"><span>CAMPAIGN ARCHIVE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
+          <header class="slag-eaters-masthead"><span class="slag-eaters-wheel" aria-hidden="true"></span><div><small>House Orlock</small><strong>The Slag Eaters</strong></div></header>
+          <div class="paper-content">${section.body}</div>
+          <footer class="slag-eaters-footer"><span>// RECORD ENDS //</span><span class="slag-eaters-stamp">DISPATCH OFFICE<br><small>ARCHIVE COPY</small></span></footer>
+        </div>`;
+      }
       if (section.paperStyle==='kly-personnel' || section.paperStyle==='patrol-personnel') {
         const kly=section.paperStyle==='kly-personnel';
         const masthead=kly

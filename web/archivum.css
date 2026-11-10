@@ -120,6 +120,22 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .cnine-paper-heading small { font:9px/1.5 'Courier New',monospace; letter-spacing:.12em; text-transform:uppercase; }
 .cnine-personnel-paper .document-stamp { border-color:#a46656; color:#824537; transform:rotate(-4deg); }
 .cnine-personnel-paper .paper-end { color:#6b563e; }
+.archive-paper.slag-eaters-paper {
+  --dispatch-ink:#373730;
+  --dispatch-stamp:#763c39;
+  background:linear-gradient(115deg,#ded8c9,#eae5d9 42%,#e6e0d1 83%,#d8d0bf);
+  border:1px solid #675e50;
+  border-top:6px solid #4d463b;
+}
+.slag-eaters-paper .paper-metadata { margin-bottom:10px; padding-bottom:9px; color:var(--dispatch-ink); border-color:#8d8270; }
+.slag-eaters-masthead { display:flex; align-items:center; gap:clamp(10px,2vw,24px); color:var(--dispatch-ink); padding:15px 0 13px; border-bottom:4px double #62584a; }
+.slag-eaters-masthead strong { display:block; font:800 clamp(26px,5vw,48px)/1.02 'Bahnschrift Condensed','Arial Narrow',Impact,sans-serif; letter-spacing:.035em; text-transform:uppercase; }
+.slag-eaters-masthead small,.slag-eaters-footer { font:600 10px/1.45 'Courier New',monospace; letter-spacing:.12em; text-transform:uppercase; }
+.slag-eaters-wheel { flex:none; width:clamp(35px,7vw,63px); aspect-ratio:1; border:5px double currentColor; border-radius:50%; background:radial-gradient(circle,currentColor 0 13%,#e5dfd0 14% 20%,transparent 21%),repeating-conic-gradient(from 13deg,currentColor 0 5deg,transparent 5deg 45deg); }
+.slag-eaters-paper .paper-content { padding-top:20px; }
+.slag-eaters-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:24px; padding-top:14px; color:var(--dispatch-ink); border-top:1px solid #8d8270; }
+.slag-eaters-stamp { color:var(--dispatch-stamp); border:3px double currentColor; padding:5px 9px; text-align:center; transform:rotate(-4deg); }
+.slag-eaters-stamp small { font-size:8px; }
 .archive-paper.helmaeth-paper {
   --charter-ink:#513722;
   --charter-rule:#8f7146;
