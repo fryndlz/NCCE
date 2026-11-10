@@ -32,9 +32,25 @@ https://docs.google.com/spreadsheets/d/1xokVbI3kya5koTqx9IOyUly2lP22batgLlo4oBlY
    reflection connects its cited observations; a thought is a present concern.
    The fighter-relevant event clock, importance and salience are computed by
    NCCE, not by you. Do not invent mechanical facts or attendance.
-5. Write **one complete Markdown entry once**, not variants or a review cycle.
-   Use race/embodiment, faction, work and authored background to give the subject
-   an individual voice. Prior biography is not an event happening again. Use
+5. Build voice in this order: **Faction → Gang → Individual → Form & Audience**.
+   Read each relevant available source in full before drafting. Use the wider
+   culture first, then the specific gang's practices, then the individual's
+   history, relationships and perspective. Let the form and its intended
+   reader determine how that voice appears on the page. Use the source details
+   and any approved editorial notes that fit the scene.
+
+   - **Memory.** Start with the specific mechanical event, whether it happened
+     in battle or outside it, and what the fighter could perceive and feel at
+     the time. For a battle event, consult the full battle account and location
+     record when available and relevant. Keep the immediate reaction central.
+   - **Battle report.** Read the place record, the relevant participants and
+     their affiliations, the ordered events, and any existing source account.
+     Choose whose perspective or reporting institution fits the form and
+     audience. Synthesize what that perspective can know into a report and
+     keep uncertain facts uncertain. Put the request on HOLD if essential
+     evidence is missing.
+
+   Write **one complete Markdown entry once**, in the established style. Use
    Imperial dates inside fiction and leave IRL dates/provenance in the app layer.
    You may supply diegetic headings and metadata in the Markdown. No summaries
    of your process, source disclaimers or mechanical placeholders in the prose.

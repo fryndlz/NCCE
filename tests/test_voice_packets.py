@@ -54,7 +54,9 @@ class VoicePacketTests(unittest.TestCase):
         self.assertEqual(sections["voice_layers"]["provenance"], "style_guidance")
         voice = json.loads(sections["voice_layers"]["text"])
         self.assertEqual(voice["gang"]["name"], "Geothermal Prospect Detail C-9")
-        self.assertIn("survey_accuracy", voice["individual"]["tags"])
+        self.assertEqual(voice["composition_order"], ["faction", "gang", "individual", "form_and_audience"])
+        for layer in ("faction", "gang", "individual"):
+            self.assertNotIn("tags", voice[layer])
 
     def test_owner_authored_identity_is_explicit_and_prioritized(self):
         store = StoreStub()
@@ -71,8 +73,8 @@ class VoicePacketTests(unittest.TestCase):
         store.add(2, "New Fighter", "Patrol do spraw alkoholu i broni", "Palanite Enforcers")
         voice = json.loads(next(x["text"] for x in _packet(store, request_for(2, "New Fighter"),
             "request-test-patrol")["context"] if x["section"] == "voice_layers"))
-        self.assertEqual(voice["gang"]["tags"], [])
-        self.assertEqual(voice["faction"]["tags"], [])
+        self.assertFalse(voice["gang"].get("register"))
+        self.assertFalse(voice["faction"].get("register"))
         self.assertEqual(voice["gang"]["review_status"], "excluded_until_onboarded")
 
     def test_external_cnine_affiliation_overrides_host_roster(self):
@@ -83,7 +85,7 @@ class VoicePacketTests(unittest.TestCase):
             "request-test-outsider")["context"] if x["section"] == "voice_layers"))
         self.assertEqual(voice["gang"]["name"], "Peregrine's Due")
         self.assertEqual(voice["faction"]["name"], "Independent")
-        self.assertNotIn("shared_presence_when_known", voice["gang"]["tags"])
+        self.assertNotIn("tags", voice["gang"])
 
 
 if __name__ == "__main__":

@@ -29,9 +29,9 @@ textarea,input{width:100%}textarea{min-height:100px}
 </head>
 <body>
 <header><a href="/">← Campaign Chronicle</a><h1>Writer identity / Editorial review</h1>
-<p class="sub">Source-grounded suggestions only. No tags become active until reviewed. Only future writing packets use approved profiles.</p></header>
+<p class="sub">Approved editorial notes can guide future writing requests.</p></header>
 <main>
-<div class="notice">A proposed tag identifies a topic explicitly present in cited lore, <strong>not a verified psychological trait</strong>. Edit the wording before approval. Missing source material remains on hold. An edited source revokes its previous approval.</div>
+<div class="notice">Read the full source before adding an optional voice note. An edited source revokes its previous approval.</div>
 <div class="controls"><label for="status">Show</label><select id="status"><option value="pending">Needs review</option><option value="awaiting_source">Awaiting authored lore</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></select><button id="reload" type="button">Refresh</button><span id="counts" class="sub"></span></div>
 <div id="message" role="status" aria-live="polite"></div><div id="items" class="cards"></div>
 </main>
@@ -42,10 +42,6 @@ const status=document.querySelector("#status");
 document.querySelector("#reload").addEventListener("click",load);
 status.addEventListener("change",load);
 function node(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e}
-function labelled(card,label,value,multiline){
- const l=node("label",label);const field=node(multiline?"textarea":"input");
- if(!multiline)field.type="text";field.value=value||"";card.append(l,field);return field
-}
 async function load(){
  message.textContent="";items.replaceChildren();
  try{
@@ -66,8 +62,9 @@ function render(p){
  if(p.source_excerpt)card.append(node("div",p.source_excerpt,"source"));
  else card.append(node("p","No authored lore or accepted fighter biography is available yet. Nothing to approve.","sub"));
  if(p.status!=="awaiting_source"){
-  const tags=labelled(card,"Suggested topic tags (comma-separated)",(p.status==="approved"?p.approved_tags:p.proposed_tags).join(", "),false);
-  const register=labelled(card,p.status==="approved"?"Approved voice guidance":"Suggested writing guidance — edit before approval",p.status==="approved"?p.approved_register:p.proposed_register,true);
+  const register=node("textarea");
+  register.value=p.status==="approved"?p.approved_register:"";
+  card.append(node("label",p.status==="approved"?"Approved voice note":"Editorial voice note"),register);
   register.placeholder="Describe how the subject speaks, what they notice, or what vocabulary fits.";
   if(p.status==="pending"||p.status==="approved"||p.status==="rejected"){
    const actions=node("div",undefined,"actions");
@@ -79,7 +76,7 @@ function render(p){
      b.disabled=true;message.textContent="";
      try{
       const payload={proposal_key:p.proposal_key,source_hash:p.source_hash,decision,
-       tags:tags.value.split(",").map(s=>s.trim()).filter(Boolean),register:register.value};
+       tags:[],register:register.value};
       const r=await fetch("/api/voice-proposals/review",{
        method:"POST",credentials:"same-origin",
        headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});

@@ -94,8 +94,9 @@ class VoiceProposalTests(unittest.TestCase):
   future=_packet(self.store,candidate,"after-review")
   def voice(packet):
    return next(json.loads(block["text"]) for block in packet["context"] if block["section"]=="voice_layers")
-  self.assertEqual(voice(sealed)["individual"]["tags"],[])
-  self.assertEqual(voice(future)["individual"]["tags"],["trade_and_debt"])
+  self.assertNotIn("register",voice(sealed)["individual"])
+  self.assertEqual(voice(future)["individual"]["register"],"Precise about freight loading and signed cargo tallies.")
+  self.assertNotIn("tags",voice(future)["individual"])
   self.assertEqual(json.dumps(sealed),sealed_bytes)
   self.assertEqual(sealed["request"]["source_revision"],future["request"]["source_revision"])
   self.assertEqual(scan(self.store),0)

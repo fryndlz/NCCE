@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "config" / "voice_registry.v1.json"
 PROFILE_VERSION = 1
 GUARDRAILS = [
-    "Event mechanics, chronology and the fighter's actual awareness outrank all voice tags.",
+    "Ground the piece in the event, chronology and what the narrator can know.",
     "Faction supplies social frame; gang supplies local register; individual provides distinct perspective.",
     "An accepted biography is a voice lens, not evidence that its anecdotes happened in a new memory event.",
     "Never leak GM-only secrets into ordinary memory context without explicit character-specific awareness.",

@@ -140,7 +140,7 @@ def _packet(store,c,rid):
     if c['event_at_utc']:
         request['imperial_date']=format_date(c['event_at_utc']).get('imperialDisplay','')
     context=[dict(section='mechanics',provenance='mechanical_fact',source_ref='NCCE sealed derived slot',
-                  event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['facts'].items() if k!='confirmed_territory_history'})),
+                  event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['facts'].items() if k not in ('confirmed_territory_history','tags_json')})),
              dict(section='character_context',provenance='inference',source_ref='NCCE source-separated writing context',
                   event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['context'].items() if k!='authored_background'}))]
     # Voice is a separate, provenance-labelled writing lens, not mechanical evidence.
@@ -171,7 +171,7 @@ def _packet(store,c,rid):
             try: authored_identity=load(fighter_row['authored_identity_json'])
             except (ValueError,TypeError): authored_identity={}
             if isinstance(authored_identity,dict) and authored_identity:
-                allowed=('voice','writer_tags','work','occupation','culture','narration_mode','life_history')
+                allowed=('voice','work','occupation','culture','narration_mode','life_history')
                 layers['individual']['authored_identity']={
                     key:authored_identity[key] for key in allowed if key in authored_identity}
                 layers['individual']['authored_identity_source']='player_authored_identity'
@@ -223,6 +223,11 @@ def _packet(store,c,rid):
         if c['entity_type']=='gang':
             from voice_proposals import apply_approved
             literary_layers=apply_approved(store,literary_layers,c['entity_key'],None)
+    for layer in ('faction','gang','individual'):
+        literary_layers[layer].pop('tags',None)
+    literary_layers['composition_order']=['faction','gang','individual','form_and_audience']
+    literary_layers['guardrails']=[*literary_layers['guardrails'],
+        'Read the full relevant records and use editorial voice notes where they fit the piece.']
     context.append(dict(section='voice_layers',provenance='style_guidance',
         source_ref='NCCE validated versioned voice registry; editorial layer, never event evidence',
         event_at_utc='',source_event_ids='',text=packed(literary_layers)))
