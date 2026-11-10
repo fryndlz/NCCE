@@ -61,7 +61,7 @@ window.NCCEArchive = (() => {
           <header class="helmaeth-masthead"><small>Ironhead Kin · Personnel Register</small><strong>Helmaeth Expeditionary Force</strong><span aria-hidden="true">◆</span></header>
           <div class="paper-content">${section.body}</div>
           <footer class="helmaeth-end"><span>CHARTER OFFICE · ARCHIVE COPY</span><div class="helmaeth-seal" aria-hidden="true">
-            <svg viewBox="0 0 48 48" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 37 34 12m3 25L14 12M25 9q9-1 15 9M23 9q-9-1-15 9"/><path d="m24 22 7 9-7 8-7-8Z" stroke-width="1.3"/></svg>
+            <svg viewBox="0 0 48 48" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="miter"><path d="M11 37 33 13m4 24L15 13M27 11l7 2 6 6M21 11l-7 2-6 6M18 39h12"/></svg>
           </div></footer>
         </div>`;
       }

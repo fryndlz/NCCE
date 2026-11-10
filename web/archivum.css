@@ -135,7 +135,7 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .helmaeth-masthead > span::before,.helmaeth-masthead > span::after { content:''; flex:1; border-top:3px double var(--charter-rule); }
 #app .helmaeth-paper .paper-content { color:var(--charter-ink); }
 .helmaeth-end { display:flex; align-items:center; justify-content:space-between; gap:10px; color:var(--charter-ink); border-top:3px double var(--charter-rule); margin-top:24px; padding-top:14px; }
-.helmaeth-seal { flex:none; display:grid; place-items:center; width:68px; aspect-ratio:1; border:4px double #9e6757; border-radius:48% 52% 49% 51%; background:radial-gradient(circle at 40% 33%,#915344,#623127 76%); color:#edc29b; box-shadow:inset 0 0 0 3px #643329,1px 3px 3px #56372a50; transform:rotate(-8deg); }
+.helmaeth-seal { flex:none; display:grid; place-items:center; width:49px; aspect-ratio:1; border:3px double currentColor; border-radius:50%; color:#784638; }
 .archive-paper.ethernetans-paper {
   --technical-ink:#224b58;
   background-color:#f0ebd9;
