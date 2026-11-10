@@ -43,7 +43,11 @@ window.NCCEArchive = (() => {
     const identity=meta.kind+':'+meta.id;
     const selected=outlet.dataset.recordIdentity===identity?outlet.dataset.activeSection:'baseline';
     const sections=[...meta.sections,{id:'sources',label:'Data & sources',description:'Mechanical state, provenance, identity tools and source references.',body:`<dl class="source-register">${[['Record',meta.id],['Source',meta.source || 'Campaign record'],...(meta.fields || [])].map(([k,v])=>`<div><dt>${escape(k)}</dt><dd>${escape(v ?? 'Not recorded')}</dd></div>`).join('')}</dl>${meta.sourceBody || ''}<div class="source-evidence"></div>`}];
-    const paper=section=>`<div class="document-notices" role="status"></div><div class="archive-paper"><div class="paper-metadata"><span>CAMPAIGN ARCHIVE · ${escape(meta.kind.toUpperCase())}</span><span>${escape(section.paperLabel || 'BASELINE RECORD')}</span></div><div class="paper-content">${section.body}</div><div class="paper-end"><span class="document-stamp">NCCE<br><small>ARCHIVE COPY</small></span><span>// RECORD ENDS //</span></div></div>`;
+    const paper=section=>{
+      const cnine=section.paperStyle==='cnine-personnel';
+      const masthead=cnine?`<div class="cnine-paper-heading"><svg viewBox="0 0 60 22" width="45" height="17" aria-hidden="true" fill="currentColor"><path id="cnine-aquila-half" d="M30 19 27 22 26 15 22 17 23 11 19 15 15 15 18 10 12 13 8 12 13 8 6 10 2 7 10 5 0 4 0 1 16 2 23 7 25 5 23 4 22 2 27 2 29 5 30 9Z"/><use href="#cnine-aquila-half" transform="translate(60) scale(-1 1)"/></svg><span>Geothermal Prospect Detail C-9</span><small>Labour archive · Personnel record</small></div>`:'';
+      return `<div class="document-notices" role="status"></div><div class="archive-paper${cnine?' cnine-personnel-paper':''}"><div class="paper-metadata"><span>CAMPAIGN ARCHIVE · ${escape(meta.kind.toUpperCase())}</span><span>${escape(section.paperLabel || 'BASELINE RECORD')}</span></div>${masthead}<div class="paper-content">${section.body}</div><div class="paper-end"><span class="document-stamp">${cnine?'GPD-C9':'NCCE'}<br><small>ARCHIVE COPY</small></span><span>${cnine?'THE EMPEROR PROTECTS':'// RECORD ENDS //'}</span></div></div>`;
+    };
     outlet.dataset.recordIdentity=identity;
     const status=meta.status?`<span class="status-pill">${escape(meta.status)}</span>`:'';
     const mind=meta.mindPreview;

@@ -112,6 +112,14 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .paper-end { display:flex; flex-direction:column; align-items:center; gap:28px; margin-top:36px; color:#8a8c70; font:9px/1.5 'Courier New',monospace; letter-spacing:.16em; }
 .document-stamp { align-self:flex-start; display:inline-block; padding:7px 13px; border:2px double #9d9672; transform:rotate(-6deg); color:#8a8161; text-align:center; font:15px/1.3 'Courier New',monospace; letter-spacing:.13em; }
 .document-stamp small { display:block; font-size:7px; color:inherit; }
+.archive-paper.cnine-personnel-paper { background-color:#eee7d1; }
+.cnine-personnel-paper .paper-metadata { margin-bottom:20px; }
+.cnine-paper-heading { display:grid; justify-items:center; gap:6px; margin-bottom:26px; padding:0 0 18px; border-bottom:1px solid #c0b492; color:#493d2f; text-align:center; }
+.cnine-paper-heading svg { color:#6b563e; }
+.cnine-paper-heading span { font:600 clamp(16px,2.4vw,23px)/1.25 Georgia,serif; }
+.cnine-paper-heading small { font:9px/1.5 'Courier New',monospace; letter-spacing:.12em; text-transform:uppercase; }
+.cnine-personnel-paper .document-stamp { border-color:#a46656; color:#824537; transform:rotate(-4deg); }
+.cnine-personnel-paper .paper-end { color:#6b563e; }
 .entity-fiction-label { padding:.6rem .8rem; border-left:2px solid #baaa77; color:#d6cba9; font:12px/1.6 system-ui,sans-serif; }
 .document-caption { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:0 18px 18px; color:#a4af95; font:10px/1.6 system-ui,sans-serif; }
 .record-source-panel { padding:24px; }

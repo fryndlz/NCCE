@@ -878,6 +878,9 @@ async function showFighter(id, preserveScroll = false) {
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const deceased = fighterIsDeceased(f);
   const sections = fighterRecordSections(f,memories);
+  if (String(id)==='38' && f.name==='Orik Sorn' && new URLSearchParams(location.search).get('paper-preview')==='orik') {
+    sections[0].paperStyle='cnine-personnel';
+  }
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
     mindPreview:{hidden:deceased,body:deceased ? '' : mindFeedBody(f)},
     fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
@@ -980,6 +983,7 @@ async function startApp() {
   if (session.auth_required && !session.authenticated) { location.replace('/login'); return; }
   if (logout) logout.hidden = !session.auth_required;
   await refreshDashboard(false); await refreshStatus();
+  if (new URLSearchParams(location.search).get('paper-preview')==='orik') await showFighter(38);
   if (['#retrieval','#workshop'].includes(initialView)) history.replaceState(null,'',location.pathname+location.search);
   setInterval(() => {
     refreshFighterMind();
