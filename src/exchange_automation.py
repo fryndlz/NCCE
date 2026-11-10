@@ -18,7 +18,7 @@ ROOT=Path(__file__).resolve().parents[1]
 HEADERS=('request_id,status,form,entity_type,entity_key,entry_key,title,context_id,'
          'source_revision,event_at_utc,imperial_date,writer_text_md,writer_note,'
          'completed_at_utc,imported_at_utc,import_receipt').split(',')
-ARTIFACT_FORMS={'fighter_biography','gang_history','territory_origin','territory_history',
+ARTIFACT_FORMS={'fighter_biography','gang_origin','gang_history','territory_origin','territory_history',
                 'battle_report','downtime','region_history','relationship'}
 ROLLING_FORMS={'gang_history','territory_history','downtime','region_history','relationship'}
 
@@ -78,7 +78,7 @@ def candidates(store):
     for row in store.db.execute('SELECT * FROM story_artifacts WHERE active=1 ORDER BY scope_type,scope_key'):
         r=dict(row); form=r['scope_type'];doc=load(r['document_json'])
         if form not in ARTIFACT_FORMS or authored(doc):continue
-        key=r['scope_key'];entity='fighter' if form=='fighter_biography' else 'territory' if form.startswith('territory_') else 'battle' if form=='battle_report' else 'gang' if form in ('gang_history','downtime') else 'campaign'
+        key=r['scope_key'];entity='fighter' if form=='fighter_biography' else 'territory' if form.startswith('territory_') else 'battle' if form=='battle_report' else 'gang' if form in ('gang_origin','gang_history','downtime') else 'campaign'
         subject={}
         if entity in ('fighter','territory','battle','gang'):
             table,field={'fighter':('fighters','id'),'territory':('territories','id'),'battle':('battles','id'),'gang':('gangs','gang_id')}[entity]
@@ -86,6 +86,10 @@ def candidates(store):
             if not found:continue
             subject=dict(found)
             if subject.get('active')==0:continue
+            if form=='gang_origin':
+                if subject.get('backstory_source')=='player-authored / campaign Sheet' and str(subject.get('backstory') or '').strip():
+                    continue
+                subject={field:subject[field] for field in ('name','gang_type','alignment')}
             if form=='fighter_biography':
                 from narrative_context import authored as background
                 if background(subject) or load(subject.get('mechanics_json')).get('Backstory'):continue
@@ -98,7 +102,8 @@ def candidates(store):
         add('artifact',[form,key],form,entity,key,doc.get('title',form),
             {'evidence':doc.get('evidence',[]),'source_event_ids':doc.get('source_event_ids',[]),'subject':subject},
             document_packet(store,form,key,doc),doc.get('date_display',{}).get('sourceTimestamp'),
-            doc.get('writer_status')=='ready' and bool(body(doc)),has_prose=bool(body(doc)))
+            doc.get('writer_status')=='ready' and bool(body(doc)),has_prose=bool(body(doc)),
+            approved_native_origin=form=='gang_origin' and bool(doc.get('native_author') and body(doc)))
     for row in store.db.execute('SELECT * FROM story_memories WHERE active=1 ORDER BY fighter_id,coalesce(occurred_at,observed_at),memory_key'):
         r=dict(row)
         if r['provenance_class'] in ('player_authored','canon_authored'):continue
@@ -124,7 +129,7 @@ def candidates(store):
 def target_key(c):return packed([c['kind'],c['key']])
 
 
-def seal(c):return 'sha256:'+digest(clean_context({k:v for k,v in c.items() if k not in ('ready','approved','legacy','phase','has_prose')}))
+def seal(c):return 'sha256:'+digest(clean_context({k:v for k,v in c.items() if k not in ('ready','approved','legacy','phase','has_prose','approved_native_origin')}))
 
 
 def _packet(store,c,rid):
@@ -148,7 +153,7 @@ def _packet(store,c,rid):
         # weapon, promotion or status into a past event's narrative context.
         profile_context=dict(c['context'])
         fighter_row=store.db.execute(
-            'SELECT f.name AS fighter_name, f.gang_name AS host_name, f.writer_identity_json AS authored_identity_json, '
+            'SELECT f.name AS fighter_name, f.gang_id, f.gang_name AS host_name, f.writer_identity_json AS authored_identity_json, '
             'g.name AS roster_gang, g.gang_type AS roster_faction '
             'FROM fighters f LEFT JOIN gangs g ON g.gang_id=f.gang_id '
             'WHERE f.id=?',(c['entity_key'],)).fetchone()
@@ -175,9 +180,13 @@ def _packet(store,c,rid):
         # campaign facts or an already issued packet.
         from voice_proposals import apply_approved
         if fighter_row:
-            layers=apply_approved(store,layers,store.db.execute(
-                'SELECT gang_id FROM fighters WHERE id=?',(c['entity_key'],)).fetchone()['gang_id'],
-                int(c['entity_key']))
+            layers=apply_approved(store,layers,fighter_row['gang_id'],int(c['entity_key']))
+            host=store.db.execute("SELECT * FROM gangs WHERE gang_id=?",(fighter_row['gang_id'],)).fetchone()
+            host=dict(host) if host else {}
+            if host.get('backstory_source')=='player-authored / campaign Sheet' and host.get('backstory'):
+                context.append(dict(section='authored_gang_background',provenance='player_authored',
+                    source_ref='Campaign Sheet · GANG BACKSTORY',event_at_utc='',source_event_ids='',
+                    text=host['backstory']))
         literary_layers=layers
     # Current Sheet/canon biography is a voice lens, never a replay of old events.
     confirmed=c['facts'].get('confirmed_territory_history',[]) if isinstance(c['facts'],dict) else []
@@ -247,7 +256,7 @@ def source_matches(store,c,row):
 
 def semantic_seal(store,c):
     value=deepcopy(c)
-    if c['form'] in ROLLING_FORMS|{'fighter_biography','territory_origin'}:
+    if c['form'] in ROLLING_FORMS|{'fighter_biography','gang_origin','territory_origin'}:
         # These records have compilation times, not new campaign events.
         value['event_at_utc']=''
     def ref(key):

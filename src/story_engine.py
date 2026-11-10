@@ -260,8 +260,7 @@ def _artifact(store, scope, key, document, input_hash, generated_at):
     document=llm_writer.apply(document,paragraphs,writer_status)
     if prior and not (scope=='battle_report' and old.get('provenance_class')=='player_authored' and document.get('provenance_class')!='player_authored'):
         document=llm_writer.retain_previous(document,old,writer_status)
-    scope_form={'gang_origin':'gang_history'}.get(scope,scope)
-    document = director.direct_document(scope_form,key,document)
+    document = director.direct_document(scope,key,document)
     document.setdefault("source_event_ids", [])
     snapshot = store.latest_snapshot()
     document.setdefault("source_ids", ["live:campaign-sheet" if snapshot and snapshot.get("source_id") == "live:campaign-sheet" else "baseline:snapshot-0001"])
@@ -557,14 +556,19 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
             for gang in gangs:
                 fs = [f for f in fighters if str(f["gang_id"]) == str(gang["gang_id"])]
                 if not _authored(gang):
+                    if not document_for(store,'gang_origin',gang['gang_id']):
+                        roster = sorted({f"{f['class']} · {f['type']}" for f in fs
+                                         if f.get('listed_in_source',1) and f.get('class') and f.get('type')})
+                        origin_evidence = [f"Recorded gang: {gang['name']}", f"Faction: {gang.get('gang_type') or 'Unknown'}"]
+                        if roster:
+                            origin_evidence.append("Recorded roster roles and types: " + "; ".join(roster))
+                        _artifact(store,'gang_origin',gang['gang_id'],_document(gang['name'],'',origin_evidence),fingerprint,generated_at)
                     text = prose.gang_history(gang,fs,battles,territories)
                     related = [b for b in battles if gang['name'] in (b.get('attacker'),b.get('defender'),b.get('winner'))]
                     holders = [t['territory'] for t in territories if str(t.get('gang_id')) == str(gang['gang_id'])]
                     evidence = [f"Faction: {gang.get('gang_type')}",f"Listed fighters: {sum(f.get('listed_in_source',1) for f in fs)}",f"Recorded battles: {len(related)}",f"Recorded wins: {sum(b.get('winner') == gang['name'] for b in related)}",f"Current holdings: {', '.join(holders) or 'None recorded'}"]
                     anchors = [_current_battle_event(b,events) for b in related]
                     doc = _artifact(store,"gang_history",gang["gang_id"],_document(gang["name"],text,evidence,[e['event_id'] for e in anchors if e]),fingerprint,generated_at)
-                    # Gang baselines are Sheet-authored only for now. Campaign
-                    # event accounts remain a separate derived layer.
                 doc = prose.downtime_document(gang,fs,[m for m in all_memories if str(m["gang_id"]) == str(gang["gang_id"])],battles)
                 doc = _artifact(store,"downtime",gang["gang_id"],doc,fingerprint,generated_at)
                 existing = store.db.execute("SELECT id FROM downtime_reports WHERE gang_id=? ORDER BY id DESC LIMIT 1",(gang["gang_id"],)).fetchone()

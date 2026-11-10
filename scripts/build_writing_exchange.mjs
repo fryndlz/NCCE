@@ -81,7 +81,7 @@ c.tables.add('A5:G25',true,'WritingContext');c.freezePanes.freezeRows(5);
 
 base(f,'A1:E21','Prose forms');
 head(f,'A5:E5',['form','section','display_name','purpose','generation_policy']);
-f.getRange('A6:E21').values=forms.map(row=>[...row,row[0]==='gang_origin'?'Authored-only; do not queue generation.':'Only an explicitly requested, missing or revised entry.']);
+f.getRange('A6:E21').values=forms.map(row=>[...row,row[0]==='gang_origin'?'Stage 0. Queue only when authored gang backstory is missing.':'Only an explicitly requested, missing or revised entry.']);
 [27,17,25,68,67].forEach((n,i)=>f.getRangeByIndexes(0,i,21,1).format.columnWidth=n);
 f.getRange('D6:E21').format.wrapText=true;f.getRange('A6:E21').format.rowHeight=44;
 f.tables.add('A5:E21',true,'ProseForms');f.freezePanes.freezeRows(5);

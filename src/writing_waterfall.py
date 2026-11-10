@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 VERSION=2
 PHASES=('Baselines','Recorded events','Reflections','Current thoughts','Histories and downtime','Regional chronicle')
 FORM_PHASE={
-    'fighter_biography':0,'territory_origin':0,
+    'gang_origin':0,'fighter_biography':0,'territory_origin':0,
     'fighter_memory':1,'gang_event':1,'place_event':1,'place_ambient':1,'battle_report':1,
     'fighter_reflection':2,'fighter_mind':3,
     'gang_history':4,'territory_history':4,'relationship':4,'downtime':4,'region_history':5}
@@ -24,7 +24,7 @@ def classify(store,items):
         from exchange_automation import ROLLING_FORMS
         same=bool(saved and semantic_seal(store,load(saved['target_json'])['target'])==semantic_seal(store,c))
         pilot=c['kind']=='memory' and tuple(c['key']) in pilots
-        c['approved']=bool(pilot or (saved and (c['form'] not in ROLLING_FORMS or same)))
+        c['approved']=bool(pilot or c.get('approved_native_origin') or (saved and (c['form'] not in ROLLING_FORMS or same)))
         c['legacy']=not c['approved'] and c.get('has_prose',c['ready'])
         c['phase']=FORM_PHASE[c['form']]
     return items
@@ -34,7 +34,7 @@ def order(c):
     from narrative_context import instant
     # Ordering prose by event time does not alter the cognitive event clock.
     at=instant(c.get('event_at_utc')) or datetime.min.replace(tzinfo=timezone.utc)
-    return (c['phase'],at,c['entity_type'],c['entity_key'],str(c['key']))
+    return (c['phase'],c['form']!='gang_origin',at,c['entity_type'],c['entity_key'],str(c['key']))
 
 
 def dependencies(store,items):
@@ -68,6 +68,10 @@ def dependencies(store,items):
         else:missing[k].append('Territory baseline slot is missing')
     for c in items:
         key=target_key(c);form=c['form']
+        if form!='gang_origin':
+            gang_origin=artifact('gang_origin',gang(c))
+            if gang_origin in bykey:
+                deps[key].add(gang_origin)
         if c['entity_type']=='fighter' and form!='fighter_biography':baseline(c,'fighter',c['entity_key'])
         if c['entity_type']=='territory' and form!='territory_origin':baseline(c,'territory',c['entity_key'])
         if form=='battle_report':
@@ -186,7 +190,7 @@ def summary(store,items):
     for category in prose_summary(store)['categories']:
         key=category['key'];subset=[c for c in items if c['form']==key]
         categories.append(dict(form=key,group=category['group'],name=category['label'],
-            phase=FORM_PHASE.get(key),policy='authored_only' if key in ('gang_origin','post_battle_addendum') else 'exchange',
+            phase=FORM_PHASE.get(key),policy='authored_only' if key=='post_battle_addendum' else 'exchange',
             total=category['total'],authored=category['counts']['authored'],
             accepted=sum(c['approved'] for c in subset),needs_writing=sum(not c['approved'] for c in subset),
             blocked=sum(target_key(c) in blocked for c in subset)))

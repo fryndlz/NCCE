@@ -37,11 +37,17 @@ def test_legacy_ready_baselines_are_archived_and_queued_once_authored_and_accept
             doc=json.loads(row['document_json']);doc.update(writer_status='ready',blocks=[{'type':'body_paragraph','text':'Old machine placeholder prose.'}])
             s.db.execute('UPDATE story_artifacts SET document_json=? WHERE artifact_id=?',(packed(doc),row['artifact_id']));s.db.commit()
             e.prepare(s)
-            packets=e.outbox(s);assert packets and all(p['request']['form'] in ('territory_origin','fighter_biography') for p in packets)
+            packets=e.outbox(s);assert packets and packets[0]['request']['form']=='gang_origin'
             old=json.loads(s.db.execute('SELECT projection_json FROM writing_legacy_inventory').fetchone()[0])
             assert 'Old machine placeholder prose.' in old['document_json']
             assert not any(p['request']['form']=='fighter_biography' and p['request']['entity_key']==str(f) for p in packets)
             assert all(m['content']==b['writer_text_md'] for m in read_memories(s,f) if m['memory_key']==b['target_binding']['memory_key'])
+            deliver_outbox(s);e.prepare(s)
+            assert any(p['request']['form']=='fighter_biography' for p in e.outbox(s))
+            for packet in e.outbox(s):
+                if packet['request']['form']!='fighter_biography':continue
+                refs=next(json.loads(block['text']) for block in packet['context'] if block['section']=='existing_fiction')
+                assert any(r['form']=='gang_origin' and r['text'].startswith('Accepted gang_origin') for r in refs)
             deliver_outbox(s);e.prepare(s)
             assert not any(p['request']['form'] in ('territory_origin','fighter_biography') for p in e.outbox(s))
         finally:s.close()
@@ -53,7 +59,8 @@ def test_event_waits_for_baseline_and_receives_accepted_text_not_legacy_seed():
         try:
             e.prepare(s);origins={p['request']['entry_key'] for p in e.outbox(s)}
             assert origins
-            deliver_outbox(s);e.prepare(s)
+            while any(p['request']['form'] in ('gang_origin','territory_origin','fighter_biography') for p in e.outbox(s)):
+                deliver_outbox(s);e.prepare(s)
             cs=e.candidates(s);lookup={e.target_key(c):c for c in cs}
             for p in e.outbox(s):
                 assert w.FORM_PHASE[p['request']['form']]==1
@@ -150,7 +157,7 @@ def test_operator_report_lists_all_forms_without_treating_legacy_as_accepted():
                 assert row['accepted']==sum(c['approved'] for c in subset)
                 assert row['needs_writing']==sum(not c['approved'] for c in subset)
                 assert row['blocked']<=row['needs_writing']
-                assert (row['policy']=='authored_only')==(row['form'] in ('gang_origin','post_battle_addendum'))
+                assert (row['policy']=='authored_only')==(row['form']=='post_battle_addendum')
             assert sum(r['needs_writing'] for r in report['categories'])==sum(r['needs_writing'] for r in report['phases'])
         finally:s.close()
 

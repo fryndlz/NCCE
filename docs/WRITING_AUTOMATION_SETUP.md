@@ -78,7 +78,9 @@ holds at most five outstanding packets. The chat does at most three per hourly
 run. As slots import, later polling fills the queue from the remaining backlog;
 afterward only eligible new campaign slots or changed rolling histories need
 writing. Already-ready prose and authored material are not bulk regenerated.
-Gang origins remain authored-only; addenda use the existing authored dossiers.
+Missing gang backstories lead Stage 0. New fighter work for that gang waits
+until its baseline is available. Sheet-authored backstories take precedence.
+Post-battle addenda use the existing authored dossiers.
 
 Use **NCCE relay → Sync now** to transfer immediately. `stopNCCERelay` removes
 this account's relay trigger; pause the writing task separately. Removing the

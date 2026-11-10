@@ -252,7 +252,8 @@ def test_regeneration_versions_artifacts_and_preserves_authored_and_mechanical_r
         store.db.commit()
         mechanical_before = mechanical_records(store)
         regenerate(store)
-        assert not store.db.execute("SELECT 1 FROM story_artifacts WHERE scope_type='gang_origin'").fetchone()
+        assert document_for(store,'gang_origin','g1') is None
+        assert document_for(store,'gang_origin','g2')['blocks'] == []
         assert mechanical_records(store) == mechanical_before
         first_artifacts = store.db.execute("SELECT count(*) FROM story_artifacts").fetchone()[0]
         apply(store, latest_game(before))

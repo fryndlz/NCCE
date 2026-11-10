@@ -6,7 +6,7 @@ CATEGORIES = (
     ('fighter_memory','Fighters','Memory / observation','One experience, including baseline observations.'),
     ('fighter_reflection','Fighters','Reflection','Connections between earlier memories.'),
     ('fighter_mind','Fighters','Current thought','Current active thoughts; resolved thoughts are excluded.'),
-    ('gang_origin','Gangs','Backstory','Sheet-authored background or an existing published native origin.'),
+    ('gang_origin','Gangs','Backstory','Sheet-authored background or an approved Exchange origin.'),
     ('gang_history','Gangs','History','An evolving account of the gang.'),
     ('gang_event','Gangs','Event entry','One recorded gang change.'),
     ('territory_origin','Places','Backstory','The territory’s baseline description.'),
@@ -79,7 +79,7 @@ def summary(store):
         slots['gang_history'][g['gang_id']]=document('gang_history',g['gang_id'])
         slots['downtime'][g['gang_id']]=document('downtime',g['gang_id'])
         origin=artifacts.get(('gang_origin',g['gang_id']),{})
-        slots['gang_origin'][g['gang_id']]=_state(g.get('backstory'),authored=True) if g.get('backstory_source')=='player-authored / campaign Sheet' and str(g.get('backstory') or '').strip() else document('gang_origin',g['gang_id']) if origin.get('native_author') else 'unwritten'
+        slots['gang_origin'][g['gang_id']]=_state(g.get('backstory'),authored=True) if g.get('backstory_source')=='player-authored / campaign Sheet' and str(g.get('backstory') or '').strip() else document('gang_origin',g['gang_id']) if origin.get('native_author') or origin.get('external_request_id') else 'unwritten'
     for t in places:
         for form in ('territory_origin','territory_history'):slots[form][str(t['id'])]=document(form,t['id'])
     from authored_battles import has_report

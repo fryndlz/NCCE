@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.16 — Gang backstories lead the writing queue
+
+- Queue missing gang backstories first in Stage 0. Approved text appears under Gangs → Backstory and supplies context for future fighter work. The Sheet remains the authority for authored backstories.
+
 ## 0.28.12 — Missing roster protection — 9 November 2026
 
 - Preserve existing fighter records when a gang's worksheet omits its fighter table. Skip fighter deltas across that gap until two consecutive exports provide comparable rosters. Patrol's actual roster still requires a complete source export.

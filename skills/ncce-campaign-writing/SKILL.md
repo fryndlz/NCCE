@@ -61,13 +61,13 @@ The keys below are the exact 16 exchange/System keys. A category's existence is 
 
 **Boundary:** do not copy the historical memory or re-enact its event as happening again. One request makes one thought, not a full dashboard of four. NCCE selects up to four different current causes; fewer are valid. Do not retain an obsolete critical-injury concern after its supported resolution merely because the injury was dramatic. Death yields no current thoughts. A past loss can remain relevant without becoming a new loss today.
 
-### 5. gang_origin — authored gang backstory
+### 5. gang_origin — gang backstory
 
-**Inputs:** the gang's explicit authored Sheet backstory.
+**Inputs:** the named player gang, its recorded faction and roster roles, and the source and voice guidance in the packet.
 
-**Write:** currently this is an authored-only slot. Present/format the supplied backstory when requested, preserving its wording. If there is no authored source, leave the slot empty rather than generating a substitute.
+**Write:** for a queued missing baseline, establish the gang’s own culture and background in 140–240 words. Save the draft for owner approval. Present existing Sheet-authored backstory verbatim when supplied.
 
-**Boundary:** C-NINE's two long stories belong in Archive, not automatically in its gang baseline. Do not infer permission to generate a gang origin because it appears in the Forms dropdown. Future origin generation would require an explicit design change.
+**Boundary:** present roster roles give context for the gang’s culture. Keep founding dates, named founders, past victories and roster relationships unknown unless the packet supplies evidence. C-NINE’s two long stories belong in Archive.
 
 ### 6. gang_history — the gang's changing history
 
@@ -289,7 +289,7 @@ do not generate a second version when a row already contains prose.
 
 Use the exchange's immutable request_id, entity_key, entry_key, context_id and source_revision. Save one complete draft in WRITING and verify the saved text. Set READY only after explicit owner approval of that exact draft. Reverify its ID, source revision and full text before changing the status. Preserve existing text if saving or import acknowledgment fails.
 
-The 0.26.0 exchange uses Automation instructions as its transport contract once installed. It exports at most five unfinished requests, and the writing chat processes at most three per run. READY authorizes automatic import of that exact text; the relay alone writes IMPORTED and its committed receipt. The importer supports existing derived slots in 14 forms. Gang origins remain authored-only; post-battle addenda currently use the authored dossiers, with no automatic generated slots. This skill does not start Mara's already imported pilot or install a work-chat schedule. Full race/embodiment/faction guidance is in Voice identity. If the relay is not installed, retain the earlier manual delivery flow and do not claim automatic publication.
+The exchange uses Automation instructions as its transport contract. It exports at most five unfinished requests, and the writing chat processes at most three per run. After owner approval, READY authorizes import of the exact text. The relay writes IMPORTED and its committed receipt. Missing gang backstories lead Stage 0. Post-battle addenda use the authored dossiers. Full race, embodiment and faction guidance is in Voice identity.
 
 ## Maintenance and sources
 

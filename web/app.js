@@ -71,9 +71,9 @@ function authoredRecord(value) {
 function gangBackstory(g) {
   return g.backstory && g.backstory_source === 'player-authored / campaign Sheet'
     ? `<div class="eyebrow">Authored backstory</div>${authoredRecord(g.backstory)}<div class="authored-source">Campaign Sheet · GANG BACKSTORY</div>`
-    : g.origin_document?.native_author && ['ready','stale'].includes(g.origin_document.writer_status)
+    : (g.origin_document?.native_author || g.origin_document?.external_request_id) && ['ready','stale'].includes(g.origin_document.writer_status)
       ? `<div class="eyebrow">Generated gang origin</div>${blocks(g.origin_document)}`
-      : empty('No authored gang backstory has been provided.');
+      : empty('No gang backstory has been published yet.');
 }
 function archiveStories(records) {
   return list(records).map(record => `<details class="archive-story" data-key="archive-${esc(record.id)}"><summary>${esc(record.title)}</summary><div class="eyebrow">C-NINE · authored story</div>${authoredRecord(record.content)}<div class="authored-source">${esc(record.source_locator)} · <a href="${esc(record.source_url && /^https:\/\//.test(record.source_url) ? record.source_url : '#') }" target="_blank" rel="noopener noreferrer">Authored source</a></div></details>`).join('') || empty('No authored stories are available.');

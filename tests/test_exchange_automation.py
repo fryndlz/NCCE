@@ -37,7 +37,8 @@ def test_bounded_idempotent_preparation_and_authored_exclusion():
             assert exchange.outbox(s)==frozen
             assert len(exchange.outbox(s))==len(first)
             assert not any(c['form']=='fighter_biography' and c['entity_key']==str(f) for c in exchange.candidates(s))
-            assert not any(c['form']=='gang_origin' for c in exchange.candidates(s))
+            assert frozen[0]['request']['form']=='gang_origin'
+            assert all(c['phase']==0 for c in exchange.candidates(s) if c['form']=='gang_origin')
             assert not s.db.in_transaction
         finally:s.close()
 
