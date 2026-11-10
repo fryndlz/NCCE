@@ -28,6 +28,24 @@ class PortableLiteraryTests(unittest.TestCase):
         self.assertIn("/api/portable-writing-packet.zip",page)
         self.assertNotIn("Gang Biography</strong><p>1,900",page)
 
+    def test_all_exchange_forms_have_a_runtime_contract(self):
+        from writer_contract import BRIEFS, contract
+        forms = (
+            "fighter_biography", "fighter_memory", "fighter_reflection",
+            "fighter_mind", "gang_origin", "gang_history", "gang_event",
+            "territory_origin", "territory_history", "place_event",
+            "place_ambient", "battle_report", "post_battle_addendum",
+            "downtime", "region_history", "relationship",
+        )
+        self.assertEqual(set(BRIEFS), set(forms))
+        for form in forms:
+            with self.subTest(form=form):
+                self.assertIn("REQUESTED FORM: " + form, contract(form))
+        addendum = contract("post_battle_addendum")
+        self.assertIn("one recorded engagement", addendum)
+        self.assertNotIn("2,300-character hard cap", addendum)
+        self.assertEqual(resolve_literary_policy("post_battle_addendum")["form_rules"], {})
+
     def test_form_specific_lengths_and_hard_cap(self):
         self.assertTrue(measure_prose("fighter_biography","a"*2000)["hard_limit_ok"])
         self.assertEqual(measure_prose("fighter_biography","x"*2300)["status"],"outside_target_review")
