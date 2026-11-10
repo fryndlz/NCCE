@@ -140,9 +140,9 @@ def _packet(store,c,rid):
                   event_at_utc=c['event_at_utc'],source_event_ids='',text=packed({k:v for k,v in c['context'].items() if k!='authored_background'}))]
     # Voice is a separate, provenance-labelled writing lens, not mechanical evidence.
     # Only new sealed packets receive it; in-flight requests retain their frozen context.
+    from voice_layers import build_voice_layers
     literary_layers=None
     if c['entity_type']=='fighter' and c['form'] in ('fighter_biography','fighter_memory','fighter_reflection','fighter_mind'):
-        from voice_layers import build_voice_layers
         # Some older/baseline writer contexts do not carry the roster's gang and
         # House names. Add identity-only fallback without copying current injury,
         # weapon, promotion or status into a past event's narrative context.
@@ -178,9 +178,6 @@ def _packet(store,c,rid):
             layers=apply_approved(store,layers,store.db.execute(
                 'SELECT gang_id FROM fighters WHERE id=?',(c['entity_key'],)).fetchone()['gang_id'],
                 int(c['entity_key']))
-        context.append(dict(section='voice_layers',provenance='style_guidance',
-            source_ref='NCCE validated versioned voice registry; editorial layer, never event evidence',
-            event_at_utc='',source_event_ids='',text=packed(layers)))
         literary_layers=layers
     # Current Sheet/canon biography is a voice lens, never a replay of old events.
     confirmed=c['facts'].get('confirmed_territory_history',[]) if isinstance(c['facts'],dict) else []
@@ -210,8 +207,16 @@ def _packet(store,c,rid):
             style_gang=gang_row['name'] or ''
             style_faction=gang_row['gang_type'] or ''
     else:
-        style_gang=c['context'].get('gang') or c['context'].get('name') or ''
+        style_gang=c['context'].get('gang') or ''
         style_faction=c['context'].get('affiliation') or c['context'].get('faction') or ''
+    if literary_layers is None:
+        literary_layers=build_voice_layers({'gang':style_gang,'faction':style_faction})
+        if c['entity_type']=='gang':
+            from voice_proposals import apply_approved
+            literary_layers=apply_approved(store,literary_layers,c['entity_key'],None)
+    context.append(dict(section='voice_layers',provenance='style_guidance',
+        source_ref='NCCE validated versioned voice registry; editorial layer, never event evidence',
+        event_at_utc='',source_event_ids='',text=packed(literary_layers)))
     literary=resolve_literary_policy(
         form=c['form'],voice_layers=literary_layers,
         gang=style_gang,faction=style_faction,
@@ -226,7 +231,8 @@ def _packet(store,c,rid):
         'Write this one entry once, in the established style of this chat. Preserve the chronological boundary. '
         'Authored background supplies voice, not new events. Mechanics are evidence, not language to copy. '
         'Return complete Markdown; metadata/provenance and real-world dates stay outside diegesis. '
-        'Do not create variants, reviewers or rerun a completed entry. READY means publish this text unchanged.'))
+        'Leave saved text WRITING until the owner explicitly approves that exact draft. '
+        'Reverify the ID, source revision and saved text before setting READY. The relay imports it unchanged.'))
     return {'request':request,'context':context}
 
 

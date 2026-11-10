@@ -287,7 +287,7 @@ wording. Queue status is an operator dashboard, not a writer input. NCCE selects
 the frontier; the writer takes only PENDING rows from Queue. Started/saved work is preserved;
 do not generate a second version when a row already contains prose.
 
-Use the exchange's immutable request_id, entity_key, entry_key, context_id and source_revision. One requested entry receives one finished delivery, not multiple candidates for a hidden reviewer. Save complete text before READY. Never regenerate an existing result just because saving/import acknowledgement failed; preserve and retransmit it.
+Use the exchange's immutable request_id, entity_key, entry_key, context_id and source_revision. Save one complete draft in WRITING and verify the saved text. Set READY only after explicit owner approval of that exact draft. Reverify its ID, source revision and full text before changing the status. Preserve existing text if saving or import acknowledgment fails.
 
 The 0.26.0 exchange uses Automation instructions as its transport contract once installed. It exports at most five unfinished requests, and the writing chat processes at most three per run. READY authorizes automatic import of that exact text; the relay alone writes IMPORTED and its committed receipt. The importer supports existing derived slots in 14 forms. Gang origins remain authored-only; post-battle addenda currently use the authored dossiers, with no automatic generated slots. This skill does not start Mara's already imported pilot or install a work-chat schedule. Full race/embodiment/faction guidance is in Voice identity. If the relay is not installed, retain the earlier manual delivery flow and do not claim automatic publication.
 

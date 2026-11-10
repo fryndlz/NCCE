@@ -4,6 +4,8 @@ Run from the repository: python tests/smoke_server.py
 No campaign source is written and no production credentials are used.
 """
 from http.cookiejar import CookieJar
+from io import BytesIO
+from zipfile import ZipFile
 import json
 import os
 from pathlib import Path
@@ -42,7 +44,7 @@ def main():
             deadline = time.monotonic()+45
             while True:
                 try:
-                    assert read('/healthz') == {'ok':True,'version':'0.28.12'}
+                    assert read('/healthz') == {'ok':True,'version':'0.28.15'}
                     break
                 except (URLError,TimeoutError):
                     if process.poll() is not None or time.monotonic()>deadline:
@@ -55,6 +57,13 @@ def main():
                 except HTTPError as error:
                     assert error.code == 401
             assert read('/api/login',{'password':env['NCCE_ACCESS_PASSWORD']})['ok']
+            policy = read('/api/portable-writing-packet/status')
+            with client.open(base + policy['download'], timeout=5) as response:
+                with ZipFile(BytesIO(response.read())) as packet:
+                    assert packet.testzip() is None
+                    assert json.loads(packet.read('MANIFEST.json'))['packet_version'] == policy['version']
+                    assert len(packet.namelist()) == policy['files']
+            assert isinstance(read('/api/voice-proposals?status=pending')['proposals'], list)
             assert isinstance(read('/api/writing-exchange')['deliveries'],list)
             assert any(cookie.name == 'ncce_session' and cookie.has_nonstandard_attr('HttpOnly') for cookie in cookies)
             while True:

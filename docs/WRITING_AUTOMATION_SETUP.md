@@ -53,9 +53,10 @@ ordinary edit triggers, which is why this relay uses a clock trigger.
 > Keep the literary style and examples established in this conversation.
 > Process one PENDING request as a test, following the complete instructions:
 > claim WRITING, read all matching Context blocks, write one complete Markdown
-> entry into L, save/read it back, and set READY last. Do not touch IMPORTED
-> entries or receipts. READY now authorizes automatic publication of your exact
-> text. Do not generate variants, review passes or replacements after errors.
+> entry into L, verify the saved text and leave it WRITING for owner review.
+> After explicit owner approval of the exact draft, reverify its ID, source
+> revision and text before setting READY. The relay imports the approved text
+> unchanged and owns the IMPORTED status and receipt.
 > After that test, if this work account supports scheduled tasks with this
 > chat's context and read/write Google Sheets tools, create **one hourly task in
 > this same chat** to follow those instructions, at most three PENDING requests

@@ -41,8 +41,10 @@ https://docs.google.com/spreadsheets/d/1xokVbI3kya5koTqx9IOyUly2lP22batgLlo4oBlY
 6. Re-find the row by ID and re-check revision/status. Put the complete text in
    writer_text_md (L); an optional operational note in M; actual completion UTC
    timestamp in N. Preserve blank lines and formatting. Verify readback of the
-   complete text, then set READY **last**. READY authorizes NCCE to publish that
-   exact draft automatically as externally generated fiction, not player canon.
+   complete text and leave the row WRITING for owner review. Set READY only
+   after explicit owner approval of that exact saved draft. Reverify the ID,
+   revision and full text, then change only the status cell. READY authorizes
+   the relay to import the approved draft unchanged.
 7. Do not alter A, C:K, O:P, Context, any source workbook, previous output or
    IMPORTED rows. The relay owns receipts, imported times and IMPORTED status.
    Do not set IMPORTED yourself. Never copy credentials into the Sheet/chat.

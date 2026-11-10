@@ -24,7 +24,7 @@ class PortableLiteraryTests(unittest.TestCase):
         self.assertIn("Kły Sprawiedliwości",page)
         self.assertIn("Patrol do spraw alkoholu i broni",page)
         self.assertIn("Other prose forms",page)
-        self.assertIn("Render deployment is not yet verified",page)
+        self.assertIn("/api/portable-writing-packet/status",page)
         self.assertIn("/api/portable-writing-packet.zip",page)
         self.assertNotIn("Gang Biography</strong><p>1,900",page)
 
@@ -107,26 +107,46 @@ class PortableLiteraryTests(unittest.TestCase):
         import shutil
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
-            (root/"config").mkdir()
-            (root/"skills/ncce-prose-portability").mkdir(parents=True)
-            shutil.copy(ROOT/"config/literary_profiles.v2.json",
-                        root/"config/literary_profiles.v2.json")
-            (root/"skills/ncce-prose-portability/CHANGELOG.md").write_text("# Changes\\n")
+            from portable_packet import EXPORTED_FILES
+            for name in EXPORTED_FILES:
+                (root/name).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(ROOT/name, root/name)
             (root/"skills/ncce-prose-portability/decisions.jsonl").write_text("")
-            (root/"scope-ref.md").write_text("Owner approved example: no copied templates.")
+            reference = "skills/ncce-prose-portability/PROCESS.md"
+            rule = "Fixture only: require a concise closing line in a battle addendum."
+            with (root/reference).open("a", encoding="utf-8") as output:
+                output.write("\n" + rule + "\n")
             result=record_owner_decision(
                 root=root,expected_version="2.1.0",new_version="2.1.1",
-                scope="form",decision="A new specifically scoped form rule",
-                source="Explicit owner chat correction",changed_files=["scope-ref.md"])
+                scope="form",decision=rule,
+                source="Explicit owner chat correction (fixture)",changed_files=[reference])
             self.assertEqual(result["new_version"],"2.1.1")
             self.assertEqual(json.loads((root/"config/literary_profiles.v2.json").read_text())["policy_version"],"2.1.1")
             self.assertIn("form", (root/"skills/ncce-prose-portability/CHANGELOG.md").read_text())
             self.assertEqual(len((root/"skills/ncce-prose-portability/decisions.jsonl").read_text().splitlines()),1)
+            archive_bytes, manifest = build_portable_zip(root)
+            with ZipFile(io.BytesIO(archive_bytes)) as archive:
+                self.assertIsNone(archive.testzip())
+                self.assertEqual(manifest["packet_version"], "2.1.1")
+                self.assertIn(rule, archive.read(reference).decode())
+                self.assertIn(rule, archive.read("skills/ncce-prose-portability/CHANGELOG.md").decode())
+                self.assertEqual(json.loads(archive.read("config/literary_profiles.v2.json"))["policy_version"], "2.1.1")
             with self.assertRaises(ValueError):
                 record_owner_decision(
                     root=root,expected_version="2.1.0",new_version="2.1.2",
                     scope="form",decision="Unverified",source="User",
-                    changed_files=["scope-ref.md"])
+                    changed_files=[reference])
+
+    def test_nonfighter_packet_has_neutral_voice_and_explicit_form_policy(self):
+        candidate = request_for(9, "Unassigned")
+        candidate.update(form="battle_report", entity_type="battle", context={"name":"Battle title"})
+        packet = _packet(StoreStub(), candidate, "battle-packet")
+        blocks = {block["section"]:block for block in packet["context"]}
+        voice = json.loads(blocks["voice_layers"]["text"])
+        self.assertEqual(voice["gang"]["name"], "")
+        self.assertEqual(voice["individual"]["name"], "")
+        self.assertEqual(json.loads(blocks["literary_policy"]["text"])["form"], "battle_report")
+        self.assertIn("explicitly approves", blocks["brief"]["text"])
 
     def test_export_is_valid_and_identifies_exact_source_files(self):
         binary,manifest=build_portable_zip()

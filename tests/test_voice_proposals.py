@@ -10,6 +10,8 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"src"))
 from voice_layers import build_voice_layers
 from voice_proposals import scan, proposals, review, apply_approved, ensure
+from exchange_automation import _packet
+from test_voice_packets import request_for
 
 
 class FakeStore:
@@ -21,7 +23,9 @@ class FakeStore:
    CREATE TABLE gangs (gang_id TEXT PRIMARY KEY,name TEXT,gang_type TEXT,
     active INTEGER,backstory TEXT,backstory_source TEXT);
    CREATE TABLE fighters (id INTEGER PRIMARY KEY,name TEXT,gang_id TEXT,listed_in_source INTEGER,
-    mechanics_json TEXT);
+    mechanics_json TEXT, gang_name TEXT, writer_identity_json TEXT);
+   CREATE TABLE campaign_events (event_id TEXT, event_type TEXT, occurred_at TEXT,
+    observed_at TEXT, payload_json TEXT);
    CREATE TABLE story_artifacts (scope_type TEXT,scope_key TEXT,active INTEGER,generated_at TEXT,
     document_json TEXT);
   """)
@@ -30,7 +34,7 @@ class FakeStore:
   self.db.execute("INSERT INTO gangs VALUES (?,?,?,1,?,?)",
    (gid,name,faction,backstory,"player-authored / campaign Sheet" if backstory else "not-provided"))
  def fighter(self,fid,gid,name,bio=""):
-  self.db.execute("INSERT INTO fighters VALUES (?,?,?,?,?)",
+  self.db.execute("INSERT INTO fighters (id,name,gang_id,listed_in_source,mechanics_json) VALUES (?,?,?,?,?)",
    (fid,name,gid,1,json.dumps({"Backstory":bio})))
  def edit_fighter_bio(self,fid,bio):
   self.db.execute("UPDATE fighters SET mechanics_json=? WHERE id=?",(json.dumps({"Backstory":bio}),fid))
@@ -53,12 +57,22 @@ class VoiceProposalTests(unittest.TestCase):
   self.assertIn("trade_and_debt",row["proposed_tags"])
   neutral=build_voice_layers({"gang":"The Slag Eaters","subject_name":"New Driver"})
   self.assertEqual(neutral["individual"]["tags"],[])
+  candidate=request_for(42,"New Driver")
+  sealed=_packet(self.store,candidate,"before-review")
+  sealed_bytes=json.dumps(sealed)
   approved=review(self.store,row["proposal_key"],row["source_hash"],"approved",
                   ["trade_and_debt"],"Precise about freight loading and signed cargo tallies.")
   self.assertEqual(approved["status"],"approved")
   current=apply_approved(self.store,neutral,"orlock",42)
   self.assertEqual(current["individual"]["tags"],["trade_and_debt"])
   self.assertEqual(current["individual"]["provenance"],"owner_approved_source_grounded_proposal")
+  future=_packet(self.store,candidate,"after-review")
+  def voice(packet):
+   return next(json.loads(block["text"]) for block in packet["context"] if block["section"]=="voice_layers")
+  self.assertEqual(voice(sealed)["individual"]["tags"],[])
+  self.assertEqual(voice(future)["individual"]["tags"],["trade_and_debt"])
+  self.assertEqual(json.dumps(sealed),sealed_bytes)
+  self.assertEqual(sealed["request"]["source_revision"],future["request"]["source_revision"])
   self.assertEqual(scan(self.store),0)
   self.assertEqual(len(proposals(self.store,"approved")),1)
 
