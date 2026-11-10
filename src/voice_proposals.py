@@ -52,6 +52,7 @@ CUES = {
  "orders_and_checks": (r"\b(order|warrant|permit|procedure|inspection|authority|check|rozkaz|procedur|kontrol|zezwolen|sprawd)\w*\b",),
  "hazards_and_exposure": (r"\b(hazard|injur|exposure|radiation|collapse|toxic|risk|wound|ran|zagroż|promieni|skażen)\w*\b",),
  "tracking_and_watch": (r"\b(watch|track|scout|observe|patrol|trace|trop|zwiad|obserw|wart)\w*\b",),
+ "names_and_records": (r"\b(personnel file|personnel record|registration|registry|clerical error|collective designation)\b",),
 }
 SKIP_SECTIONS = (r"\bTajna Prawda\b", r"\bOnly for (?:the )?(?:GM|Arbiter)\b",
                  r"\bGM[- ]ONLY\b", r"\bTYLKO DLA OCZU ARBITRA\b", r"\bsecret for the arbiter\b")
@@ -64,7 +65,13 @@ VOICE_SUGGESTIONS = {
  "orders_and_checks": "When procedure matters, distinguish what was ordered from what the subject actually checked.",
  "hazards_and_exposure": "Describe danger through the signs the subject could notice and the precautions they could take.",
  "tracking_and_watch": "Separate what the subject saw from what they inferred about someone’s movements.",
+ "names_and_records": "Where paperwork shapes identity, distinguish the name or label on the record from what people actually call the subject.",
 }
+RETRY_FOCUSES = (
+ "Build the voice around a concrete detail the subject could notice in this passage.",
+ "Use vocabulary the subject would know from the work or circumstances shown here.",
+ "Focus on what the subject could say firsthand and where their knowledge stops.",
+)
 
 
 def suggested_register(tags):
@@ -93,7 +100,7 @@ def source_hash(text):
  return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def excerpt_and_tags(text):
+def excerpt_and_tags(text, offset=0):
  # Short, exact readable evidence span, rather than invented psychological summary.
  paragraphs = [re.sub(r"\s+", " ", p).strip() for p in re.split(r"\n\s*\n",text[:20000]) if p.strip()]
  paragraphs = [p for p in paragraphs if not p.startswith(("+++","[","**")) and len(p) >= 35] or paragraphs
@@ -102,7 +109,7 @@ def excerpt_and_tags(text):
  for i,p in enumerate(paragraphs):
   cues = [key for key,patterns in CUES.items() if any(re.search(pat,p,re.I) for pat in patterns)]
   ranked.append((len(cues), min(len(p),350), -i, p, cues))
- _,_,_,winner,tags = max(ranked)
+ _,_,_,winner,tags = sorted(ranked,reverse=True)[offset % len(ranked)]
  return winner[:340].rstrip(),tags[:5]
 
 
@@ -128,24 +135,28 @@ def _accepted_bio(store, fid):
  return ""
 
 
-def _current_fingerprint(store, row):
- """Read live authoritative source before approval or insertion into any packet."""
+def _current_source(store, row):
+ """Read the current source before reviewing or applying a proposal."""
  if row["kind"]=="gang":
   g=store.db.execute("SELECT backstory,backstory_source,active FROM gangs WHERE gang_id=?",
    (row["gang_id"],)).fetchone()
-  if not g or not g["active"]:return ""
+  if not g or not g["active"]:return "", ""
   text=safe_source(g["backstory"] if g["backstory_source"]=="player-authored / campaign Sheet" else "")
   source_kind="player_authored_gang_backstory"
  else:
   f=store.db.execute("SELECT mechanics_json,listed_in_source FROM fighters WHERE id=? AND gang_id=?",
    (row["fighter_id"],row["gang_id"])).fetchone()
-  if not f or not f["listed_in_source"]:return ""
+  if not f or not f["listed_in_source"]:return "", ""
   try: raw=json.loads(f["mechanics_json"] or "{}")
   except (ValueError,TypeError):raw={}
   text=safe_source(raw.get("Backstory") or "")
   source_kind="player_authored_fighter_backstory" if text else "accepted_fighter_biography"
   if not text:text=_accepted_bio(store,row["fighter_id"])
- return source_hash(source_kind+"\n"+text) if text else ""
+ return text, source_hash(source_kind+"\n"+text) if text else ""
+
+
+def _current_fingerprint(store, row):
+ return _current_source(store,row)[1]
 
 
 def _put(store,key,kind,gid,fid,name,host,faction,source,source_kind):
@@ -225,14 +236,29 @@ def proposals(store, status=None):
 
 
 def review(store,key,expected_hash,decision,tags=None,register=None):
- if decision not in ("approved","rejected"):raise ValueError("Invalid review decision")
+ if decision not in ("approved","rejected","regenerate"):raise ValueError("Invalid review decision")
  if not isinstance(key,str) or len(key)>128:raise ValueError("Invalid proposal key")
  if not isinstance(expected_hash,str):raise ValueError("Source hash required")
  with store._lock,store.db:
   row=store.db.execute("SELECT * FROM voice_proposals WHERE proposal_key=?",(key,)).fetchone()
   if not row:raise ValueError("Unknown voice proposal")
   if row["source_hash"]!=expected_hash:raise ValueError("Source changed; refresh review")
-  if _current_fingerprint(store,row)!=expected_hash:raise ValueError("Authored source changed since discovery; refresh sync and review")
+  source,current_hash=_current_source(store,row)
+  if current_hash!=expected_hash:raise ValueError("Authored source changed since discovery; refresh sync and review")
+  if not source:raise ValueError("No authored source to review")
+  if decision=="regenerate":
+   if row["status"]!="rejected":raise ValueError("Only rejected proposals can be regenerated")
+   attempts=store.db.execute("SELECT count(*) FROM voice_proposal_audit WHERE proposal_key=? AND source_hash=? AND action='regenerated'",
+                             (key,expected_hash)).fetchone()[0]
+   quote,tags=excerpt_and_tags(source,attempts)
+   register=" ".join(filter(None,(suggested_register(tags),RETRY_FOCUSES[attempts % len(RETRY_FOCUSES)])))
+   stamp=now()
+   store.db.execute("""UPDATE voice_proposals SET source_excerpt=?,proposed_tags_json=?,proposed_register=?,
+    status='pending',updated_at=? WHERE proposal_key=?""",(quote,json.dumps(tags),register,stamp,key))
+   store.db.execute("INSERT INTO voice_proposal_audit(proposal_key,action,source_hash,details_json,at) VALUES(?,?,?,?,?)",
+    (key,"regenerated",expected_hash,json.dumps({"attempt":attempts+1,"excerpt":quote,"tags":tags,"register":register},ensure_ascii=False),stamp))
+   return {"proposal_key":key,"status":"pending","tags":tags}
+  if decision=="rejected" and row["status"]=="rejected":raise ValueError("This proposal is already rejected")
   if row["status"] not in ("pending","approved","rejected"):raise ValueError("No authored source to approve")
   if decision=="approved":
    if tags is None:tags=json.loads(row["proposed_tags_json"])
@@ -248,8 +274,13 @@ def review(store,key,expected_hash,decision,tags=None,register=None):
   store.db.execute("""UPDATE voice_proposals SET status=?,approved_tags_json=?,approved_register=?,
    reviewed_hash=?,updated_at=? WHERE proposal_key=?""",
    (decision,json.dumps(tags),register,expected_hash if decision=="approved" else "",now(),key))
+  details={"tags":tags,"register":register}
+  if decision=="rejected":
+   reviewed_tags=json.loads(row["approved_tags_json"] if row["status"]=="approved" else row["proposed_tags_json"])
+   reviewed_register=row["approved_register"] if row["status"]=="approved" else editable_register(row["proposed_register"],reviewed_tags)
+   details={"excerpt":row["source_excerpt"],"tags":reviewed_tags,"register":reviewed_register}
   store.db.execute("INSERT INTO voice_proposal_audit(proposal_key,action,source_hash,details_json,at) VALUES(?,?,?,?,?)",
-   (key,decision,expected_hash,json.dumps({"tags":tags,"register":register},ensure_ascii=False),now()))
+   (key,decision,expected_hash,json.dumps(details,ensure_ascii=False),now()))
   return {"proposal_key":key,"status":decision,"tags":tags}
 
 

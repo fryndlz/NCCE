@@ -71,7 +71,8 @@ function render(p){
   register.placeholder="Describe how the subject speaks, what they notice, or what vocabulary fits.";
   if(p.status==="pending"||p.status==="approved"||p.status==="rejected"){
    const actions=node("div",undefined,"actions");
-   for(const [decision,text,cls] of [["approved","Approve voice","approve"],["rejected","Reject","reject"]]){
+   const secondary=p.status==="rejected"?["regenerate","Regenerate proposal",""]:["rejected","Reject","reject"];
+   for(const [decision,text,cls] of [["approved","Approve voice","approve"],secondary]){
     const b=node("button",text,cls);b.type="button";
     b.onclick=async()=>{
      if(decision==="approved"&&!register.value.trim()){message.textContent="A voice description is required.";return}
@@ -83,7 +84,10 @@ function render(p){
        method:"POST",credentials:"same-origin",
        headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await r.json();if(!r.ok)throw Error(data.error||"Review failed");
-      await load();message.textContent=p.name+": "+data.status+" (applies to future writer packets only)";
+      if(decision==="regenerate")status.value="pending";
+      await load();message.textContent=decision==="regenerate"
+       ?p.name+" has a new proposal under Needs review."
+       :p.name+": "+data.status+" (applies to future writer packets only)";
      }catch(e){message.textContent=e.message;b.disabled=false}
     };
     actions.append(b);

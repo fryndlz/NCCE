@@ -184,6 +184,29 @@ class VoiceProposalTests(unittest.TestCase):
   self.assertEqual(scan(self.store),0)
   self.assertEqual(proposals(self.store,"rejected")[0]["status"],"rejected")
 
+ def test_retry_rejected_blank_proposal_with_fresh_guidance(self):
+  self.store.gang("orlock","The Slag Eaters","House Orlock")
+  self.store.fighter(10,"orlock","New Clerk","A registration error gave him the name on his personnel record.")
+  scan(self.store)
+  p=proposals(self.store,"pending")[0]
+  key,revision=p["proposal_key"],p["source_hash"]
+  self.store.db.execute("UPDATE voice_proposals SET proposed_tags_json='[]',proposed_register=''")
+  self.store.db.commit()
+  review(self.store,key,revision,"rejected")
+  with self.assertRaisesRegex(ValueError,"already rejected"):
+   review(self.store,key,revision,"rejected")
+  review(self.store,key,revision,"regenerate")
+  fresh=proposals(self.store,"pending")[0]
+  self.assertEqual(fresh["source_hash"],revision)
+  self.assertIn("names_and_records",fresh["proposed_tags"])
+  self.assertIn("paperwork shapes identity",fresh["proposed_register"])
+  self.assertFalse(fresh["approved_register"])
+  self.assertEqual([row[0] for row in self.store.db.execute(
+   "SELECT action FROM voice_proposal_audit ORDER BY id")],["detected","rejected","regenerated"])
+  review(self.store,key,revision,"rejected")
+  review(self.store,key,revision,"regenerate")
+  self.assertNotEqual(proposals(self.store,"pending")[0]["proposed_register"],fresh["proposed_register"])
+
  def test_external_attachment_does_not_inherit_host_overlay(self):
   self.store.gang("new","Patrol do spraw alkoholu i broni","Palanite Enforcers",
                   "Officers check warrants and road cargo before confiscation.")
