@@ -14,6 +14,7 @@ let archiveStoryRecords = [];
 const MAX_MIND_THOUGHTS = 3;
 const selectedPaperPreview = () => new URLSearchParams(location.search).get('paper-preview');
 const isWernerMatrix = fighter => fighter.name==='Werner Matrix' && fighter.gang_name==='Ethernetans 2.0';
+const isBofur = fighter => fighter.name==='Bofur' && fighter.gang_name==='Helmaeth Expeditionary Force';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
 const short = value => String(value || 'Unknown').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]', 'C-NINE');
@@ -885,6 +886,7 @@ async function showFighter(id, preserveScroll = false) {
     sections[0].paperStyle='cnine-personnel';
   }
   if (paperPreview==='werner' && isWernerMatrix(f)) sections[0].paperStyle='ethernetans-personnel';
+  if (paperPreview==='bofur' && isBofur(f)) sections[0].paperStyle='helmaeth-personnel';
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
     mindPreview:{hidden:deceased,body:deceased ? '' : mindFeedBody(f)},
     fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
@@ -989,8 +991,8 @@ async function startApp() {
   await refreshDashboard(false); await refreshStatus();
   const paperPreview = selectedPaperPreview();
   if (paperPreview==='orik') await showFighter(38);
-  if (paperPreview==='werner') {
-    const fighter=(await ensureFighters()).find(isWernerMatrix);
+  if (paperPreview==='werner' || paperPreview==='bofur') {
+    const fighter=(await ensureFighters()).find(paperPreview==='werner'?isWernerMatrix:isBofur);
     if (fighter) await showFighter(fighter.id);
   }
   if (['#retrieval','#workshop'].includes(initialView)) history.replaceState(null,'',location.pathname+location.search);

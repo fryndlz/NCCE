@@ -120,6 +120,22 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .cnine-paper-heading small { font:9px/1.5 'Courier New',monospace; letter-spacing:.12em; text-transform:uppercase; }
 .cnine-personnel-paper .document-stamp { border-color:#a46656; color:#824537; transform:rotate(-4deg); }
 .cnine-personnel-paper .paper-end { color:#6b563e; }
+.archive-paper.helmaeth-paper {
+  --charter-ink:#513722;
+  --charter-rule:#8f7146;
+  background:radial-gradient(ellipse at 48% 38%,#f4ead2 40%,#e6d1aa 100%);
+  border:1px solid #93734b;
+  box-shadow:inset 0 0 0 5px #e9d8b6,inset 0 0 0 8px #9c8056,inset 0 0 0 10px #e9d8b6,inset 0 0 0 11px #9c8056;
+}
+.helmaeth-paper .paper-metadata { color:#6e512c; border-color:var(--charter-rule); margin-bottom:17px; }
+.helmaeth-masthead { display:grid; justify-items:center; text-align:center; gap:8px; color:var(--charter-ink); margin-bottom:23px; }
+.helmaeth-masthead small,.helmaeth-end { font:600 10px/1.45 'Courier New',monospace; letter-spacing:.15em; text-transform:uppercase; }
+.helmaeth-masthead strong { font:700 clamp(24px,4vw,43px)/1.03 Georgia,'Times New Roman',serif; max-width:23ch; }
+.helmaeth-masthead > span { display:flex; align-items:center; gap:12px; width:100%; color:var(--charter-rule); font-size:12px; }
+.helmaeth-masthead > span::before,.helmaeth-masthead > span::after { content:''; flex:1; border-top:3px double var(--charter-rule); }
+#app .helmaeth-paper .paper-content { color:var(--charter-ink); }
+.helmaeth-end { display:flex; align-items:center; justify-content:space-between; gap:10px; color:var(--charter-ink); border-top:3px double var(--charter-rule); margin-top:24px; padding-top:14px; }
+.helmaeth-seal { flex:none; display:grid; place-items:center; width:68px; aspect-ratio:1; border:4px double #9e6757; border-radius:48% 52% 49% 51%; background:radial-gradient(circle at 40% 33%,#915344,#623127 76%); color:#edc29b; box-shadow:inset 0 0 0 3px #643329,1px 3px 3px #56372a50; transform:rotate(-8deg); }
 .archive-paper.ethernetans-paper {
   --technical-ink:#224b58;
   background-color:#f0ebd9;

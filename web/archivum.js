@@ -55,6 +55,16 @@ window.NCCEArchive = (() => {
     const sections=[...meta.sections,{id:'sources',label:'Data & sources',description:'Mechanical state, provenance, identity tools and source references.',body:`<dl class="source-register">${[['Record',meta.id],['Source',meta.source || 'Campaign record'],...(meta.fields || [])].map(([k,v])=>`<div><dt>${escape(k)}</dt><dd>${escape(v ?? 'Not recorded')}</dd></div>`).join('')}</dl>${meta.sourceBody || ''}<div class="source-evidence"></div>`}];
     const paper=section=>{
       const cnine=section.paperStyle==='cnine-personnel';
+      if (section.paperStyle==='helmaeth-personnel') {
+        return `<div class="document-notices" role="status"></div><div class="archive-paper helmaeth-paper">
+          <div class="paper-metadata"><span>EXPEDITION CHARTER OFFICE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
+          <header class="helmaeth-masthead"><small>Ironhead Kin · Personnel Register</small><strong>Helmaeth Expeditionary Force</strong><span aria-hidden="true">◆</span></header>
+          <div class="paper-content">${section.body}</div>
+          <footer class="helmaeth-end"><span>CHARTER OFFICE · ARCHIVE COPY</span><div class="helmaeth-seal" aria-hidden="true">
+            <svg viewBox="0 0 48 48" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 37 34 12m3 25L14 12M25 9q9-1 15 9M23 9q-9-1-15 9"/><path d="m24 22 7 9-7 8-7-8Z" stroke-width="1.3"/></svg>
+          </div></footer>
+        </div>`;
+      }
       if (section.paperStyle==='ethernetans-personnel') {
         return `<div class="document-notices" role="status"></div><div class="archive-paper ethernetans-paper">
           <div class="paper-metadata"><span>CAMPAIGN ARCHIVE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
