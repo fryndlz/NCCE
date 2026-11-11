@@ -27,6 +27,24 @@ def queue_one(store,c):
     return dict(request_id=request['request_id'],source_revision=request['source_revision'],status='READY',writer_text_md=TEXT)
 
 
+def test_memory_packet_carries_owner_event_fidelity_rule():
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
+        s,b,f,m=setup(directory)
+        try:
+            c=next(c for c in exchange.candidates(s) if c['form']=='fighter_memory')
+            delivery=queue_one(s,c)
+            request=s.db.execute(
+                'SELECT packet_json FROM writing_exchange_requests WHERE request_id=?',
+                (delivery['request_id'],)).fetchone()
+            blocks=json.loads(request['packet_json'])['context']
+            rule=[x['text'] for x in blocks if x['section']=='brief'
+                  and x['source_ref']=='owner-approved memory event fidelity, 11 Nov 2026']
+            assert len(rule)==1
+            assert 'kill' in rule[0] and 'abstract XP' in rule[0]
+            assert 'recognisably' in rule[0] and 'unrelated anecdote' in rule[0]
+        finally:s.close()
+
+
 def test_bounded_idempotent_preparation_and_authored_exclusion():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
         s,b,f,m=setup(directory)
