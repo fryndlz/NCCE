@@ -185,6 +185,14 @@ def test_revision_is_never_automatically_drafted_or_mutates_authored_work():
         try:
             c=next(c for c in exchange.candidates(s) if c['kind']=='memory')
             original=queue_one(s,c);accepted=exchange.deliver(s,original)
+            s.db.execute('UPDATE story_memories SET provenance_class=? WHERE fighter_id=? AND memory_key=?',
+                         ('player_authored',*c['key']));s.db.commit()
+            try:
+                exchange.request_revision(s,original['request_id'],accepted['receipt'])
+                raise AssertionError('An authored memory was revised')
+            except ValueError:pass
+            s.db.execute('UPDATE story_memories SET provenance_class=? WHERE fighter_id=? AND memory_key=?',
+                         ('inference',*c['key']));s.db.commit()
             child=exchange.request_revision(s,original['request_id'],accepted['receipt'])
             with patch.object(exchange,'candidates',return_value=[c]):
                 with patch('writing_waterfall.plan',return_value=([],{},{})):
@@ -192,12 +200,6 @@ def test_revision_is_never_automatically_drafted_or_mutates_authored_work():
             assert s.db.execute('SELECT state FROM writing_exchange_requests WHERE request_id=?',
                                 (child['request_id'],)).fetchone()[0]=='PENDING'
             assert any(p['request']['request_id']==child['request_id'] for p in exchange.outbox(s))
-            s.db.execute('UPDATE story_memories SET provenance_class=? WHERE fighter_id=? AND memory_key=?',
-                         ('player_authored',*c['key']));s.db.commit()
-            try:
-                exchange.request_revision(s,original['request_id'],accepted['receipt'])
-                raise AssertionError('An authored memory was revised')
-            except ValueError:pass
         finally:s.close()
 
 
