@@ -419,6 +419,10 @@ def request_revision(store, parent_id, expected_receipt):
                 raise ValueError('Underlying source changed; manual reconciliation required')
             rid=str(uuid4())
             packet=load(parent['packet_json'])
+            # Do not stack obsolete revision baselines when editing a revision.
+            packet['context']=[block for block in packet['context']
+                if block.get('section')!='revision_baseline'
+                and block.get('source_ref')!='Explicit imported-prose correction']
             packet['request']['request_id']=rid
             packet['request']['context_id']='ctx:'+rid
             packet['request']['title']=c['title']
@@ -439,7 +443,7 @@ def request_revision(store, parent_id, expected_receipt):
                  expected_text_hash)
                 VALUES(?,?,?,?,?,'PENDING',?,?,?,?,?,?,?)""",
                 (rid,parent['target_key'],packed(packet),parent['target_json'],rev,now(),
-                 parent['policy_version'],0,parent['dependencies_json'],parent_id,
+                 parent['policy_version'],-1,parent['dependencies_json'],parent_id,
                  expected_receipt,digest(parent['raw_markdown'])))
             return {'request_id':rid,'status':'PENDING','revision_of':parent_id,'reused':False}
 
