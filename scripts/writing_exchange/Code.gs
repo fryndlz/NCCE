@@ -306,9 +306,9 @@ function syncNCCE() {
       writeLiteral(queue.getRange(target, 2), [['PENDING']]); // Publish only after complete context.
     }
     // Counters include appended requests rather than only the original 20 slots.
-    queue.getRange('B3').setFormula('=COUNTIFS(C6:C,"<>",B6:B,"PENDING")');
-    queue.getRange('D3').setFormula('=COUNTIFS(C6:C,"<>",B6:B,"READY")');
-    queue.getRange('F3').setFormula('=COUNTIFS(C6:C,"<>",B6:B,"IMPORTED")');
+    queue.getRange('B3').setFormula('=COUNTIFS(C6:C;"<>";B6:B;"PENDING")');
+    queue.getRange('D3').setFormula('=COUNTIFS(C6:C;"<>";B6:B;"READY")');
+    queue.getRange('F3').setFormula('=COUNTIFS(C6:C;"<>";B6:B;"IMPORTED")');
     writeQueueStatus(book,outbox.waterfall,queue); // Read actual statuses after all mutations.
     PropertiesService.getScriptProperties().setProperty('NCCE_LAST_SUCCESS_UTC', new Date().toISOString());
   } finally { lock.releaseLock(); }
