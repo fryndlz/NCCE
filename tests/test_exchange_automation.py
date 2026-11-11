@@ -266,6 +266,35 @@ def test_revision_is_never_automatically_drafted_or_mutates_authored_work():
         finally:s.close()
 
 
+def test_owner_reapproval_of_writer_hold_is_importable_but_other_holds_stay_sealed():
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
+        s,b,f,m=setup(directory)
+        try:
+            c=next(c for c in exchange.candidates(s) if c['kind']=='memory')
+            first=queue_one(s,c)
+            exchange.prepare(s,client_states=[dict(request_id=first['request_id'],
+                status='HOLD',has_text=True,note='Earlier editorial objection')])
+            held=s.db.execute('SELECT state,error FROM writing_exchange_requests WHERE request_id=?',
+                              (first['request_id'],)).fetchone()
+            assert held['state']=='HOLD' and held['error'].startswith('Writer placed this request on HOLD;')
+            result=exchange.deliver(s,first)
+            assert result['status']=='imported',result
+            assert exchange.projection(s,c)['content']==TEXT
+            assert exchange.deliver(s,first)['receipt']==result['receipt']
+        finally:s.close()
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
+        s,b,f,m=setup(directory)
+        try:
+            c=next(c for c in exchange.candidates(s) if c['kind']=='memory')
+            first=queue_one(s,c)
+            s.db.execute("UPDATE writing_exchange_requests SET state='HOLD',error=? WHERE request_id=?",
+                         ('Source changed; do not write or regenerate this request',first['request_id']))
+            s.db.commit()
+            assert exchange.deliver(s,first)['status']=='held'
+            assert exchange.projection(s,c)['content']!=TEXT
+        finally:s.close()
+
+
 def test_atomic_write_failure_leaves_output_available_for_same_payload_retry():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
         s,b,f,m=setup(directory)
