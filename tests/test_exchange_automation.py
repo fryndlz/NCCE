@@ -154,6 +154,35 @@ def test_versioned_revision_reuses_original_slot_and_preserves_audit_across_rebu
         finally:s.close()
 
 
+def test_revision_of_imported_biography_keeps_one_document_and_survives_rebuild():
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
+        s,b,f,m=setup(directory)
+        try:
+            c=next(c for c in exchange.candidates(s) if c['form']=='fighter_biography' and not c['approved'])
+            original=queue_one(s,c)
+            first=exchange.deliver(s,original)
+            assert first['status']=='imported'
+            child=exchange.request_revision(s,original['request_id'],first['receipt'])
+            packet=next(x for x in exchange.outbox(s) if x['request']['request_id']==child['request_id'])
+            replacement='**Edited fighter dossier**\\n\\nPreserved facts; amended interpretation.'
+            result=exchange.deliver(s,dict(request_id=child['request_id'],status='READY',
+                source_revision=packet['request']['source_revision'],writer_text_md=replacement))
+            assert result['status']=='imported',result
+            doc=json.loads(exchange.projection(s,c)['document_json'])
+            assert doc['external_markdown']==replacement
+            assert doc['external_request_id']==child['request_id']
+            assert s.db.execute("""SELECT count(*) FROM story_artifacts
+                WHERE scope_type=? AND scope_key=? AND active=1""",c['key']).fetchone()[0]==1
+            regenerate(s,force=True,writer_enabled=False);exchange.restore(s)
+            doc=json.loads(exchange.projection(s,c)['document_json'])
+            assert doc['external_markdown']==replacement
+            assert doc['external_request_id']==child['request_id']
+            old=s.db.execute('SELECT raw_markdown,receipt FROM writing_exchange_requests WHERE request_id=?',
+                             (original['request_id'],)).fetchone()
+            assert old['raw_markdown']==TEXT and old['receipt']==first['receipt']
+        finally:s.close()
+
+
 def test_revision_refuses_stale_receipt_source_edits_and_unapproved_overwrite():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
         s,b,f,m=setup(directory)
