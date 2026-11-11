@@ -534,8 +534,12 @@ def deliver(store,payload):
         elif request['state'] not in ('PENDING','DEFERRED'):error='Request is already imported or held; no replacement authorized'
         elif payload.get('source_revision')!=request['source_revision']:error='Source revision does not match'
         elif payload.get('status')!='READY':error='Only READY output can publish'
-        elif prospective_biography_length_error(request,text):error=prospective_biography_length_error(request,text)
-        else:
+        elif request['revision_of'] and request['packet_json']:
+            form=load(request['packet_json']).get('request',{}).get('form')
+            limit={'fighter_memory':350,'fighter_biography':2300}.get(form)
+            if limit and len(text)>limit:
+                error=f'Correction exceeds {form} hard cap of {limit} characters including Markdown'
+        if not error:
             found=[c for c in candidates(store) if target_key(c)==request['target_key']]
             if len(found)!=1:
                 error='Target missing or ambiguous; draft retained'
