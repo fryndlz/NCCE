@@ -247,6 +247,17 @@ def _packet(store,c,rid):
         'Return complete Markdown; metadata/provenance and real-world dates stay outside diegesis. '
         'Leave saved text WRITING until the owner explicitly approves that exact draft. '
         'Reverify the ID, source revision and saved text before setting READY. The relay imports it unchanged.'))
+    if c['form']=='fighter_memory':
+        context.append(dict(section='brief',provenance='instruction',
+            source_ref='owner-approved memory event fidelity, 11 Nov 2026',
+            event_at_utc='',source_event_ids='',text=(
+                'Concrete event fidelity is mandatory: if the evidence records a kill, injury, condition, '
+                'equipment change, skill or characteristic improvement, the prose must be recognisably '
+                'ABOUT that occurrence or consequence. Choose any fitting subjective lens, scene and '
+                'fictional connective details, but never replace the cause with an unrelated anecdote. '
+                'Missing battle/attacker details do not erase a confirmed event; leave specifics unknown. '
+                'For abstract XP progress without a concrete incident, use broad poetic licence. '
+                'Before saving, verify the triggering event is discernible from the prose alone.')))
     return {'request':request,'context':context}
 
 

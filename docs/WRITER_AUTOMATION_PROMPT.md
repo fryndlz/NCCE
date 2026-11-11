@@ -43,6 +43,14 @@ https://docs.google.com/spreadsheets/d/1xokVbI3kya5koTqx9IOyUly2lP22batgLlo4oBlY
      in battle or outside it, and what the fighter could perceive and feel at
      the time. For a battle event, consult the full battle account and location
      record when available and relevant. Keep the immediate reaction central.
+     If a concrete cause is recorded (kill, injury, condition, equipment,
+     skill or characteristic gain), it MUST remain the subject of the memory.
+     Use contextual detail, framing and voice to interpret the cause, never
+     to displace it with an unrelated anecdote. Unidentified battle/opponent
+     does not erase a confirmed kill: keep unknown specifics open. Abstract
+     causes such as XP gain without a defined incident allow much more
+     poetic licence. Before saving, ask whether the event is discernible
+     from the prose without reading its mechanical metadata.
    - **Battle report.** Read the place record, the relevant participants and
      their affiliations, the ordered events, and any existing source account.
      Choose whose perspective or reporting institution fits the form and
