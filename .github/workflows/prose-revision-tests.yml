@@ -29,5 +29,7 @@ jobs:
         run: python -m compileall -q src tests/test_exchange_automation.py
       - name: Run exchange end-to-end tests
         run: python tests/test_exchange_automation.py
+      - name: Parse Google Apps Script relay JavaScript
+        run: node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Code.gs','utf8'))"
       - name: Run writing waterfall tests
         run: python tests/test_writing_waterfall.py
