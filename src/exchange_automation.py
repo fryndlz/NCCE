@@ -531,7 +531,9 @@ def deliver(store,payload):
             return dict(status=old['disposition'],request_id=rid,error=old['error'],receipt=request['receipt'] if request else None,imported_at_utc=request['imported_at'] if request else None,reused=True)
         error='';current=None
         if not request:error='Unknown request; routing is owned by NCCE'
-        elif request['state'] not in ('PENDING','DEFERRED'):error='Request is already imported or held; no replacement authorized'
+        elif request['state'] not in ('PENDING','DEFERRED') and not (
+                request['state']=='HOLD' and request['error'].startswith(
+                    'Writer placed this request on HOLD;')):error='Request is already imported or held; no replacement authorized'
         elif payload.get('source_revision')!=request['source_revision']:error='Source revision does not match'
         elif payload.get('status')!='READY':error='Only READY output can publish'
         elif prospective_biography_length_error(request,text):
