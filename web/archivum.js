@@ -14,12 +14,12 @@ window.NCCEArchive = (() => {
     <div><small>House Van Saar</small><strong>Ethernetans 2.0</strong><span>Technical personnel register</span></div>
     <span class="ethernetans-stamp">VAN SAAR<small>ARCHIVE COPY</small></span>
   </header>`;
-  function browser(view, rows) {
+  function browser(view, rows, displayName = value => value) {
     const kind = {gangs:'gang',fighters:'fighter',places:'territory',battles:'battle',archive:'archive'}[view];
     return `<div class="record-browser"><section class="record-index" aria-label="${escape(labels[view])} index"><div class="index-heading">RECORD INDEX <span>${rows.length}</span></div>${rows.map((r,i)=> {
       const id=r.gang_id && view==='gangs'?r.gang_id:r.id;
-      const title=view==='gangs'?r.name:view==='places'?r.territory:view==='battles'?(r.scenario || 'Engagement')+(r.territory?' — '+r.territory:''):r.name || r.title;
-      const sub=view==='gangs'?r.gang_type:view==='fighters'?[r.gang_name,r.class].filter(Boolean).join(' · '):view==='places'?r.gang_name:view==='battles'?[r.attacker,r.defender].filter(Boolean).join(' / '):'Authored campaign story';
+      const title=view==='gangs'?displayName(r.name):view==='places'?r.territory:view==='battles'?(r.scenario || 'Engagement')+(r.territory?' — '+r.territory:''):r.name || r.title;
+      const sub=view==='gangs'?r.gang_type:view==='fighters'?[r.gang_name && displayName(r.gang_name),r.class].filter(Boolean).join(' · '):view==='places'?r.gang_name && displayName(r.gang_name):view==='battles'?[r.attacker,r.defender].filter(Boolean).map(displayName).join(' / '):'Authored campaign story';
       return `<button class="record-index-entry" data-${kind}="${escape(id)}" aria-pressed="false"><span class="index-number">${String(i+1).padStart(2,'0')}</span><span><strong>${escape(String(title||'Record').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]','C-NINE'))}</strong><small>${escape(String(sub||'').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]','C-NINE'))}</small>${view==='fighters'?`<em>${escape(r.status||'Unknown')}</em>`:view==='battles'&&r.date?`<em>${escape(NCCEWriting.formatDate(r.date).imperialDisplay)}</em>`:''}</span><span class="index-arrow" aria-hidden="true">↗</span></button>`;
     }).join('')}</section><section class="record-preview" aria-label="Document preview"><div class="preview-placeholder"><span class="archive-monogram" aria-hidden="true">N / C</span><h3>Select a record</h3><p>Open a dossier from the index.</p></div></section></div>`;
   }
@@ -67,8 +67,8 @@ window.NCCEArchive = (() => {
       if (section.paperStyle==='kly-personnel' || section.paperStyle==='patrol-personnel') {
         const kly=section.paperStyle==='kly-personnel';
         const masthead=kly
-          ? `<header class="kly-docket"><span class="kly-fangs" aria-hidden="true"><i></i><i></i><i></i></span><div><small>Palanite Enforcers</small><strong>Kły Sprawiedliwości</strong></div><span class="kly-docket-label">${aquila}PERSONNEL DOCKET</span></header>`
-          : `<header class="patrol-docket"><div><small>Palanite Enforcers</small><strong>Patrol do spraw<br>alkoholu i broni</strong></div><span class="patrol-docket-label">${aquila}SERVICE<br>RECORD</span></header>`;
+          ? `<header class="kly-docket"><span class="kly-fangs" aria-hidden="true"><i></i><i></i><i></i></span><div><small>Palanite Enforcers</small><strong>Fangs of Justice</strong></div><span class="kly-docket-label">${aquila}<span>PERSONNEL<br>DOCKET</span></span></header>`
+          : `<header class="patrol-docket"><div><small>Palanite Enforcers</small><strong>Alcohol and Firearms Patrol</strong></div><span class="patrol-docket-label">${aquila}<span>SERVICE<br>RECORD</span></span></header>`;
         return `<div class="document-notices" role="status"></div><div class="archive-paper police-paper ${kly?'kly-paper':'patrol-paper'}">
           <div class="paper-metadata"><span>CAMPAIGN ARCHIVE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
           ${masthead}<div class="paper-content">${section.body}</div>

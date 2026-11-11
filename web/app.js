@@ -18,10 +18,21 @@ const isBofur = fighter => fighter.name==='Bofur' && fighter.gang_name==='Helmae
 const isEisen = fighter => fighter.name==='Eisen' && fighter.gang_name==='The Slag Eaters';
 const klyGang = 'Kły Sprawiedliwości';
 const patrolGang = 'Patrol do spraw alkoholu i broni';
-let policePreviewFighterId = null;
+const fighterPaperStyles = new Map([
+  ['C-NINE', 'cnine-personnel'],
+  ['Geothermal Prospect Detail C-9', 'cnine-personnel'],
+  ['Ethernetans 2.0', 'ethernetans-personnel'],
+  ['Helmaeth Expeditionary Force', 'helmaeth-personnel'],
+  ['The Slag Eaters', 'slag-eaters-personnel'],
+  ['Fangs of Justice', 'kly-personnel'],
+  ['Alcohol and Firearms Patrol', 'patrol-personnel']
+]);
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]));
-const short = value => String(value || 'Unknown').replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]', 'C-NINE');
+const short = value => String(value || 'Unknown')
+  .replace('THE C-NINE +++ [GEOTHERMAL PROSPECT DETAIL C-9]', 'C-NINE')
+  .replace(klyGang, 'Fangs of Justice')
+  .replace(patrolGang, 'Alcohol and Firearms Patrol');
 const human = value => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, character => character.toUpperCase());
 const cut = (value, limit) => { const text = String(value || ''); return text.length > limit ? text.slice(0, limit).trimEnd() + '…' : text; };
 const list = value => Array.isArray(value) ? value : [];
@@ -668,9 +679,9 @@ function listResults(view) {
   let rows = [];
   const state = filters[view];
   if (view === 'fighters') {
-    rows = list(fightersCache).filter(f => (!state.gang || String(f.gang_id) === state.gang) && (!state.status || fighterStatus(f) === state.status) && (!state.role || f.class === state.role) && (!state.listing || (state.listing === 'listed' ? f.listed_in_source !== 0 : f.listed_in_source === 0)) && textMatch([f.name, f.type, f.class, f.gang_name, f.backstory, f.effects], state.q));
+    rows = list(fightersCache).filter(f => (!state.gang || String(f.gang_id) === state.gang) && (!state.status || fighterStatus(f) === state.status) && (!state.role || f.class === state.role) && (!state.listing || (state.listing === 'listed' ? f.listed_in_source !== 0 : f.listed_in_source === 0)) && textMatch([f.name, f.type, f.class, f.gang_name, short(f.gang_name), f.backstory, f.effects], state.q));
     rows.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (view === 'gangs') rows = data.gangs.filter(g => (!state.faction || g.gang_type === state.faction) && textMatch([short(g.name), g.gang_type, g.player, g.backstory], state.q));
+  } else if (view === 'gangs') rows = data.gangs.filter(g => (!state.faction || g.gang_type === state.faction) && textMatch([g.name, short(g.name), g.gang_type, g.player, g.backstory], state.q));
   else if (view === 'places') rows = data.territories.filter(t => (!state.owner || String(t.gang_id) === state.owner) && textMatch([t.territory, t.gang_name, t.backstory], state.q));
   else if (view === 'battles') {
     const gang = data.gangs.find(g => String(g.gang_id) === state.gang);
@@ -684,7 +695,7 @@ function listResults(view) {
     : `${rows.length} ${noun}`;
   const results = document.querySelector('#listResults');
   if (!rows.length) { results.innerHTML = empty('No records match these filters. Try a different name, gang, or status.'); return; }
-  results.innerHTML = NCCEArchive.browser(view, rows);
+  results.innerHTML = NCCEArchive.browser(view, rows, short);
 
 }
 function recordDetail(kind, id, body, meta) {
@@ -810,7 +821,7 @@ function fighterRecordSections(f, memories) {
   const baseline=memories.filter(m=>m.is_baseline || m.baseline), evolving=memories.filter(m=>!m.is_baseline && !m.baseline);
   const archive=list(f.campaign_history?.events), represented=new Set(archive.map(e=>e.source_event_id).filter(Boolean)), tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id)), events=archive.length?archive:tracked;
   return [
-    {id:'baseline',label:'Backstory',paper:true,body:fighterBackstory(f)},
+    {id:'baseline',label:'Backstory',paper:true,paperStyle:fighterPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
     {id:'timeline',label:'Timeline',count:events.length,description:'What happened to this fighter, ordered by recorded time. Open an event for its details.',body:entityTimeline([],events)+(archive.length && tracked.length?`<details class="additional-history" data-key="fighter-ledger"><summary>Additional tracked changes · ${tracked.length}</summary>${entityTimeline([],tracked)}</details>`:'')},
     {id:'memory',label:'Memory',count:memories.length,description:'How this fighter remembers their history: observations and reflections, most recent first.',body:`<div class="memory-stream entity-memory">${evolving.map(memoryCard).join('') || empty('No event memories are available yet.')}</div>${baseline.length?`<details class="baseline-memory" data-key="baseline-memory"><summary>Baseline memories · ${baseline.length}<small>Background known at the start; these are not newly dated incidents.</small></summary><div class="memory-stream entity-memory">${baseline.map(memoryCard).join('')}</div></details>`:''}`},
   ];
@@ -885,17 +896,6 @@ async function showFighter(id, preserveScroll = false) {
   const memories = list(f.memories).slice().sort((a, b) => Number(Boolean(a.is_baseline || a.baseline)) - Number(Boolean(b.is_baseline || b.baseline)) || (b.occurred_at || b.observed_at || '').localeCompare(a.occurred_at || a.observed_at || '') || Number(b.id) - Number(a.id));
   const deceased = fighterIsDeceased(f);
   const sections = fighterRecordSections(f,memories);
-  const paperPreview = selectedPaperPreview();
-  if (String(id)==='38' && f.name==='Orik Sorn' && paperPreview==='orik') {
-    sections[0].paperStyle='cnine-personnel';
-  }
-  if (paperPreview==='werner' && isWernerMatrix(f)) sections[0].paperStyle='ethernetans-personnel';
-  if (paperPreview==='bofur' && isBofur(f)) sections[0].paperStyle='helmaeth-personnel';
-  if (paperPreview==='eisen' && isEisen(f)) sections[0].paperStyle='slag-eaters-personnel';
-  if (String(id)===String(policePreviewFighterId)) {
-    if (paperPreview==='kly' && f.gang_name===klyGang) sections[0].paperStyle='kly-personnel';
-    if (paperPreview==='patrol' && f.gang_name===patrolGang) sections[0].paperStyle='patrol-personnel';
-  }
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
     mindPreview:{hidden:deceased,body:deceased ? '' : mindFeedBody(f)},
     fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
@@ -1012,10 +1012,7 @@ async function startApp() {
       ? fighters.find(fighter=>fighter.gang_name===klyGang && fighter.name==='Tomas')
       : patrol.find(fighter=>authored(fighter.backstory_source) && fighter.backstory?.trim())
         || patrol.find(fighter=>fighter.backstory?.trim()) || patrol[0];
-    if (fighter) {
-      policePreviewFighterId=fighter.id;
-      await showFighter(fighter.id);
-    }
+    if (fighter) await showFighter(fighter.id);
   }
   if (['#retrieval','#workshop'].includes(initialView)) history.replaceState(null,'',location.pathname+location.search);
   setInterval(() => {

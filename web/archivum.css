@@ -230,7 +230,8 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .slag-eaters-wheel { background:radial-gradient(circle,currentColor 0 13%,#3d382e 14% 20%,transparent 21%),repeating-conic-gradient(from 13deg,currentColor 0 5deg,transparent 5deg 45deg); }
 .kly-docket strong { font:700 clamp(20px,3.5vw,37px)/1.15 'Cinzel',Georgia,serif; }
 .kly-docket-label,.patrol-docket-label { display:grid; justify-items:center; gap:5px; text-align:center; }
-.kly-docket-label { max-width:10ch; border-block:3px double currentColor; padding:5px 2px; }
+.kly-docket-label { border-block:3px double currentColor; padding:5px 6px; }
+.kly-docket-label,.patrol-docket-label { white-space:nowrap; overflow-wrap:normal; }
 .patrol-docket { background:#63313c; color:#f8e5da; border-block:3px double #aa767b; }
 .patrol-docket strong { font:400 clamp(22px,3.4vw,36px)/1.04 'Germania One','Old English Text MT',Georgia,serif; }
 .patrol-docket-label { color:#ead6cc; }
