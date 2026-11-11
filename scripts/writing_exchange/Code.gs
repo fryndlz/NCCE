@@ -6,8 +6,35 @@ const CONTEXT_HEADERS = 'context_id,section,provenance,source_ref,event_at_utc,s
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('NCCE relay')
-    .addItem('Sync now', 'syncNCCE').addItem('Install 5-minute relay', 'installNCCERelay')
+    .addItem('Sync now', 'syncNCCE').addItem('Revise selected IMPORTED entry', 'reviseSelectedNCCE')
+    .addItem('Install 5-minute relay', 'installNCCERelay')
     .addItem('Stop relay', 'stopNCCERelay').addToUi();
+}
+
+/** Owner-initiated: a NEW request and Queue row, never mutation of imported prose. */
+function reviseSelectedNCCE() {
+  const book = SpreadsheetApp.openById(EXCHANGE_ID);
+  const ui = SpreadsheetApp.getUi(), selection = book.getActiveRange();
+  const queue = book.getSheetByName('Queue');
+  if (!selection || selection.getSheet().getSheetId() !== queue.getSheetId() || selection.getRow() < 6) {
+    ui.alert('Select an imported entry row in Queue.'); return;
+  }
+  const values = queue.getRange(selection.getRow(), 1, 1, 16).getDisplayValues()[0];
+  if (values[1] !== 'IMPORTED' || !values[0] || !values[15]) {
+    ui.alert('The selected row must be IMPORTED and have an import receipt.'); return;
+  }
+  const decision = ui.alert('Revise imported prose?',
+    'A NEW WRITING request will be created for ' + values[6] +
+    '. The original import and receipt will remain unchanged. Continue?',
+    ui.ButtonSet.YES_NO);
+  if (decision !== ui.Button.YES) return;
+  const result = callNCCE('revise', {request_id: values[0], expected_receipt: values[15]});
+  if (!result.request_id || !['PENDING','DEFERRED'].includes(result.status)) {
+    throw new Error('NCCE did not confirm a revision request.');
+  }
+  syncNCCE(); // Publish its sealed new request and context into the Queue.
+  ui.alert('Correction request created: ' + result.request_id +
+    '. Edit that NEW row, then approve it through the normal WRITING → READY flow.');
 }
 
 function installNCCERelay() {
