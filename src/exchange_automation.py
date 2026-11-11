@@ -313,6 +313,8 @@ def prepare(store,limit=5,client_states=()):
             for row in store.db.execute("SELECT request_id,target_key,source_revision FROM writing_exchange_requests WHERE state='PENDING'").fetchall():
                 c=lookup.get(row['target_key'])
                 request=store.db.execute('SELECT * FROM writing_exchange_requests WHERE request_id=?',(row['request_id'],)).fetchone()
+                if request['revision_of']:
+                    continue  # A correction is guarded by its base receipt/text at delivery.
                 if not c or not source_matches(store,c,request):
                     store.db.execute("UPDATE writing_exchange_requests SET state='HOLD',error='Source changed; do not write or regenerate this request' WHERE request_id=?",(row['request_id'],))
             requests=[dict(r) for r in store.db.execute('SELECT * FROM writing_exchange_requests ORDER BY created_at')]
@@ -320,7 +322,8 @@ def prepare(store,limit=5,client_states=()):
             for r in requests:bytarget.setdefault(r['target_key'],[]).append(r)
             def in_progress(r):
                 return r['state']=='PENDING' and (r['client_state'] in ('WRITING','READY') or r['client_has_text'] or (client_states is None and not r['client_state']))
-            protected=[r for r in requests if in_progress(r)]
+            protected=[r for r in requests if in_progress(r) or
+                       (r['revision_of'] and r['state']=='PENDING')]
             protected_keys={r['target_key'] for r in protected}
             runnable,deps,blocked=plan(store,available)
             eligible=[]
@@ -361,6 +364,84 @@ def prepare(store,limit=5,client_states=()):
                     (rid,key,packed(packet),packed({'target':c,'original':projection(store,c)}),packet['request']['source_revision'],now(),VERSION,rank,packed(references)))
                 created.append(rid)
     return created
+
+
+def _current_markdown(store, candidate):
+    """Read the one active derived slot without altering its provenance."""
+    current=projection(store,candidate)
+    if candidate['kind'] in ('memory','thought'):
+        return current['content']
+    doc=load(current['document_json'])
+    if authored(doc):
+        raise ValueError('Player-authored and canonical prose cannot be revised')
+    return doc.get('external_markdown') or body(doc)
+
+
+def request_revision(store, parent_id, expected_receipt):
+    """Explicitly queue a correction of exactly one previously imported delivery.
+
+    The immutable original request remains imported; this method never edits prose.
+    The relay supplies both the imported ID and receipt from the selected row.
+    """
+    if not isinstance(parent_id,str) or not isinstance(expected_receipt,str) or not expected_receipt:
+        raise ValueError('An imported request ID and exact receipt are required')
+    with store._lock:
+        if store.db.in_transaction:
+            raise RuntimeError('Revision creation requires its own transaction')
+        with store.db:
+            parent=store.db.execute('SELECT * FROM writing_exchange_requests WHERE request_id=?',
+                                    (parent_id,)).fetchone()
+            if not parent or parent['state']!='IMPORTED' or parent['receipt']!=expected_receipt:
+                raise ValueError('Original import or receipt is missing or changed')
+            latest=store.db.execute("""SELECT * FROM writing_exchange_requests
+                WHERE target_key=? AND state='IMPORTED' ORDER BY rowid DESC LIMIT 1""",
+                (parent['target_key'],)).fetchone()
+            if latest['request_id']!=parent_id:
+                raise ValueError('A newer revision already exists; use its receipt instead')
+            waiting=store.db.execute("""SELECT * FROM writing_exchange_requests
+                WHERE target_key=? AND revision_of IS NOT NULL
+                  AND state IN ('PENDING','DEFERRED','HOLD')
+                ORDER BY rowid DESC LIMIT 1""",(parent['target_key'],)).fetchone()
+            if waiting:
+                if waiting['revision_of']==parent_id and waiting['state'] in ('PENDING','DEFERRED'):
+                    return {'request_id':waiting['request_id'],'status':waiting['state'],'reused':True}
+                raise ValueError('An unresolved revision already exists for this slot')
+            found=[c for c in candidates(store) if target_key(c)==parent['target_key']]
+            if len(found)!=1:
+                raise ValueError('Original target is missing or ambiguous')
+            c=found[0]
+            if c['kind']=='thought' and c['form']!='fighter_mind':
+                raise ValueError('Thought kind mismatch')
+            if _current_markdown(store,c)!=parent['raw_markdown']:
+                raise ValueError('Current prose differs from the imported version')
+            if not semantic_seal(store,c)==semantic_seal(
+                    store,load(parent['target_json'])['target']):
+                raise ValueError('Underlying source changed; manual reconciliation required')
+            rid=str(uuid4())
+            packet=load(parent['packet_json'])
+            packet['request']['request_id']=rid
+            packet['request']['context_id']='ctx:'+rid
+            packet['request']['title']=c['title']
+            rev='sha256:'+digest({'revision_of':parent_id,'receipt':expected_receipt,
+                                  'base_text_hash':digest(parent['raw_markdown']),'request_id':rid})
+            packet['request']['source_revision']=rev
+            packet['context'].append(dict(section='revision_baseline',provenance='accepted_generated_fiction',
+                source_ref='Prior imported request '+parent_id,event_at_utc='',
+                source_event_ids='',text=parent['raw_markdown']))
+            packet['context'].append(dict(section='brief',provenance='instruction',
+                source_ref='Explicit imported-prose correction',event_at_utc='',
+                source_event_ids='',text='REVISION OF IMPORTED PROSE. Edit the accepted baseline only. '
+                'Preserve the established subject and historical facts; do not fabricate another event. '
+                'Keep the same prose form and its limits. Save WRITING for explicit owner approval.'))
+            store.db.execute("""INSERT INTO writing_exchange_requests
+                (request_id,target_key,packet_json,target_json,source_revision,state,created_at,
+                 policy_version,queue_rank,dependencies_json,revision_of,expected_receipt,
+                 expected_text_hash)
+                VALUES(?,?,?,?,?,'PENDING',?,?,?,?,?,?,?)""",
+                (rid,parent['target_key'],packed(packet),parent['target_json'],rev,now(),
+                 parent['policy_version'],0,parent['dependencies_json'],parent_id,
+                 expected_receipt,digest(parent['raw_markdown'])))
+            return {'request_id':rid,'status':'PENDING','revision_of':parent_id,'reused':False}
 
 
 def outbox(store):
@@ -452,9 +533,31 @@ def deliver(store,payload):
         elif prospective_biography_length_error(request,text):error=prospective_biography_length_error(request,text)
         else:
             found=[c for c in candidates(store) if target_key(c)==request['target_key']]
-            if len(found)!=1 or not source_matches(store,found[0],request):error='Target or source changed; draft retained for reconciliation'
-            elif found[0]['approved']:error='Slot already contains accepted external prose; draft retained'
-            else:current=found[0]
+            if len(found)!=1:
+                error='Target missing or ambiguous; draft retained'
+            elif request['revision_of']:
+                parent=store.db.execute('SELECT * FROM writing_exchange_requests WHERE request_id=?',
+                                        (request['revision_of'],)).fetchone()
+                latest=store.db.execute("""SELECT * FROM writing_exchange_requests
+                    WHERE target_key=? AND state='IMPORTED' ORDER BY rowid DESC LIMIT 1""",
+                    (request['target_key'],)).fetchone()
+                if not parent or parent['state']!='IMPORTED' or not latest or latest['request_id']!=parent['request_id']:
+                    error='Revision base is not the latest imported version'
+                elif parent['receipt']!=request['expected_receipt'] or digest(parent['raw_markdown'])!=request['expected_text_hash']:
+                    error='Revision base receipt/text fingerprint changed'
+                elif _current_markdown(store,found[0])!=parent['raw_markdown']:
+                    error='Current prose changed since correction was requested'
+                elif semantic_seal(store,found[0])!=semantic_seal(
+                        store,load(parent['target_json'])['target']):
+                    error='Underlying source changed; correction held for reconciliation'
+                else:
+                    current=found[0]
+            elif not source_matches(store,found[0],request):
+                error='Target or source changed; draft retained for reconciliation'
+            elif found[0]['approved']:
+                error='Slot already contains accepted external prose; draft retained'
+            else:
+                current=found[0]
         if not error:_backup(store,'automation')
         receipt='exchange:'+rid+':'+attempt[:16] if not error else None
         try:
@@ -479,7 +582,9 @@ def restore(store):
     with store._lock:
         available={target_key(c):c for c in candidates(store)}
         with store.db:
-            for row in store.db.execute("SELECT * FROM writing_exchange_requests WHERE state='IMPORTED'").fetchall():
+            for row in store.db.execute(
+                    "SELECT * FROM writing_exchange_requests WHERE state='IMPORTED' ORDER BY rowid"
+                    ).fetchall():
                 c=available.get(row['target_key'])
                 same=c and semantic_seal(store,c)==semantic_seal(store,load(row['target_json'])['target'])
                 if same:
