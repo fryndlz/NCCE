@@ -112,7 +112,14 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .paper-end { display:flex; flex-direction:column; align-items:center; gap:28px; margin-top:36px; color:#8a8c70; font:9px/1.5 'Courier New',monospace; letter-spacing:.16em; }
 .document-stamp { align-self:flex-start; display:inline-block; padding:7px 13px; border:2px double #9d9672; transform:rotate(-6deg); color:#8a8161; text-align:center; font:15px/1.3 'Courier New',monospace; letter-spacing:.13em; }
 .document-stamp small { display:block; font-size:7px; color:inherit; }
-.archive-paper.cnine-personnel-paper { background-color:#eee7d1; }
+.archive-paper.cnine-personnel-paper {
+  background:#d9cdab;
+  background-image:repeating-linear-gradient(0deg,transparent 0 3px,#4f462411 3px 4px),
+    radial-gradient(ellipse at 0 0,#766b424d,transparent 45%),
+    radial-gradient(ellipse at 100% 100%,#65513254,transparent 46%),
+    linear-gradient(105deg,#cbbd94,#e3d9b7 38%,#d7cbaa 82%,#c7b88e);
+  clip-path:polygon(0 4px,5% 1px,13% 5px,23% 2px,32% 4px,45% 0,64% 3px,79% 1px,90% 4px,calc(100% - 12px) 0,100% 16px,100% calc(100% - 17px),calc(100% - 17px) 100%,89% calc(100% - 5px),79% 100%,68% calc(100% - 3px),51% 100%,37% calc(100% - 5px),23% 100%,14% calc(100% - 3px),8% 100%,0 calc(100% - 8px));
+}
 .cnine-personnel-paper .paper-metadata { margin-bottom:20px; }
 .cnine-paper-heading { display:grid; justify-items:center; gap:6px; margin-bottom:26px; padding:0 0 18px; border-bottom:1px solid #c0b492; color:#493d2f; text-align:center; }
 .cnine-paper-heading svg { color:#6b563e; }
@@ -123,7 +130,10 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .archive-paper.slag-eaters-paper {
   --dispatch-ink:#373730;
   --dispatch-stamp:#763c39;
-  background:linear-gradient(115deg,#ded8c9,#eae5d9 42%,#e6e0d1 83%,#d8d0bf);
+  background:radial-gradient(ellipse at 2% 98%,#544b3c45,transparent 35%),
+    radial-gradient(ellipse at 98% 2%,#514e4440,transparent 32%),
+    repeating-linear-gradient(0deg,transparent 0 23px,#5651490d 23px 24px),
+    linear-gradient(115deg,#bdbab0,#dfdcd3 48%,#c7c4b8);
   border:1px solid #675e50;
   border-top:6px solid #4d463b;
 }
@@ -139,7 +149,7 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .archive-paper.helmaeth-paper {
   --charter-ink:#513722;
   --charter-rule:#8f7146;
-  background:radial-gradient(ellipse at 48% 38%,#f4ead2 40%,#e6d1aa 100%);
+  background:radial-gradient(ellipse at 48% 38%,#f7ead0 33%,#edd5a5 100%);
   border:1px solid #93734b;
   box-shadow:inset 0 0 0 5px #e9d8b6,inset 0 0 0 8px #9c8056,inset 0 0 0 10px #e9d8b6,inset 0 0 0 11px #9c8056;
 }
@@ -156,16 +166,17 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
   --police-ink:#233343;
   --police-rule:#34485a;
   --police-stamp:#883f40;
-  background-color:#eee8d7;
+  background:#f4f1e5;
   border:1px solid var(--police-rule);
-  box-shadow:inset 0 0 0 6px #eee8d7,inset 0 0 0 8px var(--police-rule);
+  box-shadow:inset 0 0 0 6px #f4f1e5,inset 0 0 0 8px var(--police-rule);
 }
 .archive-paper.patrol-paper {
-  --police-ink:#28383c;
-  --police-rule:#6f8186;
-  --police-stamp:#74424e;
-  background-color:#e5e9e6;
-  background-image:repeating-linear-gradient(0deg,transparent 0 22px,#536d7310 22px 23px);
+  --police-ink:#4c2b30;
+  --police-rule:#95636b;
+  --police-stamp:#783647;
+  background-color:#d9a7a2;
+  background-image:repeating-linear-gradient(0deg,transparent 0 22px,#763f4b1a 22px 23px),
+    linear-gradient(90deg,#c98d8d,#e4bcb4 18%,#e4bcb4 88%,#d3a29f);
   border-left:5px solid var(--police-stamp);
 }
 .police-paper .paper-metadata { margin-bottom:12px; padding-bottom:8px; border-color:var(--police-rule); color:var(--police-ink); }
@@ -182,7 +193,7 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .kly-docket-label,.patrol-docket-label { color:var(--police-stamp); }
 .patrol-docket-label { padding:7px; border:1px solid currentColor; }
 .police-paper .paper-content { margin-top:18px; }
-.patrol-paper .paper-content { background:#edf0eb; padding:clamp(10px,2vw,20px); border-inline:1px solid #6f818654; }
+.patrol-paper .paper-content { background:#efcec7; padding:clamp(10px,2vw,20px); border-inline:1px solid #95636b73; }
 .police-paper-end { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:center; border-top:1px solid var(--police-rule); padding-top:12px; margin-top:20px; color:var(--police-ink); }
 .police-paper-end span:last-child { color:var(--police-stamp); border:2px solid currentColor; padding:4px 7px; }
 @media(max-width:520px) {
@@ -192,23 +203,24 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
   .patrol-docket-label { justify-self:start; }
 }
 .archive-paper.ethernetans-paper {
-  --technical-ink:#224b58;
-  background-color:#f0ebd9;
-  background-image:linear-gradient(#28556614 1px,transparent 1px),linear-gradient(90deg,#28556614 1px,transparent 1px);
-  background-size:16px 16px;
-  border:1px solid #42606a;
-  box-shadow:inset 0 0 0 5px #f0ebd9,inset 0 0 0 6px #42606a;
+  --technical-ink:#173850;
+  background-color:#85a6be;
+  background-image:linear-gradient(#eff9ff75 1px,transparent 1px),linear-gradient(90deg,#eff9ff75 1px,transparent 1px),
+    linear-gradient(#f4fcff96 1px,transparent 1px),linear-gradient(90deg,#f4fcff96 1px,transparent 1px);
+  background-size:14px 14px,14px 14px,70px 70px,70px 70px;
+  border:1px solid #365a73;
+  box-shadow:inset 0 0 0 5px #85a6be,inset 0 0 0 6px #dcecf5;
   padding:clamp(19px,3vw,42px);
 }
 .ethernetans-paper .paper-metadata { color:var(--technical-ink); margin:0; padding:0 0 9px; border:0; }
-.ethernetans-masthead { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:clamp(10px,2vw,22px); padding:14px clamp(10px,2vw,22px); background:#e8e6d6; color:var(--technical-ink); border-block:3px double #42606a; }
+.ethernetans-masthead { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:clamp(10px,2vw,22px); padding:14px clamp(10px,2vw,22px); background:#b8cfdc; color:var(--technical-ink); border-block:3px double #42606a; }
 .ethernetans-sigil { width:clamp(44px,7vw,76px); height:auto; }
 .ethernetans-masthead div { display:grid; gap:4px; }
 .ethernetans-masthead strong { font:700 clamp(22px,4vw,42px)/1.05 'Bahnschrift','Arial Narrow',sans-serif; letter-spacing:.045em; text-transform:uppercase; }
 .ethernetans-masthead small,.ethernetans-masthead div span,.ethernetans-end { font:10px/1.35 'Courier New',monospace; letter-spacing:.1em; text-transform:uppercase; }
 .ethernetans-stamp { display:grid; place-content:center; gap:3px; aspect-ratio:1; width:86px; border:4px double currentColor; border-radius:50%; color:#684d72; transform:rotate(-9deg); text-align:center; font:700 11px/1 'Courier New',monospace; }
 .ethernetans-stamp small { font-size:8px; letter-spacing:0; }
-.ethernetans-paper .paper-content { margin:9px 0; padding:clamp(12px,2vw,24px); background:#f4efde; border-inline:1px solid #42606a59; }
+.ethernetans-paper .paper-content { margin:9px 0; padding:clamp(12px,2vw,24px); background:#d4e5ed; border-inline:1px solid #42606a59; }
 .ethernetans-end { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; padding:10px 5px 0; color:var(--technical-ink); border-top:3px double #42606a; }
 .cnine-paper-heading { border-block:4px double #82704f; padding:13px 0; }
 .cnine-paper-heading span { font:400 clamp(26px,4vw,44px)/1.05 'Germania One','Old English Text MT',Georgia,serif; }
@@ -219,7 +231,7 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 .kly-docket strong { font:700 clamp(20px,3.5vw,37px)/1.15 'Cinzel',Georgia,serif; }
 .kly-docket-label,.patrol-docket-label { display:grid; justify-items:center; gap:5px; text-align:center; }
 .kly-docket-label { max-width:10ch; border-block:3px double currentColor; padding:5px 2px; }
-.patrol-docket { background:#334348; color:#eef0e5; border-block:3px double #929a92; }
+.patrol-docket { background:#63313c; color:#f8e5da; border-block:3px double #aa767b; }
 .patrol-docket strong { font:400 clamp(22px,3.4vw,36px)/1.04 'Germania One','Old English Text MT',Georgia,serif; }
 .patrol-docket-label { color:#ead6cc; }
 .ethernetans-masthead strong { font:700 clamp(20px,4vw,41px)/1.08 'Cinzel',Georgia,serif; }

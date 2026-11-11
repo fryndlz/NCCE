@@ -68,11 +68,11 @@ window.NCCEArchive = (() => {
         const kly=section.paperStyle==='kly-personnel';
         const masthead=kly
           ? `<header class="kly-docket"><span class="kly-fangs" aria-hidden="true"><i></i><i></i><i></i></span><div><small>Palanite Enforcers</small><strong>Kły Sprawiedliwości</strong></div><span class="kly-docket-label">${aquila}PERSONNEL DOCKET</span></header>`
-          : `<header class="patrol-docket"><div><small>Palanite Enforcers</small><strong>Patrol do spraw<br>alkoholu i broni</strong></div><span class="patrol-docket-label">${aquila}KARTA<br>EWIDENCYJNA</span></header>`;
+          : `<header class="patrol-docket"><div><small>Palanite Enforcers</small><strong>Patrol do spraw<br>alkoholu i broni</strong></div><span class="patrol-docket-label">${aquila}SERVICE<br>RECORD</span></header>`;
         return `<div class="document-notices" role="status"></div><div class="archive-paper police-paper ${kly?'kly-paper':'patrol-paper'}">
           <div class="paper-metadata"><span>CAMPAIGN ARCHIVE</span><span>NCCE / FIGHTER / ${escape(meta.id)}</span></div>
           ${masthead}<div class="paper-content">${section.body}</div>
-          <footer class="police-paper-end"><span>// RECORD ENDS //</span><span>${kly?'PRECINCT COPY':'KOPIA ARCHIWALNA'}</span></footer>
+          <footer class="police-paper-end"><span>// RECORD ENDS //</span><span>${kly?'PRECINCT COPY':'ARCHIVE COPY'}</span></footer>
         </div>`;
       }
       if (section.paperStyle==='helmaeth-personnel') {
