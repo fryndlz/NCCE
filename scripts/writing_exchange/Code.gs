@@ -13,8 +13,12 @@ function onOpen() {
 
 /** Owner-initiated: a NEW request and Queue row, never mutation of imported prose. */
 function reviseSelectedNCCE() {
-  const book = SpreadsheetApp.openById(EXCHANGE_ID);
-  const ui = SpreadsheetApp.getUi(), selection = book.getActiveRange();
+  const book = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+  if (!book || book.getId() !== EXCHANGE_ID) {
+    ui.alert('Open the NCCE Writing Exchange to request a revision.'); return;
+  }
+  const selection = book.getActiveRange();
   const queue = book.getSheetByName('Queue');
   if (!selection || selection.getSheet().getSheetId() !== queue.getSheetId() || selection.getRow() < 6) {
     ui.alert('Select an imported entry row in Queue.'); return;
