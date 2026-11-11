@@ -814,12 +814,59 @@ function entityTimeline(entries, facts, battles = []) {
     ...list(entries).map(e=>({key:'story-'+e.entry_id,record:e,label:e.title || 'Local account',kind:e.provenance_class==='connective_fiction'?'Fictional scene':e.scope_type==='territory'?'Territory event':e.scope_type==='gang'?'Gang event':'Story',body:`${e.provenance_class==='connective_fiction'?'<p class="entity-fiction-label">Invented local scene · no tabletop effects</p>':''}<div class="archive-paper event-paper">${blocks(e.document)}</div>${evidence(e.document?.evidence || [],e.document || e)}`})),
     ...list(facts).map(e=>({key:'fact-'+(e.event_id || e.id),record:e,label:e.title || [e.fighter_name,human(e.action_type || e.event_type)].filter(Boolean).join(' · ') || 'Recorded change',kind:'Recorded event',body:`<div class="entity-factual-event">${prose(e.description || list(eventSummary(e)).join(' · '))}</div>${evidence(e.evidence || [],e)}`})),
     ...list(battles).map(b=>({key:'battle-'+b.id,record:b,label:(b.scenario || 'Engagement')+(b.territory?' — '+b.territory:''),kind:'Battle',body:battle(b,true)}))
-  ].sort((a,b)=>recordEventTime(b.record).localeCompare(recordEventTime(a.record)) || a.key.localeCompare(b.key));
-  return `<div class="entity-event-feed">${rows.map(r=>`<details class="entity-event" data-key="${esc(r.key)}"><summary><span class="event-date">${dateStamp({...r.record,occurred_at:r.record.occurred_at || r.record.recorded_at || r.record.event_date || r.record.date})}</span><span><small>${esc(r.kind)}</small><strong>${esc(r.label)}</strong></span><span class="event-expand" aria-hidden="true">+</span></summary><div class="entity-event-body">${r.body}</div></details>`).join('') || empty('No evolving events have been recorded here yet.')}</div>`;
+  ];
+  return timelineCards(rows);
+}
+function timelineCards(rows) {
+  const ordered = rows.slice().sort((a,b)=>recordEventTime(b.record).localeCompare(recordEventTime(a.record)) || a.key.localeCompare(b.key));
+  return `<div class="entity-event-feed">${ordered.map(r=>`<details class="entity-event" data-key="${esc(r.key)}"><summary><span class="event-date">${dateStamp({...r.record,occurred_at:r.record.occurred_at || r.record.recorded_at || r.record.event_date || r.record.date})}</span><span><small>${esc(r.kind)}</small><strong>${esc(r.label)}</strong></span><span class="event-expand" aria-hidden="true">+</span></summary><div class="entity-event-body">${r.body}</div></details>`).join('') || empty('No evolving events have been recorded here yet.')}</div>`;
+}
+function boomerTimeline(memories, events) {
+  const byId = new Map();
+  for (const event of events) {
+    for (const id of [event.event_id,event.source_event_id].filter(Boolean)) byId.set(id,event);
+  }
+  const paired = new Set();
+  const cleanTitle = title => String(title || '').replace(/^Boomer\s*(?:\/\/|[·:—–-])\s*/i,'').trim();
+  const factTitle = event => cleanTitle(event.title || human(event.action_type || event.event_type)) || 'Recorded change';
+  const factText = event => event.description || eventSummary(event).join(' · ');
+  const factPanel = text => `<div class="entity-factual-event">${prose(text)}</div>`;
+  const sourceTime = event => event.timestamp_basis === 'first_observed'
+    ? {observed_at:event.recorded_at || event.observed_at}
+    : {occurred_at:event.occurred_at || event.event_date || event.date || event.recorded_at,observed_at:event.observed_at};
+  const meter = (label,value,max) => value == null || !Number.isFinite(Number(value)) ? '' :
+    `<label><span>${label} <strong>${esc(Number(value.toFixed?.(2) ?? value))} / ${max}</strong></span><meter min="0" max="${max}" value="${esc(value)}"></meter></label>`;
+  const rows = memories.filter(m=>m.writer_status==='ready' && m.content?.trim()).map(m=>{
+    const text = m.content.trim();
+    const heading = text.match(/^(?:\*\*(.+?)\*\*|#{1,6}\s+(.+?))\s*\r?\n\s*\r?\n/);
+    const linked = [...new Set(list(m.source_event_ids).map(id=>byId.get(id)).filter(Boolean))];
+    const event = linked.length===1 ? linked[0] : null;
+    linked.forEach(item=>paired.add(item));
+    const when = event ? sourceTime(event) : m.occurred_at || m.observed_at
+      ? {occurred_at:m.occurred_at,observed_at:m.observed_at} : {is_baseline:m.is_baseline || m.baseline};
+    const basis = linked.map(factText);
+    if (!basis.length) basis.push(...list(m.evidence).map(evidenceText).filter(Boolean));
+    const scores = meter('Salience',m.importance,10)+meter('Recency',m.event_clock?.recency == null ? null : Math.round(m.event_clock.recency*100),100);
+    return {key:'memory-'+m.id,record:when,label:cleanTitle(heading?.[1] || heading?.[2] || m.title) || 'Memory',
+      kind:event?'Recorded event':m.memory_type==='reflection'?'Reflection':'Memory',
+      body:`<div class="archive-paper event-paper" id="memory-${esc(m.id)}">${heading?prose(text.slice(heading[0].length)):writtenProse(text,m.content_runs)}</div>${basis.length?factPanel(basis.join('\n')):''}${scores?`<div class="timeline-memory-scores">${scores}</div>`:''}${evidence([],m,true)}`};
+  });
+  for (const event of events.filter(item=>!paired.has(item))) {
+    rows.push({key:'fact-'+(event.event_id || event.id),record:sourceTime(event),label:factTitle(event),kind:'Recorded event',
+      body:factPanel(factText(event))+evidence([], {...event,source_locator:event.source_locator || event.evidence?.source_locator},true)});
+  }
+  return {count:rows.length,body:timelineCards(rows)};
 }
 function fighterRecordSections(f, memories) {
   const baseline=memories.filter(m=>m.is_baseline || m.baseline), evolving=memories.filter(m=>!m.is_baseline && !m.baseline);
   const archive=list(f.campaign_history?.events), represented=new Set(archive.map(e=>e.source_event_id).filter(Boolean)), tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id)), events=archive.length?archive:tracked;
+  if (String(f.id)==='10' && f.name==='Boomer' && f.gang_name==='The Slag Eaters') {
+    const timeline=boomerTimeline(memories,[...archive,...tracked]);
+    return [
+      {id:'baseline',label:'Backstory',paper:true,paperStyle:fighterPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
+      {id:'timeline',label:'Timeline',...timeline}
+    ];
+  }
   return [
     {id:'baseline',label:'Backstory',paper:true,paperStyle:fighterPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
     {id:'timeline',label:'Timeline',count:events.length,description:'What happened to this fighter, ordered by recorded time. Open an event for its details.',body:entityTimeline([],events)+(archive.length && tracked.length?`<details class="additional-history" data-key="fighter-ledger"><summary>Additional tracked changes · ${tracked.length}</summary>${entityTimeline([],tracked)}</details>`:'')},

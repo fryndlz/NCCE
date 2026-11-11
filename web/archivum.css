@@ -338,6 +338,13 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 #app .entity-event-body .event-paper :is(.record-body,.mark-dialogue,.record-header) { color:#2d3a2d; }
 #app .entity-event-body .event-paper :is(.section-label,.archive-heading,.metadata-group) { color:#59664c; }
 .entity-factual-event { padding:15px; background:#1c2a25; border-left:2px solid #7bafa5; color:#b8d4cd; font:12px/1.8 system-ui,sans-serif; }
+.timeline-memory-scores { display:flex; flex-wrap:wrap; gap:12px 20px; margin:12px 0; }
+.timeline-memory-scores label { display:grid; gap:3px; min-width:105px; color:#c9c7ac; font:11px system-ui,sans-serif; }
+.timeline-memory-scores strong { margin-left:4px; }
+.timeline-memory-scores meter { width:100%; height:8px; background:#29332b; }
+.timeline-memory-scores meter::-webkit-meter-bar { background:#29332b; border:0; }
+.timeline-memory-scores meter::-webkit-meter-optimum-value { background:linear-gradient(90deg,#7bafa5,#d3b070); }
+.timeline-memory-scores meter::-moz-meter-bar { background:linear-gradient(90deg,#7bafa5,#d3b070); }
 .event-basis { margin:15px 0 0; padding-top:12px; border-top:1px solid #45513b; }
 .event-basis > summary { color:#a6b59a; font:10px/1.6 system-ui,sans-serif; cursor:pointer; }
 .event-basis .evidence { margin-top:12px; }
