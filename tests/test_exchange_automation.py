@@ -183,6 +183,40 @@ def test_revision_of_imported_biography_keeps_one_document_and_survives_rebuild(
         finally:s.close()
 
 
+def test_multiple_successive_revisions_use_only_latest_accepted_baseline():
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
+        s,b,f,m=setup(directory)
+        try:
+            c=next(c for c in exchange.candidates(s) if c['kind']=='memory')
+            original=queue_one(s,c);first=exchange.deliver(s,original)
+            one=exchange.request_revision(s,original['request_id'],first['receipt'])
+            packet=next(x for x in exchange.outbox(s) if x['request']['request_id']==one['request_id'])
+            t1='First corrected reading of the event.'
+            a=exchange.deliver(s,dict(request_id=one['request_id'],status='READY',
+                source_revision=packet['request']['source_revision'],writer_text_md=t1))
+            assert a['status']=='imported',a
+            two=exchange.request_revision(s,one['request_id'],a['receipt'])
+            packet2=next(x for x in exchange.outbox(s) if x['request']['request_id']==two['request_id'])
+            bases=[v['text'] for v in packet2['context'] if v['section']=='revision_baseline']
+            assert bases==[t1],bases
+            assert len([v for v in packet2['context']
+                        if v.get('source_ref')=='Explicit imported-prose correction'])==1
+            t2='Second corrected reading of the same event.'
+            b=exchange.deliver(s,dict(request_id=two['request_id'],status='READY',
+                source_revision=packet2['request']['source_revision'],writer_text_md=t2))
+            assert b['status']=='imported',b
+            regenerate(s,force=True,writer_enabled=False);exchange.restore(s)
+            assert exchange.projection(s,c)['content']==t2
+            revisions=s.db.execute("""SELECT revision_of,raw_markdown,receipt
+                FROM writing_exchange_requests WHERE target_key=? AND state='IMPORTED'
+                ORDER BY rowid""",(exchange.target_key(c),)).fetchall()
+            assert len(revisions)==3
+            assert [r['raw_markdown'] for r in revisions]==[TEXT,t1,t2]
+            assert [r['revision_of'] for r in revisions]==[None,original['request_id'],one['request_id']]
+            assert len({r['receipt'] for r in revisions})==3
+        finally:s.close()
+
+
 def test_revision_refuses_stale_receipt_source_edits_and_unapproved_overwrite():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
         s,b,f,m=setup(directory)
