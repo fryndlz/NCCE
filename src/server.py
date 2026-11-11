@@ -202,6 +202,11 @@ class H(BaseHTTPRequestHandler):
       from writing_waterfall import summary
       from territory_history import amendments
       return self.js({'packets':exchange_automation.outbox(store),'amendments':amendments(store),'holds':exchange_automation.holds(store),'deferred':exchange_automation.deferred(store),'waterfall':summary(store,exchange_automation.candidates(store)),'guidance':exchange_automation.guidance()})
+    if p.endswith('/revise'):
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry later'},409)
+      return self.js(exchange_automation.request_revision(
+       store,payload.get('request_id'),payload.get('expected_receipt')))
     if p.endswith('/deliver'):
      with store._lock:
       if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry saved work later'},409)
