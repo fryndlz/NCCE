@@ -106,6 +106,101 @@ def test_committed_output_survives_refresh_restart_and_different_delivery_cannot
         finally:s.close()
 
 
+def test_versioned_revision_reuses_original_slot_and_preserves_audit_across_rebuild():
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
+        s,b,f,m=setup(directory)
+        try:
+            c=next(c for c in exchange.candidates(s) if c['kind']=='memory')
+            first=queue_one(s,c)
+            accepted=exchange.deliver(s,first)
+            assert accepted['status']=='imported'
+            revision=exchange.request_revision(s,first['request_id'],accepted['receipt'])
+            assert revision['status']=='PENDING'
+            again=exchange.request_revision(s,first['request_id'],accepted['receipt'])
+            assert again['request_id']==revision['request_id'] and again['reused']
+            packet=next(p for p in exchange.outbox(s) if p['request']['request_id']==revision['request_id'])
+            assert packet['request']['source_revision']!=first['source_revision']
+            assert any(x['section']=='revision_baseline' and x['text']==TEXT for x in packet['context'])
+            replacement='**Revised memory**\\n\\nSame event, clearer wording.'
+            deliver=dict(request_id=revision['request_id'],
+                         source_revision=packet['request']['source_revision'],
+                         status='READY',writer_text_md=replacement)
+            result=exchange.deliver(s,deliver)
+            assert result['status']=='imported',result
+            assert exchange.projection(s,c)['content']==replacement
+            assert exchange.deliver(s,deliver)['receipt']==result['receipt']
+            assert exchange.deliver(s,first)['receipt']==accepted['receipt']
+            assert s.db.execute("""SELECT count(*) FROM writing_exchange_requests
+                WHERE target_key=? AND state='IMPORTED'""",(exchange.target_key(c),)).fetchone()[0]==2
+            assert s.db.execute("""SELECT raw_markdown FROM writing_exchange_requests
+                WHERE request_id=?""",(first['request_id'],)).fetchone()[0]==TEXT
+            assert s.db.execute("""SELECT revision_of FROM writing_exchange_requests
+                WHERE request_id=?""",(revision['request_id'],)).fetchone()[0]==first['request_id']
+            assert len(s.db.execute("""SELECT * FROM story_memories
+                WHERE fighter_id=? AND memory_key=? AND active=1""",c['key']).fetchall())==1
+            regenerate(s,force=True,writer_enabled=False)
+            exchange.restore(s)
+            assert exchange.projection(s,c)['content']==replacement
+            path=s.path;s.close()
+            from store import Store
+            s=Store(path);exchange.restore(s)
+            assert exchange.projection(s,c)['content']==replacement
+            # New corrections must chain from the latest successful receipt.
+            try:
+                exchange.request_revision(s,first['request_id'],accepted['receipt'])
+                raise AssertionError('Old parent should be rejected')
+            except ValueError as exc:
+                assert 'newer revision' in str(exc)
+        finally:s.close()
+
+
+def test_revision_refuses_stale_receipt_source_edits_and_unapproved_overwrite():
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
+        s,b,f,m=setup(directory)
+        try:
+            c=next(c for c in exchange.candidates(s) if c['kind']=='memory')
+            original=queue_one(s,c);accepted=exchange.deliver(s,original)
+            for receipt in ('wrong', ''):
+                try:
+                    exchange.request_revision(s,original['request_id'],receipt)
+                    raise AssertionError('Unverified receipt accepted')
+                except ValueError:pass
+            child=exchange.request_revision(s,original['request_id'],accepted['receipt'])
+            row=s.db.execute('SELECT source_revision FROM writing_exchange_requests WHERE request_id=?',
+                             (child['request_id'],)).fetchone()
+            forged=dict(request_id=child['request_id'],source_revision=row[0],status='READY',
+                        writer_text_md='Changed by revision')
+            s.db.execute('UPDATE story_memories SET content=? WHERE fighter_id=? AND memory_key=?',
+                         ('concurrent edit',*c['key']));s.db.commit()
+            assert exchange.deliver(s,forged)['status']=='held'
+            assert exchange.projection(s,c)['content']=='concurrent edit'
+            assert s.db.execute('SELECT raw_markdown FROM writing_exchange_requests WHERE request_id=?',
+                                (original['request_id'],)).fetchone()[0]==TEXT
+        finally:s.close()
+
+
+def test_revision_is_never_automatically_drafted_or_mutates_authored_work():
+    with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
+        s,b,f,m=setup(directory)
+        try:
+            c=next(c for c in exchange.candidates(s) if c['kind']=='memory')
+            original=queue_one(s,c);accepted=exchange.deliver(s,original)
+            child=exchange.request_revision(s,original['request_id'],accepted['receipt'])
+            with patch.object(exchange,'candidates',return_value=[c]):
+                with patch('writing_waterfall.plan',return_value=([],{},{})):
+                    exchange.prepare(s,client_states=[])
+            assert s.db.execute('SELECT state FROM writing_exchange_requests WHERE request_id=?',
+                                (child['request_id'],)).fetchone()[0]=='PENDING'
+            assert any(p['request']['request_id']==child['request_id'] for p in exchange.outbox(s))
+            s.db.execute('UPDATE story_memories SET provenance_class=? WHERE fighter_id=? AND memory_key=?',
+                         ('player_authored',*c['key']));s.db.commit()
+            try:
+                exchange.request_revision(s,original['request_id'],accepted['receipt'])
+                raise AssertionError('An authored memory was revised')
+            except ValueError:pass
+        finally:s.close()
+
+
 def test_atomic_write_failure_leaves_output_available_for_same_payload_retry():
     with tempfile.TemporaryDirectory(dir=ROOT/'data') as directory:
         s,b,f,m=setup(directory)
