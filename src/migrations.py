@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -913,6 +913,23 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(18,?,?)',
                        ('dependency waterfall, retained legacy prose and safe queue deferral',_now()))
             db.execute('PRAGMA user_version=18');db.commit()
+        except Exception:
+            db.rollback();raise
+    if current < 19:
+        try:
+            db.executescript('''BEGIN IMMEDIATE;
+                ALTER TABLE writing_exchange_requests ADD COLUMN revision_of TEXT;
+                ALTER TABLE writing_exchange_requests ADD COLUMN expected_receipt TEXT;
+                ALTER TABLE writing_exchange_requests ADD COLUMN expected_text_hash TEXT;
+                CREATE INDEX writing_exchange_revision_parent
+                    ON writing_exchange_requests(revision_of);
+                CREATE UNIQUE INDEX writing_exchange_one_open_revision
+                    ON writing_exchange_requests(target_key)
+                    WHERE revision_of IS NOT NULL AND state IN ('PENDING','DEFERRED');
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(19,?,?)',
+                       ('versioned corrections of accepted exchange prose',_now()))
+            db.execute('PRAGMA user_version=19');db.commit()
         except Exception:
             db.rollback();raise
     return SCHEMA_VERSION

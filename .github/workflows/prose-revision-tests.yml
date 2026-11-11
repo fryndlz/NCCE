@@ -1,0 +1,35 @@
+name: NCCE prose revision regression
+on:
+  push:
+    paths:
+      - 'src/exchange_automation.py'
+      - 'src/migrations.py'
+      - 'src/server.py'
+      - 'scripts/writing_exchange/Code.gs'
+      - 'tests/test_exchange_automation.py'
+      - '.github/workflows/prose-revision-tests.yml'
+  pull_request:
+    paths:
+      - 'src/exchange_automation.py'
+      - 'src/migrations.py'
+      - 'src/server.py'
+      - 'scripts/writing_exchange/Code.gs'
+      - 'tests/test_exchange_automation.py'
+      - '.github/workflows/prose-revision-tests.yml'
+
+jobs:
+  revision-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check Python syntax
+        run: python -m compileall -q src tests/test_exchange_automation.py
+      - name: Run exchange end-to-end tests
+        run: python tests/test_exchange_automation.py
+      - name: Parse Google Apps Script relay JavaScript
+        run: node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Code.gs','utf8'))"
+      - name: Run writing waterfall tests
+        run: python tests/test_writing_waterfall.py
