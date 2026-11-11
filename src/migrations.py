@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 19
+SCHEMA_VERSION = 20
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -932,4 +932,52 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute('PRAGMA user_version=19');db.commit()
         except Exception:
             db.rollback();raise
+    if current < 20:
+        try:
+            db.execute('BEGIN IMMEDIATE')
+            _purge_boomer_memory_drafts(db)
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(20,?,?)',
+                       ('purge three superseded Boomer memory drafts',_now()))
+            db.execute('PRAGMA user_version=20');db.commit()
+        except Exception:
+            db.rollback();raise
     return SCHEMA_VERSION
+
+
+def _purge_boomer_memory_drafts(db: sqlite3.Connection) -> None:
+    fighter = db.execute("SELECT 1 FROM fighters WHERE id=10 AND name='Boomer' AND gang_name='The Slag Eaters'").fetchone()
+    if not fighter:
+        return
+
+    draft_ids = (
+        '9482cbc2fee3f48ae7e3f98b048afdbb',  # Condition changed
+        '542d77b2a5d1da8ecae0fa319f8d0fbb',  # Gang victory recorded
+        '51ad96dd70b14d654e740b5fb523dd31',  # What stays with me
+    )
+    for draft_id in draft_ids:
+        draft = db.execute("""
+            SELECT memory_key,content FROM story_memories
+            WHERE fighter_id=10 AND memory_id=? AND writer_status='stale' AND content<>''
+        """, (draft_id,)).fetchone()
+        if not draft:
+            continue
+        key, content = draft
+        target = json.dumps(['memory',[10,key]], separators=(',',':'), ensure_ascii=False)
+        if db.execute("""
+            SELECT 1 FROM writing_exchange_requests
+            WHERE target_key=? AND state='IMPORTED' AND raw_markdown=?
+            UNION ALL
+            SELECT 1 FROM external_prose_deliveries
+            WHERE fighter_id=10 AND memory_key=? AND disposition='imported' AND raw_markdown=?
+        """, (target,content,key,content)).fetchone():
+            continue
+        # Keep the factual memory slot and source links for future Exchange work.
+        # Remove the draft itself, including duplicate projections and rendered runs.
+        db.execute("""
+            UPDATE story_memories SET content='',content_runs_json='[]',writer_status='pending'
+            WHERE fighter_id=10 AND memory_key=? AND content=?
+        """, (key,content))
+        db.execute("""
+            DELETE FROM writing_legacy_inventory
+            WHERE target_key=? AND json_extract(projection_json,'$.content')=?
+        """, (target,content))
