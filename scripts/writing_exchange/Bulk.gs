@@ -234,3 +234,39 @@ function reviseSelectedBulkMemory() {
   syncNCCE();
   ui.alert('Correction request '+revised.request_id+' created in normal Queue.');
 }
+
+
+/** Explicitly close a blocked job WITH ERRORS, preserving all failed items. */
+function finalizeSelectedBulkJob() {
+  const book=SpreadsheetApp.getActiveSpreadsheet();
+  const ui=SpreadsheetApp.getUi();
+  const jobs=book&&book.getSheetByName('Bulk Jobs');
+  const selected=book&&book.getActiveRange();
+  if(!book||book.getId()!==EXCHANGE_ID||!jobs||!selected||
+     selected.getSheet().getSheetId()!==jobs.getSheetId()||selected.getRow()<2) {
+    ui.alert('Select an ACTIVE job row in Bulk Jobs first.');return;
+  }
+  const row=jobs.getRange(selected.getRow(),1,1,10).getDisplayValues()[0];
+  if(!row[0]||row[1]!=='ACTIVE'){
+    ui.alert('Only an ACTIVE job may be finalized.');return;
+  }
+  const yes=ui.alert('Finish this job with errors?',
+    'All unprocessed WAITING items will be preserved as HOLD with their reasons. This does not remove already imported prose, alter original IDs, or silently approve anything. Claimed WRITING drafts prevent finalization.',
+    ui.ButtonSet.YES_NO);
+  if(yes!==ui.Button.YES)return;
+  const completed=callNCCE('bulk/close',{job_id:row[0],finalize_unresolved:true});
+  writeLiteral(jobs.getRange(selected.getRow(),2),[[completed.state]]);
+  writeLiteral(jobs.getRange(selected.getRow(),9),[[new Date().toISOString()]]);
+  const items=book.getSheetByName('Bulk Items');
+  for(const item of completed.items||[]) {
+    if(item.status!=='HOLD')continue;
+    const i=bulkFind(items,item.request_id,18);
+    if(!i)continue;
+    const state=items.getRange(i,2).getDisplayValue();
+    if(state==='WAITING')writeLiteral(items.getRange(i,2),[['HOLD']]);
+    writeLiteral(items.getRange(i,18),[[item.error||'Unresolved historical backfill']]);
+  }
+  bulkAudit(book,row[0],'','FINALIZE',completed.state,'',
+    'Explicit owner finalization; unresolved items retained for reconciliation');
+  ui.alert('Job '+row[0]+' closed: '+completed.state);
+}
