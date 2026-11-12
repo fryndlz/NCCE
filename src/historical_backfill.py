@@ -154,15 +154,21 @@ def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_aut
                          "skipped": skipped, "policy": "one_off_auto_approve"})),
             )
             for index, (c, key) in enumerate(prepared):
+                rid=str(uuid4())
+                base_packet=exchange._packet(store,c,rid)
+                # Freeze all source/identity/style context at authorisation.
+                # Dependency continuity is the ONLY context added later.
                 store.db.execute(
                     """INSERT INTO historical_backfill_items
                        (request_id,job_id,ordinal,target_key,entity_key,form,
-                        source_seal,snapshot_json,state,created_at)
-                       VALUES(?,?,?,?,?,?,?,?,'PENDING',?)""",
-                    (str(uuid4()),job_id,index,key,c["entity_key"],c["form"],
+                        source_seal,context_seal,snapshot_json,packet_json,
+                        state,created_at)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,'PENDING',?)""",
+                    (rid,job_id,index,key,c["entity_key"],c["form"],
                      exchange.semantic_seal(store,c),
+                     digest(base_packet["context"]),
                      packed({"target":c,"original":exchange.projection(store,c)}),
-                     created),
+                     packed(base_packet),created),
                 )
             # Conflicts are visible in the item ledger, not silently dropped.
             by_key={exchange.target_key(c):c for c in selected}
@@ -233,8 +239,15 @@ def poll(store, job_id, limit=25):
                         ("Underlying historical source changed since snapshot", item["request_id"]),
                     )
                 continue
+            if digest(exchange._packet(store,c,item["request_id"])["context"])!=item["context_seal"]:
+                with store.db:
+                    store.db.execute(
+                        "UPDATE historical_backfill_items SET state='HOLD',error=? WHERE request_id=?",
+                        ("Frozen authored/voice context changed; manual reconciliation required", item["request_id"]),
+                    )
+                continue
             refs=continuity(store,c,deps,candidates)
-            packet=exchange._packet(store,c,item["request_id"])
+            packet=json.loads(item["packet_json"])
             packet["request"]["source_revision"]=exchange.revision(c,refs,store)
             packet["context"]+=exchange.supplements(c,refs)
             packet["context"].append({
@@ -298,6 +311,8 @@ def deliver(store, job_id, payload):
             error="Target missing or already imported"
         elif exchange.semantic_seal(store,found[0])!=item["source_seal"]:
             error="Historical source changed since snapshot"
+        elif digest(exchange._packet(store,found[0],request_id)["context"])!=item["context_seal"]:
+            error="Frozen authored/voice context changed since snapshot"
         elif any(row[0]!=request_id for row in store.db.execute(
             """SELECT request_id FROM writing_exchange_requests
                WHERE target_key=? AND state IN ('PENDING','DEFERRED','HOLD','IMPORTED')""",
