@@ -239,15 +239,33 @@ def _packet_for_item(store, item):
     return packet
 
 
-def claim(store, job_id, limit=25):
-    """Bounded claims; never claim a later fighter memory before earlier imports."""
+def claim(store, job_id, limit=25, known_request_ids=()):
+    """Claim the next batch and recover interrupted Sheet publications.
+
+    A lost transport response must not strand a WRITING item forever. The
+    client supplies IDs already persisted to Bulk Items, so only genuinely
+    missing claims are re-exposed. No saved draft or source is overwritten.
+    """
     if type(limit) is not int or not 1 <= limit <= MAX_PAGE:
         raise ValueError("Claim limit must be 1–50")
+    if not isinstance(known_request_ids, (list, tuple)) or len(known_request_ids) > 10000:
+        raise ValueError("Invalid already-published bulk ID list")
+    known = set(known_request_ids)
+    if any(not isinstance(x, str) or len(x) > 128 for x in known):
+        raise ValueError("Invalid bulk request ID")
     with store._lock:
         with store.db:
             job = _job(store, job_id)
             if job["state"] not in ("AUTHORIZED", "RUNNING"):
                 raise ValueError("Job needs explicit authorization before writing")
+            interrupted = [
+                dict(r) for r in store.db.execute(
+                    """SELECT * FROM writing_bulk_items
+                       WHERE job_id=? AND state='WRITING' ORDER BY sequence""",
+                    (job_id,)
+                ) if r["request_id"] not in known
+            ][:limit]
+            remaining = limit - len(interrupted)
             rows = store.db.execute(
                 """SELECT i.* FROM writing_bulk_items i
                    WHERE i.job_id=? AND i.state='PENDING'
@@ -257,27 +275,29 @@ def claim(store, job_id, limit=25):
                        AND prior.sequence<i.sequence AND prior.state!='IMPORTED'
                    )
                    ORDER BY i.sequence LIMIT ?""",
-                (job_id, limit),
-            ).fetchall()
-            items = [dict(r) for r in rows]
-            for item in items:
+                (job_id, remaining),
+            ).fetchall() if remaining else []
+            new_items = [dict(r) for r in rows]
+            for item in new_items:
                 store.db.execute(
                     """UPDATE writing_bulk_items
                        SET state='WRITING',updated_at=?
                        WHERE request_id=? AND state='PENDING'""",
                     (exchange.now(), item["request_id"]),
                 )
-            if items:
+            if new_items:
                 store.db.execute(
                     "UPDATE writing_bulk_jobs SET state='RUNNING' WHERE job_id=?",
                     (job_id,),
                 )
-                _audit(store, job_id, None, "CLAIM", f"{len(items)} items claimed")
+                _audit(store, job_id, None, "CLAIM", f"{len(new_items)} new items")
+            if interrupted:
+                _audit(store, job_id, None, "RECOVER", f"{len(interrupted)} unpublished claims")
             return [
                 {"job_id": job_id, "request_id": item["request_id"],
                  "sequence": item["sequence"], "fighter_id": item["fighter_id"],
                  "status": "WRITING", "packet": _packet_for_item(store, item)}
-                for item in items
+                for item in interrupted + new_items
             ]
 
 
