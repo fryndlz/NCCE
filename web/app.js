@@ -596,15 +596,21 @@ function renderCampaignTimeline() {
   const x=t=>left+(t-start)/(end-start)*plotWidth;
   const laneIds=historyFilters.gang?[historyFilters.gang]:[...new Set([...scoped.flatMap(b=>list(b.gang_ids).map(String)),...rows.map(e=>String(e.gang_id || ''))])];
   if (!laneIds.length) laneIds.push('');
-  const timingRows=[['battle','Estimated in battle'],['post_battle','Estimated post-battle'],['downtime','Estimated downtime']]
-    .filter(([period])=>rows.some(event=>event.estimated_timing?.period===period));
-  const laneHeight=112+timingRows.length*28;
-  const laneNames=new Map(gangOptions), height=100+laneIds.length*laneHeight;
+  const timingRows=[['battle','Estimated in battle'],['post_battle','Estimated post-battle'],['downtime','Estimated downtime']];
+  let nextLaneY=105;
+  const laneLayout=laneIds.map(gangId=>{
+    const events=rows.filter(event=>String(event.gang_id || '')===gangId && historyPlotTime(event)>=start && historyPlotTime(event)<=end);
+    const estimateRows=timingRows.filter(([period])=>events.some(event=>event.estimated_timing?.period===period));
+    const y=nextLaneY;
+    nextLaneY+=112+estimateRows.length*28;
+    return {gangId,events,estimateRows,y};
+  });
+  const laneNames=new Map(gangOptions), height=nextLaneY-5;
   const ticks=Array.from({length:5},(_,i)=>start+(end-start)*i/4);
   const grid=ticks.map((t,i)=>`<g class="timeline-axis-tick"><line x1="${x(t)}" y1="60" x2="${x(t)}" y2="${height-12}"/><text class="timeline-axis-imperial" x="${x(t)}" y="22" text-anchor="${i===0?'start':i===4?'end':'middle'}">${esc(historyImperial(t))}</text><text x="${x(t)}" y="42" text-anchor="${i===0?'start':i===4?'end':'middle'}">${esc(historyDate(t,end-start<3*86400000))}</text></g>`).join('');
   const clusterMap=new Map();
-  const lanes=laneIds.map((gangId,index)=>{
-    const y=105+index*laneHeight,color=historyGangColor(gangId),name=laneNames.get(gangId) || 'Campaign';
+  const lanes=laneLayout.map(({gangId,events,estimateRows,y})=>{
+    const color=historyGangColor(gangId),name=laneNames.get(gangId) || 'Campaign';
     const gangBattles=scoped.filter(b=>list(b.gang_ids).map(String).includes(gangId));
     const ordered=battles.filter(b=>list(b.gang_ids).map(String).includes(gangId) && Number.isFinite(Date.parse(b.start_at))).sort((a,b)=>Date.parse(a.start_at)-Date.parse(b.start_at));
     const downtimeBar=(from,to)=>{
@@ -624,10 +630,9 @@ function renderCampaignTimeline() {
       return `<g class="timeline-battle-span${String(selectedHistoryBattle)===String(b.battle_id)?' selected':''}" data-history-battle="${esc(b.battle_id)}" role="button" tabindex="0" aria-label="${esc(title)}"><rect x="${x(a)}" y="${y+6}" width="${w}" height="23" rx="3"><title>${esc(title)}</title></rect>${w>95?`<text x="${x(a)+6}" y="${y+22}">${esc(b.scenario || 'Battle')}</text>`:''}</g>`;
     })).join('');
     const noTime=gangBattles.filter(b=>(!b.start_at || !b.end_at) && Date.parse(b.documented_at)>=start && Date.parse(b.documented_at)<=end).map(b=>`<path class="timeline-unverified" data-history-battle="${esc(b.battle_id)}" tabindex="0" role="button" aria-label="${esc(b.scenario || 'Battle')} · time unrecorded" d="M ${x(Date.parse(b.documented_at))} ${y+10} l 6 6 -6 6 -6 -6 z"/>`).join('');
-    const visibleEvents=rows.filter(e=>String(e.gang_id || '')===gangId && historyPlotTime(e)>=start && historyPlotTime(e)<=end);
-    const dots=[['', ''], ...timingRows].map(([period,label],rowIndex)=>{
+    const dots=[['', ''], ...estimateRows].map(([period,label],rowIndex)=>{
       const markerY=period?y+62+(rowIndex-1)*28:y-18;
-      const clusters=historyClusterEvents(visibleEvents.filter(e=>(e.estimated_timing?.period || '')===period),x);
+      const clusters=historyClusterEvents(events.filter(e=>(e.estimated_timing?.period || '')===period),x);
       const markers=clusters.map((c,i)=>{
         const count=c.items.length,key=`${gangId}:${period}:${i}`,estimate=historyTimingText(c.items[0]),title=estimate?`${count>1?count+" changes":c.items[0].entity_label || name} · ${estimate}`:count>1?`${count} recorded changes · ${short(name)}\n${historyDate(c.items[0].recorded_at)} — ${historyDate(c.items[count-1].recorded_at)}`:`${c.items[0].entity_label || name} · ${human(c.items[0].action_type)}\n${historyImperial(c.items[0].recorded_at)}\n${historyDate(c.items[0].recorded_at)}`;
         if (count>1) clusterMap.set(key,c.items.map(e=>String(e.event_id)));
