@@ -361,6 +361,10 @@ def estimate_roster_timing(events, battles, snapshot_times):
             (battle['start_at'] or battle['documented_at'] or '') <= observed and
             (battle['end_at'] or (observed if battle['start_at'] else battle['documented_at']) or '') >= since
         )]
+        downtime = not candidates and not pilot
+        if downtime:
+            preceding = batch[0].get('preceding_battle_id')
+            candidates = [battle for battle in battles_by_gang.get(gang_id, []) if battle['battle_id'] == preceding]
         if len(candidates) != 1:
             continue
         battle = candidates[0]
@@ -380,7 +384,7 @@ def estimate_roster_timing(events, battles, snapshot_times):
                 event['fighter_id'] in upgraded and numeric and
                 ((field == 'XP' and after < before) or (field == 'Cost' and after > before))
             )
-            if not combat and not post_battle:
+            if (combat and downtime) or (not combat and not post_battle):
                 continue
             if combat:
                 if len(combat_windows) != 1:
@@ -392,7 +396,7 @@ def estimate_roster_timing(events, battles, snapshot_times):
                 lower = max(lower, since)
             if lower < upper:
                 event['estimated_timing'] = {'battle_id': battle['battle_id'],
-                                             'period': 'battle' if combat else 'post_battle',
+                                             'period': 'battle' if combat else 'downtime' if downtime else 'post_battle',
                                              'from': lower, 'to': upper}
 
 

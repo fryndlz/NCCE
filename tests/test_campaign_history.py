@@ -247,6 +247,12 @@ def test_estimated_roster_timing_uses_snapshot_evidence():
     ambiguous = event('fighter_kills_changed', 'Kills', 0, 1)
     estimate_roster_timing([ambiguous], [battle, {**battle, 'battle_id': B2}], {1: previous})
     assert 'estimated_timing' not in ambiguous
+    later_upgrade = {**skill, 'preceding_battle_id': B1}
+    del later_upgrade['estimated_timing']
+    previous_after_battle = '2026-10-25T11:30:00+00:00'
+    estimate_roster_timing([later_upgrade], [battle], {1: previous_after_battle})
+    assert later_upgrade['estimated_timing'] == {
+        'battle_id': B1, 'period': 'downtime', 'from': previous_after_battle, 'to': observed}
 
 
 if __name__ == "__main__":

@@ -440,7 +440,7 @@ function historyPlotTime(event) {
 function historyTimingText(event) {
   const timing=event.estimated_timing;
   if (!timing) return '';
-  const phase=timing.period==='battle'?'during battle':'post-battle';
+  const phase=timing.period==='battle'?'during battle':timing.period==='downtime'?'downtime':'post-battle';
   return `Estimated timing · ${phase}`;
 }
 function historyEventStamp(event) {
@@ -458,7 +458,7 @@ function timelineRows() {
     (!historyFilters.place || String(event.territory_id || '') === historyFilters.place) &&
     (!historyFilters.action || String(event.action_type || '') === historyFilters.action) &&
     (!historyFilters.phase || (event.estimated_timing ?
-      historyFilters.phase===(event.estimated_timing.period==='battle'?'during_battle':'post_battle') :
+      historyFilters.phase===(event.estimated_timing.period==='battle'?'during_battle':event.estimated_timing.period) :
       event.phase===historyFilters.phase || (historyFilters.phase==='downtime' && event.phase==='current_downtime'))) &&
     (!historyFilters.battle || (selected && historyEventPeriod(event,selected))) &&
     (!historyFilters.from || localDay(event.estimated_timing?.to || event.recorded_at)>=historyFilters.from) &&
