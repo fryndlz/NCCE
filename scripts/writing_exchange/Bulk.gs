@@ -105,6 +105,18 @@ function createHistoricalBackfill() {
     job.job_id,job.state,JSON.stringify(job.scope),String(job.discovered),
     String(job.queued),'0',String(job.skipped.length),new Date().toISOString(),'',''
   ]]);
+  // Materialize the COMPLETE finite manifest up front. WRITING is released
+  // in dependency order; WAITING items are visible and counted meanwhile.
+  const manifest=callNCCE('bulk/status',{job_id:job.job_id});
+  const itemSheet=book.getSheetByName('Bulk Items');
+  const entries=(manifest.items||[]).map(entry=>[
+    entry.request_id,entry.status==='PENDING'?'WAITING':entry.status,
+    entry.form,'fighter',entry.entity_key,entry.target_key,
+    entry.title||'', '',entry.source_revision||'','', '', '', '', '', '', '',
+    job.job_id,entry.error||''
+  ]);
+  if(entries.length)writeLiteral(
+    itemSheet.getRange(itemSheet.getLastRow()+1,1,entries.length,18),entries);
   bulkAudit(book,job.job_id,'','CREATE',job.state,'',
     'Manifest discovered '+job.discovered+', queued '+job.queued+', skipped '+job.skipped.length);
   ui.alert('Backfill '+job.job_id+' created: '+job.queued+
@@ -149,12 +161,16 @@ function syncHistoricalBackfill(book) {
     for(const packet of update.packets||[]) {
       const r=packet.request;
       const found=bulkFind(items,r.request_id,18);
-      if(found)continue; // Never reset a writer claim or overwrite saved text.
+      if(found) {
+        const prior=items.getRange(found,1,1,18).getDisplayValues()[0];
+        // A manifest placeholder can be promoted once, not an active claim.
+        if(prior[1]!=='WAITING'||prior[11])continue;
+      }
       bulkContextWrite(context,packet);
       SpreadsheetApp.flush();
       const line=BULK_ITEM_HEADERS.map(h=>h==='job_id'?jobId:
         h==='status'?'DRAFT':String(r[h]||''));
-      const target=items.getLastRow()+1;
+      const target=found||items.getLastRow()+1;
       writeLiteral(items.getRange(target,1,1,18),[line]);
       SpreadsheetApp.flush();
       writeLiteral(items.getRange(target,2),[['PENDING']]);
