@@ -303,6 +303,7 @@ def supplements(c,references):
 def prepare(store,limit=5,client_states=()):
     """Export the earliest runnable phase, preserving claims, drafts and all IDs."""
     from writing_waterfall import plan,context,order,retire_legacy,VERSION
+    from bulk_backfill import is_reserved
     limit=max(0,min(int(limit),5));created=[]
     with store._lock:
         if store.db.in_transaction:raise RuntimeError('Exchange preparation requires its own transaction')
@@ -328,7 +329,7 @@ def prepare(store,limit=5,client_states=()):
                     continue  # A correction is guarded by its base receipt/text at delivery.
                 if not c or not source_matches(store,c,request):
                     store.db.execute("UPDATE writing_exchange_requests SET state='HOLD',error='Source changed; do not write or regenerate this request' WHERE request_id=?",(row['request_id'],))
-            requests=[dict(r) for r in store.db.execute('SELECT * FROM writing_exchange_requests ORDER BY created_at')]
+            requests=[dict(r) for r in store.db.execute('SELECT * FROM writing_exchange_requests WHERE bulk_job_id IS NULL ORDER BY created_at')]
             bytarget={}
             for r in requests:bytarget.setdefault(r['target_key'],[]).append(r)
             def in_progress(r):
@@ -340,7 +341,7 @@ def prepare(store,limit=5,client_states=()):
             eligible=[]
             for c in runnable:
                 rows=bytarget.get(target_key(c),[])
-                if target_key(c) in protected_keys or any(r['state']=='HOLD' for r in rows):continue
+                if target_key(c) in protected_keys or is_reserved(store,target_key(c)) or any(r['state']=='HOLD' for r in rows):continue
                 eligible.append(c)
             # An in-progress lower-phase draft may finish, but new work comes
             # only from the earliest runnable frontier.
@@ -461,7 +462,7 @@ def request_revision(store, parent_id, expected_receipt):
 
 def outbox(store):
     result=[]
-    for r in store.db.execute("SELECT packet_json,supplement_json FROM writing_exchange_requests WHERE state='PENDING' ORDER BY queue_rank,created_at,request_id LIMIT 5"):
+    for r in store.db.execute("SELECT packet_json,supplement_json FROM writing_exchange_requests WHERE state='PENDING' AND bulk_job_id IS NULL ORDER BY queue_rank,created_at,request_id LIMIT 5"):
         packet=load(r['packet_json']);packet['context']+=load(r['supplement_json']);result.append(packet)
     return result
 
@@ -526,7 +527,7 @@ def prospective_biography_length_error(request, markdown):
     return ''
 
 
-def deliver(store,payload):
+def deliver(store,payload,bulk_internal=False):
     """READY grants publication, not authorship. Freeze output even on rejection."""
     if not isinstance(payload,dict):raise ValueError('Expected a delivery object')
     rid=payload.get('request_id','');text=payload.get('writer_text_md','')
@@ -538,6 +539,10 @@ def deliver(store,payload):
         if store.db.in_transaction:raise RuntimeError('Delivery requires its own transaction')
         old=store.db.execute('SELECT disposition,error FROM writing_exchange_attempts WHERE attempt_hash=?',(attempt,)).fetchone()
         request=store.db.execute('SELECT * FROM writing_exchange_requests WHERE request_id=?',(rid,)).fetchone()
+        if request and request['bulk_job_id'] and not bulk_internal:
+            raise ValueError('Bulk request must use its isolated delivery route')
+        if bulk_internal and (not request or not request['bulk_job_id']):
+            raise ValueError('Bulk delivery requires a bulk request')
         if old:
             return dict(status=old['disposition'],request_id=rid,error=old['error'],receipt=request['receipt'] if request else None,imported_at_utc=request['imported_at'] if request else None,reused=True)
         error='';current=None
@@ -615,7 +620,7 @@ def restore(store):
 
 
 def diagnostics(store):
-    rows=[dict(r) for r in store.db.execute('SELECT request_id,state,created_at,imported_at,receipt,error FROM writing_exchange_requests ORDER BY created_at')]
+    rows=[dict(r) for r in store.db.execute('SELECT request_id,state,created_at,imported_at,receipt,error FROM writing_exchange_requests WHERE bulk_job_id IS NULL ORDER BY created_at')]
     from writing_waterfall import summary
     return dict(enabled=enabled(),max_outstanding=5,requests=rows,waterfall=summary(store,candidates(store)),relay_last_seen=store.get_state('exchange_relay_last_seen'),
                 policy='One entry once. READY publishes unchanged. Held drafts are retained; no automatic regeneration.')
