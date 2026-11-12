@@ -1,0 +1,161 @@
+"""Historical backfill: finite scope, normal Queue exclusion, canonical imports.
+
+These use disposable NCCE databases. No live Sheet, model or Render writes.
+"""
+import json
+from pathlib import Path
+import sys
+import tempfile
+from unittest.mock import patch
+
+import pytest
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path[:0]=[str(ROOT/'src'),str(ROOT/'tests')]
+from test_writing_exchange import setup
+import exchange_automation as exchange
+import historical_backfill as bulk
+from writing_exchange import digest
+
+TEXT="**HARD LESSON**\n\nThe sump taught me to hold my ground. We still have a job to finish."
+
+
+def fixture():
+    tmp=tempfile.TemporaryDirectory(dir=ROOT/'data')
+    store,bundle,fid,memory=setup(tmp.name)
+    row=store.db.execute("SELECT gang_id FROM fighters WHERE id=?",(fid,)).fetchone()
+    return tmp,store,str(row['gang_id'])
+
+
+def test_owner_authorization_scoped_and_schema_present():
+    tmp,s,gang=fixture()
+    try:
+        assert s.schema_version>=21
+        with pytest.raises(ValueError,match='owner authorization'):
+            bulk.create(s,[gang])
+        assert s.db.execute("SELECT count(*) FROM historical_backfill_jobs").fetchone()[0]==0
+        job=bulk.create(s,[gang],owner_authorized=True)
+        assert job['scope']==[gang]
+        assert job['queued']>=1,job
+        assert job['discovered']>=job['queued']
+        assert set(bulk.reserved_targets(s))
+        with pytest.raises(ValueError,match='already has an active'):
+            bulk.create(s,[gang],owner_authorized=True)
+        with pytest.raises(ValueError,match='must exist'):
+            bulk.create(s,['fake-gang-id'],owner_authorized=True)
+        assert bulk.summary(s,job['job_id'])['count']>=1
+    finally:s.close();tmp.cleanup()
+
+
+def test_normal_exchange_skips_bulk_reservations_without_changing_legacy_queue():
+    tmp,s,gang=fixture()
+    try:
+        job=bulk.create(s,[gang],owner_authorized=True)
+        reserved=bulk.reserved_targets(s)
+        assert reserved
+        exchange.prepare(s,client_states=[])
+        normal={r['target_key'] for r in s.db.execute(
+            "SELECT target_key FROM writing_exchange_requests WHERE state='PENDING'")}
+        assert not reserved.intersection(normal)
+        assert all(packet['request']['request_id'] not in
+                   {x['request_id'] for x in bulk._items(s,job['job_id'])}
+                   for packet in exchange.outbox(s))
+    finally:s.close();tmp.cleanup()
+
+
+def test_bulk_delivery_reuses_same_import_validator_and_manual_revision_is_normal():
+    tmp,s,gang=fixture()
+    try:
+        job=bulk.create(s,[gang],owner_authorized=True)
+        selected=next(x for x in bulk._items(s,job['job_id']) if x['form']=='fighter_memory')
+        c=next(c for c in exchange.candidates(s) if exchange.target_key(c)==selected['target_key'])
+        # Fixture isolates a memory request from earlier unfinished phase work.
+        with patch.object(bulk,'plan',return_value=([c],{},{})):
+            packets=bulk.poll(s,job['job_id'],1)['packets']
+        assert len(packets)==1
+        packet=packets[0]
+        assert packet['request']['request_id']==selected['request_id']
+        assert packet['request']['source_revision']
+        assert bulk.poll(s,job['job_id'],1)['packets'][0]==packet
+        payload=dict(job_id=job['job_id'],request_id=selected['request_id'],
+                     source_revision=packet['request']['source_revision'],
+                     status='READY',writer_text_md=TEXT)
+        with patch('llm_writer.write',side_effect=AssertionError('No model execution in NCCE')):
+            imported=bulk.deliver(s,job['job_id'],payload)
+        assert imported['status']=='imported',imported
+        assert imported['receipt'].startswith('exchange:')
+        assert bulk.deliver(s,job['job_id'],payload)['receipt']==imported['receipt']
+        with pytest.raises(ValueError,match='immutable'):
+            bulk.deliver(s,job['job_id'],{**payload,'writer_text_md':'**Different**'})
+        assert not any(p['request']['request_id']==selected['request_id']
+                       for p in exchange.outbox(s))
+        assert s.db.execute(
+            "SELECT state FROM writing_exchange_requests WHERE request_id=?",
+            (selected['request_id'],)).fetchone()[0]=='IMPORTED'
+        assert s.db.execute(
+            "SELECT content FROM story_memories WHERE fighter_id=? AND memory_key=? AND active=1",
+            c['key']).fetchone()[0]==TEXT
+        reviewed=bulk.request_manual_revision(s,job['job_id'],selected['request_id'],imported['receipt'])
+        assert reviewed['request_id']!=selected['request_id']
+        assert reviewed['status']=='PENDING'
+        assert any(p['request']['request_id']==reviewed['request_id']
+                   for p in exchange.outbox(s))
+        assert s.db.execute(
+            "SELECT revision_of FROM writing_exchange_requests WHERE request_id=?",
+            (reviewed['request_id'],)).fetchone()[0]==selected['request_id']
+    finally:s.close();tmp.cleanup()
+
+
+def test_stale_source_holds_without_an_import_or_fact_mutation():
+    tmp,s,gang=fixture()
+    try:
+        job=bulk.create(s,[gang],owner_authorized=True)
+        selected=next(x for x in bulk._items(s,job['job_id']) if x['form']=='fighter_memory')
+        c=next(c for c in exchange.candidates(s) if exchange.target_key(c)==selected['target_key'])
+        with patch.object(bulk,'plan',return_value=([c],{},{})):
+            packet=bulk.poll(s,job['job_id'],1)['packets'][0]
+        s.db.execute(
+            "UPDATE story_memories SET evidence_json=? WHERE fighter_id=? AND memory_key=? AND active=1",
+            ('["changed mechanical evidence"]',*c['key']))
+        s.db.commit()
+        result=bulk.deliver(s,job['job_id'],{
+            'request_id':selected['request_id'],'source_revision':packet['request']['source_revision'],
+            'status':'READY','writer_text_md':TEXT
+        })
+        assert result['status']=='held'
+        assert 'changed' in result['error']
+        assert s.db.execute(
+            "SELECT content FROM story_memories WHERE fighter_id=? AND memory_key=? AND active=1",
+            c['key']).fetchone()[0]!=TEXT
+        item=s.db.execute(
+            "SELECT state,writer_text_md FROM historical_backfill_items WHERE request_id=?",
+            (selected['request_id'],)).fetchone()
+        assert item['state']=='HOLD' and item['writer_text_md']==TEXT
+    finally:s.close();tmp.cleanup()
+
+
+def test_cancel_releases_reservations_and_never_unimports_successful_items():
+    tmp,s,gang=fixture()
+    try:
+        job=bulk.create(s,[gang],owner_authorized=True)
+        assert bulk.reserved_targets(s)
+        after=bulk.cancel(s,job['job_id'])
+        assert after['state']=='CANCELLED'
+        assert not bulk.reserved_targets(s)
+        with pytest.raises(ValueError,match='Only open jobs'):
+            bulk.cancel(s,job['job_id'])
+    finally:s.close();tmp.cleanup()
+
+
+def test_empty_job_closes_and_cannot_be_reused():
+    tmp,s,gang=fixture()
+    try:
+        # An already accepted memory is protected, not rediscovered.
+        for c in exchange.candidates(s):
+            if c['form'] in bulk.FORMS and c['entity_type']=='fighter':
+                pass
+        job=bulk.create(s,[gang],owner_authorized=True)
+        assert bulk.summary(s,job['job_id'])['state']=='ACTIVE'
+        with pytest.raises(ValueError,match='Unresolved'):
+            bulk.close(s,job['job_id'])
+    finally:s.close();tmp.cleanup()
