@@ -258,7 +258,8 @@ function finalizeSelectedBulkJob() {
   writeLiteral(jobs.getRange(selected.getRow(),2),[[completed.state]]);
   writeLiteral(jobs.getRange(selected.getRow(),9),[[new Date().toISOString()]]);
   const items=book.getSheetByName('Bulk Items');
-  for(const item of completed.items||[]) {
+  const finalManifest=callNCCE('bulk/status',{job_id:row[0]});
+  for(const item of finalManifest.items||[]) {
     if(item.status!=='HOLD')continue;
     const i=bulkFind(items,item.request_id,18);
     if(!i)continue;
