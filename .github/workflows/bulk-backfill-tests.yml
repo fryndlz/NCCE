@@ -1,0 +1,38 @@
+name: NCCE historical backfill regression
+on:
+  push:
+    paths:
+      - 'src/bulk_backfill.py'
+      - 'src/exchange_automation.py'
+      - 'src/migrations.py'
+      - 'src/server.py'
+      - 'tests/test_bulk_backfill.py'
+      - 'scripts/writing_exchange/**'
+      - '.github/workflows/bulk-backfill-tests.yml'
+  pull_request:
+    paths:
+      - 'src/bulk_backfill.py'
+      - 'src/exchange_automation.py'
+      - 'src/migrations.py'
+      - 'src/server.py'
+      - 'tests/test_bulk_backfill.py'
+      - 'scripts/writing_exchange/**'
+      - '.github/workflows/bulk-backfill-tests.yml'
+jobs:
+  historical-backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Python source
+        run: python -m compileall -q src tests/test_bulk_backfill.py
+      - name: Exercise historical backfill regression
+        run: python tests/test_bulk_backfill.py
+      - name: Recheck ordinary Exchange invariants
+        run: python tests/test_exchange_automation.py
+      - name: Check native Apps Script syntax
+        run: |
+          node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Code.gs','utf8'))"
+          node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/BulkJobs.gs','utf8'))"
