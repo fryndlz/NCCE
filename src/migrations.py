@@ -962,6 +962,7 @@ def migrate(db: sqlite3.Connection) -> int:
                     entity_key TEXT NOT NULL,
                     form TEXT NOT NULL,
                     source_seal TEXT NOT NULL,
+                    context_seal TEXT NOT NULL DEFAULT '',
                     snapshot_json TEXT NOT NULL,
                     state TEXT NOT NULL CHECK(state IN ('PENDING','WRITING','IMPORTED','HOLD','SKIPPED')),
                     packet_json TEXT,
