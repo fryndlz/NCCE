@@ -280,11 +280,11 @@ Stimulus attention starts at 1.00 per topic, adds 0.15 per supported mapped tend
 
 ## 6. Reflection algorithm
 
-Reflection is generated per fighter and observation batch (normally target snapshot). Require at least two observations, each importance >=4, with total >=12; cite up to four sorted by importance and stable key. Reflection importance is `min(10, round(mean(cited importance)+0.5,1))`, confidence 0.60. The model receives cited facts/tags/dates and ready observation prose only; stale paragraphs are not positive examples. Citation IDs and event/evidence unions persist.
+Each living fighter accumulates new sourced observations across syncs. At least two observations with importance >=4 and total importance >=12 trigger a reflection. The engine consumes that set and cites up to four of its strongest observations. The pending set and counted events persist across restarts and rebuilds. At rollout, a separate one-time backlog pass offers one evidence-backed reflection to each living fighter who has observations and lacks a finished or already queued reflection.
 
 Reflection prose is model-generated when enabled, not produced by a local phrase table. Production and Workshop use `reflection_observations` and the same multi-observation packet; a reflection is not assigned a misleading first source event. No new reflection for a deceased fighter. Formation position is the latest cited causal event; generating/rewording it later does not reset recency. Reflections do not increment the factual clock.
 
-The current trigger is batch-based. Cross-batch accumulation, question-driven semantic retrieval and recursive reflection-on-reflection trees from the paper are not implemented.
+The Writing Exchange waits for the cited observations before offering the reflection for writing. Reflections appear on the fighter Timeline. Question-driven semantic retrieval and recursive reflection-on-reflection trees from the paper are not implemented.
 
 ## 7. Logical recency and relevance
 
@@ -306,7 +306,7 @@ Rank causes deterministically, suppress duplicate primary labels and overlapping
 
 At most three candidates survive, one per family: condition, battle, grief, equipment, progress, return, social. Battle/equipment use the newest eligible event-position cause; this prevents an old victory/defeat pair filling the current view. The condition family unifies overlapping bodily concerns. Candidate prose is a separate first-person current thought of one or two sentences, target 12–40 words, not a copied memory or a new incident. Ready wording is reused for the same cause/current-condition/identity key.
 
-Only ready, nonempty current-thought prose appears in cards. `mind_status` reports pending/error/candidate counts; pending prose never fills a visible thought slot. Each thought links to its source memory/events and exposes score components, formation position and subsequent relevant event count. There may be fewer than four or no ready thoughts; there is no generic filler. Deceased fighters have none. Memories remain in history after a concern resolves or is displaced.
+Ready current thoughts appear in the Mind header. When the feed is empty or has a candidate awaiting prose, it can show one diegetic placeholder within the three-line cap. The placeholder is display only. `mind_status` reports pending/error/candidate counts. Each finished thought links to its source memory and events. Deceased fighters have no Mind feed.
 
 ### Complete current label catalog
 

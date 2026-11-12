@@ -72,7 +72,8 @@ def build(memories,store=None,fighter_id=None):
         return max(result,default=0)
     return {'basis':'fighter_relevant_events','policy_version':POLICY_VERSION,
             'head':len(ordered),'ordered_event_ids':ordered,
-            'positions':{m['memory_key']:position(m) for m in relevant if m.get('memory_key')}}
+            'positions':{m['memory_key']:position(m) for m in relevant if m.get('memory_key')},
+            'event_roots':roots}
 
 def measure(memory,clock):
     anchor=clock['positions'].get(memory.get('memory_key'),0)

@@ -310,6 +310,41 @@ def test_corrected_or_removed_battle_does_not_leave_current_false_outcome_memori
     _with_store(check)
 
 
+def test_reflection_accumulates_across_manual_syncs_once():
+    with tempfile.TemporaryDirectory(dir=ROOT / 'data') as folder:
+        path = Path(folder) / 'manual-reflections.db'
+        store = Store(path)
+        try:
+            baseline = campaign()
+            apply(store, baseline)
+            fighter_id = fighter(store, 'Mara Kel')['id']
+
+            def reflections():
+                return {m['memory_key']: m for m in read_memories(store, fighter_id)
+                        if m['memory_type'] == 'reflection'}
+
+            assert set(reflections()) == {'reflection:backlog'}
+            injured = deepcopy(baseline)
+            injured['captured_at'] = '2026-10-25T10:00:00+00:00'
+            injured['gangs'][C9]['fighters']['Mara Kel']['Effects'] = 'Injuries: Critical Injury'
+            apply(store, injured)
+            assert set(reflections()) == {'reflection:backlog'}
+            store.close()
+            store = Store(path)
+            advanced = deepcopy(injured)
+            advanced['captured_at'] = '2026-10-26T10:00:00+00:00'
+            advanced['gangs'][C9]['fighters']['Mara Kel']['Advancements'] = 'Willpower; Ballistic Skill'
+            apply(store, advanced)
+            saved = reflections()
+            accumulated = [m for k,m in saved.items() if k.startswith('reflection:accumulated:')]
+            assert len(accumulated) == 1 and len(accumulated[0]['source_event_ids']) == 2
+            assert len(accumulated[0]['source_observation_ids']) == 2
+            regenerate(store, force=True, writer_enabled=False)
+            assert {k:m['id'] for k,m in reflections().items()} == {k:m['id'] for k,m in saved.items()}
+        finally:
+            store.close()
+
+
 def test_voice_profile_changes_which_equally_salient_memory_leads_the_mind():
     memories = []
     for key, topic in (("a-training", "skill"), ("z-combat", "kills")):

@@ -7,16 +7,23 @@ vm.runInContext(source.slice(source.indexOf('function fighterEvidence('),source.
 vm.runInContext("function fighterCard(f){return '<p>'+esc(f.name)+'</p>';} function campaignAccount(){return '';} function battle(b){return '<p>'+esc(b.scenario)+'</p>';} function downtime(){return '';} ",ctx);
 const run=code=>vm.runInContext(code,ctx);
 ctx.subject={id:36,name:'Mara Kel',backstory:'Unchanged authored background.',backstory_source:'player-authored / campaign Sheet',campaign_history:{events:[{event_id:'fact-1',recorded_at:'2026-10-25T10:00:00Z',action_type:'fighter_injured',description:'Critical injury recorded.'}]},campaign_events:[],mind_status:{pending:0}};
-ctx.memories=[{id:'old',baseline:true,memory_type:'observation',content:'Known before campaign',importance:5},{id:'new',memory_type:'reflection',occurred_at:'2026-10-25',content:'I remember the fall.',importance:7}];
+ctx.memories=[{id:'old',baseline:true,memory_type:'observation',content:'Known before campaign',importance:5},{id:'new',memory_type:'reflection',writer_status:'ready',occurred_at:'2026-10-25',content:'I remember the fall.',importance:7}];
 ctx.mind=[{id:'thought',memory_id:'new',label:'Recovery',content:'I want my hands steady again.'}];
 const fighter=run('fighterRecordSections(subject,memories)');
 assert.deepEqual(Array.from(fighter,s=>s.id),['baseline','timeline','memory']);
 assert.ok(fighter[0].body.includes('Unchanged authored background.'));
 assert.ok(!fighter[0].body.includes('Critical injury recorded.')&&!fighter[0].body.includes('I remember the fall.')&&!fighter[0].body.includes('I want my hands steady again.'));
 assert.ok(fighter[1].body.includes('Critical injury recorded.'));
-assert.ok(!fighter[1].body.includes('I remember the fall.'));
-assert.ok(fighter[2].body.includes('I remember the fall.')&&fighter[2].body.includes('Baseline memories · 1'));
+assert.ok(fighter[1].body.includes('I remember the fall.')&&fighter[1].body.includes('timeline-reflection'));
+assert.ok(!fighter[2].body.includes('I remember the fall.')&&fighter[2].body.includes('Baseline memories · 1'));
 assert.ok(!fighter[2].body.includes('I want my hands steady again.'));
+ctx.subject={id:10,name:'Boomer',gang_name:'The Slag Eaters'};
+ctx.memories=[{id:'backlog',memory_key:'reflection:backlog',memory_type:'reflection',writer_status:'pending',title:'What stays with me'},
+  {id:'accepted',memory_type:'observation',writer_status:'ready',content:'**BOOMER // THE GAP**\n\nI made the jump.'}];
+const boomer=run('fighterRecordSections(subject,memories)');
+assert.deepEqual(Array.from(boomer,s=>s.id),['baseline','timeline']);
+assert.match(boomer[1].body,/timeline-reflection[\s\S]*Awaiting writing/);
+assert.match(boomer[1].body,/<strong>THE GAP<\/strong>/);
 ctx.subject={name:'Gang',backstory:'Only Sheet background.',backstory_source:'player-authored / campaign Sheet',fighters:[{name:'Fighter'}],territory_list:[{id:1,territory:'Shrine'}],battles:[],narrative_stream:[],campaign_history:{events:[]}};
 const gang=run('gangRecordSections(subject)');
 ctx.generatedGang={backstory:'',backstory_source:'not-provided',origin_document:{native_author:{draft_id:'native-draft'},writer_status:'ready',blocks:[{type:'body_paragraph',text:'A newly approved gang origin.'}]}};
@@ -62,7 +69,7 @@ async function checkFighterFeed() {
   };
   run("app.querySelector=()=>panel; currentDetail={type:'fighter',id:36}");
   await run('refreshFighterMind()');
-  assert.equal(body.innerHTML,'<p class="mind-feed-empty">No current thoughts.</p>');
+  assert.match(body.innerHTML,/Give me a moment to gather my thoughts/);
   ctx.fighter.mind = [{content:'Pending text.',writer_status:'paused'},{content:'The gate is closed. I should check the seal.',writer_status:'ready',memory_id:'new'}];
   await run('refreshFighterMind()');
   assert.match(body.innerHTML,/#memory-new[^>]*>The gate is closed\.<\/a>/);

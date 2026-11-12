@@ -338,6 +338,10 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 #app .entity-event-body .event-paper :is(.record-body,.mark-dialogue,.record-header) { color:#2d3a2d; }
 #app .entity-event-body .event-paper :is(.section-label,.archive-heading,.metadata-group) { color:#59664c; }
 .entity-factual-event { padding:15px; background:#1c2a25; border-left:2px solid #7bafa5; color:#b8d4cd; font:12px/1.8 system-ui,sans-serif; }
+.timeline-reflection { border-inline-start:2px solid #ad8db1; }
+.timeline-reflection > summary small { color:#d4b2d8; }
+.timeline-reflection .event-paper { background-color:#e6dce8; }
+.reflection-pending { font-style:italic; }
 .timeline-memory-scores { display:flex; flex-wrap:wrap; gap:12px 20px; margin:12px 0; }
 .timeline-memory-scores label { display:grid; gap:3px; min-width:105px; color:#c9c7ac; font:11px system-ui,sans-serif; }
 .timeline-memory-scores strong { margin-left:4px; }

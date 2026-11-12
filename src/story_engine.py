@@ -349,6 +349,63 @@ def _current_battle_event(battle, events):
             "occurred_at":chosen.get("occurred_at") if chosen["event_type"] == "battle_result" else None}
 
 
+def _reflection_plans(store, fighter_id, observations, rollout):
+    """Yield a backlog plan once, then consume eligible observations in causal order."""
+    from writing_exchange import packed
+    from fighter_event_clock import build
+    state_key = f'reflection_accumulator_v1:{fighter_id}'
+    raw = store.get_state(state_key)
+    state = json.loads(raw) if raw else {'seen': [], 'pending': []}
+    roots = build(observations, store, fighter_id)['event_roots']
+
+    def observation_key(memory):
+        events = memory['source_event_ids']
+        return 'event:'+roots[events[0]] if len(events)==1 and events[0] in roots else memory['memory_key']
+
+    by_key = {observation_key(m): m for m in observations}
+    seen = set(state['seen'])
+    pending = [key for key in state['pending'] if key in by_key]
+    plans = []
+    if not raw and rollout:
+        existing = False
+        for row in store.db.execute("""
+            SELECT memory_id,memory_key,content,writer_status FROM story_memories
+            WHERE fighter_id=? AND memory_type='reflection' AND active=1
+        """, (fighter_id,)).fetchall():
+            request = store.db.execute("""
+                SELECT 1 FROM writing_exchange_requests
+                WHERE target_key=? AND state IN ('PENDING','DEFERRED','HOLD','IMPORTED')
+            """, (packed(['memory',[fighter_id,row['memory_key']]]),)).fetchone()
+            if request or (row['writer_status']=='ready' and row['content'].strip()):
+                existing = True
+            else:
+                store.db.execute('UPDATE story_memories SET active=0 WHERE memory_id=?', (row['memory_id'],))
+        if not existing and observations:
+            plans.append(('reflection:backlog', observations))
+        seen.update(by_key)
+
+    def chronological(memory):
+        at = _timestamp(memory.get('occurred_at') or memory.get('observed_at'))
+        return at or datetime.min.replace(tzinfo=timezone.utc), memory['memory_key']
+
+    for memory in sorted(by_key.values(), key=chronological):
+        key = observation_key(memory)
+        if key in seen:
+            continue
+        seen.add(key)
+        if memory['baseline'] or memory['importance'] < 4 or not memory['source_event_ids']:
+            continue
+        pending.append(key)
+        if len(pending) >= 2 and sum(by_key[k]['importance'] for k in pending) >= REFLECTION_THRESHOLD:
+            plans.append(('reflection:accumulated:'+digest(pending)[:24], [by_key[k] for k in pending]))
+            pending = []
+    store.db.execute("""
+        INSERT INTO system_state(key,value) VALUES(?,?)
+        ON CONFLICT(key) DO UPDATE SET value=excluded.value
+    """, (state_key, encode({'seen': sorted(seen), 'pending': pending})))
+    return plans
+
+
 def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_ids=None, call_budget=None, writer_run_id=None):
     """Regenerate all views, or only selected fighters when fighter_ids is supplied."""
     import fighter_mind
@@ -410,10 +467,11 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     gang_events[subject["entity_key"]].append(event)
         all_memories = []
         with store.db:
+            reflection_rollout = not store.get_state('reflection_accumulator_v1_rollout')
             if target_fighter_ids is None:
-                store.db.execute("UPDATE story_memories SET active=0")
+                store.db.execute("UPDATE story_memories SET active=0 WHERE memory_type='observation'")
             else:
-                store.db.executemany("UPDATE story_memories SET active=0 WHERE fighter_id=?",[(value,) for value in target_fighter_ids])
+                store.db.executemany("UPDATE story_memories SET active=0 WHERE fighter_id=? AND memory_type='observation'",[(value,) for value in target_fighter_ids])
             for fighter in fighters:
                 if target_fighter_ids is not None and int(fighter["id"]) not in target_fighter_ids:
                     continue
@@ -498,14 +556,9 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     for m in memories:
                         m.setdefault('context_source_ids',[]).append('player:writer-identities')
                 saved = [_save_memory(store,fighter["id"],m,generated_at) for m in memories]
-                groups = defaultdict(list)
-                if normal(fighter.get("status")) not in {"killed","dead"}:
-                    for m in saved:
-                        groups[m["batch"]].append(m)
-                for batch, candidates in groups.items():
-                    candidates = [m for m in candidates if m["importance"] >= 4]
-                    if len(candidates) < 2 or sum(m["importance"] for m in candidates) < REFLECTION_THRESHOLD:
-                        continue
+                plans = [] if fighter_mind.is_deceased(fighter) else _reflection_plans(
+                    store, fighter['id'], saved, reflection_rollout)
+                for reflection_key, candidates in plans:
                     cited = sorted(candidates,key=lambda m:(-m["importance"],m["memory_key"]))[:4]
                     ref_text,ref_status=llm_writer.write_memory(store,fighter,gang,'What stays with me',
                            list(dict.fromkeys(x for m in cited for x in m['evidence'])),voice['writer_context'],
@@ -514,9 +567,9 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     ref_content="\n\n".join(llm_writer.paragraph_text(p) for p in ref_text)
                     ref_runs=[llm_writer.paragraph_runs(p) for p in ref_text]
                     if not ref_content:
-                        retained=_retained_writer_content(store,fighter['id'],f"reflection:{batch}",ref_status)
+                        retained=_retained_writer_content(store,fighter['id'],reflection_key,ref_status)
                         if retained: ref_content,ref_runs,ref_status=retained
-                    ref = {"memory_key":f"reflection:{batch}", "memory_type":"reflection", "title":"What stays with me",
+                    ref = {"memory_key":reflection_key, "memory_type":"reflection", "title":"What stays with me",
                            "content":ref_content,
                            "writer_content_runs":ref_runs,"writer_status":ref_status.get('status','pending'),
                            "importance":min(10,round(sum(m["importance"] for m in cited)/len(cited)+0.5,1)),
@@ -527,7 +580,13 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                            "source_observation_ids":[m["id"] for m in cited], "source_id":cited[0]["source_id"],
                            "writer_context":voice['writer_context'],
                            "provenance_class":"inference", "confidence":0.6, "baseline":all(m["baseline"] for m in cited)}
-                    saved.append(_save_memory(store,fighter["id"],ref,generated_at))
+                    _save_memory(store,fighter["id"],ref,generated_at)
+                current_causes = {event for m in saved for event in m['source_event_ids']}
+                for reflection in read_memories(store,fighter["id"], memory_type='reflection'):
+                    if set(reflection['source_event_ids']) <= current_causes:
+                        saved.append(reflection)
+                    else:
+                        store.db.execute('UPDATE story_memories SET active=0 WHERE memory_id=?', (reflection['id'],))
                 all_memories.extend({**m,"fighter_id":fighter["id"],"gang_id":fighter["gang_id"]} for m in saved)
                 existing_biography=document_for(store,'fighter_biography',fighter['id'])
                 if not _authored(fighter) and not (existing_biography and existing_biography.get('writer_status') in {'ready','stale'} and existing_biography.get('blocks')):
@@ -553,6 +612,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                         "writer":llm_writer.run_summary(),"memory_results":[
                             {"memory_id":m["id"],"title":m["title"],"writer_status":m["writer_status"]}
                             for m in all_memories]}
+            store.db.execute("INSERT OR IGNORE INTO system_state(key,value) VALUES('reflection_accumulator_v1_rollout',?)",
+                             (generated_at,))
             for gang in gangs:
                 fs = [f for f in fighters if str(f["gang_id"]) == str(gang["gang_id"])]
                 if not _authored(gang):
@@ -623,9 +684,11 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
         return {"changed":True,"revision":fingerprint[:16],"memories":len(all_memories),"fighters":len(fighters),"generated_at":generated_at}
 
 
-def read_memories(store, fighter_id):
+def read_memories(store, fighter_id, memory_type=None):
     result = []
-    for row in store.db.execute("SELECT * FROM story_memories WHERE fighter_id=? AND active=1 ORDER BY baseline ASC,coalesce(occurred_at,observed_at) DESC,created_at DESC,memory_type DESC,memory_key",(fighter_id,)):
+    for row in store.db.execute("""SELECT * FROM story_memories WHERE fighter_id=? AND active=1
+        AND (? IS NULL OR memory_type=?) ORDER BY baseline ASC,coalesce(occurred_at,observed_at) DESC,
+        created_at DESC,memory_type DESC,memory_key""", (fighter_id,memory_type,memory_type)):
         item = dict(row)
         item["id"] = item["memory_id"]
         item["is_baseline"] = bool(item["baseline"])
