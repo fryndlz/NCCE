@@ -7,6 +7,9 @@ on:
       - 'src/server.py'
       - 'scripts/writing_exchange/Code.gs'
       - 'tests/test_exchange_automation.py'
+      - 'src/historical_backfill.py'
+      - 'scripts/writing_exchange/Bulk.gs'
+      - 'tests/test_historical_backfill.py'
       - '.github/workflows/prose-revision-tests.yml'
   pull_request:
     paths:
@@ -26,10 +29,14 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check Python syntax
-        run: python -m compileall -q src tests/test_exchange_automation.py
+        run: python -m compileall -q src tests/test_exchange_automation.py tests/test_historical_backfill.py
       - name: Run exchange end-to-end tests
         run: python tests/test_exchange_automation.py
+      - name: Run isolated historical backfill tests
+        run: python tests/test_historical_backfill.py
       - name: Parse Google Apps Script relay JavaScript
-        run: node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Code.gs','utf8'))"
+        run: |
+          node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Code.gs','utf8'))"
+          node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Bulk.gs','utf8'))"
       - name: Run writing waterfall tests
         run: python tests/test_writing_waterfall.py
