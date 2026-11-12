@@ -110,13 +110,25 @@ def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_aut
         gangs=[dict(r) for r in store.db.execute("SELECT gang_id,name,gang_type FROM gangs")]
         found = {str(g["gang_id"]): g["name"] for g in gangs}
         requested={str(g) for g in gang_ids}
+        def normalized(value):
+            return " ".join(str(value or "").strip().casefold().split())
+        def house_key(value):
+            value=normalized(value)
+            return value[6:] if value.startswith("house ") else value
         for label in gang_names:
-            exact=[str(g["gang_id"]) for g in gangs if g["name"]==label]
+            label_key=normalized(label)
+            exact=[str(g["gang_id"]) for g in gangs
+                   if normalized(g["name"])==label_key]
+            if not exact and label_key in ("c-nine","c9"):
+                # A display shorthand for canonical Geothermal Prospect Detail C-9.
+                exact=[str(g["gang_id"]) for g in gangs
+                       if normalized(g["name"]).startswith("c-nine")]
             if len(exact)!=1:
                 raise ValueError("A selected gang name is absent or ambiguous: "+str(label))
             requested.add(exact[0])
         for house in house_types:
-            matches=[str(g["gang_id"]) for g in gangs if g["gang_type"]==house]
+            matches=[str(g["gang_id"]) for g in gangs
+                     if house_key(g["gang_type"])==house_key(house)]
             if not matches:
                 raise ValueError("No active NCCE gang of House/faction: "+str(house))
             requested.update(matches)
