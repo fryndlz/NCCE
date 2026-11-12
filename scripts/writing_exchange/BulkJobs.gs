@@ -36,7 +36,8 @@ function bulkFind_(sheet, value, column) {
 function bulkAppendContext_(sheet, packet) {
   if (!packet || !packet.request || !packet.context) throw new Error('Missing sealed backfill context');
   const id = packet.request.context_id;
-  if (bulkFind_(sheet,id,1)) return;
+  if (sheet.getLastRow()>=2 && sheet.getRange(2,1,sheet.getLastRow()-1,1)
+      .getDisplayValues().some(r=>r[0]===id)) return;
   const lines = [];
   packet.context.forEach(block => {
     const full = String(block.text || '');
@@ -190,4 +191,21 @@ function escalateSelectedBulkNCCE() {
   writeLiteral(sheet.getRange(selected.getRow(),3),[['ESCALATED']]);
   syncNCCE();
   ui.alert('Transferred request '+v[1]+' to the normal Exchange.');
+}
+
+/** Explicit owner retry; existing text is preserved for editing, never auto-resent. */
+function retrySelectedBulkNCCE() {
+  const ui=SpreadsheetApp.getUi(),book=SpreadsheetApp.getActiveSpreadsheet();
+  const sheet=book.getSheetByName('Bulk Items'),selected=book.getActiveRange();
+  if (!sheet || !selected || selected.getSheet().getSheetId()!==sheet.getSheetId() ||
+      selected.getRow()<2) {ui.alert('Select a HOLD row in Bulk Items.');return;}
+  const v=sheet.getRange(selected.getRow(),1,1,BULK_ITEM_HEADERS.length).getDisplayValues()[0];
+  if (v[2]!=='HOLD') {ui.alert('This bulk entry is not on HOLD.');return;}
+  if (ui.alert('Retry held draft?',
+      'Retain the same ID and source revision, clear its held status, and allow editing before a new READY submission?',
+      ui.ButtonSet.YES_NO)!==ui.Button.YES)return;
+  const item=callNCCE('bulk/retry',{job_id:v[0],request_id:v[1]});
+  if (item.state!=='PENDING')throw new Error('NCCE did not confirm the retry.');
+  writeLiteral(sheet.getRange(selected.getRow(),3),[['WRITING']]);
+  ui.alert('Edit the saved draft, then set this Bulk Items row to READY.');
 }
