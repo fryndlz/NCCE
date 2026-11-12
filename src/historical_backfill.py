@@ -390,12 +390,32 @@ def deliver(store, job_id, payload):
         return result
 
 
-def close(store, job_id):
+def close(store, job_id, *, finalize_unresolved=False):
     with store._lock:
         job=_job(store,job_id)
         if job["state"] not in OPEN:
             return summary(store,job_id)
         states=Counter(x["state"] for x in _items(store,job_id))
+        if finalize_unresolved and states["PENDING"]:
+            # Explicit operator action, never part of the ordinary poll loop.
+            # Do not terminate or overwrite drafts already being written.
+            if states["WRITING"]:
+                raise ValueError("Cannot finalize while claimed WRITING drafts remain")
+            candidates=exchange.candidates(store)
+            _,_,blocked=plan(store,candidates)
+            with store.db:
+                for item in _items(store,job_id):
+                    if item["state"]!="PENDING":
+                        continue
+                    reasons=blocked.get(item["target_key"])
+                    explanation="; ".join(reasons) if reasons else (
+                        "Unprocessed at operator-requested early close")
+                    store.db.execute(
+                        """UPDATE historical_backfill_items SET state='HOLD',error=?
+                           WHERE request_id=? AND state='PENDING'""",
+                        (explanation,item["request_id"]),
+                    )
+            states=Counter(x["state"] for x in _items(store,job_id))
         if states["PENDING"] or states["WRITING"]:
             raise ValueError("Unresolved items remain; inspect blockers before closing")
         final="COMPLETED_WITH_ERRORS" if states["HOLD"] or states["SKIPPED"] else "COMPLETED"
