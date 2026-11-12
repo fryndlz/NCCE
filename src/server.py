@@ -223,7 +223,8 @@ class H(BaseHTTPRequestHandler):
        return self.js(historical_backfill.summary(
         store,payload.get('job_id'),include_items=True))
       if action=='close':
-       return self.js(historical_backfill.close(store,payload.get('job_id')))
+       return self.js(historical_backfill.close(store,payload.get('job_id'),
+        finalize_unresolved=payload.get('finalize_unresolved') is True))
       if action=='cancel':
        return self.js(historical_backfill.cancel(store,payload.get('job_id')))
       if action=='revise':
