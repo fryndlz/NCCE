@@ -308,6 +308,9 @@ def prepare(store,limit=5,client_states=()):
         if store.db.in_transaction:raise RuntimeError('Exchange preparation requires its own transaction')
         with store.db:
             available=candidates(store);lookup={target_key(c):c for c in available}
+            # Bulk snapshot reservations are separate from the five-slot normal Queue.
+            from historical_backfill import reserved_targets,is_bulk_request
+            bulk_reserved=reserved_targets(store)
             retire_legacy(store,available)
             if client_states is not None:
                 if not isinstance(client_states,list) and client_states!=():raise ValueError('Invalid queue-state snapshot')
@@ -322,13 +325,15 @@ def prepare(store,limit=5,client_states=()):
             from territory_history import amend_paused_origin
             amend_paused_origin(store,available)
             for row in store.db.execute("SELECT request_id,target_key,source_revision FROM writing_exchange_requests WHERE state='PENDING'").fetchall():
+                if is_bulk_request(store,row['request_id']):continue
                 c=lookup.get(row['target_key'])
                 request=store.db.execute('SELECT * FROM writing_exchange_requests WHERE request_id=?',(row['request_id'],)).fetchone()
                 if request['revision_of']:
                     continue  # A correction is guarded by its base receipt/text at delivery.
                 if not c or not source_matches(store,c,request):
                     store.db.execute("UPDATE writing_exchange_requests SET state='HOLD',error='Source changed; do not write or regenerate this request' WHERE request_id=?",(row['request_id'],))
-            requests=[dict(r) for r in store.db.execute('SELECT * FROM writing_exchange_requests ORDER BY created_at')]
+            requests=[dict(r) for r in store.db.execute('SELECT * FROM writing_exchange_requests ORDER BY created_at')
+                      if not is_bulk_request(store,r['request_id'])]
             bytarget={}
             for r in requests:bytarget.setdefault(r['target_key'],[]).append(r)
             def in_progress(r):
@@ -340,7 +345,7 @@ def prepare(store,limit=5,client_states=()):
             eligible=[]
             for c in runnable:
                 rows=bytarget.get(target_key(c),[])
-                if target_key(c) in protected_keys or any(r['state']=='HOLD' for r in rows):continue
+                if target_key(c) in bulk_reserved or target_key(c) in protected_keys or any(r['state']=='HOLD' for r in rows):continue
                 eligible.append(c)
             # An in-progress lower-phase draft may finish, but new work comes
             # only from the earliest runnable frontier.
@@ -461,8 +466,11 @@ def request_revision(store, parent_id, expected_receipt):
 
 def outbox(store):
     result=[]
-    for r in store.db.execute("SELECT packet_json,supplement_json FROM writing_exchange_requests WHERE state='PENDING' ORDER BY queue_rank,created_at,request_id LIMIT 5"):
+    from historical_backfill import is_bulk_request
+    for r in store.db.execute("SELECT request_id,packet_json,supplement_json FROM writing_exchange_requests WHERE state='PENDING' ORDER BY queue_rank,created_at,request_id"):
+        if is_bulk_request(store,r['request_id']):continue
         packet=load(r['packet_json']);packet['context']+=load(r['supplement_json']);result.append(packet)
+        if len(result)>=5:break
     return result
 
 
