@@ -7,9 +7,7 @@ commits prose; bulk items do not occupy the normal Queue.
 from __future__ import annotations
 
 from collections import Counter
-from contextlib import nullcontext
 import json
-import sqlite3
 from uuid import uuid4
 
 import exchange_automation as exchange
@@ -91,7 +89,7 @@ def is_bulk_request(store, request_id):
     ).fetchone())
 
 
-def create(store, gang_ids, *, owner_authorized=False):
+def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_authorized=False):
     """Snapshot only explicit gang IDs and currently incomplete fighter memories.
 
     No prose is imported, no existing Queue cell is changed, and overlapping
@@ -99,18 +97,31 @@ def create(store, gang_ids, *, owner_authorized=False):
     """
     if owner_authorized is not True:
         raise ValueError("Explicit owner authorization is required for this job")
-    if not isinstance(gang_ids, list) or not gang_ids or len(gang_ids) > 100:
-        raise ValueError("Select 1–100 explicit gang IDs")
-    names = tuple(sorted({str(g) for g in gang_ids if isinstance(g, (str, int))}))
-    if len(names) != len(gang_ids):
-        raise ValueError("Duplicate, blank or invalid gang IDs are not allowed")
+    gang_ids=gang_ids or []
+    gang_names=gang_names or []
+    house_types=house_types or []
+    if any(not isinstance(seq,list) or len(seq)>100 for seq in (gang_ids,gang_names,house_types)):
+        raise ValueError("Gang selectors must be lists of at most 100 entries")
+    if not any((gang_ids,gang_names,house_types)):
+        raise ValueError("Choose explicit gang IDs, names or House/faction types")
     with store._lock:
         if store.db.in_transaction:
             raise RuntimeError("Backfill creation requires its own transaction")
-        found = {str(r["gang_id"]): r["name"] for r in store.db.execute(
-            "SELECT gang_id,name FROM gangs"
-        )}
-        if any(g not in found for g in names):
+        gangs=[dict(r) for r in store.db.execute("SELECT gang_id,name,gang_type FROM gangs")]
+        found = {str(g["gang_id"]): g["name"] for g in gangs}
+        requested={str(g) for g in gang_ids}
+        for label in gang_names:
+            exact=[str(g["gang_id"]) for g in gangs if g["name"]==label]
+            if len(exact)!=1:
+                raise ValueError("A selected gang name is absent or ambiguous: "+str(label))
+            requested.add(exact[0])
+        for house in house_types:
+            matches=[str(g["gang_id"]) for g in gangs if g["gang_type"]==house]
+            if not matches:
+                raise ValueError("No active NCCE gang of House/faction: "+str(house))
+            requested.update(matches)
+        names=tuple(sorted(requested))
+        if not names or len(names)>100 or any(g not in found for g in names):
             raise ValueError("Every requested gang must exist in NCCE")
         for row in store.db.execute(
             "SELECT scope_json FROM historical_backfill_jobs WHERE state IN ('PREPARED','ACTIVE')"
@@ -152,6 +163,20 @@ def create(store, gang_ids, *, owner_authorized=False):
                      exchange.semantic_seal(store,c),
                      packed({"target":c,"original":exchange.projection(store,c)}),
                      created),
+                )
+            # Conflicts are visible in the item ledger, not silently dropped.
+            by_key={exchange.target_key(c):c for c in selected}
+            for index, skip in enumerate(skipped, len(prepared)):
+                c=by_key[skip["target_key"]]
+                store.db.execute(
+                    """INSERT INTO historical_backfill_items
+                       (request_id,job_id,ordinal,target_key,entity_key,form,
+                        source_seal,snapshot_json,state,created_at,error)
+                       VALUES(?,?,?,?,?,?,?,?,'SKIPPED',?,?)""",
+                    (str(uuid4()),job_id,index,skip["target_key"],c["entity_key"],c["form"],
+                     exchange.semantic_seal(store,c),
+                     packed({"target":c,"original":exchange.projection(store,c)}),
+                     created,skip["reason"]),
                 )
         return {"job_id":job_id,"state":"ACTIVE","scope":list(names),
                 "discovered":len(selected),"queued":len(prepared),"skipped":skipped}
