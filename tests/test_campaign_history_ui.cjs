@@ -81,22 +81,15 @@ const escaped=vm.runInContext(`timelineDetail({...historyTimeline.events[1],desc
 assert.ok(!escaped.includes('<img')&&!escaped.includes('<script>'));
 assert.equal(vm.runInContext(`historyPlaytime({sessions:[{start_at:'2026-10-25T10:00:00Z',end_at:'2026-10-25T11:00:00Z'},{start_at:'2026-10-25T10:30:00Z',end_at:'2026-10-25T11:30:00Z'},{start_at:'2026-10-25T13:00:00Z',end_at:'2026-10-25T14:00:00Z'}]})`,ctx),9000);
 vm.runInContext(`
-const pilotGang='d3b71b68-8f5e-41bb-a147-b89984ca3061';
-const pilotBattle={...b,battle_id:'13fc0bc8-751d-4481-bab9-88072f3ba0e0',gang_ids:[pilotGang]};
-const pilotEvent=(action,field,before,after,extra={})=>e(action,'2026-10-26T10:00:00Z',{
-  action_type:action,gang_id:pilotGang,preceding_battle_id:pilotBattle.battle_id,timestamp_basis:'first_observed',
-  raw_record:{from_snapshot_id:29,to_snapshot_id:30,payload:{field,before,after}},...extra
+const spend=e('spend','2026-10-26T10:00:00Z',{
+  timestamp_basis:'first_observed',estimated_timing:{battle_id:b.battle_id,period:'post_battle',from:b.end_at,to:'2026-10-26T10:00:00Z'}
 });
-const spend=pilotEvent('fighter_xp_changed','XP',9,0);
-const skill=pilotEvent('fighter_skills_changed','Skills','Fast Shot','Fast Shot\\nTrick Shot');
-const kills=pilotEvent('fighter_kills_changed','Kills',0,1);
-const gain=pilotEvent('fighter_xp_changed','XP',4,5,{fighter_id:'other'});
-const unrelated=pilotEvent('fighter_xp_changed','XP',9,0,{gang_id:'g2'});
-estimateBorderDisputeTiming({battles:[pilotBattle],events:[spend,skill,kills,gain,unrelated]});
+const kills=e('kills','2026-10-26T10:00:00Z',{
+  timestamp_basis:'first_observed',estimated_timing:{battle_id:b.battle_id,period:'battle',from:b.start_at,to:b.end_at}
+});
 `,ctx);
-assert.equal(vm.runInContext('historyEventPeriod(spend,pilotBattle)',ctx),'post_battle');
+assert.equal(vm.runInContext('historyEventPeriod(spend,b)',ctx),'post_battle');
 assert.match(vm.runInContext('historyEventStamp(spend)',ctx),/Estimated timing · post-battle.*First observed/);
-assert.equal(vm.runInContext('historyEventPeriod(kills,pilotBattle)',ctx),'battle');
+assert.equal(vm.runInContext('historyEventPeriod(kills,b)',ctx),'battle');
 assert.equal(vm.runInContext('historyPlotTime(kills)',ctx),Date.parse('2026-10-25T10:30:00Z'));
-assert.equal(vm.runInContext('gain.estimated_timing ?? unrelated.estimated_timing',ctx),undefined);
 console.log('ok (timeline geometry, intervals, filtering, and estimated battle and post-battle timing)');

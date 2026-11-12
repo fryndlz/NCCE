@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from campaign_history import ARCHIVE_COLUMNS, _participants, build_timeline, parse_archive_tabs
+from campaign_history import ARCHIVE_COLUMNS, _participants, build_timeline, estimate_roster_timing, parse_archive_tabs
 from store import Store
 
 G1 = "11111111-1111-4111-8111-111111111111"
@@ -224,6 +224,31 @@ def test_archive_import_is_idempotent_versioned_and_flags_same_version_conflicts
             store.close()
 
 
+def test_estimated_roster_timing_uses_snapshot_evidence():
+    previous, start, end, observed = [f'2026-10-25T{hour}:00:00+00:00' for hour in ('09', '10', '11', '12')]
+    battle = {'battle_id': B1, 'gang_ids': [G1], 'start_at': start, 'end_at': end,
+              'sessions': [{'start_at': start, 'end_at': end}]}
+
+    def event(action, field, before, after):
+        return {'source_table': 'fighter_ledger', 'timestamp_basis': 'first_observed', 'gang_id': G1,
+                'fighter_id': F1, 'recorded_at': observed, 'action_type': action,
+                'raw_record': {'from_snapshot_id': 1, 'to_snapshot_id': 2,
+                               'payload': {'field': field, 'before': before, 'after': after}}}
+
+    skill = event('fighter_skills_changed', 'Skills', 'Fast Shot', 'Fast Shot\nTrick Shot')
+    spend = event('fighter_xp_changed', 'XP', 9, 0)
+    gain = event('fighter_xp_changed', 'XP', 4, 5)
+    kill = event('fighter_kills_changed', 'Kills', 0, 1)
+    reorder = event('fighter_weapons_changed', 'Weapons', 'A\nB', 'B\nA')
+    estimate_roster_timing([skill, spend, gain, kill, reorder], [battle], {1: previous})
+    assert spend['estimated_timing'] == {'battle_id': B1, 'period': 'post_battle', 'from': end, 'to': observed}
+    assert kill['estimated_timing'] == {'battle_id': B1, 'period': 'battle', 'from': start, 'to': end}
+    assert spend['recorded_at'] == observed and 'estimated_timing' not in gain and 'estimated_timing' not in reorder
+    ambiguous = event('fighter_kills_changed', 'Kills', 0, 1)
+    estimate_roster_timing([ambiguous], [battle, {**battle, 'battle_id': B2}], {1: previous})
+    assert 'estimated_timing' not in ambiguous
+
+
 if __name__ == "__main__":
     from campaign_history import window_playtime
     assert window_playtime([]) is None
@@ -236,4 +261,5 @@ if __name__ == "__main__":
     test_multiple_sessions_keep_gaps_unresolved_and_overlaps_ambiguous()
     test_cancelled_session_does_not_create_a_battle_window()
     test_archive_import_is_idempotent_versioned_and_flags_same_version_conflicts()
-    print("ok (6 campaign history checks)")
+    test_estimated_roster_timing_uses_snapshot_evidence()
+    print("ok (7 campaign history checks)")

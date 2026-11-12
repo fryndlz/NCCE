@@ -149,7 +149,7 @@ class Store:
   return result
  def history_timeline(self):
   """Return the reconstructed campaign timeline with its source/conflict warnings."""
-  from campaign_history import build_timeline
+  from campaign_history import build_timeline, estimate_roster_timing
   records=[]
   for row in self.db.execute('SELECT normalized_json FROM campaign_archive_records ORDER BY source_table,record_id,archived_at_utc,version_hash'):
    try: records.append(json.loads(row['normalized_json']))
@@ -179,6 +179,8 @@ class Store:
     territories[str(territory_id)]=row['territory']
     territory_links.setdefault(str(territory_id),[]).append(row['id'])
   timeline=build_timeline(records,gang_names,fighter_names,territories)
+  snapshot_times={row['id']:row['captured_at'] for row in self.db.execute('SELECT id,captured_at FROM snapshots')}
+  estimate_roster_timing(timeline['events'],timeline['battles'],snapshot_times)
   for record in timeline['battles']+timeline['events']:
    matches=territory_links.get(str(record.get('territory_id') or ''),[])
    record['local_territory_id']=matches[0] if len(matches)==1 else None

@@ -332,6 +332,70 @@ def window_playtime(windows):
     return int(sum((end-start).total_seconds() for start, end in merged)) if intervals else None
 
 
+def estimate_roster_timing(events, battles, snapshot_times):
+    """Project snapshot changes onto a unique plausible engagement without changing source dates."""
+    battles_by_gang = {}
+    for battle in battles:
+        for gang_id in battle['gang_ids']:
+            battles_by_gang.setdefault(gang_id, []).append(battle)
+
+    batches = {}
+    for event in events:
+        if event['source_table'] != 'fighter_ledger' or event['timestamp_basis'] != 'first_observed':
+            continue
+        raw = event['raw_record']
+        before_id, after_id = raw.get('from_snapshot_id'), raw.get('to_snapshot_id')
+        if before_id is not None and after_id is not None and event['gang_id']:
+            batches.setdefault((event['gang_id'], before_id, after_id), []).append(event)
+
+    upgrades = {'fighter_advancement_changed', 'fighter_skills_changed'}
+    for (gang_id, before_id, after_id), batch in batches.items():
+        _, since, _ = parse_instant(snapshot_times.get(before_id))
+        observed = batch[0]['recorded_at']
+        if not since or not observed or since >= observed:
+            continue
+        # The owner identified this delayed export as the Ethernetans Border Dispute batch.
+        pilot = (gang_id, before_id, after_id) == ('d3b71b68-8f5e-41bb-a147-b89984ca3061', 29, 30)
+        candidates = [battle for battle in battles_by_gang.get(gang_id, []) if (
+            battle['battle_id'] == '13fc0bc8-751d-4481-bab9-88072f3ba0e0' if pilot else
+            (battle['start_at'] or battle['documented_at'] or '') <= observed and
+            (battle['end_at'] or (observed if battle['start_at'] else battle['documented_at']) or '') >= since
+        )]
+        if len(candidates) != 1:
+            continue
+        battle = candidates[0]
+        start, end = battle['start_at'], battle['end_at']
+        if not start or not end or end > observed or any(not session.get('end_at') for session in battle['sessions']):
+            continue
+        combat_windows = [(session['start_at'], session['end_at']) for session in battle['sessions']
+                          if session.get('start_at') and (pilot or session['end_at'] > since)]
+        upgraded = {event['fighter_id'] for event in batch if event['action_type'] in upgrades}
+        for event in batch:
+            payload = event['raw_record'].get('payload') or {}
+            field, before, after = (payload.get(key) for key in ('field', 'before', 'after'))
+            numeric = type(before) in (int, float) and type(after) in (int, float)
+            combat = numeric and field == 'Kills' and after > before
+            gear = field in {'Weapons', 'Equipment', 'Wargear'} and sorted(str(before or '').splitlines()) != sorted(str(after or '').splitlines())
+            post_battle = gear or event['action_type'] in upgrades or (
+                event['fighter_id'] in upgraded and numeric and
+                ((field == 'XP' and after < before) or (field == 'Cost' and after > before))
+            )
+            if not combat and not post_battle:
+                continue
+            if combat:
+                if len(combat_windows) != 1:
+                    continue
+                lower, upper = combat_windows[0]
+            else:
+                lower, upper = end, event['recorded_at']
+            if not pilot:
+                lower = max(lower, since)
+            if lower < upper:
+                event['estimated_timing'] = {'battle_id': battle['battle_id'],
+                                             'period': 'battle' if combat else 'post_battle',
+                                             'from': lower, 'to': upper}
+
+
 def build_timeline(records: list[dict], gang_names: dict[str, str] | None = None,
                    fighter_names: dict[tuple[str, str], str] | None = None,
                    territories: dict[str, str] | None = None, now: str | None = None) -> dict:

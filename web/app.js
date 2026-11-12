@@ -433,29 +433,6 @@ function historyEventPeriod(event, battle) {
   const next=list(historyTimeline?.battles).filter(b=>b.battle_id!==battle.battle_id && list(b.gang_ids).map(String).includes(gang) && Date.parse(b.start_at)>start).map(b=>Date.parse(b.start_at));
   return !next.length || t<Math.min(...next) ? 'downtime' : null;
 }
-function estimateBorderDisputeTiming(history) {
-  const battleId='13fc0bc8-751d-4481-bab9-88072f3ba0e0';
-  const gangId='d3b71b68-8f5e-41bb-a147-b89984ca3061';
-  const battle=history.battles.find(row=>row.battle_id===battleId && list(row.gang_ids).includes(gangId));
-  if (!battle || !battle.start_at || !battle.end_at) return;
-  // Pilot on the Ethernetans roster diff from the 12 November pull.
-  const batch=history.events.filter(event=>event.gang_id===gangId && event.preceding_battle_id===battleId &&
-    event.timestamp_basis==='first_observed' && event.raw_record?.from_snapshot_id===29 && event.raw_record?.to_snapshot_id===30);
-  const upgraded=new Set(batch.filter(event=>['fighter_advancement_changed','fighter_skills_changed'].includes(event.action_type)).map(event=>event.fighter_id));
-  for (const event of batch) {
-    const {field,before,after}=event.raw_record.payload || {};
-    const hasDelta=Number.isFinite(before) && Number.isFinite(after);
-    const combat=field==='Kills' && hasDelta && after>before;
-    const postBattle=upgraded.has(event.fighter_id) && (
-      ['fighter_advancement_changed','fighter_skills_changed'].includes(event.action_type) ||
-      (hasDelta && ((field==='XP' && after<before) || (field==='Cost' && after>before)))
-    );
-    if (!combat && !postBattle) continue;
-    const from=combat?battle.start_at:battle.end_at, to=combat?battle.end_at:event.recorded_at;
-    if (!(Date.parse(to)>Date.parse(from))) continue;
-    event.estimated_timing={battle_id:battleId,period:combat?'battle':'post_battle',from,to};
-  }
-}
 function historyPlotTime(event) {
   const timing=event.estimated_timing;
   return timing ? (Date.parse(timing.from)+Date.parse(timing.to))/2 : Date.parse(event.recorded_at);
@@ -700,7 +677,7 @@ function renderCampaignTimeline() {
 async function loadCampaignTimeline() {
   if (historyLoading) return;
   historyLoading=true; renderCampaignTimeline();
-  try { historyTimeline=await api('/api/history'); estimateBorderDisputeTiming(historyTimeline); }
+  try { historyTimeline=await api('/api/history'); }
   catch(error) { historyTimeline={battles:[],events:[],warnings:[],stats:{},import:{available:false,row_errors:[{errors:[error.message]}]}}; }
   finally { historyLoading=false; if(activeView==='chronicle'&&!currentDetail) renderCampaignTimeline(); }
 }
