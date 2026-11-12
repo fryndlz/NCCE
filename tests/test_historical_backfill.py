@@ -8,7 +8,17 @@ import sys
 import tempfile
 from unittest.mock import patch
 
-import pytest
+from contextlib import contextmanager
+
+@contextmanager
+def raises(error_type, match=None):
+    try:
+        yield
+    except error_type as exc:
+        if match and match not in str(exc):
+            raise AssertionError('Unexpected error: '+str(exc)) from exc
+    else:
+        raise AssertionError('Expected '+error_type.__name__)
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'src'),str(ROOT/'tests')]
@@ -31,7 +41,7 @@ def test_owner_authorization_scoped_and_schema_present():
     tmp,s,gang=fixture()
     try:
         assert s.schema_version>=21
-        with pytest.raises(ValueError,match='owner authorization'):
+        with raises(ValueError,match='owner authorization'):
             bulk.create(s,[gang])
         assert s.db.execute("SELECT count(*) FROM historical_backfill_jobs").fetchone()[0]==0
         job=bulk.create(s,[gang],owner_authorized=True)
@@ -39,9 +49,9 @@ def test_owner_authorization_scoped_and_schema_present():
         assert job['queued']>=1,job
         assert job['discovered']>=job['queued']
         assert set(bulk.reserved_targets(s))
-        with pytest.raises(ValueError,match='already has an active'):
+        with raises(ValueError,match='already has an active'):
             bulk.create(s,[gang],owner_authorized=True)
-        with pytest.raises(ValueError,match='must exist'):
+        with raises(ValueError,match='must exist'):
             bulk.create(s,['fake-gang-id'],owner_authorized=True)
         assert bulk.summary(s,job['job_id'])['count']>=1
     finally:s.close();tmp.cleanup()
@@ -85,7 +95,7 @@ def test_bulk_delivery_reuses_same_import_validator_and_manual_revision_is_norma
         assert imported['status']=='imported',imported
         assert imported['receipt'].startswith('exchange:')
         assert bulk.deliver(s,job['job_id'],payload)['receipt']==imported['receipt']
-        with pytest.raises(ValueError,match='immutable'):
+        with raises(ValueError,match='immutable'):
             bulk.deliver(s,job['job_id'],{**payload,'writer_text_md':'**Different**'})
         assert not any(p['request']['request_id']==selected['request_id']
                        for p in exchange.outbox(s))
@@ -142,7 +152,7 @@ def test_cancel_releases_reservations_and_never_unimports_successful_items():
         after=bulk.cancel(s,job['job_id'])
         assert after['state']=='CANCELLED'
         assert not bulk.reserved_targets(s)
-        with pytest.raises(ValueError,match='Only open jobs'):
+        with raises(ValueError,match='Only open jobs'):
             bulk.cancel(s,job['job_id'])
     finally:s.close();tmp.cleanup()
 
@@ -156,6 +166,12 @@ def test_empty_job_closes_and_cannot_be_reused():
                 pass
         job=bulk.create(s,[gang],owner_authorized=True)
         assert bulk.summary(s,job['job_id'])['state']=='ACTIVE'
-        with pytest.raises(ValueError,match='Unresolved'):
+        with raises(ValueError,match='Unresolved'):
             bulk.close(s,job['job_id'])
     finally:s.close();tmp.cleanup()
+
+
+if __name__=='__main__':
+    for name,check in list(globals().items()):
+        if name.startswith('test_') and callable(check):
+            check();print('PASS',name)
