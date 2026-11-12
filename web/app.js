@@ -566,6 +566,7 @@ function renderCampaignTimeline() {
   if (!importStatus.available && !battles.length && !events.length) {root.innerHTML=filtersMarkup+empty('Refresh the Sheet to load campaign history.');return;}
   const day=value=>value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw'}).format(new Date(value)) : '';
   const scoped=battles.filter(b=>(!historyFilters.battle || String(b.battle_id)===historyFilters.battle) && (!historyFilters.gang || list(b.gang_ids).map(String).includes(historyFilters.gang)) && (!historyFilters.place || String(b.territory_id || '')===historyFilters.place) && (!historyFilters.from || day(b.end_at || b.start_at || b.documented_at)>=historyFilters.from) && (!historyFilters.to || day(b.start_at || b.documented_at)<=historyFilters.to));
+  const latestEvent=Math.max(-Infinity,...events.map(event=>Date.parse(event.recorded_at)).filter(Number.isFinite));
   const dates=[...rows.map(e=>e.recorded_at),...scoped.flatMap(b=>[b.start_at,b.end_at,b.documented_at])].map(Date.parse).filter(Number.isFinite);
   let min=dates.length?Math.min(...dates):Date.now()-86400000, max=dates.length?Math.max(...dates):Date.now();
   if (max-min<86400000) {min-=43200000;max+=43200000;}
@@ -583,8 +584,18 @@ function renderCampaignTimeline() {
   const lanes=laneIds.map((gangId,index)=>{
     const y=105+index*112,color=historyGangColor(gangId),name=laneNames.get(gangId) || 'Campaign';
     const gangBattles=scoped.filter(b=>list(b.gang_ids).map(String).includes(gangId));
-    const ordered=gangBattles.filter(b=>b.start_at && b.end_at).slice().sort((a,b)=>Date.parse(a.start_at)-Date.parse(b.start_at));
-    const gaps=ordered.slice(1).map((b,i)=>{const previous=ordered[i],a=Math.max(start,Date.parse(previous.end_at)),z=Math.min(end,Date.parse(b.start_at));return z>a?`<rect class="timeline-downtime" x="${x(a)}" y="${y+39}" width="${x(z)-x(a)}" height="6"><title>Downtime</title></rect>`:'';}).join('');
+    const ordered=battles.filter(b=>list(b.gang_ids).map(String).includes(gangId) && Number.isFinite(Date.parse(b.start_at))).sort((a,b)=>Date.parse(a.start_at)-Date.parse(b.start_at));
+    const downtimeBar=(from,to)=>{
+      const a=Math.max(start,from),z=Math.min(end,to);
+      return z>a?`<rect class="timeline-downtime" x="${x(a)}" y="${y+39}" width="${x(z)-x(a)}" height="6"><title>Downtime</title></rect>`:'';
+    };
+    let battleEnd=null;
+    const gaps=ordered.map(b=>{
+      const gap=battleEnd===null?'':downtimeBar(battleEnd,Date.parse(b.start_at));
+      const ended=Date.parse(b.end_at);
+      battleEnd=Math.max(battleEnd ?? -Infinity,Number.isFinite(ended)?ended:Infinity);
+      return gap;
+    }).join('')+(battleEnd===null?'':downtimeBar(battleEnd,latestEvent));
     const bars=gangBattles.flatMap(b=>historyIntervals(b).filter(s=>Date.parse(s.end_at)>=start && Date.parse(s.start_at)<=end).map(s=>{
       const a=Math.max(start,Date.parse(s.start_at)),z=Math.min(end,Date.parse(s.end_at)),w=Math.max(5,x(z)-x(a));
       const title=`${b.scenario || 'Battle'} · ${list(b.gangs).map(g=>short(g.name)).join(' vs ')}\n${historyImperial(s.start_at)} — ${historyImperial(s.end_at)}\n${historyDate(s.start_at)} — ${historyDate(s.end_at)} · Engagement time ${historyDuration(historyPlaytime(b))}`;
