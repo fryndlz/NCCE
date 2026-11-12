@@ -378,7 +378,9 @@ def estimate_roster_timing(events, battles, snapshot_times):
             payload = event['raw_record'].get('payload') or {}
             field, before, after = (payload.get(key) for key in ('field', 'before', 'after'))
             numeric = type(before) in (int, float) and type(after) in (int, float)
-            combat = numeric and field == 'Kills' and after > before
+            # The confirmed battle batch also includes Sargen's XP award.
+            confirmed_xp = pilot and event.get('fighter_name') == 'Sargen' and field == 'XP'
+            combat = numeric and (field == 'Kills' or confirmed_xp) and after > before
             gear = field in {'Weapons', 'Equipment', 'Wargear'} and sorted(str(before or '').splitlines()) != sorted(str(after or '').splitlines())
             post_battle = gear or event['action_type'] in upgrades or (
                 event['fighter_id'] in upgraded and numeric and

@@ -88,16 +88,14 @@ const kills=e('kills','2026-10-26T10:00:00Z',{
   timestamp_basis:'first_observed',estimated_timing:{battle_id:b.battle_id,period:'battle',from:b.start_at,to:b.end_at}
 });
 `,ctx);
-assert.equal(vm.runInContext('historyEventPeriod(spend,b)',ctx),'post_battle');
-assert.match(vm.runInContext('historyEventStamp(spend)',ctx),/Estimated timing · post-battle.*First observed/);
+assert.equal(vm.runInContext('historyEventPeriod(spend,b)',ctx),'downtime');
+assert.match(vm.runInContext('historyEventStamp(spend)',ctx),/Estimated timing · downtime.*First observed/);
 assert.equal(vm.runInContext('historyEventPeriod(kills,b)',ctx),'battle');
 assert.equal(vm.runInContext('historyPlotTime(kills)',ctx),Date.parse('2026-10-25T10:30:00Z'));
 vm.runInContext(`
 historyTimeline.events=[spend,kills,e('observed-only',new Date(historyPlotTime(spend)).toISOString())];
 renderCampaignTimeline();
 `,ctx);
-assert.match(root.innerHTML,/Estimated in battle/);
-assert.match(root.innerHTML,/Estimated post-battle/);
-assert.match(root.innerHTML,/data-history-event="spend"/);
-assert.match(root.innerHTML,/data-history-event="observed-only"/);
+assert.doesNotMatch(root.innerHTML,/Estimated in battle|Estimated post-battle/);
+assert.ok([...root.innerHTML.matchAll(/class="timeline-event-point" cx="[^"]+" cy="([^"]+)"/g)].every(match=>match[1]==='87'));
 console.log('ok (timeline geometry, intervals, filtering, and estimated battle and post-battle timing)');
