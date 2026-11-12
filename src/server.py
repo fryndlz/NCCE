@@ -219,6 +219,24 @@ class H(BaseHTTPRequestHandler):
        return self.js({'items':bulk_backfill.claim(store,job_id,int(payload.get('limit',25)))})
       return self.js({'items':bulk_backfill.list_items(store,job_id,
        int(payload.get('after_sequence',0)),int(payload.get('limit',25)))})
+    if p.endswith('/bulk/correct'):
+     import bulk_backfill
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress'},409)
+      return self.js(bulk_backfill.correct_import(store,
+       payload.get('job_id'),payload.get('request_id'),payload.get('expected_receipt')))
+    if p.endswith('/bulk/escalate'):
+     import bulk_backfill
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress'},409)
+      return self.js(bulk_backfill.escalate(store,
+       payload.get('job_id'),payload.get('request_id')))
+    if p.endswith('/bulk/retry'):
+     import bulk_backfill
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress'},409)
+      return self.js(bulk_backfill.retry_held(store,
+       payload.get('job_id'),payload.get('request_id')))
     if p.endswith('/bulk/deliver'):
      import bulk_backfill
      with store._lock:
