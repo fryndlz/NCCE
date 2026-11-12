@@ -146,6 +146,15 @@ class H(BaseHTTPRequestHandler):
      'download':'/api/portable-writing-packet.zip','requires_owner_approval_for_learning':True})
   if p=='/api/voice-proposals':
    return self.js({'error':'Voice proposal review has been retired.'},410)
+  if p=='/api/historical-backfill':
+   import historical_backfill
+   query=parse_qs(parsed.query)
+   job_id=query.get('job_id',[None])[0]
+   if not job_id:return self.js({'error':'job_id is required'},400)
+   try:
+    with store.reader() as reader:
+     return self.js(historical_backfill.summary(reader,job_id,include_items=True))
+   except ValueError as exc:return self.js({'error':str(exc)},404)
   if p=='/api/writing-exchange':
    from writing_exchange import status
    with store.reader() as reader:return self.js({'deliveries':status(reader),'automation':exchange_automation.diagnostics(reader)})
@@ -194,6 +203,33 @@ class H(BaseHTTPRequestHandler):
     if length<0 or length>100000:return self.js({'error':'Delivery too large'},413)
     payload=json.loads(self.rfile.read(length).decode('utf-8'))
     if not isinstance(payload,dict):raise ValueError('Expected a JSON object')
+    if p.startswith('/api/writing-exchange/relay/bulk/'):
+     import historical_backfill
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':
+       return self.js({'error':'Campaign refresh in progress; retry later'},409)
+      action=p.rsplit('/',1)[-1]
+      if action=='create':
+       return self.js(historical_backfill.create(
+        store,payload.get('gang_ids'),owner_authorized=payload.get('owner_authorized')))
+      if action=='poll':
+       return self.js(historical_backfill.poll(
+        store,payload.get('job_id'),payload.get('limit',25)))
+      if action=='deliver':
+       return self.js(historical_backfill.deliver(
+        store,payload.get('job_id'),payload))
+      if action=='status':
+       return self.js(historical_backfill.summary(
+        store,payload.get('job_id'),include_items=True))
+      if action=='close':
+       return self.js(historical_backfill.close(store,payload.get('job_id')))
+      if action=='cancel':
+       return self.js(historical_backfill.cancel(store,payload.get('job_id')))
+      if action=='revise':
+       return self.js(historical_backfill.request_manual_revision(
+        store,payload.get('job_id'),payload.get('request_id'),
+        payload.get('expected_receipt')))
+     return self.js({'error':'Unknown bulk endpoint'},404)
     if p.endswith('/poll'):
      with store._lock:
       if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry saved work later'},409)
