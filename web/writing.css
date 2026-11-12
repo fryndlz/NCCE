@@ -229,6 +229,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visibl
 .timeline-detail .history-period ul,.timeline-cluster-panel ul,.history-fighter-events { padding:0; list-style:none; }
 .history-activity-entry { display:grid; grid-template-columns:24px minmax(0,1fr); gap:8px; width:100%; text-align:left; background:transparent; border:0; border-bottom:1px solid #303d3e; padding:12px 5px; border-radius:0; }
 .history-activity-entry:hover { background:#223035; }
+.history-estimate { display:block; }
+.history-estimate-dates { display:grid; gap:2px; margin-block:3px 5px; padding-inline-start:1em; }
 .history-event-icon { color:#a9c5cf; font:17px system-ui,sans-serif; padding-top:3px; }
 .history-event-description { display:block; overflow-wrap:anywhere; }
 .timeline-legend { flex-wrap:wrap; }

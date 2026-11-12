@@ -469,7 +469,7 @@ function historyTimingText(event) {
 function historyEventStamp(event) {
   const timing=event.estimated_timing;
   if (!timing) return historyStamp(event.recorded_at)+(event.timestamp_basis==='first_observed'?'<small class="timeline-mechanical">First observed · actual event time unknown</small>':'');
-  return `<span>${historyTimingText(event)}</span><small class="timeline-mechanical">${esc(historyDate(timing.from))} – ${esc(historyDate(timing.to))}</small><small class="timeline-mechanical">First observed ${esc(historyDate(event.recorded_at))}</small>`;
+  return `<span class="history-estimate">${historyTimingText(event)}<span class="history-estimate-dates"><small class="timeline-mechanical">${esc(historyDate(timing.from))} – ${esc(historyDate(timing.to))}</small><small class="timeline-mechanical">First observed ${esc(historyDate(event.recorded_at))}</small></span></span>`;
 }
 function timelineRows() {
   const query = historyFilters.q.trim().toLocaleLowerCase();
