@@ -177,6 +177,22 @@ function syncHistoricalBackfill(book) {
       bulkAudit(book,jobId,r.request_id,'EXPOSE','PENDING','',r.title);
     }
     const fresh=callNCCE('bulk/status',{job_id:jobId});
+    // Reconcile NCCE-side holds (including source-drift BEFORE a packet was
+    // released). Keep any editor-owned WRITING/READY text strictly untouched.
+    for(const entry of fresh.items||[]) {
+      if(!['HOLD','SKIPPED'].includes(entry.status))continue;
+      const itemRow=bulkFind(items,entry.request_id,18);
+      if(!itemRow)continue;
+      const saved=items.getRange(itemRow,1,1,18).getDisplayValues()[0];
+      if(!['WAITING','PENDING','SKIPPED','HOLD'].includes(saved[1])||saved[11])continue;
+      if(saved[1]!==entry.status) {
+        writeLiteral(items.getRange(itemRow,2),[[entry.status]]);
+        bulkAudit(book,jobId,entry.request_id,'HOLD',entry.status,'',entry.error);
+      }
+      if(saved[17]!==String(entry.error||'')) {
+        writeLiteral(items.getRange(itemRow,18),[[entry.error||'']]);
+      }
+    }
     const jobRow=bulkFind(jobs,jobId,10);
     writeLiteral(jobs.getRange(jobRow,2,1,6),[[
       fresh.state,JSON.stringify(fresh.scope),String(fresh.manifest.source_count),
