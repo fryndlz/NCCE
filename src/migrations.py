@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -939,6 +939,66 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(20,?,?)',
                        ('purge three superseded Boomer memory drafts',_now()))
             db.execute('PRAGMA user_version=20');db.commit()
+        except Exception:
+            db.rollback();raise
+    if current < 21:
+        try:
+            db.executescript('''BEGIN IMMEDIATE;
+                ALTER TABLE writing_exchange_requests
+                    ADD COLUMN bulk_job_id TEXT;
+                CREATE INDEX writing_exchange_bulk_requests
+                    ON writing_exchange_requests(bulk_job_id);
+
+                CREATE TABLE writing_bulk_jobs(
+                    job_id TEXT PRIMARY KEY,
+                    gang_id TEXT NOT NULL,
+                    gang_name TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    approval_policy TEXT NOT NULL DEFAULT 'MANUAL',
+                    snapshot_count INTEGER NOT NULL DEFAULT 0,
+                    skipped_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    authorized_at TEXT,
+                    closed_at TEXT
+                );
+                CREATE UNIQUE INDEX writing_bulk_one_active_job_per_gang
+                    ON writing_bulk_jobs(gang_id)
+                    WHERE state IN ('PREPARED','AUTHORIZED','RUNNING');
+
+                CREATE TABLE writing_bulk_items(
+                    job_id TEXT NOT NULL REFERENCES writing_bulk_jobs(job_id),
+                    request_id TEXT PRIMARY KEY REFERENCES writing_exchange_requests(request_id),
+                    fighter_id INTEGER NOT NULL,
+                    sequence INTEGER NOT NULL,
+                    target_key TEXT NOT NULL,
+                    source_seal TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    writer_text_md TEXT NOT NULL DEFAULT '',
+                    receipt TEXT,
+                    error TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(job_id,target_key),
+                    UNIQUE(job_id,sequence)
+                );
+                CREATE INDEX writing_bulk_items_job_state
+                    ON writing_bulk_items(job_id,state,sequence);
+                CREATE INDEX writing_bulk_items_target
+                    ON writing_bulk_items(target_key,state);
+
+                CREATE TABLE writing_bulk_audit(
+                    audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    job_id TEXT NOT NULL REFERENCES writing_bulk_jobs(job_id),
+                    request_id TEXT,
+                    action TEXT NOT NULL,
+                    detail TEXT NOT NULL DEFAULT '',
+                    at_utc TEXT NOT NULL
+                );
+                CREATE INDEX writing_bulk_audit_job
+                    ON writing_bulk_audit(job_id,audit_id);
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(21,?,?)',
+                       ('isolated owner-authorized historical backfill jobs',_now()))
+            db.execute('PRAGMA user_version=21');db.commit()
         except Exception:
             db.rollback();raise
     return SCHEMA_VERSION
