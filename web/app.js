@@ -771,11 +771,6 @@ async function render(view, preserveScroll = false) {
 function fighterEvidence(f) {
   return [`Role: ${f.class || 'Not recorded'} · ${f.type || 'Type not recorded'}`, `XP: ${f.xp ?? 0} · Recorded kills: ${f.kills ?? 0}`, `Status: ${fighterStatus(f)}`, ...(f.advancements ? ['Advancements: ' + f.advancements] : []), ...(f.effects ? ['Effects: ' + f.effects] : [])];
 }
-function memoryCard(memory) {
-  const type = memory.memory_type === 'reflection' ? 'Reflection' : 'Observation';
-  const status = memory.writer_status && memory.writer_status !== 'ready' ? `<p class="writer-pending" role="status">${esc(memory.writer_message || (memory.writer_status === 'stale' ? 'Earlier draft retained · not regenerated with current writing rules.' : `Narrative ${memory.writer_status} · ${memory.writer_status === 'unconfigured' ? 'writing is paused.' : 'writing is paused.'}`))}</p>` : '';
-  return `<article class="memory-card ${type.toLowerCase()}" id="memory-${esc(memory.id)}"><div class="entry-top"><span class="memory-kind">${type}</span><time>${dateStamp(memory)}</time></div>${memory.title ? `<div class="memory-trigger">${esc(memory.title)}</div>` : ''}${status}<div class="memory-voice">${writtenProse(memory.content,memory.content_runs)}</div>${evidence(memory.evidence || memory.mechanical_evidence || [], memory)}${memory.importance != null ? `<div class="memory-footer"><details class="memory-scoring"><summary>Salience ${esc(memory.importance)}</summary><p>Importance is the event’s narrative weight. It is not a game statistic.</p>${list(memory.tags).length ? `<p>Topics: ${list(memory.tags).map(esc).join(', ')}</p>` : ''}</details></div>` : ''}</article>`;
-}
 function voiceDetails(profile) {
   if (!profile || !Object.keys(profile).length) return '';
   const traits = Array.isArray(profile.traits) ? profile.traits.map(evidenceText) : typeof profile.traits === 'object' ? Object.entries(profile.traits).map(([key, value]) => `${human(key)}: ${displayValue(value)}`) : [profile.traits].filter(Boolean);
@@ -809,12 +804,11 @@ function identityEditor(fighter) {
   return `<details class="identity-editor"><summary>Correct or add an explicitly known detail</summary><p class="muted compact">The profile above is inferred from the roster, authored backstory and campaign evidence. Use this optional form only to add a detail you know; unknown fields can stay blank. Gender and pronouns are never guessed.</p><form data-identity-form="${esc(fighter.id)}">${fields.map(([key,label]) => `<label>${esc(label)}<input name="${key}" value="${esc(Array.isArray(identity[key]) ? identity[key].join('; ') : identity[key] || '')}"></label>`).join('')}<label>Perspective<select name="narration_mode">${[['','From recorded identity'],['sapient','Language and personal thought'],['sensory','Sensation and learned association'],['task_log','Task and instruction log']].map(([value,label]) => `<option value="${value}"${value === mode ? ' selected' : ''}>${label}</option>`).join('')}</select></label><button type="submit">Save known detail</button><p role="status" class="identity-status"></p></form></details>`;
 }
 function recordEventTime(row) { return row.occurred_at || row.recorded_at || row.event_date || row.date || row.observed_at || ''; }
-function entityTimeline(entries, facts, battles = [], extraRows = []) {
+function entityTimeline(entries, facts, battles = []) {
   const rows = [
     ...list(entries).map(e=>({key:'story-'+e.entry_id,record:e,label:e.title || 'Local account',kind:e.provenance_class==='connective_fiction'?'Fictional scene':e.scope_type==='territory'?'Territory event':e.scope_type==='gang'?'Gang event':'Story',body:`${e.provenance_class==='connective_fiction'?'<p class="entity-fiction-label">Invented local scene · no tabletop effects</p>':''}<div class="archive-paper event-paper">${blocks(e.document)}</div>${evidence(e.document?.evidence || [],e.document || e)}`})),
     ...list(facts).map(e=>({key:'fact-'+(e.event_id || e.id),record:e,label:e.title || [e.fighter_name,human(e.action_type || e.event_type)].filter(Boolean).join(' · ') || 'Recorded change',kind:'Recorded event',body:`<div class="entity-factual-event">${prose(e.description || list(eventSummary(e)).join(' · '))}</div>${evidence(e.evidence || [],e)}`})),
-    ...list(battles).map(b=>({key:'battle-'+b.id,record:b,label:(b.scenario || 'Engagement')+(b.territory?' — '+b.territory:''),kind:'Battle',body:battle(b,true)})),
-    ...extraRows
+    ...list(battles).map(b=>({key:'battle-'+b.id,record:b,label:(b.scenario || 'Engagement')+(b.territory?' — '+b.territory:''),kind:'Battle',body:battle(b,true)}))
   ];
   return timelineCards(rows);
 }
@@ -868,22 +862,13 @@ function memoryTimelineRows(memories, events, fighterName) {
   return {rows,count:rows.length};
 }
 function fighterRecordSections(f, memories) {
-  const observations=memories.filter(m=>m.memory_type!=='reflection');
-  const reflections=memories.filter(m=>m.memory_type==='reflection');
-  const baseline=observations.filter(m=>m.is_baseline || m.baseline), evolving=observations.filter(m=>!m.is_baseline && !m.baseline);
-  const archive=list(f.campaign_history?.events), represented=new Set(archive.map(e=>e.source_event_id).filter(Boolean)), tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id)), events=archive.length?archive:tracked;
-  if (String(f.id)==='10' && f.name==='Boomer' && f.gang_name==='The Slag Eaters') {
-    const timeline=memoryTimelineRows(memories,[...archive,...tracked],f.name);
-    return [
-      {id:'baseline',label:'Backstory',paper:true,paperStyle:fighterPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
-      {id:'timeline',label:'Timeline',count:timeline.count,body:timelineCards(timeline.rows)}
-    ];
-  }
-  const reflectionRows = memoryTimelineRows(reflections,[],f.name).rows;
+  const archive=list(f.campaign_history?.events);
+  const represented=new Set(archive.flatMap(e=>[e.event_id,e.source_event_id]).filter(Boolean));
+  const tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id));
+  const timeline=memoryTimelineRows(memories,[...archive,...tracked],f.name);
   return [
     {id:'baseline',label:'Backstory',paper:true,paperStyle:fighterPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
-    {id:'timeline',label:'Timeline',count:events.length+reflectionRows.length,description:'What happened to this fighter, ordered by recorded time. Open an event or reflection for its details.',body:entityTimeline([],events,[],reflectionRows)+(archive.length && tracked.length?`<details class="additional-history" data-key="fighter-ledger"><summary>Additional tracked changes · ${tracked.length}</summary>${entityTimeline([],tracked)}</details>`:'')},
-    {id:'memory',label:'Memory',count:observations.length,description:'How this fighter remembers their history, most recent first.',body:`<div class="memory-stream entity-memory">${evolving.map(memoryCard).join('') || empty('No event memories are available yet.')}</div>${baseline.length?`<details class="baseline-memory" data-key="baseline-memory"><summary>Baseline memories · ${baseline.length}<small>Background known at the start; these are not newly dated incidents.</small></summary><div class="memory-stream entity-memory">${baseline.map(memoryCard).join('')}</div></details>`:''}`},
+    {id:'timeline',label:'Timeline',count:timeline.count,body:timelineCards(timeline.rows)}
   ];
 }
 function fighterIsDeceased(fighter) {
@@ -899,7 +884,11 @@ function mindFeedBody(fighter) {
     return [`<p>${thought.memory_id ? `<a class="mind-source-link" href="#memory-${esc(thought.memory_id)}" title="Trace this thought to its source memory">${prose}</a>` : prose}</p>`];
   }).slice(0,MAX_MIND_THOUGHTS);
   if (rows.length < MAX_MIND_THOUGHTS && (!rows.length || Number(fighter.mind_status?.pending) > 0)) {
-    rows.push('<p class="mind-feed-empty" aria-label="Thought awaiting writing">Give me a moment to gather my thoughts.</p>');
+    const mode = fighter.mind_status?.narration_mode;
+    const placeholder = mode === 'sensory' ? 'Stillness. Listening.'
+      : mode === 'task_log' ? 'PROCESSING INPUT // RESPONSE PENDING'
+      : 'Give me a moment to gather my thoughts.';
+    rows.push(`<p class="mind-feed-empty" aria-label="Thought awaiting writing">${placeholder}</p>`);
   }
   return rows.join('');
 }

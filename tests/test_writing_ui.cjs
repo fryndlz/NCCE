@@ -6,7 +6,7 @@ const context = vm.createContext({document:{querySelector:()=>({})}, Intl, Date}
 vm.runInContext(fs.readFileSync('web/writing.js','utf8'),context);
 const app = fs.readFileSync(process.env.NCCE_APP_JS || 'web/app.js','utf8');
 vm.runInContext(app.slice(0,app.indexOf('async function api(')),context);
-vm.runInContext(app.slice(app.indexOf('function memoryCard('),app.indexOf('async function showFighter(')),context);
+vm.runInContext(app.slice(app.indexOf('function voiceDetails('),app.indexOf('async function showFighter(')),context);
 const run = code => vm.runInContext(code,context);
 const authoredRecordHtml = run("authoredRecord('+++ OFFICE +++\\n\\nReference: A/1\\nOriginal paragraph.\\nNext paragraph.\\n+=+=+=[ 💀 ]=+=+=+\\n<script>unsafe</script>')");
 assert.ok(authoredRecordHtml.includes('class="section-label"') && authoredRecordHtml.includes('class="mark-admin_label"'));
@@ -63,7 +63,7 @@ const editor = run('identityEditor(fighter)');
 assert.ok(editor.includes('inferred from the roster') && editor.includes('Gender and pronouns are never guessed'));
 assert.ok(editor.includes('Correct or add an explicitly known detail'));
 context.staleMemory = {id:'memory',memory_type:'observation',writer_status:'stale',title:'Condition changed',content:'The hurt makes the next shift uncertain.',evidence:['Status changed']};
-assert.ok(run('memoryCard(staleMemory)').includes('Earlier draft retained'));
+assert.equal(run("memoryTimelineRows([staleMemory], [], 'Fighter').count"),0);
 const server = fs.readFileSync('src/server.py','utf8');
 console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, inferred identity/stims, stale drafts, formatted dossier, retired writing controls)');
 

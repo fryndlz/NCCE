@@ -8,6 +8,25 @@ MAX_THOUGHTS=3
 def is_deceased(fighter):
     return bool(re.match(r'^(?:killed|dead|deceased)\b',str(fighter.get('status') or '').strip(),re.I))
 
+def placeholder_mode(fighter):
+    from writing_director import identity_context
+    try:
+        profile = json.loads(fighter.get('voice_profile_json') or '{}')
+    except (TypeError, ValueError):
+        profile = {}
+    if not isinstance(profile, dict):
+        profile = {}
+    identity = identity_context(fighter, {}, profile)
+    mode = identity['narration_mode']
+    if identity.get('identity', {}).get('narration_mode'):
+        return mode
+    designation = ' '.join(str(fighter.get(field) or '') for field in ('type','class'))
+    if re.search(r'\b(?:automata|automatons?|robots?|servitors?)\b', designation, re.I):
+        return 'task_log'
+    if mode == 'sapient' and re.search(r'\b(?:cyber[ -]?mastiff|cyberachnid|sumpkroc|phyrr cat)\b', designation, re.I):
+        return 'sensory'
+    return mode
+
 def packed(value):return json.dumps(value,ensure_ascii=False,sort_keys=True)
 def candidates(fighter, memories, at=None, store=None, clock=None):
     from story_engine import select_mind
@@ -100,4 +119,5 @@ def read(store,fighter,memories,at=None,clock=None):
                        'content':row['content'],'writer_status':'ready','provenance_class':'inference',
                        'evidence':source['evidence'],'source_event_ids':source['source_event_ids'],
                        'expires_at':None,'event_clock':cause['event_clock'],'selection_score':cause['score'],'score_details':cause['score_details']})
-    return result,{'pending':pending,'errors':errors,'candidate_count':len(selected),'max_thoughts':MAX_THOUGHTS,'separate_prose':True,'event_clock_head':clock['head']}
+    return result,{'pending':pending,'errors':errors,'candidate_count':len(selected),'max_thoughts':MAX_THOUGHTS,
+                   'separate_prose':True,'event_clock_head':clock['head'],'narration_mode':placeholder_mode(fighter)}
