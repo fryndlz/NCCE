@@ -76,24 +76,36 @@ def test_normal_exchange_skips_bulk_reservations_without_changing_legacy_queue()
 def test_bulk_delivery_reuses_same_import_validator_and_manual_revision_is_normal():
     tmp,s,gang=fixture()
     try:
+        exchange.prepare(s,client_states=[])
+        origin=next(p['request'] for p in exchange.outbox(s)
+                    if p['request']['form']=='gang_origin' and p['request']['entity_key']==gang)
+        assert exchange.deliver(s,{**origin,'status':'READY','writer_text_md':TEXT})['status']=='imported'
         job=bulk.create(s,[gang],owner_authorized=True)
-        selected=next(x for x in bulk._items(s,job['job_id']) if x['form']=='fighter_memory')
-        c=next(c for c in exchange.candidates(s) if exchange.target_key(c)==selected['target_key'])
-        # Fixture isolates a memory request from earlier unfinished phase work.
-        with patch.object(bulk,'plan',return_value=([c],{},{})):
-            packets=bulk.poll(s,job['job_id'],1)['packets']
+        packets=bulk.poll(s,job['job_id'],1)['packets']
         assert len(packets)==1
         packet=packets[0]
+        selected=next(x for x in bulk._items(s,job['job_id']) if x['request_id']==packet['request']['request_id'])
+        c=next(c for c in exchange.candidates(s) if exchange.target_key(c)==selected['target_key'])
         assert packet['request']['request_id']==selected['request_id']
         assert packet['request']['source_revision']
         assert bulk.poll(s,job['job_id'],1)['packets'][0]==packet
         payload=dict(job_id=job['job_id'],request_id=selected['request_id'],
                      source_revision=packet['request']['source_revision'],
                      status='READY',writer_text_md=TEXT)
+        canonical_deliver=exchange.deliver
+        def interrupt_after_commit(store, draft):
+            assert canonical_deliver(store,draft)['status']=='imported'
+            raise RuntimeError('Relay interrupted after canonical commit')
+        with patch.object(exchange,'deliver',side_effect=interrupt_after_commit):
+            with raises(RuntimeError,match='interrupted after canonical commit'):
+                bulk.deliver(s,job['job_id'],payload)
         with patch('llm_writer.write',side_effect=AssertionError('No model execution in NCCE')):
             imported=bulk.deliver(s,job['job_id'],payload)
         assert imported['status']=='imported',imported
+        assert imported['reused'] and imported['imported_at_utc']
         assert imported['receipt'].startswith('exchange:')
+        with raises(ValueError,match='revision does not match'):
+            bulk.deliver(s,job['job_id'],{**payload,'source_revision':'stale'})
         assert bulk.deliver(s,job['job_id'],payload)['receipt']==imported['receipt']
         with raises(ValueError,match='immutable'):
             bulk.deliver(s,job['job_id'],{**payload,'writer_text_md':'**Different**'})

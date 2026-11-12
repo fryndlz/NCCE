@@ -630,7 +630,9 @@ def diagnostics(store):
 
 
 def holds(store):
-    return [dict(r) for r in store.db.execute("SELECT request_id,source_revision,error FROM writing_exchange_requests WHERE state='HOLD'")]
+    from historical_backfill import is_bulk_request
+    return [dict(r) for r in store.db.execute("SELECT request_id,source_revision,error FROM writing_exchange_requests WHERE state='HOLD'")
+            if not is_bulk_request(store,r['request_id'])]
 
 
 def deferred(store):

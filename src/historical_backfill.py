@@ -241,7 +241,7 @@ def poll(store, job_id, limit=25):
         for item in items:
             if len(packets) >= limit:
                 break
-            if item["state"]!="PENDING" or item["target_key"] not in available:
+            if item["state"]!="PENDING":
                 continue
             c=lookup.get(item["target_key"])
             if not c or exchange.semantic_seal(store,c)!=item["source_seal"]:
@@ -250,6 +250,8 @@ def poll(store, job_id, limit=25):
                         "UPDATE historical_backfill_items SET state='HOLD',error=? WHERE request_id=?",
                         ("Underlying historical source changed since snapshot", item["request_id"]),
                     )
+                continue
+            if item["target_key"] not in available:
                 continue
             if digest(exchange._packet(store,c,item["request_id"])["context"])!=item["context_seal"]:
                 with store.db:
@@ -304,15 +306,33 @@ def deliver(store, job_id, payload):
         if not item:
             raise ValueError("Unknown request for this historical backfill")
         item = dict(item)
+        if payload.get("source_revision")!=item["source_revision"]:
+            raise ValueError("Frozen dispatched revision does not match")
         if item["state"]=="IMPORTED":
             if item["writer_text_md"]!=text:
                 raise ValueError("Imported bulk text is immutable; request manual revision")
             return {"status":"imported","request_id":request_id,
-                    "receipt":item["receipt"],"reused":True}
+                    "receipt":item["receipt"],"imported_at_utc":item["imported_at"],"reused":True}
+        # The canonical import commits before the bulk receipt is recorded.
+        # Recover that receipt even if the projection or job changed meanwhile.
+        committed = store.db.execute(
+            """SELECT raw_markdown,writer_note,receipt,imported_at FROM writing_exchange_requests
+               WHERE request_id=? AND target_key=? AND source_revision=? AND state='IMPORTED'""",
+            (request_id,item["target_key"],item["source_revision"]),
+        ).fetchone()
+        if committed:
+            if committed['raw_markdown'] != text:
+                raise ValueError("Imported bulk text is immutable; request manual revision")
+            with store.db:
+                store.db.execute(
+                    """UPDATE historical_backfill_items SET state='IMPORTED',writer_text_md=?,
+                       writer_note=?,receipt=?,imported_at=?,error='' WHERE request_id=?""",
+                    (text,committed['writer_note'],committed['receipt'],committed['imported_at'],request_id),
+                )
+            return {"status":"imported","request_id":request_id,"receipt":committed['receipt'],
+                    "imported_at_utc":committed['imported_at'],"reused":True}
         if job["state"]!="ACTIVE" or item["state"]!="WRITING":
             raise ValueError("Bulk request is not awaiting a draft")
-        if payload.get("source_revision")!=item["source_revision"]:
-            raise ValueError("Frozen dispatched revision does not match")
         packet=json.loads(item["packet_json"])
         request=packet["request"]
         if request["request_id"]!=request_id or request["source_revision"]!=item["source_revision"]:

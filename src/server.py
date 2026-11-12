@@ -9,7 +9,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.28.18'
+APP_VERSION='0.28.19'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -242,11 +242,15 @@ class H(BaseHTTPRequestHandler):
       return self.js({'packets':exchange_automation.outbox(store),'amendments':amendments(store),'holds':exchange_automation.holds(store),'deferred':exchange_automation.deferred(store),'waterfall':summary(store,exchange_automation.candidates(store)),'guidance':exchange_automation.guidance()})
     if p.endswith('/revise'):
      with store._lock:
+      from historical_backfill import is_bulk_request
+      if is_bulk_request(store,payload.get('request_id')):raise ValueError('Use the bulk revision endpoint for this request')
       if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry later'},409)
       return self.js(exchange_automation.request_revision(
        store,payload.get('request_id'),payload.get('expected_receipt')))
     if p.endswith('/deliver'):
      with store._lock:
+      from historical_backfill import is_bulk_request
+      if is_bulk_request(store,payload.get('request_id')):raise ValueError('Use the bulk delivery endpoint for this request')
       if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry saved work later'},409)
       return self.js(exchange_automation.deliver(store,payload))
     return self.js({'error':'Unknown relay endpoint'},404)

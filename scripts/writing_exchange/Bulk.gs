@@ -163,8 +163,8 @@ function syncHistoricalBackfill(book) {
       const found=bulkFind(items,r.request_id,18);
       if(found) {
         const prior=items.getRange(found,1,1,18).getDisplayValues()[0];
-        // A manifest placeholder can be promoted once, not an active claim.
-        if(prior[1]!=='WAITING'||prior[11])continue;
+        // DRAFT is a relay staging row left by an interrupted publication.
+        if(!['WAITING','DRAFT'].includes(prior[1])||prior[11])continue;
       }
       bulkContextWrite(context,packet);
       SpreadsheetApp.flush();

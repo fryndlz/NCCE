@@ -10,6 +10,7 @@ function onOpen() {
     .addItem('Install 5-minute relay', 'installNCCERelay')
     .addItem('Stop relay', 'stopNCCERelay').addToUi();
   SpreadsheetApp.getUi().createMenu('Historical backfill')
+    .addItem('Set up bulk tabs', 'setupHistoricalBackfill')
     .addItem('Create one-off backfill', 'createHistoricalBackfill')
     .addItem('Sync bulk jobs now', 'syncHistoricalBackfillNow')
     .addItem('Revise selected bulk memory', 'reviseSelectedBulkMemory')
