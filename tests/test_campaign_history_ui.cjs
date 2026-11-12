@@ -92,4 +92,12 @@ assert.equal(vm.runInContext('historyEventPeriod(spend,b)',ctx),'post_battle');
 assert.match(vm.runInContext('historyEventStamp(spend)',ctx),/Estimated timing · post-battle.*First observed/);
 assert.equal(vm.runInContext('historyEventPeriod(kills,b)',ctx),'battle');
 assert.equal(vm.runInContext('historyPlotTime(kills)',ctx),Date.parse('2026-10-25T10:30:00Z'));
+vm.runInContext(`
+historyTimeline.events=[spend,kills,e('observed-only',new Date(historyPlotTime(spend)).toISOString())];
+renderCampaignTimeline();
+`,ctx);
+assert.match(root.innerHTML,/Estimated in battle/);
+assert.match(root.innerHTML,/Estimated post-battle/);
+assert.match(root.innerHTML,/data-history-event="spend"/);
+assert.match(root.innerHTML,/data-history-event="observed-only"/);
 console.log('ok (timeline geometry, intervals, filtering, and estimated battle and post-battle timing)');

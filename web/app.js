@@ -596,12 +596,15 @@ function renderCampaignTimeline() {
   const x=t=>left+(t-start)/(end-start)*plotWidth;
   const laneIds=historyFilters.gang?[historyFilters.gang]:[...new Set([...scoped.flatMap(b=>list(b.gang_ids).map(String)),...rows.map(e=>String(e.gang_id || ''))])];
   if (!laneIds.length) laneIds.push('');
-  const laneNames=new Map(gangOptions), height=100+laneIds.length*112;
+  const timingRows=[['battle','Estimated in battle'],['post_battle','Estimated post-battle'],['downtime','Estimated downtime']]
+    .filter(([period])=>rows.some(event=>event.estimated_timing?.period===period));
+  const laneHeight=112+timingRows.length*28;
+  const laneNames=new Map(gangOptions), height=100+laneIds.length*laneHeight;
   const ticks=Array.from({length:5},(_,i)=>start+(end-start)*i/4);
   const grid=ticks.map((t,i)=>`<g class="timeline-axis-tick"><line x1="${x(t)}" y1="60" x2="${x(t)}" y2="${height-12}"/><text class="timeline-axis-imperial" x="${x(t)}" y="22" text-anchor="${i===0?'start':i===4?'end':'middle'}">${esc(historyImperial(t))}</text><text x="${x(t)}" y="42" text-anchor="${i===0?'start':i===4?'end':'middle'}">${esc(historyDate(t,end-start<3*86400000))}</text></g>`).join('');
   const clusterMap=new Map();
   const lanes=laneIds.map((gangId,index)=>{
-    const y=105+index*112,color=historyGangColor(gangId),name=laneNames.get(gangId) || 'Campaign';
+    const y=105+index*laneHeight,color=historyGangColor(gangId),name=laneNames.get(gangId) || 'Campaign';
     const gangBattles=scoped.filter(b=>list(b.gang_ids).map(String).includes(gangId));
     const ordered=battles.filter(b=>list(b.gang_ids).map(String).includes(gangId) && Number.isFinite(Date.parse(b.start_at))).sort((a,b)=>Date.parse(a.start_at)-Date.parse(b.start_at));
     const downtimeBar=(from,to)=>{
@@ -621,15 +624,20 @@ function renderCampaignTimeline() {
       return `<g class="timeline-battle-span${String(selectedHistoryBattle)===String(b.battle_id)?' selected':''}" data-history-battle="${esc(b.battle_id)}" role="button" tabindex="0" aria-label="${esc(title)}"><rect x="${x(a)}" y="${y+6}" width="${w}" height="23" rx="3"><title>${esc(title)}</title></rect>${w>95?`<text x="${x(a)+6}" y="${y+22}">${esc(b.scenario || 'Battle')}</text>`:''}</g>`;
     })).join('');
     const noTime=gangBattles.filter(b=>(!b.start_at || !b.end_at) && Date.parse(b.documented_at)>=start && Date.parse(b.documented_at)<=end).map(b=>`<path class="timeline-unverified" data-history-battle="${esc(b.battle_id)}" tabindex="0" role="button" aria-label="${esc(b.scenario || 'Battle')} · time unrecorded" d="M ${x(Date.parse(b.documented_at))} ${y+10} l 6 6 -6 6 -6 -6 z"/>`).join('');
-    const clusters=historyClusterEvents(rows.filter(e=>String(e.gang_id || '')===gangId && historyPlotTime(e)>=start && historyPlotTime(e)<=end),x);
-    const dots=clusters.map((c,i)=>{
-      const count=c.items.length,key=`${gangId}:${i}`,estimate=historyTimingText(c.items[0]),title=estimate && c.items.every(e=>historyTimingText(e)===estimate)?`${count>1?count+" changes":c.items[0].entity_label || name} · ${estimate}`:count>1?`${count} recorded changes · ${short(name)}\n${historyDate(c.items[0].recorded_at)} — ${historyDate(c.items[count-1].recorded_at)}`:`${c.items[0].entity_label || name} · ${human(c.items[0].action_type)}\n${historyImperial(c.items[0].recorded_at)}\n${historyDate(c.items[0].recorded_at)}`;
-      if (count>1) clusterMap.set(key,c.items.map(e=>String(e.event_id)));
-      return `<g class="timeline-marker${count>1?' timeline-cluster':''}" ${count>1?`data-history-cluster="${esc(key)}"`:`data-history-event="${esc(c.items[0].event_id)}"`} tabindex="0" role="button" aria-label="${esc(title)}"><circle class="timeline-event-point" cx="${c.x}" cy="${y-18}" r="${count>1?12:5}"><title>${esc(title)}</title></circle>${count>1?`<text x="${c.x}" y="${y-14}" text-anchor="middle">${count}</text>`:''}</g>`;
+    const visibleEvents=rows.filter(e=>String(e.gang_id || '')===gangId && historyPlotTime(e)>=start && historyPlotTime(e)<=end);
+    const dots=[['', ''], ...timingRows].map(([period,label],rowIndex)=>{
+      const markerY=period?y+62+(rowIndex-1)*28:y-18;
+      const clusters=historyClusterEvents(visibleEvents.filter(e=>(e.estimated_timing?.period || '')===period),x);
+      const markers=clusters.map((c,i)=>{
+        const count=c.items.length,key=`${gangId}:${period}:${i}`,estimate=historyTimingText(c.items[0]),title=estimate?`${count>1?count+" changes":c.items[0].entity_label || name} · ${estimate}`:count>1?`${count} recorded changes · ${short(name)}\n${historyDate(c.items[0].recorded_at)} — ${historyDate(c.items[count-1].recorded_at)}`:`${c.items[0].entity_label || name} · ${human(c.items[0].action_type)}\n${historyImperial(c.items[0].recorded_at)}\n${historyDate(c.items[0].recorded_at)}`;
+        if (count>1) clusterMap.set(key,c.items.map(e=>String(e.event_id)));
+        return `<g class="timeline-marker${count>1?' timeline-cluster':''}" ${count>1?`data-history-cluster="${esc(key)}"`:`data-history-event="${esc(c.items[0].event_id)}"`} tabindex="0" role="button" aria-label="${esc(title)}"><circle class="timeline-event-point" cx="${c.x}" cy="${markerY}" r="${count>1?12:5}"><title>${esc(title)}</title></circle>${count>1?`<text x="${c.x}" y="${markerY+4}" text-anchor="middle">${count}</text>`:''}</g>`;
+      }).join('');
+      return (label && clusters.length?`<text class="timeline-lane-playtime" x="${left-18}" y="${markerY+4}" text-anchor="end">${label}</text>`:'')+`<g clip-path="url(#history-plot-clip)">${markers}</g>`;
     }).join('');
     const nameParts=short(name).match(/.{1,26}(?:\s|$)|.{1,26}/g) || [name];
     const playtime=gangBattles.reduce((n,b)=>n+(historyPlaytime(b) || 0),0);
-    return `<g class="timeline-lane" style="--gang-color:${color}"><text class="timeline-lane-label" x="${left-18}" y="${y-25}" text-anchor="end">${nameParts.slice(0,3).map((part,i)=>`<tspan x="${left-18}" dy="${i?15:0}">${esc(part.trim())}</tspan>`).join('')}<title>${esc(name)}</title></text><text class="timeline-lane-engagements" x="${left-18}" y="${y+20}" text-anchor="end">${gangBattles.length} engagement${gangBattles.length===1?'':'s'}</text><text class="timeline-lane-playtime" x="${left-18}" y="${y+47}" text-anchor="end">${historyDuration(playtime)} engagement time</text><line class="timeline-lane-line" x1="${left}" y1="${y+17}" x2="${width-right}" y2="${y+17}"/><g clip-path="url(#history-plot-clip)">${gaps}${dots}${bars}${noTime}</g></g>`;
+    return `<g class="timeline-lane" style="--gang-color:${color}"><text class="timeline-lane-label" x="${left-18}" y="${y-25}" text-anchor="end">${nameParts.slice(0,3).map((part,i)=>`<tspan x="${left-18}" dy="${i?15:0}">${esc(part.trim())}</tspan>`).join('')}<title>${esc(name)}</title></text><text class="timeline-lane-engagements" x="${left-18}" y="${y+20}" text-anchor="end">${gangBattles.length} engagement${gangBattles.length===1?'':'s'}</text><text class="timeline-lane-playtime" x="${left-18}" y="${y+47}" text-anchor="end">${historyDuration(playtime)} engagement time</text><line class="timeline-lane-line" x1="${left}" y1="${y+17}" x2="${width-right}" y2="${y+17}"/><g clip-path="url(#history-plot-clip)">${gaps}${bars}${noTime}</g>${dots}</g>`;
   }).join('');
   const visibleIds=new Set(rows.map(e=>String(e.event_id)));
   if (!visibleIds.has(String(selectedHistoryEvent))) selectedHistoryEvent=null;
