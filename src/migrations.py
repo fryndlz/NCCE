@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -939,6 +939,52 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(20,?,?)',
                        ('purge three superseded Boomer memory drafts',_now()))
             db.execute('PRAGMA user_version=20');db.commit()
+        except Exception:
+            db.rollback();raise
+    if current < 21:
+        try:
+            db.executescript('''BEGIN IMMEDIATE;
+                CREATE TABLE historical_backfill_jobs(
+                    job_id TEXT PRIMARY KEY,
+                    scope_json TEXT NOT NULL,
+                    state TEXT NOT NULL CHECK(state IN (
+                        'PREPARED','ACTIVE','COMPLETED','COMPLETED_WITH_ERRORS','CANCELLED')),
+                    created_at TEXT NOT NULL,
+                    authorized_at TEXT NOT NULL,
+                    closed_at TEXT,
+                    manifest_json TEXT NOT NULL
+                );
+                CREATE TABLE historical_backfill_items(
+                    request_id TEXT PRIMARY KEY,
+                    job_id TEXT NOT NULL REFERENCES historical_backfill_jobs(job_id),
+                    ordinal INTEGER NOT NULL,
+                    target_key TEXT NOT NULL,
+                    entity_key TEXT NOT NULL,
+                    form TEXT NOT NULL,
+                    source_seal TEXT NOT NULL,
+                    context_seal TEXT NOT NULL DEFAULT '',
+                    snapshot_json TEXT NOT NULL,
+                    state TEXT NOT NULL CHECK(state IN ('PENDING','WRITING','IMPORTED','HOLD','SKIPPED')),
+                    packet_json TEXT,
+                    source_revision TEXT,
+                    writer_text_md TEXT,
+                    writer_note TEXT,
+                    error TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    dispatched_at TEXT,
+                    imported_at TEXT,
+                    receipt TEXT,
+                    UNIQUE(job_id,target_key),
+                    UNIQUE(job_id,ordinal)
+                );
+                CREATE INDEX historical_backfill_items_by_job
+                    ON historical_backfill_items(job_id,state,ordinal);
+                CREATE INDEX historical_backfill_items_by_target
+                    ON historical_backfill_items(target_key,state);
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(21,?,?)',
+                       ('separate owner-authorized historical backfill jobs and item ledger',_now()))
+            db.execute('PRAGMA user_version=21');db.commit()
         except Exception:
             db.rollback();raise
     return SCHEMA_VERSION

@@ -9,6 +9,13 @@ function onOpen() {
     .addItem('Sync now', 'syncNCCE').addItem('Revise selected IMPORTED entry', 'reviseSelectedNCCE')
     .addItem('Install 5-minute relay', 'installNCCERelay')
     .addItem('Stop relay', 'stopNCCERelay').addToUi();
+  SpreadsheetApp.getUi().createMenu('Historical backfill')
+    .addItem('Set up bulk tabs', 'setupHistoricalBackfill')
+    .addItem('Create one-off backfill', 'createHistoricalBackfill')
+    .addItem('Sync bulk jobs now', 'syncHistoricalBackfillNow')
+    .addItem('Revise selected bulk memory', 'reviseSelectedBulkMemory')
+    .addItem('Finalize selected job with errors', 'finalizeSelectedBulkJob')
+    .addToUi();
 }
 
 /** Owner-initiated: a NEW request and Queue row, never mutation of imported prose. */
@@ -311,5 +318,25 @@ function syncNCCE() {
     queue.getRange('F3').setFormula('=COUNTIFS(C6:C;"<>";B6:B;"IMPORTED")');
     writeQueueStatus(book,outbox.waterfall,queue); // Read actual statuses after all mutations.
     PropertiesService.getScriptProperties().setProperty('NCCE_LAST_SUCCESS_UTC', new Date().toISOString());
+    // Optional historical backfill may fail without interrupting the canonical
+    // Queue relay, its receipts or its five-item writer buffer.
+    try { syncHistoricalBackfill(book); }
+    catch (error) {
+      console.error('Bulk backfill sync failed (normal NCCE relay completed): '+error.message);
+      const bulk=book.getSheetByName('Bulk Jobs');
+      if(bulk&&bulk.getLastRow()>1) {
+        // Diagnostic only; do not alter source or writing statuses.
+        bulk.getRange(2,10).setValue(String(error.message).slice(0,300));
+      }
+    }
   } finally { lock.releaseLock(); }
+}
+
+
+/** Manual bulk sync without touching the normal Queue. */
+function syncHistoricalBackfillNow() {
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(1000))return;
+  try { syncHistoricalBackfill(SpreadsheetApp.openById(EXCHANGE_ID)); }
+  finally { lock.releaseLock(); }
 }
