@@ -157,17 +157,23 @@ def test_cancel_releases_reservations_and_never_unimports_successful_items():
     finally:s.close();tmp.cleanup()
 
 
-def test_empty_job_closes_and_cannot_be_reused():
+def test_unresolved_job_can_only_close_with_explicit_held_item_audit():
     tmp,s,gang=fixture()
     try:
-        # An already accepted memory is protected, not rediscovered.
-        for c in exchange.candidates(s):
-            if c['form'] in bulk.FORMS and c['entity_type']=='fighter':
-                pass
         job=bulk.create(s,[gang],owner_authorized=True)
         assert bulk.summary(s,job['job_id'])['state']=='ACTIVE'
+        items=bulk._items(s,job['job_id'])
+        assert items and all(item['state']=='PENDING' for item in items)
+        for item in items:
+            assert item['context_seal']==digest(
+                json.loads(item['packet_json'])['context'])
         with raises(ValueError,match='Unresolved'):
             bulk.close(s,job['job_id'])
+        done=bulk.close(s,job['job_id'],finalize_unresolved=True)
+        assert done['state']=='COMPLETED_WITH_ERRORS'
+        assert done['statuses']['HOLD']==len(items)
+        assert not bulk.reserved_targets(s)
+        assert all(item['error'] for item in bulk._items(s,job['job_id']))
     finally:s.close();tmp.cleanup()
 
 
