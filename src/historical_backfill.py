@@ -194,6 +194,7 @@ def summary(store, job_id, include_items=False):
         result["items"] = [{
             "request_id":x["request_id"],"target_key":x["target_key"],
             "entity_key":x["entity_key"],"form":x["form"],
+            "title":json.loads(x["snapshot_json"])["target"]["title"],
             "status":x["state"],"error":x["error"],
             "receipt":x["receipt"],"source_revision":x["source_revision"],
             "text_length":len(x["writer_text_md"] or ""),
