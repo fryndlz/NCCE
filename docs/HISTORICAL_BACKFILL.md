@@ -67,7 +67,7 @@ NCCE itself never calls a language model. A connected writer/Work execution must
 
 **Identity invariant:** an imported memory keeps its logical target and existing original import ID; a subsequent correction gets a new request ID. Revision requests never change campaign mechanics and never silently inherit the one-off bulk job's auto-approval.
 
-The job can close only when all entries are imported, held or skipped. It closes `COMPLETED` or `COMPLETED_WITH_ERRORS`, which expires its authorisation. Blocked prerequisite items require intervention, not silent acceptance.
+The job normally closes only when all entries are imported, held or skipped. An explicit **Finalize selected job with errors** owner action may first mark unresolved, unclaimed WAITING items HOLD with preserved reasons; active WRITING claims block forced closure. It closes `COMPLETED` or `COMPLETED_WITH_ERRORS`, which expires its authorisation. Blocked prerequisite items require intervention, not silent acceptance.
 
 ## Deployment / rollback
 
