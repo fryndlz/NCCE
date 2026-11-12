@@ -146,6 +146,21 @@ class H(BaseHTTPRequestHandler):
      'download':'/api/portable-writing-packet.zip','requires_owner_approval_for_learning':True})
   if p=='/api/voice-proposals':
    return self.js({'error':'Voice proposal review has been retired.'},410)
+  if p=='/api/backfill/jobs' or p.startswith('/api/backfill/jobs/'):
+   import bulk_backfill
+   parts=p.strip('/').split('/')
+   try:
+    with store.reader() as reader:
+     if len(parts)==3:return self.js({'jobs':bulk_backfill.list_jobs(reader)})
+     if len(parts)==4:return self.js({'job':bulk_backfill.get_job(reader,parts[3])})
+     if len(parts)==5 and parts[4]=='items':
+      params=parse_qs(parsed.query)
+      return self.js({'items':bulk_backfill.list_items(reader,parts[3],
+       int(params.get('after',[0])[0]),int(params.get('limit',[25])[0]))})
+     if len(parts)==5 and parts[4]=='audit':
+      return self.js({'audit':bulk_backfill.audit(reader,parts[3])})
+   except (ValueError,TypeError) as exc:return self.js({'error':str(exc)},400)
+   return self.js({'error':'Unknown backfill endpoint'},404)
   if p=='/api/writing-exchange':
    from writing_exchange import status
    with store.reader() as reader:return self.js({'deliveries':status(reader),'automation':exchange_automation.diagnostics(reader)})
@@ -194,6 +209,24 @@ class H(BaseHTTPRequestHandler):
     if length<0 or length>100000:return self.js({'error':'Delivery too large'},413)
     payload=json.loads(self.rfile.read(length).decode('utf-8'))
     if not isinstance(payload,dict):raise ValueError('Expected a JSON object')
+    if p.endswith('/bulk/poll'):
+     import bulk_backfill
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress'},409)
+      job_id=payload.get('job_id')
+      if not job_id:return self.js({'jobs':bulk_backfill.list_jobs(store)})
+      if payload.get('claim'):
+       return self.js({'items':bulk_backfill.claim(store,job_id,int(payload.get('limit',25)))})
+      return self.js({'items':bulk_backfill.list_items(store,job_id,
+       int(payload.get('after_sequence',0)),int(payload.get('limit',25)))})
+    if p.endswith('/bulk/deliver'):
+     import bulk_backfill
+     with store._lock:
+      if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress'},409)
+      return self.js(bulk_backfill.submit(store,
+       payload.get('job_id'),payload.get('request_id'),
+       payload.get('source_revision'),payload.get('writer_text_md'),
+       payload.get('writer_note','')))
     if p.endswith('/poll'):
      with store._lock:
       if store.get_state('sync_status')=='syncing':return self.js({'error':'Campaign refresh in progress; retry saved work later'},409)
@@ -233,6 +266,41 @@ class H(BaseHTTPRequestHandler):
    payload=b'{"ok":true}'; self.send_response(200); self.send_header('Content-Type','application/json; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.send_header('Set-Cookie',cookie); self.send_header('Content-Length',str(len(payload))); self.end_headers(); self.wfile.write(payload)
    return
   if AUTH_REQUIRED and not self._authenticated():return self.js({'error':'authentication required'},401)
+  if p=='/api/backfill/jobs' or p.startswith('/api/backfill/jobs/'):
+   import bulk_backfill
+   origin=self.headers.get('Origin')
+   if origin and urlparse(origin).netloc!=self.headers.get('Host'):
+    return self.js({'error':'Cross-origin edits are not allowed'},403)
+   try:
+    length=int(self.headers.get('Content-Length','0'))
+    if length<0 or length>16384:return self.js({'error':'Backfill request too large'},413)
+    payload=json.loads(self.rfile.read(length).decode('utf-8'))
+    if not isinstance(payload,dict):raise ValueError('Expected object')
+    parts=p.strip('/').split('/')
+    with store._lock:
+     if store.get_state('sync_status')=='syncing':
+      return self.js({'error':'Campaign refresh in progress'},409)
+     if len(parts)==3:
+      result=bulk_backfill.create_job(store,payload.get('gang_id'))
+      return self.js({'job':result},201)
+     if len(parts)!=5:raise ValueError('Unknown backfill operation')
+     job_id,op=parts[3],parts[4]
+     if op=='authorize':
+      return self.js({'job':bulk_backfill.authorize_job(
+       store,job_id,payload.get('expected_count'))})
+     if op=='claim':return self.js({'items':bulk_backfill.claim(
+      store,job_id,payload.get('limit',25))})
+     if op=='finish':return self.js({'job':bulk_backfill.finish(store,job_id)})
+     if op=='cancel':return self.js({'job':bulk_backfill.cancel(store,job_id)})
+     if op=='retry':return self.js({'item':bulk_backfill.retry_held(
+      store,job_id,payload.get('request_id'))})
+     if op=='escalate':return self.js({'item':bulk_backfill.escalate(
+      store,job_id,payload.get('request_id'))})
+     if op=='correct':return self.js({'revision':bulk_backfill.correct_import(
+      store,job_id,payload.get('request_id'),payload.get('expected_receipt'))})
+     raise ValueError('Unknown backfill operation')
+   except (ValueError,TypeError,KeyError,UnicodeDecodeError) as exc:
+    return self.js({'error':str(exc)},400)
   if p=='/api/voice-proposals/review':
    return self.js({'error':'Voice proposal review has been retired.'},410)
   if p.startswith('/api/fighters/') and p.endswith('/identity'):
