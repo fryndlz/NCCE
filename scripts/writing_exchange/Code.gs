@@ -8,7 +8,15 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('NCCE relay')
     .addItem('Sync now', 'syncNCCE').addItem('Revise selected IMPORTED entry', 'reviseSelectedNCCE')
     .addItem('Install 5-minute relay', 'installNCCERelay')
-    .addItem('Stop relay', 'stopNCCERelay').addToUi();
+    .addItem('Stop relay', 'stopNCCERelay')
+    .addSeparator()
+    .addItem('Sync historical backfill', 'syncNCCEBulk')
+    .addItem('Install separate bulk relay', 'installNCCEBulkRelay')
+    .addItem('Stop bulk relay', 'stopNCCEBulkRelay')
+    .addItem('Correct selected imported bulk entry', 'reviseSelectedBulkNCCE')
+    .addItem('Retry selected held bulk entry', 'retrySelectedBulkNCCE')
+    .addItem('Move selected bulk entry to manual review', 'escalateSelectedBulkNCCE')
+    .addToUi();
 }
 
 /** Owner-initiated: a NEW request and Queue row, never mutation of imported prose. */
