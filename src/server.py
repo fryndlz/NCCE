@@ -211,7 +211,8 @@ class H(BaseHTTPRequestHandler):
       action=p.rsplit('/',1)[-1]
       if action=='create':
        return self.js(historical_backfill.create(
-        store,payload.get('gang_ids'),owner_authorized=payload.get('owner_authorized')))
+        store,payload.get('gang_ids'),gang_names=payload.get('gang_names'),
+        house_types=payload.get('house_types'),owner_authorized=payload.get('owner_authorized')))
       if action=='poll':
        return self.js(historical_backfill.poll(
         store,payload.get('job_id'),payload.get('limit',25)))
