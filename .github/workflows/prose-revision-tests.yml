@@ -8,6 +8,8 @@ on:
       - 'scripts/writing_exchange/Code.gs'
       - 'tests/test_exchange_automation.py'
       - 'src/historical_backfill.py'
+      - 'src/editorial_revision_seed.py'
+      - 'tests/test_editorial_revision_seed.py'
       - 'scripts/writing_exchange/Bulk.gs'
       - 'tests/test_historical_backfill.py'
       - '.github/workflows/prose-revision-tests.yml'
@@ -19,6 +21,8 @@ on:
       - 'scripts/writing_exchange/Code.gs'
       - 'tests/test_exchange_automation.py'
       - 'src/historical_backfill.py'
+      - 'src/editorial_revision_seed.py'
+      - 'tests/test_editorial_revision_seed.py'
       - 'scripts/writing_exchange/Bulk.gs'
       - 'tests/test_historical_backfill.py'
       - '.github/workflows/prose-revision-tests.yml'
@@ -37,6 +41,8 @@ jobs:
         run: python tests/test_exchange_automation.py
       - name: Run isolated historical backfill tests
         run: python tests/test_historical_backfill.py
+      - name: Run one-shot editorial revision seed checks
+        run: python tests/test_editorial_revision_seed.py
       - name: Parse Google Apps Script relay JavaScript
         run: |
           node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Code.gs','utf8'))"
