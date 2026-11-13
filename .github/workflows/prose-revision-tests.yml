@@ -11,6 +11,7 @@ on:
       - 'src/editorial_revision_seed.py'
       - 'tests/test_editorial_revision_seed.py'
       - 'scripts/writing_exchange/Bulk.gs'
+      - 'scripts/writing_exchange/EditorialQA.gs'
       - 'tests/test_historical_backfill.py'
       - '.github/workflows/prose-revision-tests.yml'
   pull_request:
@@ -24,6 +25,7 @@ on:
       - 'src/editorial_revision_seed.py'
       - 'tests/test_editorial_revision_seed.py'
       - 'scripts/writing_exchange/Bulk.gs'
+      - 'scripts/writing_exchange/EditorialQA.gs'
       - 'tests/test_historical_backfill.py'
       - '.github/workflows/prose-revision-tests.yml'
 
@@ -47,5 +49,6 @@ jobs:
         run: |
           node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Code.gs','utf8'))"
           node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/Bulk.gs','utf8'))"
+          node -e "new Function(require('fs').readFileSync('scripts/writing_exchange/EditorialQA.gs','utf8'))"
       - name: Run writing waterfall tests
         run: python tests/test_writing_waterfall.py

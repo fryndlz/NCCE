@@ -236,6 +236,13 @@ class H(BaseHTTPRequestHandler):
         finalize_unresolved=payload.get('finalize_unresolved') is True))
       if action=='cancel':
        return self.js(historical_backfill.cancel(store,payload.get('job_id')))
+      if action=='revise-batch':
+       # A deliberate owner operation. Never writes or approves replacement prose.
+       if payload.get('owner_authorized') is not True:
+        raise ValueError('Explicit owner authorization required for batch corrections')
+       from editorial_revision_seed import apply as apply_editorial_revision_batch
+       batch={key:payload[key] for key in ('job_id','items') if key in payload}
+       return self.js(apply_editorial_revision_batch(store,json.dumps(batch)))
       if action=='revise':
        return self.js(historical_backfill.request_manual_revision(
         store,payload.get('job_id'),payload.get('request_id'),
