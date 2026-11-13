@@ -13,6 +13,7 @@ function onOpen() {
     .addItem('Set up bulk tabs', 'setupHistoricalBackfill')
     .addItem('Create one-off backfill', 'createHistoricalBackfill')
     .addItem('Sync bulk jobs now', 'syncHistoricalBackfillNow')
+    .addItem('Create corrections for all failed QA entries', 'createCorrectionsForFailedQA')
     .addItem('Revise selected bulk memory', 'reviseSelectedBulkMemory')
     .addItem('Finalize selected job with errors', 'finalizeSelectedBulkJob')
     .addToUi();
