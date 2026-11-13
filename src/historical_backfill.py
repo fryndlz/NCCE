@@ -287,14 +287,28 @@ def poll(store, job_id, limit=25):
                                and x["target_key"] in blocked])}
 
 
+def _validate_bulk_text(form, text):
+    """Apply the live writing contract by prose form, not by bulk job.
+
+    A fighter_memory has a 350-character hard cap including Markdown.
+    A fighter_reflection is a distinct synthesis form and is not subject
+    to that cap; the canonical exchange importer enforces its own
+    30,000-character cell limit for all forms.
+    """
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("Complete nonempty bulk prose required")
+    if form == "fighter_memory" and len(text) > 350:
+        raise ValueError("Complete fighter memory (<=350 characters including Markdown) required")
+    if len(text) >= 30000:
+        raise ValueError("Bulk prose must be shorter than 30000 characters")
+
+
 def deliver(store, job_id, payload):
     """Converge at the EXISTING validated importer, with an invisible bridge row."""
     if not isinstance(payload,dict):
         raise ValueError("Expected a delivery object")
     request_id=payload.get("request_id")
     text=payload.get("writer_text_md")
-    if not isinstance(text,str) or not text.strip() or len(text)>350:
-        raise ValueError("Complete fighter memory (<=350 characters including Markdown) required")
     if payload.get("status")!="READY":
         raise ValueError("Only READY bulk drafts can import")
     with store._lock:
@@ -306,6 +320,7 @@ def deliver(store, job_id, payload):
         if not item:
             raise ValueError("Unknown request for this historical backfill")
         item = dict(item)
+        _validate_bulk_text(item["form"], text)
         if payload.get("source_revision")!=item["source_revision"]:
             raise ValueError("Frozen dispatched revision does not match")
         if item["state"]=="IMPORTED":
