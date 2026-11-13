@@ -46,7 +46,7 @@ The full manifest is visible immediately in **Bulk Items**, even when an entry i
 
 An owner may authorize autonomous acceptance **for one finite job**. This is not a property of the writer's style skill, nor a standing authorisation for future Queue items.
 
-Writers must use accepted prose and individual voice guidelines; House Orlock's many approved fighter voices should be consulted, not only *Damaged Freight*. Fighter memories and reflections have a hard 350-character limit **including Markdown**.
+Writers must use accepted prose and individual voice guidelines; House Orlock's many approved fighter voices should be consulted, not only *Damaged Freight*. Only `fighter_memory` has the hard 350-character limit **including Markdown**. `fighter_reflection` is a separate synthesis form (normally 60–130 words when the supplied literary policy specifies this target) and must not be truncated to the memory cap.
 
 A bulk writer saves the complete Markdown in `Bulk Items.writer_text_md` (column L), optionally a note (M), and marks the saved item `READY` (column B). It must re-check exact request ID, source revision, event evidence, status, title and character limit before marking READY. The relay delivers saved text without rewriting it.
 

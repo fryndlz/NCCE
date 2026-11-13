@@ -18,6 +18,9 @@ on:
       - 'src/server.py'
       - 'scripts/writing_exchange/Code.gs'
       - 'tests/test_exchange_automation.py'
+      - 'src/historical_backfill.py'
+      - 'scripts/writing_exchange/Bulk.gs'
+      - 'tests/test_historical_backfill.py'
       - '.github/workflows/prose-revision-tests.yml'
 
 jobs:
