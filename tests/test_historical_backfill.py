@@ -37,6 +37,19 @@ def fixture():
     return tmp,store,str(row['gang_id'])
 
 
+def test_bulk_text_validation_is_form_specific():
+    reflection = "**WHAT REMAINS**\n\n" + ("I remember what the work cost, and reckon it mattered. " * 10)
+    assert len(reflection) > 350
+    bulk._validate_bulk_text("fighter_reflection", reflection)
+    with raises(ValueError, match="350 characters"):
+        bulk._validate_bulk_text("fighter_memory", reflection)
+    with raises(ValueError, match="nonempty"):
+        bulk._validate_bulk_text("fighter_reflection", "   ")
+    with raises(ValueError, match="30000"):
+        bulk._validate_bulk_text("fighter_reflection", "A" * 30000)
+    bulk._validate_bulk_text("fighter_memory", TEXT)
+
+
 def test_owner_authorization_scoped_and_schema_present():
     tmp,s,gang=fixture()
     try:
