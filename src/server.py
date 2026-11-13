@@ -41,6 +41,15 @@ EXTERNAL_DELIVERIES=ROOT/'data'/'writing-exchange'/'accepted'
 import_accepted_files(store,EXTERNAL_DELIVERIES)
 import exchange_automation
 exchange_automation.restore(store)
+# Optional one-shot editorial QA correction requests. Exact imported receipts and
+# source continuity are checked by the existing canonical revision backend.
+from editorial_revision_seed import apply_from_environment as seed_editorial_revisions
+try:
+ editorial_seed_result=seed_editorial_revisions(store)
+ if editorial_seed_result is not None:
+  print('Editorial revision seed: '+json.dumps(editorial_seed_result,ensure_ascii=False),flush=True)
+except (ValueError,TypeError,KeyError) as exc:
+ print('Editorial revision seed rejected: '+str(exc)[:500],flush=True)
 import voice_proposals
 voice_proposals.ensure(store)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
