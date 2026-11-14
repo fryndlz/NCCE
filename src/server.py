@@ -59,6 +59,15 @@ try:
   print('Editorial approved delivery: '+json.dumps(approved_result,ensure_ascii=False),flush=True)
 except (ValueError,TypeError,KeyError) as exc:
  print('Editorial approved delivery rejected: '+str(exc)[:400],flush=True)
+# One-shot owner-approved recovery for Emil's earlier overlength HOLD.
+# Exact source/target checks and the canonical delivery path remain mandatory.
+from emil_approved_biography import apply_from_environment as publish_approved_emil
+try:
+ emil_publication=publish_approved_emil(store)
+ if emil_publication is not None:
+  print('Emil approved biography delivery: '+json.dumps(emil_publication,ensure_ascii=False),flush=True)
+except (ValueError,TypeError,KeyError) as exc:
+ print('Emil approved biography delivery rejected: '+str(exc)[:400],flush=True)
 import voice_proposals
 voice_proposals.ensure(store)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
