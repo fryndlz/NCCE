@@ -877,32 +877,46 @@ function memoryTimelineRows(memories, events, fighterName) {
     const linked = [...new Set(list(m.source_event_ids).map(id=>byId.get(id)).filter(Boolean))];
     const event = linked.length===1 ? linked[0] : null;
     if (!reflection) linked.forEach(item=>paired.add(item));
-    const when = event ? sourceTime(event) : m.occurred_at || m.observed_at
+    const placement = m.historical_placement || {};
+    const continuity = placement.class === 'continuity';
+    // The observed field reformat is not the date of an injury or advancement.
+    const when = continuity ? {is_baseline:true} : event ? sourceTime(event) : m.occurred_at || m.observed_at
       ? {occurred_at:m.occurred_at,observed_at:m.observed_at} : {is_baseline:m.is_baseline || m.baseline};
     const basis = linked.map(factText);
     if (!basis.length) basis.push(...list(m.evidence).map(evidenceText).filter(Boolean));
     const scores = meter('Salience',m.importance,10)+meter('Recency',m.event_clock?.recency == null ? null : Math.round(m.event_clock.recency*100),100);
     const story = text ? (heading?prose(text.slice(heading[0].length)):writtenProse(text,m.content_runs))
       : '<p class="reflection-pending">Awaiting writing.</p>';
-    return {key:'memory-'+m.id,record:when,reflection,label:cleanTitle(heading?.[1] || heading?.[2] || m.title) || 'Memory',
-      kind:reflection?'Reflection':event?'Recorded event':'Memory',
-      body:`<div class="archive-paper event-paper" id="memory-${esc(m.id)}">${story}</div>${basis.length?factPanel(basis.join('\n')):''}${scores?`<div class="timeline-memory-scores">${scores}</div>`:''}${evidence([],m,true)}`};
+    const placementNote = placement.note ? `<div class="entity-factual-event"><strong>Chronology and source:</strong> ${esc(placement.note)}</div>` : '';
+    return {key:'memory-'+m.id,record:when,reflection,continuity,label:cleanTitle(heading?.[1] || heading?.[2] || m.title) || 'Memory',
+      kind:continuity?'Continuity record':placement.class==='undated_vignette'?'Undated vignette':reflection?'Reflection':event?'Recorded event':'Memory',
+      body:`<div class="archive-paper event-paper" id="memory-${esc(m.id)}">${story}</div>${placementNote}${basis.length?factPanel(basis.join('\n')):''}${scores?`<div class="timeline-memory-scores">${scores}</div>`:''}${evidence([],m,true)}`};
   });
+  const continuityRows = rows.filter(row=>row.continuity);
+  for (let index=rows.length-1;index>=0;index--) {
+    if (rows[index].continuity) rows.splice(index,1);
+  }
   for (const event of events.filter(item=>!paired.has(item))) {
     rows.push({key:'fact-'+(event.event_id || event.id),record:sourceTime(event),label:factTitle(event),kind:'Recorded event',
       body:factPanel(factText(event))+evidence([], {...event,source_locator:event.source_locator || event.evidence?.source_locator},true)});
   }
-  return {rows,count:rows.length};
+  return {rows,count:rows.length,continuityRows};
 }
 function fighterRecordSections(f, memories) {
   const archive=list(f.campaign_history?.events);
   const represented=new Set(archive.flatMap(e=>[e.event_id,e.source_event_id]).filter(Boolean));
   const tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id));
   const timeline=memoryTimelineRows(memories,[...archive,...tracked],f.name);
-  return [
+  const sections=[
     {id:'baseline',label:'Backstory',paper:true,paperStyle:fighterPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
     {id:'timeline',label:'Timeline',count:timeline.count,body:timelineCards(timeline.rows)}
   ];
+  if (timeline.continuityRows.length) sections.push({
+    id:'continuity',label:'Continuity',count:timeline.continuityRows.length,
+    description:'Published memories about existing states whose source records were reformatted. No new injury, advancement or death is implied.',
+    body:timelineCards(timeline.continuityRows)
+  });
+  return sections;
 }
 function fighterIsDeceased(fighter) {
   return /^(?:killed|dead|deceased)\b/i.test(String(fighter.status || '').trim());
