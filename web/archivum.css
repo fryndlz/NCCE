@@ -64,7 +64,9 @@ header.site-header { gap:20px; border-color:#776741; padding:0 0 24px; margin-bo
 #app .archive-paper h3 { font:400 24px/1.3 Georgia,serif; }
 #app .archive-paper :is(.authored-dossier,.card-excerpt,.thought,.memory-voice,.mark-dialogue,.personnel-quote,.prose-block,.record-body) { color:#2d3a2d; font-family:Georgia,serif; }
 #app .archive-paper p { line-height:1.8; margin-bottom:1.1em; }
+#app [data-record-kind="gang"] .baseline-section .paper-content :is(.record-body,.authored-record) { max-width:none; }
 #app [data-record-kind="gang"] .baseline-section .paper-content :is(.record-body p,.authored-record > p:not(.authored-field)) { text-align:start; }
+.gang-backstory-divider { border:0; border-top:1px solid var(--line); margin:1.4em 0; }
 #app .archive-paper :is(.eyebrow,.section-label,.memory-kind,.personnel-section-label,.source) { color:#667052; font:9px/1.6 'Courier New',monospace; letter-spacing:.09em; }
 #app .archive-paper :is(.card,.biography,.mind-card,.memory-card,.fighter-mind,.mind-heading,.battle-report,.archive-story,.authored-record,.region-intro) { background:transparent; border-color:#bdc0a5; box-shadow:none; color:#2d3a2d; }
 #app .archive-paper :is(.biography,.battle-report,.memory-card,.mind-card) { padding:18px 0; }

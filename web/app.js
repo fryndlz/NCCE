@@ -60,7 +60,7 @@ function inline(value) {
 function prose(value) {
   return String(value || '').trim().split(/\n\s*\n/).filter(Boolean).map(paragraph => `<p>${inline(paragraph).replaceAll('\n', '<br>')}</p>`).join('');
 }
-function authoredRecord(value) {
+function authoredRecord(value, {markdown = false} = {}) {
   // Presentation only: every non-empty source line survives, with no rewriting,
   // translation, invented metadata, or provider call.
   const rows = String(value || '').replace(/\r/g, '').split('\n'), output = [];
@@ -68,8 +68,12 @@ function authoredRecord(value) {
   const turns = new Map();
   for (const row of rows) { const match=row.trim().match(/^([A-Z][A-Z '\-]{1,28}):/); if(match)turns.set(match[1],(turns.get(match[1])||0)+1); }
   for (const raw of rows) {
-    const text = raw.trim();
+    const text = (markdown ? raw.replace(/(?<!\\)\\\s*$/, '') : raw).trim();
     if (!text) continue;
+    if (markdown && /^-{3,}$/.test(text)) {
+      output.push('<hr class="gang-backstory-divider">');
+      continue;
+    }
     const plain = text.replace(/^\*\*(.*)\*\*$/, '$1');
     if (/^[+=\-]+.*[+=\-]+$/.test(plain) && !/^\+\+\+/.test(plain)) output.push(`<div class="scene_divider">${safe(text)}</div>`);
     else if (/^(?:\+\+\+|::|\[■\])/.test(plain)) output.push(`<div class="section-label">${safe(text)}</div>`);
@@ -79,7 +83,7 @@ function authoredRecord(value) {
     else {
       const speaker=plain.match(/^([A-Z][A-Z '\-]{1,28}):\s*(.*)$/);
       if (speaker && ((turns.get(speaker[1])||0)>1 || /(?:REVIEW|REPLY|RESPONSE|TESTIMONY)$/.test(speaker[1]))) { output.push(`<p class="authored-transcript-turn"><span class="mark-speaker">${safe(speaker[1])}:</span>${speaker[2]?' '+safe(speaker[2]):''}</p>`); continue; }
-      const field = plain.match(/^\*{0,2}([^:\n*]{2,48})\*{0,2}:\*{0,2}\s+(.+)$/);
+      const field = (markdown ? plain.replace(/^(\*\*[^*]+:\*\*)\*\s+(.+?)\s*\*$/, '$1 *$2*') : plain).match(/^\*{0,2}([^:\n*]{2,48})\*{0,2}:\*{0,2}\s+(.+)$/);
       if (field) output.push(`<p class="authored-field"><span class="mark-admin_label">${safe(field[1])}:</span> ${safe(field[2])}</p>`);
       else output.push(`<p>${safe(text)}</p>`);
     }
@@ -90,7 +94,7 @@ function gangBackstory(g) {
   return g.backstory && g.backstory_source === 'player-authored / campaign Sheet'
     ? `<div class="eyebrow">Authored backstory</div>${authoredRecord(g.backstory)}<div class="authored-source">Campaign Sheet · GANG BACKSTORY</div>`
     : (g.origin_document?.native_author || g.origin_document?.external_request_id) && ['ready','stale'].includes(g.origin_document.writer_status)
-      ? `<div class="eyebrow">Generated gang origin</div>${blocks(g.origin_document)}`
+      ? `<div class="eyebrow">Generated gang origin</div>${g.origin_document.external_markdown ? authoredRecord(g.origin_document.external_markdown, {markdown:true}) : blocks(g.origin_document)}`
       : empty('No gang backstory has been published yet.');
 }
 function archiveStories(records) {

@@ -28,6 +28,11 @@ ctx.subject={name:'Gang',backstory:'Only Sheet background.',backstory_source:'pl
 const gang=run('gangRecordSections(subject)');
 ctx.generatedGang={backstory:'',backstory_source:'not-provided',origin_document:{native_author:{draft_id:'native-draft'},writer_status:'ready',blocks:[{type:'body_paragraph',text:'A newly approved gang origin.'}]}};
 assert.ok(run('gangBackstory(generatedGang)').includes('A newly approved gang origin.'));
+ctx.generatedGang.origin_document.external_markdown=['**RECORD:** Induction Address'+String.fromCharCode(92),'**THOUGHT FOR THE DAY:*** Mercy is granted by authority.*','---','The address continues.'].join('\n');
+const formattedOrigin=run('gangBackstory(generatedGang)');
+assert.match(formattedOrigin,/<em>Mercy is granted by authority\.<\/em>/);
+assert.match(formattedOrigin,/<hr class="gang-backstory-divider">/);
+assert.ok(!formattedOrigin.includes(String.fromCharCode(92)));
 ctx.generatedGang.backstory='Authored text wins.';ctx.generatedGang.backstory_source='player-authored / campaign Sheet';
 assert.ok(run('gangBackstory(generatedGang)').includes('Authored text wins.'));
 assert.ok(!run('gangBackstory(generatedGang)').includes('A newly approved gang origin.'));
