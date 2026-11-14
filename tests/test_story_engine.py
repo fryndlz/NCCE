@@ -283,30 +283,29 @@ def test_latest_report_matches_its_current_battle_instead_of_shifted_row():
     _with_store(check)
 
 
-def test_corrected_or_removed_battle_does_not_leave_current_false_outcome_memories():
+def test_corrected_or_removed_battle_updates_gang_history_without_creating_fighter_memories():
     def check(store):
         before = campaign()
         after = latest_game(before)
         apply(store, before)
         apply(store, after)
         mara_id = fighter(store, "Mara Kel")["id"]
-        victory_ids = {memory["id"] for memory in read_memories(store, mara_id) if "victory" in memory["tags"]}
         corrected = deepcopy(after)
         corrected["captured_at"] = "2026-10-25T11:00:00+00:00"
         corrected["battles"][0].update(winner=KLY, territory_claimer=KLY)
         result, _ = apply(store, corrected)
         correction_ids = {event["event_id"] for event in store.events(limit=500) if event["event_type"] == "battle_record_corrected"}
         assert correction_ids & set(result["events_created"])
-        current = [memory for memory in read_memories(store, mara_id) if memory["memory_type"] == "observation" and "battle" in memory["tags"] and "Scenario: Takeover" in memory["evidence"]]
-        assert current and all(f"Winner: {KLY}" in memory["evidence"] for memory in current)
-        assert any(set(memory["source_event_ids"]) & correction_ids for memory in current)
-        assert not victory_ids & {memory["id"] for memory in read_memories(store, mara_id)}
+        current = [battle for battle in store.gang("g1")["battles"] if battle["scenario"] == "Takeover"]
+        assert len(current) == 1 and current[0]["winner"] == KLY
+        assert set(current[0]["source_event_ids"]) & correction_ids
         removed = deepcopy(corrected)
         removed["captured_at"] = "2026-10-25T12:00:00+00:00"
         removed["battles"] = [dict(corrected["battles"][1], source_row=2)]
         apply(store, removed)
-        assert not any("battle" in memory["tags"] and "Scenario: Takeover" in memory["evidence"] for memory in read_memories(store, mara_id))
-        assert store.db.execute("SELECT count(*) FROM story_memories WHERE fighter_id=? AND active=0", (mara_id,)).fetchone()[0] > 0
+        assert not any(battle["scenario"] == "Takeover" for battle in store.gang("g1")["battles"])
+        assert not any(memory["memory_key"].startswith(("gang:", "gang-record:"))
+                       for memory in read_memories(store, mara_id))
     _with_store(check)
 
 

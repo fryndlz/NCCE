@@ -215,8 +215,8 @@ class Store:
   battle_ids={event.get('battle_id') or event.get('preceding_battle_id') or event.get('next_battle_id') for event in events}
   battles=[battle for battle in timeline['battles'] if battle['battle_id'] in battle_ids or str(fighter['gang_id']) in battle.get('gang_ids',[])]
   return {'events':events,'battles':battles,'warnings':timeline['warnings'],'import':timeline['import']}
- def gang_history(self,gang_id):
-  timeline=self.history_timeline()
+ def gang_history(self,gang_id,timeline=None):
+  if timeline is None:timeline=self.history_timeline()
   return {'events':[event for event in timeline['events'] if str(event.get('gang_id') or '')==str(gang_id)],
           'battles':[battle for battle in timeline['battles'] if str(gang_id) in battle.get('gang_ids',[])],
           'warnings':timeline['warnings'],'import':timeline['import']}
@@ -390,14 +390,23 @@ class Store:
   from story_engine import document_for
   r=self.db.execute('SELECT * FROM gangs WHERE gang_id=?',(gid,)).fetchone()
   if not r:return None
-  g=dict(r); name=g['name']; q=lambda sql,args=():[dict(x) for x in self.db.execute(sql,args)]
-  g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['battles']=q('''SELECT b.*,EXISTS(SELECT 1 FROM campaign_events ce WHERE (ce.source_locator=\'Battles!row \'||b.source_row OR ce.source_locator=\'Battles!battle \'||b.source_battle_key) AND ce.event_type IN (\'battle_record_corrected\',\'battle_record_removed\')) AS chronicle_stale FROM battles b WHERE b.active=1 AND (b.attacker=? OR b.defender=? OR b.winner=? OR b.territory_claimer=?) ORDER BY b.date DESC''',(name,name,name,name)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,))
+  g=dict(r); q=lambda sql,args=():[dict(x) for x in self.db.execute(sql,args)]
+  g['territory_list']=q('SELECT * FROM territories WHERE gang_id=? AND active=1 ORDER BY territory',(gid,)); g['fighters']=q('SELECT * FROM fighters WHERE gang_id=? ORDER BY listed_in_source DESC,status,name',(gid,)); g['downtime']=q('SELECT * FROM downtime_reports WHERE gang_id=? ORDER BY id DESC',(gid,))
   from world_streams import read_stream
   self._gang_baseline(g)
   g['origin_document']=document_for(self,'gang_origin',gid)
   g['campaign_account_document']=document_for(self,'gang_history',gid)
-  g['campaign_history']=self.gang_history(gid)
+  timeline=self.history_timeline()
+  g['campaign_history']=self.gang_history(gid,timeline)
   g['narrative_stream']=read_stream(self,'gang',gid)
+  from gang_battle_history import project
+  from story_engine import _all_events
+  active_battles=q('SELECT * FROM battles WHERE active=1 ORDER BY date DESC,id DESC')
+  gang_names={str(row['gang_id']):row['name'] for row in q('SELECT gang_id,name FROM gangs')}
+  g['battles']=project(active_battles,timeline['battles'],gang_names,_all_events(self)).get(str(gid),[])
+  stream_by_key={entry['entry_key']:entry for entry in g['narrative_stream']}
+  for b in g['battles']:
+   b['gang_account']=stream_by_key.get('battle:'+b['battle_key'])
   for b in g['battles']:
    from campaign_authored import attach
    attach(b)

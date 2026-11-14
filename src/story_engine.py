@@ -339,7 +339,12 @@ def _current_battle_event(battle, events):
         facts = p.get("current") if event["event_type"] == "battle_record_corrected" else p
         if not isinstance(facts,dict):
             continue
-        same_identity = (p.get("battle_key") or p.get("source_battle_key")) == current_key or battle_identity(facts,prefer_source=False) == fallback
+        event_key = p.get("battle_key") or p.get("source_battle_key") or battle_identity(facts)
+        can_bridge = not (current_key.startswith("id:") and event_key.startswith("id:"))
+        same_identity = event_key == current_key or (
+            can_bridge and "#duplicate:" not in current_key and "#duplicate:" not in event_key
+            and battle_identity(facts, prefer_source=False) == fallback
+        )
         if same_identity and all(facts.get(k) == battle.get(k) for k in fields):
             matches.append(event)
     if not matches:
@@ -468,10 +473,14 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
         all_memories = []
         with store.db:
             reflection_rollout = not store.get_state('reflection_accumulator_v1_rollout')
+            # Legacy shared outcomes are retained as saved records, without replaying
+            # them into new slots or changing the source of accepted prose.
+            retire = """UPDATE story_memories SET active=0 WHERE memory_type='observation'
+                AND memory_key NOT LIKE 'gang:%' AND memory_key NOT LIKE 'gang-record:%'"""
             if target_fighter_ids is None:
-                store.db.execute("UPDATE story_memories SET active=0 WHERE memory_type='observation'")
+                store.db.execute(retire)
             else:
-                store.db.executemany("UPDATE story_memories SET active=0 WHERE fighter_id=? AND memory_type='observation'",[(value,) for value in target_fighter_ids])
+                store.db.executemany(retire + " AND fighter_id=?", [(value,) for value in target_fighter_ids])
             for fighter in fighters:
                 if target_fighter_ids is not None and int(fighter["id"]) not in target_fighter_ids:
                     continue
@@ -508,11 +517,7 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     if event["event_type"] not in RULES or event["event_key"].startswith("baseline:"):
                         continue
                     memories.append(_memory(store,fighter,gang,event["event_id"],event["event_type"],event["payload"],event,prior=[m['content'] for m in memories[-3:]]))
-                # The newest gang record is shared context, never proof of individual attendance.
                 if normal(fighter.get("status")) not in {"killed","dead","retired"}:
-                    related = [b for b in battles if gang["name"] in (b.get("attacker"),b.get("defender"),b.get("winner"))]
-                    latest = related[-1] if related else None
-                    shared = [event for b in related if (event := _current_battle_event(b,events)) and not event["event_key"].startswith("baseline:")]
                     for event in gang_events[str(fighter["gang_id"])]:
                         if event["event_type"] == "territory_holder_changed":
                             memories.append(_memory(store,fighter,gang,f"shared:{event['event_id']}","territory_holder_changed",event["payload"],event,prior=[m['content'] for m in memories[-3:]]))
@@ -533,19 +538,6 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                                     memory['content'] = f"The earlier return entered {p['subject_name']} as {p.get('after')}. The later roll says {present.get('status')}; I have to carry the amended account with the old one."
                                     memory['evidence'].append(f"Current source status for {p['subject_name']}: {present.get('status')}")
                                 memories.append(memory)
-                    seen = set()
-                    for event in shared:
-                        p = event["payload"]
-                        # Old row-number correction histories are not replayed as battles.
-                        signature = tuple(p.get(k) for k in ("date","scenario","attacker","defender","winner"))
-                        if signature in seen:
-                            continue
-                        seen.add(signature)
-                        memories.append(_memory(store,fighter,gang,f"gang:{event['event_id']}","gang_battle_outcome",p,event,context={"attendance":"unknown"},prior=[m['content'] for m in memories[-3:]]))
-                    if latest and tuple(latest.get(k) for k in ("date","scenario","attacker","defender","winner")) not in seen:
-                        e = _current_battle_event(latest,events) or {"occurred_at":latest.get("date")}
-                        m = _memory(store,fighter,gang,f"gang-record:{latest.get('source_battle_key') or latest['id']}","gang_battle_outcome",latest,e,baseline=True,context={"attendance":"unknown"},prior=[m['content'] for m in memories[-3:]])
-                        memories.append(m)
                 if "campaign sheet" in normal(fighter.get("backstory_source")):
                     for m in memories:
                         m["context_source_ids"] = ["player:campaign-sheet-lore"]
@@ -556,6 +548,8 @@ def regenerate(store, force=False, ambient=False, writer_enabled=True, fighter_i
                     for m in memories:
                         m.setdefault('context_source_ids',[]).append('player:writer-identities')
                 saved = [_save_memory(store,fighter["id"],m,generated_at) for m in memories]
+                saved.extend(m for m in read_memories(store, fighter["id"], "observation")
+                             if m["memory_key"].startswith(("gang:", "gang-record:")))
                 plans = [] if fighter_mind.is_deceased(fighter) else _reflection_plans(
                     store, fighter['id'], saved, reflection_rollout)
                 for reflection_key, candidates in plans:

@@ -73,7 +73,9 @@ def test_ready_biography_remains_stable_and_battle_dates_are_not_import_dates():
         assert store.db.execute('SELECT backstory FROM fighters WHERE id=?',(fid,)).fetchone()[0]=='A stable formative life.'
         mara=store.db.execute("SELECT id FROM fighters WHERE name='Mara Kel'").fetchone()[0]
         battles=[m for m in read_memories(store,mara) if 'battle' in m['tags'] and m['memory_type']=='observation']
-        assert battles and all(m['occurred_at'] for m in battles)
+        assert not battles
+        history=store.gang('g1')['battles']
+        assert history and all(b['date'] for b in history)
     with_store(check)
 
 def test_four_existing_thoughts_reduce_to_three_without_losing_saved_prose():
