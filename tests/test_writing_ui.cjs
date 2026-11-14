@@ -63,7 +63,7 @@ const editor = run('identityEditor(fighter)');
 assert.ok(editor.includes('inferred from the roster') && editor.includes('Gender and pronouns are never guessed'));
 assert.ok(editor.includes('Correct or add an explicitly known detail'));
 context.staleMemory = {id:'memory',memory_type:'observation',writer_status:'stale',title:'Condition changed',content:'The hurt makes the next shift uncertain.',evidence:['Status changed']};
-assert.equal(run("memoryTimelineRows([staleMemory], [], 'Fighter').count"),0);
+assert.equal(run("memoryTimelineRows([staleMemory], [], 'Fighter').length"),0);
 const server = fs.readFileSync('src/server.py','utf8');
 console.log('ok (date conversion, DST, semantic blocks, redactions, escaping, authorship precedence, inferred identity/stims, stale drafts, formatted dossier, retired writing controls)');
 

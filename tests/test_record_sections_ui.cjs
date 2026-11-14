@@ -17,6 +17,15 @@ assert.ok(fighter[1].body.includes('Critical injury recorded.'));
 assert.ok(fighter[1].body.includes('I remember the fall.')&&fighter[1].body.includes('timeline-reflection'));
 assert.ok(fighter[1].body.includes('Known before campaign'));
 assert.ok(!fighter[1].body.includes('I want my hands steady again.'));
+ctx.memories.push({id:'reformatted',memory_type:'observation',writer_status:'ready',
+  observed_at:'2026-11-25',source_event_ids:['fact-1'],content:'An existing condition.',
+  historical_placement:{class:'continuity',note:'The condition was already recorded.'}});
+const singleTimeline=run('fighterRecordSections(subject,memories)');
+assert.deepEqual(Array.from(singleTimeline,s=>s.label),['Bio','Timeline']);
+assert.equal(singleTimeline[1].count,3);
+assert.match(singleTimeline[1].body,/Existing state · date of change unknown/);
+assert.ok(singleTimeline[1].body.indexOf('I remember the fall.')<singleTimeline[1].body.indexOf('An existing condition.'));
+assert.ok(singleTimeline[1].body.indexOf('An existing condition.')<singleTimeline[1].body.indexOf('Known before campaign'));
 ctx.subject={id:10,name:'Boomer',gang_name:'The Slag Eaters'};
 ctx.memories=[{id:'backlog',memory_key:'reflection:backlog',memory_type:'reflection',writer_status:'pending',title:'What stays with me'},
   {id:'accepted',memory_type:'observation',writer_status:'ready',content:'**BOOMER // THE GAP**\n\nI made the jump.'}];

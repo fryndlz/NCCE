@@ -53,7 +53,8 @@ window.NCCEArchive = (() => {
     outlet.dataset.recordKind=meta.kind;
     const identity=meta.kind+':'+meta.id;
     const selected=outlet.dataset.recordIdentity===identity?outlet.dataset.activeSection:'baseline';
-    const sections=[...meta.sections,{id:'sources',label:'Data & sources',description:'Mechanical state, provenance, identity tools and source references.',body:`<dl class="source-register">${[['Record',meta.id],['Source',meta.source || 'Campaign record'],...(meta.fields || [])].map(([k,v])=>`<div><dt>${escape(k)}</dt><dd>${escape(v ?? 'Not recorded')}</dd></div>`).join('')}</dl>${meta.sourceBody || ''}<div class="source-evidence"></div>`}];
+    const sections=[...meta.sections];
+    if (meta.kind!=='fighter') sections.push({id:'sources',label:'Data & sources',description:'Mechanical state, provenance, identity tools and source references.',body:`<dl class="source-register">${[['Record',meta.id],['Source',meta.source || 'Campaign record'],...(meta.fields || [])].map(([k,v])=>`<div><dt>${escape(k)}</dt><dd>${escape(v ?? 'Not recorded')}</dd></div>`).join('')}</dl>${meta.sourceBody || ''}<div class="source-evidence"></div>`});
     const recordRef=`NCCE / ${escape(meta.kind.toUpperCase())} / ${escape(meta.id)}`;
     const gangRecord=meta.kind==='gang';
     const paper=section=>{
@@ -108,7 +109,10 @@ window.NCCEArchive = (() => {
     // Baseline provenance belongs to the source layer; per-event evidence stays
     // with its event in an explicit disclosure outside the prose surface.
     const source=outlet.querySelector('.source-evidence');
-    outlet.querySelectorAll('.baseline-section .evidence,.baseline-section .authored-source,.baseline-section .narrative > .eyebrow').forEach(el=>source.append(el));
+    outlet.querySelectorAll('.baseline-section .evidence,.baseline-section .authored-source,.baseline-section .narrative > .eyebrow').forEach(el=>{
+      if (source) source.append(el);
+      else el.remove();
+    });
     // Obsolete writer notices are not part of any territory record layer.
     if(meta.kind==='territory') {
       outlet.querySelectorAll('.writer-pending,.document-notices').forEach(el=>el.remove());

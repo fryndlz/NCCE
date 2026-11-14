@@ -854,7 +854,8 @@ function entityTimeline(entries, facts, battles = []) {
   return timelineCards(rows);
 }
 function timelineCards(rows) {
-  const ordered = rows.slice().sort((a,b)=>recordEventTime(b.record).localeCompare(recordEventTime(a.record)) || a.key.localeCompare(b.key));
+  const ordered = rows.slice().sort((a,b)=>(a.timelineOrder ?? 0)-(b.timelineOrder ?? 0)
+    || recordEventTime(b.record).localeCompare(recordEventTime(a.record)) || a.key.localeCompare(b.key));
   return `<div class="entity-event-feed">${ordered.map(r=>`<details class="entity-event${r.reflection?' timeline-reflection':''}" data-key="${esc(r.key)}"><summary><span class="event-date">${r.dateLabel ? `<span class="chronicle-date"><strong>${esc(r.dateLabel)}</strong></span>` : dateStamp({...r.record,occurred_at:r.record.occurred_at || r.record.recorded_at || r.record.event_date || r.record.date})}</span><span><small>${esc(r.kind)}</small><strong>${esc(r.label)}</strong></span><span class="event-expand" aria-hidden="true">+</span></summary><div class="entity-event-body">${r.body}</div></details>`).join('') || empty('No evolving events have been recorded here yet.')}</div>`;
 }
 function memoryTimelineRows(memories, events, fighterName) {
@@ -896,37 +897,28 @@ function memoryTimelineRows(memories, events, fighterName) {
     const story = text ? (heading?prose(text.slice(heading[0].length)):writtenProse(text,m.content_runs))
       : '<p class="reflection-pending">Awaiting writing.</p>';
     const placementNote = placement.note ? `<div class="entity-factual-event"><strong>Chronology and source:</strong> ${esc(placement.note)}</div>` : '';
-    return {key:'memory-'+m.id,record:when,reflection,continuity,
+    const timelineOrder = continuity ? 1 : m.is_baseline || m.baseline || placement.class === 'undated_vignette' ? 2 : 0;
+    return {key:'memory-'+m.id,record:when,reflection,timelineOrder,
       dateLabel:continuity?'Existing state · date of change unknown':placement.class==='undated_vignette'?'Undated fictional baseline':null,
       label:cleanTitle(heading?.[1] || heading?.[2] || m.title) || 'Memory',
-      kind:continuity?'Continuity record':placement.class==='undated_vignette'?'Undated vignette':reflection?'Reflection':event?'Recorded event':'Memory',
+      kind:continuity?'Memory':placement.class==='undated_vignette'?'Undated vignette':reflection?'Reflection':event?'Recorded event':'Memory',
       body:`<div class="archive-paper event-paper" id="memory-${esc(m.id)}">${story}</div>${placementNote}${basis.length?factPanel(basis.join('\n')):''}${scores?`<div class="timeline-memory-scores">${scores}</div>`:''}${evidence([],m,true)}`};
   });
-  const continuityRows = rows.filter(row=>row.continuity);
-  for (let index=rows.length-1;index>=0;index--) {
-    if (rows[index].continuity) rows.splice(index,1);
-  }
   for (const event of events.filter(item=>!paired.has(item))) {
     rows.push({key:'fact-'+(event.event_id || event.id),record:sourceTime(event),label:factTitle(event),kind:'Recorded event',
       body:factPanel(factText(event))+evidence([], {...event,source_locator:event.source_locator || event.evidence?.source_locator},true)});
   }
-  return {rows,count:rows.length,continuityRows};
+  return rows;
 }
 function fighterRecordSections(f, memories) {
   const archive=list(f.campaign_history?.events);
   const represented=new Set(archive.flatMap(e=>[e.event_id,e.source_event_id]).filter(Boolean));
   const tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id));
-  const timeline=memoryTimelineRows(memories,[...archive,...tracked],f.name);
-  const sections=[
-    {id:'baseline',label:'Backstory',paper:true,paperStyle:gangPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
-    {id:'timeline',label:'Timeline',count:timeline.count,body:timelineCards(timeline.rows)}
+  const rows=memoryTimelineRows(memories,[...archive,...tracked],f.name);
+  return [
+    {id:'baseline',label:'Bio',paper:true,paperStyle:gangPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
+    {id:'timeline',label:'Timeline',count:rows.length,body:timelineCards(rows)}
   ];
-  if (timeline.continuityRows.length) sections.push({
-    id:'continuity',label:'Continuity',count:timeline.continuityRows.length,
-    description:'Published memories about existing states whose source records were reformatted. No new injury, advancement or death is implied.',
-    body:timelineCards(timeline.continuityRows)
-  });
-  return sections;
 }
 function fighterIsDeceased(fighter) {
   return /^(?:killed|dead|deceased)\b/i.test(String(fighter.status || '').trim());
@@ -1009,8 +1001,7 @@ async function showFighter(id, preserveScroll = false) {
   const sections = fighterRecordSections(f,memories);
   recordDetail('fighter',id,'',{title:f.name,subtitle:`${short(f.gang_name)} · ${f.type || ''} · ${f.class || ''}`,status:fighterStatus(f),source:f.backstory_source,
     mindPreview:{hidden:deceased,body:deceased ? '' : mindFeedBody(f)},
-    fields:[['Gang',short(f.gang_name)],['Role',f.class],['Type',f.type],['Status',f.status],['XP',f.xp],['Kills',f.kills],['Personnel reference',f.personnel_code || 'Awaiting Munda Manager UUID'],['Munda Manager fighter ID',f.source_fighter_id || 'Not exposed or ambiguous in export']],
-    sections,sourceBody:`${voiceDetails(f.voice_profile)}${identityEditor(f)}${mechanicsPanel(f)}${list(f.events).length?`<details data-key="baseline-records"><summary>Baseline source records</summary>${list(f.events).map(e=>`<p><strong>${esc(e.title || human(e.event_type))}</strong><br>${esc(e.detail)}</p>`).join('')}</details>`:''}`});
+    sections});
   if (!preserveScroll && !app.querySelector('.record-preview')) window.scrollTo(0, 0);
 }
 async function showGang(id, preserveScroll = false) {
