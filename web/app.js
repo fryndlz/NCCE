@@ -18,7 +18,7 @@ const isBofur = fighter => fighter.name==='Bofur' && fighter.gang_name==='Helmae
 const isEisen = fighter => fighter.name==='Eisen' && fighter.gang_name==='The Slag Eaters';
 const klyGang = 'Kły Sprawiedliwości';
 const patrolGang = 'Patrol do spraw alkoholu i broni';
-const fighterPaperStyles = new Map([
+const gangPaperStyles = new Map([
   ['C-NINE', 'cnine-personnel'],
   ['Geothermal Prospect Detail C-9', 'cnine-personnel'],
   ['Ethernetans 2.0', 'ethernetans-personnel'],
@@ -910,7 +910,7 @@ function fighterRecordSections(f, memories) {
   const tracked=list(f.campaign_events).filter(e=>!represented.has(e.event_id));
   const timeline=memoryTimelineRows(memories,[...archive,...tracked],f.name);
   const sections=[
-    {id:'baseline',label:'Backstory',paper:true,paperStyle:fighterPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
+    {id:'baseline',label:'Backstory',paper:true,paperStyle:gangPaperStyles.get(short(f.gang_name)),body:fighterBackstory(f)},
     {id:'timeline',label:'Timeline',count:timeline.count,body:timelineCards(timeline.rows)}
   ];
   if (timeline.continuityRows.length) sections.push({
@@ -972,7 +972,7 @@ function gangRecordSections(g) {
   const attachedAccounts=new Set(battles.map(b=>b.gang_account?.entry_id).filter(Boolean));
   const stream=list(g.narrative_stream).filter(e=>!attachedAccounts.has(e.entry_id));
   return [
-    {id:'baseline',label:'Backstory',description:'The gang’s established background, kept separate from campaign developments.',paper:true,body:gangBackstory(g)},
+    {id:'baseline',label:'Backstory',description:'The gang’s established background, kept separate from campaign developments.',paper:true,paperStyle:gangPaperStyles.get(short(g.name)),body:gangBackstory(g)},
     {id:'timeline',label:'Timeline',count:stream.length+events.length+battles.length,description:'The gang’s developing story and recorded events, most recent first.',body:entityTimeline(stream,events,battles)+`<details class="additional-history" data-key="gang-accounts"><summary>Campaign accounts & downtime</summary>${campaignAccount(g.campaign_account_document)}${list(g.downtime).map(downtime).join('') || empty('No downtime account is available.')}</details>`},
     {id:'roster',label:'Fighters',count:list(g.fighters).length,description:'Fighters whose lives form this gang’s history.',body:`<p><button class="text-button" data-gang-filter="${esc(g.gang_id)}">Search this gang’s fighters →</button></p><div class="grid">${list(g.fighters).map(fighterCard).join('') || empty('No fighter records are available.')}</div>`},
     {id:'holdings',label:'Holdings',count:holdings.length,description:'Current territory records. Open a place for its description and timeline.',body:`<div class="holdings">${holdings.map(t=>`<button class="holding" data-territory="${esc(t.id)}">${esc(t.territory)} <span aria-hidden="true">→</span></button>`).join('') || empty('No current holdings are recorded.')}</div>`}
