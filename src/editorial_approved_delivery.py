@@ -1,23 +1,21 @@
 """One-shot owner-approved fighter-memory correction delivery.
 
-A base64(zlib(JSON)) manifest is injected temporarily through Render as
-NCCE_APPROVED_CORRECTIONS_B64. Each item must match an existing versioned
+A JSON manifest is injected temporarily through Render as
+NCCE_APPROVED_CORRECTIONS_JSON. Each item must match an existing versioned
 correction request, its imported parent, and the author's approved Markdown.
 All publication uses exchange_automation.deliver (canonical source/receipt/
 text validation), never writes to prose tables directly. No scheduled work.
 """
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import os
-import zlib
 from uuid import UUID
 
 import exchange_automation
 
-ENV_KEY = "NCCE_APPROVED_CORRECTIONS_B64"
+ENV_KEY = "NCCE_APPROVED_CORRECTIONS_JSON"
 EXPECTED_COUNT = 35
 MAX_BYTES = 80000
 
@@ -32,16 +30,11 @@ def _canonical_uuid(value):
 
 
 def parse_manifest(raw):
-    if not isinstance(raw, str) or len(raw) > 130000:
+    if not isinstance(raw, str) or len(raw.encode("utf-8")) > MAX_BYTES:
         raise ValueError("Approved manifest length invalid")
     try:
-        encoded = base64.b64decode(raw, validate=True)
-        stream = zlib.decompressobj()
-        plain = stream.decompress(encoded, MAX_BYTES + 1)
-        if stream.unconsumed_tail or not stream.eof or len(plain) > MAX_BYTES:
-            raise ValueError("Approved manifest exceeds size cap")
-        data = json.loads(plain)
-    except (ValueError, UnicodeError, zlib.error) as exc:
+        data = json.loads(raw)
+    except (ValueError, UnicodeError) as exc:
         raise ValueError("Invalid approved correction manifest") from exc
     if not isinstance(data, dict) or set(data) != {"approval", "items"} or data["approval"] != "owner_approved_2026-11-14":
         raise ValueError("Missing exact owner approval declaration")
