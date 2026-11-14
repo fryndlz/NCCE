@@ -68,6 +68,14 @@ try:
   print('Emil approved biography delivery: '+json.dumps(emil_publication,ensure_ascii=False),flush=True)
 except (ValueError,TypeError,KeyError) as exc:
  print('Emil approved biography delivery rejected: '+str(exc)[:400],flush=True)
+# Finite, owner-approved post-QA corrections, through canonical versioned revisions.
+from editorial_defect_delivery import apply_from_environment as deliver_qa_defects
+try:
+ defect_result=deliver_qa_defects(store)
+ if defect_result is not None:
+  print('Slag Eaters defect delivery: '+json.dumps(defect_result,ensure_ascii=False),flush=True)
+except (ValueError,TypeError,KeyError) as exc:
+ print('Slag Eaters defect delivery rejected: '+str(exc)[:450],flush=True)
 import voice_proposals
 voice_proposals.ensure(store)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
