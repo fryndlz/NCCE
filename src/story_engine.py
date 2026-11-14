@@ -400,6 +400,11 @@ def _reflection_plans(store, fighter_id, observations, rollout):
         seen.add(key)
         if memory['baseline'] or memory['importance'] < 4 or not memory['source_event_ids']:
             continue
+        # Roster-format normalizations are not new experiences and may not
+        # generate additional reflections. Their approved prose is retained.
+        from record_semantics import is_source_normalization
+        if all(is_source_normalization(eid) for eid in memory['source_event_ids']):
+            continue
         pending.append(key)
         if len(pending) >= 2 and sum(by_key[k]['importance'] for k in pending) >= REFLECTION_THRESHOLD:
             plans.append(('reflection:accumulated:'+digest(pending)[:24], [by_key[k] for k in pending]))
@@ -692,6 +697,8 @@ def read_memories(store, fighter_id, memory_type=None):
         item['writer_context']=json.loads(item.pop('writer_context_json') or '{}')
         item['content_runs']=json.loads(item.pop('content_runs_json') or '[]')
         item['source_ids']=[r[0] for r in store.db.execute("SELECT DISTINCT source_id FROM narrative_evidence WHERE artifact_type='story_memory' AND artifact_key=? AND source_id IS NOT NULL",(item['memory_id'],))]
+        from record_semantics import placement
+        item['historical_placement']=placement(item)
         result.append(item)
     return result
 
