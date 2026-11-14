@@ -847,7 +847,7 @@ function entityTimeline(entries, facts, battles = []) {
 }
 function timelineCards(rows) {
   const ordered = rows.slice().sort((a,b)=>recordEventTime(b.record).localeCompare(recordEventTime(a.record)) || a.key.localeCompare(b.key));
-  return `<div class="entity-event-feed">${ordered.map(r=>`<details class="entity-event${r.reflection?' timeline-reflection':''}" data-key="${esc(r.key)}"><summary><span class="event-date">${dateStamp({...r.record,occurred_at:r.record.occurred_at || r.record.recorded_at || r.record.event_date || r.record.date})}</span><span><small>${esc(r.kind)}</small><strong>${esc(r.label)}</strong></span><span class="event-expand" aria-hidden="true">+</span></summary><div class="entity-event-body">${r.body}</div></details>`).join('') || empty('No evolving events have been recorded here yet.')}</div>`;
+  return `<div class="entity-event-feed">${ordered.map(r=>`<details class="entity-event${r.reflection?' timeline-reflection':''}" data-key="${esc(r.key)}"><summary><span class="event-date">${r.dateLabel ? `<span class="chronicle-date"><strong>${esc(r.dateLabel)}</strong></span>` : dateStamp({...r.record,occurred_at:r.record.occurred_at || r.record.recorded_at || r.record.event_date || r.record.date})}</span><span><small>${esc(r.kind)}</small><strong>${esc(r.label)}</strong></span><span class="event-expand" aria-hidden="true">+</span></summary><div class="entity-event-body">${r.body}</div></details>`).join('') || empty('No evolving events have been recorded here yet.')}</div>`;
 }
 function memoryTimelineRows(memories, events, fighterName) {
   const byId = new Map();
@@ -888,7 +888,9 @@ function memoryTimelineRows(memories, events, fighterName) {
     const story = text ? (heading?prose(text.slice(heading[0].length)):writtenProse(text,m.content_runs))
       : '<p class="reflection-pending">Awaiting writing.</p>';
     const placementNote = placement.note ? `<div class="entity-factual-event"><strong>Chronology and source:</strong> ${esc(placement.note)}</div>` : '';
-    return {key:'memory-'+m.id,record:when,reflection,continuity,label:cleanTitle(heading?.[1] || heading?.[2] || m.title) || 'Memory',
+    return {key:'memory-'+m.id,record:when,reflection,continuity,
+      dateLabel:continuity?'Existing state · date of change unknown':placement.class==='undated_vignette'?'Undated fictional baseline':null,
+      label:cleanTitle(heading?.[1] || heading?.[2] || m.title) || 'Memory',
       kind:continuity?'Continuity record':placement.class==='undated_vignette'?'Undated vignette':reflection?'Reflection':event?'Recorded event':'Memory',
       body:`<div class="archive-paper event-paper" id="memory-${esc(m.id)}">${story}</div>${placementNote}${basis.length?factPanel(basis.join('\n')):''}${scores?`<div class="timeline-memory-scores">${scores}</div>`:''}${evidence([],m,true)}`};
   });
