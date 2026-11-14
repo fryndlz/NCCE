@@ -33,6 +33,8 @@ const formattedOrigin=run('gangBackstory(generatedGang)');
 assert.match(formattedOrigin,/<em>Mercy is granted by authority\.<\/em>/);
 assert.match(formattedOrigin,/<hr class="gang-backstory-divider">/);
 assert.ok(!formattedOrigin.includes(String.fromCharCode(92)));
+ctx.generatedGang.origin_document.external_markdown='**THOUGHT FOR THE DAY:** Mercy is granted by authority.*';
+assert.match(run('gangBackstory(generatedGang)'),/<em>Mercy is granted by authority\.<\/em>/);
 ctx.generatedGang.backstory='Authored text wins.';ctx.generatedGang.backstory_source='player-authored / campaign Sheet';
 assert.ok(run('gangBackstory(generatedGang)').includes('Authored text wins.'));
 assert.ok(!run('gangBackstory(generatedGang)').includes('A newly approved gang origin.'));

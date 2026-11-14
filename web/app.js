@@ -84,7 +84,11 @@ function authoredRecord(value, {markdown = false} = {}) {
       const speaker=plain.match(/^([A-Z][A-Z '\-]{1,28}):\s*(.*)$/);
       if (speaker && ((turns.get(speaker[1])||0)>1 || /(?:REVIEW|REPLY|RESPONSE|TESTIMONY)$/.test(speaker[1]))) { output.push(`<p class="authored-transcript-turn"><span class="mark-speaker">${safe(speaker[1])}:</span>${speaker[2]?' '+safe(speaker[2]):''}</p>`); continue; }
       const field = (markdown ? plain.replace(/^(\*\*[^*]+:\*\*)\*\s+(.+?)\s*\*$/, '$1 *$2*') : plain).match(/^\*{0,2}([^:\n*]{2,48})\*{0,2}:\*{0,2}\s+(.+)$/);
-      if (field) output.push(`<p class="authored-field"><span class="mark-admin_label">${safe(field[1])}:</span> ${safe(field[2])}</p>`);
+      if (field) {
+        const value = markdown && /^thought for the day$/i.test(field[1]) && /^[^*]+\*$/.test(field[2])
+          ? '*' + field[2] : field[2];
+        output.push(`<p class="authored-field"><span class="mark-admin_label">${safe(field[1])}:</span> ${safe(value)}</p>`);
+      }
       else output.push(`<p>${safe(text)}</p>`);
     }
   }
