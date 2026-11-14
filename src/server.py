@@ -50,6 +50,15 @@ try:
   print('Editorial revision seed: '+json.dumps(editorial_seed_result,ensure_ascii=False),flush=True)
 except (ValueError,TypeError,KeyError) as exc:
  print('Editorial revision seed rejected: '+str(exc)[:500],flush=True)
+# Deliver only the finite, exact owner-approved revision manifest when present.
+# All writes pass through the existing guarded exchange_automation.deliver path.
+from editorial_approved_delivery import apply_from_environment as deliver_approved_corrections
+try:
+ approved_result=deliver_approved_corrections(store)
+ if approved_result is not None:
+  print('Editorial approved delivery: '+json.dumps(approved_result,ensure_ascii=False),flush=True)
+except (ValueError,TypeError,KeyError) as exc:
+ print('Editorial approved delivery rejected: '+str(exc)[:400],flush=True)
 import voice_proposals
 voice_proposals.ensure(store)
 try: SYNC_INTERVAL_SECONDS=max(60,int(os.environ.get('NCCE_SYNC_INTERVAL_SECONDS','900')))
