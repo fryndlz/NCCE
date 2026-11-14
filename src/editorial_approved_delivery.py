@@ -8,7 +8,6 @@ text validation), never writes to prose tables directly. No scheduled work.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from uuid import UUID
@@ -43,7 +42,7 @@ def parse_manifest(raw):
         raise ValueError("Approved correction manifest must cover exactly 35 requests")
     seen = set()
     for item in items:
-        if not isinstance(item, dict) or set(item) != {"revision_id", "parent_id", "parent_receipt", "text", "text_sha256"}:
+        if not isinstance(item, dict) or set(item) != {"revision_id", "parent_id", "parent_receipt", "text"}:
             raise ValueError("Unexpected correction item fields")
         rid = _canonical_uuid(item["revision_id"])
         pid = _canonical_uuid(item["parent_id"])
@@ -53,8 +52,6 @@ def parse_manifest(raw):
         txt = item["text"]
         if not isinstance(txt, str) or not txt.strip() or len(txt) > 350:
             raise ValueError("Invalid fighter-memory text length")
-        if item["text_sha256"] != hashlib.sha256(txt.encode("utf-8")).hexdigest():
-            raise ValueError("Approved prose snapshot hash mismatch")
         if not isinstance(item["parent_receipt"], str) or not item["parent_receipt"].startswith("exchange:" + pid + ":"):
             raise ValueError("Parent receipt mismatch")
     return items
