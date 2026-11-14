@@ -48,9 +48,14 @@ def build(memories,store=None,fighter_id=None):
         for item in path:roots[item]=canonical
         return canonical
     relevant=[m for m in memories if fighter_id is None or m.get('fighter_id') in (None,fighter_id)]
+    from record_semantics import is_source_normalization
     for memory in relevant:
         if memory.get('memory_type')!='observation' or memory.get('baseline') or memory.get('is_baseline'):continue
         for event_id in memory.get('source_event_ids',[]):
+            # Source-only formatting changes never advance a fighter's
+            # experience clock, even though the mechanical ledger retains them.
+            if is_source_normalization(event_id):
+                continue
             token=root(event_id);original=record(token)
             occurred=timestamp(memory.get('occurred_at') or original.get('occurred_at'))
             stamp=occurred or timestamp(original.get('observed_at') or memory.get('observed_at'))
