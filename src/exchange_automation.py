@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 import hmac
 import json
 import os
+import re
+import unicodedata
 from pathlib import Path
 from uuid import uuid4
 
@@ -534,6 +536,50 @@ def prospective_biography_length_error(request, markdown):
     return ''
 
 
+
+def fighter_memory_title_error(store, candidate, markdown):
+    """Reject a fighter's own name/alias in the first memory heading.
+
+    The UI identifies the fighter. This check applies at the canonical
+    importer, including bulk deliveries and versioned editorial revisions.
+    """
+    if candidate.get('form') != 'fighter_memory':
+        return ''
+    lines=[line.strip() for line in markdown.splitlines() if line.strip()]
+    if not lines:
+        return 'Fighter memory requires a title'
+    first=lines[0]
+    if first.startswith('**') and first.endswith('**') and len(first)>4:
+        heading=first[2:-2].strip()
+    elif first.startswith('#'):
+        heading=first.lstrip('#').strip()
+    else:
+        return 'Fighter memory must begin with a Markdown title without the fighter name'
+    if not heading:
+        return 'Fighter memory requires a nonempty title'
+    row=store.db.execute('SELECT name FROM fighters WHERE id=?',
+                         (candidate['entity_key'],)).fetchone()
+    if row is None:
+        return 'Fighter identity unavailable for mandatory memory-title check'
+    name=unicodedata.normalize('NFKC',str(row['name'] or '')).casefold().strip()
+    title=unicodedata.normalize('NFKC',heading).casefold()
+    # Preserve full handles; split given names and quoted aliases separately.
+    quoted=re.findall(r'[\u201e\u201c\u201d"\xab\xbb]([^\u201e\u201c\u201d"\xab\xbb]+)',name)
+    plain=re.sub(r'[\u201e\u201c\u201d"\xab\xbb].*','',name).strip(' ,-/')
+    forbidden={name,plain,*quoted}
+    words=re.findall(r'[^\W_]+',plain,flags=re.UNICODE)
+    if len(words)==1:
+        forbidden.add(words[0])
+    elif len(words)>1:
+        forbidden.update((words[0],words[-1]))
+        if words[-1].isdigit() and len(words)>2:
+            forbidden.add(' '.join(words[:-1]))
+    for token in sorted((s for s in forbidden if s and len(s)>=2),key=len,reverse=True):
+        if re.search(r'(?<!\w)'+re.escape(token)+r'(?!\w)',title,re.UNICODE):
+            return 'Fighter memory title contains the fighter name or alias: '+heading
+    return ''
+
+
 def deliver(store,payload):
     """READY grants publication, not authorship. Freeze output even on rejection."""
     if not isinstance(payload,dict):raise ValueError('Expected a delivery object')
@@ -566,6 +612,8 @@ def deliver(store,payload):
             found=[c for c in candidates(store) if target_key(c)==request['target_key']]
             if len(found)!=1:
                 error='Target missing or ambiguous; draft retained'
+            elif fighter_memory_title_error(store,found[0],text):
+                error=fighter_memory_title_error(store,found[0],text)
             elif request['revision_of']:
                 parent=store.db.execute('SELECT * FROM writing_exchange_requests WHERE request_id=?',
                                         (request['revision_of'],)).fetchone()
