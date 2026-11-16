@@ -54,6 +54,21 @@ A normal five-minute NCCE relay tick performs its normal Queue work **first**, t
 
 NCCE itself never calls a language model. A connected writer/Work execution must process the Bulk Items in batches; the relay handles only delivery, imports and receipts.
 
+## Non-negotiable memory-title QA (owner ruling, 16 November 2026)
+
+**All fighter_memory headings must be free of their subject fighter's name and aliases.** Do not prefix or append a personal name, codename, callsign, surname, or nickname to any memory title, including `NAME // TITLE`, `NAME: TITLE`, or `TITLE — NAME`. This is a global rule for every gang, every normal Queue entry, every bulk entry, and every versioned correction. Use the fighter's UI/roster label and metadata for identity; the in-world title must describe only the experience.
+
+Apply this at four mandatory checkpoints: (1) title selection before prose drafting; (2) before saving Markdown; (3) final pre-READY approval/auto-approval; and (4) final job editorial QA. Use actual fighter identity and aliases from the sealed context, not a guess from the prose. A title violation is a **blocking defect**, never optional polish. A writer must correct the title in its unimported draft and recount the entire Markdown against the 350-character memory cap. The canonical NCCE importer also rejects a named fighter-memory title, including the hidden bulk bridge, so Google Sheets READY alone does not override the rule.
+
+Run the **read-only** technical audit against the production database snapshot at end of a bulk job (or all existing memories):
+
+```bash
+python scripts/audit_fighter_memory_titles.py --db /path/to/ncce.db --job-id YOUR_JOB_UUID
+python scripts/audit_fighter_memory_titles.py --db /path/to/ncce.db
+```
+
+An audit reports exact offending slot IDs and exits nonzero for any violations. **Never update imported Markdown or receipts in place**; use NCCE's guarded revision flow, preserving original history and requiring the normal exact-draft review for post-import corrections. Old previously accepted examples containing a name in the memory title are explicitly noncompliant and must not be copied.
+
 ## Error handling and correction
 
 | Failure | Behavior |
