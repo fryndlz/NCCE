@@ -69,6 +69,14 @@ def _validate(store,bundle):
     if len(people)!=1 or actual.get('fighter_name_hint')!=source['fighter_name']:
         raise ValueError('Exact source fighter mapping is missing or ambiguous')
     fighter=people[0]
+    # Legacy owner-accepted bundles may have no heading. For headed memories,
+    # enforce the same name-free title rule as the current canonical importer.
+    first=next((line.strip() for line in content.splitlines() if line.strip()),'')
+    if first.startswith('**') or first.startswith('#'):
+        from exchange_automation import fighter_memory_title_error
+        failure=fighter_memory_title_error(store,{'form':'fighter_memory','entity_key':str(fighter['id'])},content)
+        if failure:
+            raise ValueError(failure)
     canon=[b['text'] for b in packet['context'] if b['section']=='authored_canon' and b['provenance']=='player_authored']
     sheet_background=json.loads(fighter.get('mechanics_json') or '{}').get('Backstory')
     if canon and (len(canon)!=1 or (sheet_background or fighter['backstory'])!=canon[0]):
