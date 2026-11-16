@@ -50,6 +50,35 @@ def test_bulk_text_validation_is_form_specific():
     bulk._validate_bulk_text("fighter_memory", TEXT)
 
 
+
+def test_memory_title_must_not_contain_fighter_name_or_alias():
+    tmp,store,gang=fixture()
+    try:
+        candidate=next(c for c in exchange.candidates(store)
+                       if c['form']=='fighter_memory')
+        fid=candidate['entity_key']
+        store.db.execute("UPDATE fighters SET name='Mara Kel' WHERE id=?",(fid,))
+        assert exchange.fighter_memory_title_error(store,candidate,
+            "**MARA KEL // STILL STANDING**\\n\\nAn observation.")
+        assert exchange.fighter_memory_title_error(store,candidate,
+            "**WHAT MARA SAW**\\n\\nAn observation.")
+        assert exchange.fighter_memory_title_error(store,candidate,
+            "**THE KEL REPORT**\\n\\nAn observation.")
+        assert not exchange.fighter_memory_title_error(store,candidate,
+            "**STILL STANDING**\\n\\nAn observation.")
+        store.db.execute("UPDATE fighters SET name='Severus „Bezlitosny”' WHERE id=?",(fid,))
+        assert exchange.fighter_memory_title_error(store,candidate,
+            "**BEZLITOSNY // THE ORDER**\\n\\nAn observation.")
+        assert exchange.fighter_memory_title_error(store,candidate,
+            "**SEVERUS / THE ORDER**\\n\\nAn observation.")
+        assert not exchange.fighter_memory_title_error(store,candidate,
+            "**THE ORDER**\\n\\nAn observation.")
+        assert not exchange.fighter_memory_title_error(store,
+            {**candidate,'form':'fighter_reflection'},
+            "**SEVERUS // THE ORDER**\\n\\nA reflection.")
+    finally:store.close();tmp.cleanup()
+
+
 def test_owner_authorization_scoped_and_schema_present():
     tmp,s,gang=fixture()
     try:
