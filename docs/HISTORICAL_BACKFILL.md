@@ -90,7 +90,8 @@ it cannot secretly cause a chat conversation to continue running. It is
 automated only after deploying and enabling the API-backed writer.
 
 At closure, `Bulk Reports` records the terminal counts and a link to Bulk
-Items. **IMPORTED corrections remain human-in-the-loop:** select the imported
+Items. Set optional Script Property `NCCE_BULK_REPORT_EMAIL` to receive a
+completion email with the report link; no recipient is inferred automatically. **IMPORTED corrections remain human-in-the-loop:** select the imported
 row and use `Revise selected bulk memory`; the original receipt is immutable
 and the correction follows ordinary Queue approval.
 
