@@ -54,6 +54,52 @@ A normal five-minute NCCE relay tick performs its normal Queue work **first**, t
 
 NCCE itself never calls a language model. A connected writer/Work execution must process the Bulk Items in batches; the relay handles only delivery, imports and receipts.
 
+## Continuous autonomous writer (opt-in deployment)
+
+The five-minute relay **does not itself write**. To make a finite job run to
+completion without repeated human clicks, deploy `AutonomousBulkWriter.gs`
+alongside `Code.gs` and `Bulk.gs` in the **same bound Apps Script project**.
+The installed `syncNCCE` trigger now runs transport and then the autonomous
+writer. Each tick imports earlier READY items, publishes dependency-safe packets,
+and writes the next eligible batch. No additional owner sync clicks are needed.
+
+**Requires explicit owner consent to model/API use and its cost.** Set Script
+Properties `NCCE_BULK_WRITER_API_KEY` (an OpenAI API key) and
+`NCCE_BULK_WRITER_ENABLED=true`. Optional `NCCE_BULK_WRITER_MODEL` overrides
+the default. Without both required properties, this writer remains disabled;
+normal Queue and existing bulk relay continue unchanged. The model receives
+the sealed context and writing instructions, which can contain sensitive
+campaign lore. Do not enable without agreeing to that transfer.
+
+For each eligible item the writer:
+1. Checks immutable request ID, source revision, context completeness and job.
+2. Claims only a blank `PENDING` bulk row, never an imported/corrected entry.
+3. Generates a draft against the full sealed packet and writing instructions.
+4. Applies deterministic checks: form, heading, name/alias-free memory title,
+   350-character memory cap or 60–130-word reflection target.
+5. Performs a separate model-based literary/factual review against the same
+   sealed source. If either review fails, it feeds the issues back into the
+   next attempt. A bounded number of attempts per tick avoids Apps Script
+   execution timeouts; unsuccessful entries return to PENDING and retry on
+   subsequent ticks, never READY.
+6. Saves the exact accepted Markdown, reads it back, revalidates and **only
+   then** marks READY. The next relay tick uses the existing canonical importer.
+
+This is a *different execution backend* from an interactive ChatGPT session;
+it cannot secretly cause a chat conversation to continue running. It is
+automated only after deploying and enabling the API-backed writer.
+
+At closure, `Bulk Reports` records the terminal counts and a link to Bulk
+Items. **IMPORTED corrections remain human-in-the-loop:** select the imported
+row and use `Revise selected bulk memory`; the original receipt is immutable
+and the correction follows ordinary Queue approval.
+
+**Known limits:** Model-based editorial review is fallible, and the
+deterministic checks cannot establish every factual/literary requirement.
+A failed writer API call leaves the item retryable, not READY. The system
+requires monitoring for repeated failure, source HOLD and quota errors.
+Test on a small disposable job before enabling it on production.
+
 ## Non-negotiable memory-title QA (owner ruling, 16 November 2026)
 
 **All fighter_memory headings must be free of their subject fighter's name and aliases.** Do not prefix or append a personal name, codename, callsign, surname, or nickname to any memory title, including `NAME // TITLE`, `NAME: TITLE`, or `TITLE — NAME`. This is a global rule for every gang, every normal Queue entry, every bulk entry, and every versioned correction. Use the fighter's UI/roster label and metadata for identity; the in-world title must describe only the experience.
