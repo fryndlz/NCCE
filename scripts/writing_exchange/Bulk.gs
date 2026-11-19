@@ -205,6 +205,7 @@ function syncHistoricalBackfill(book) {
       writeLiteral(jobs.getRange(jobRow,2),[[closed.state]]);
       writeLiteral(jobs.getRange(jobRow,9),[[new Date().toISOString()]]);
       bulkAudit(book,jobId,'','CLOSE',closed.state,'','Finite manifest exhausted');
+      bulkFinalReport(book,jobId,closed.state,fresh);
     }
   }
 }
@@ -270,4 +271,25 @@ function finalizeSelectedBulkJob() {
   bulkAudit(book,row[0],'','FINALIZE',completed.state,'',
     'Explicit owner finalization; unresolved items retained for reconciliation');
   ui.alert('Job '+row[0]+' closed: '+completed.state);
+}
+
+/** One immutable completion record, with a direct review link. Imported entries
+ * remain revisable only via the existing human-approved Queue correction flow.
+ */
+function bulkFinalReport(book,jobId,state,manifest) {
+  const headers=['completed_at_utc','job_id','state','imported','skipped',
+    'held','unresolved','total','review_url','correction_action'];
+  const sheet=bulkGetSheet(book,'Bulk Reports',headers);
+  if(bulkFind(sheet,jobId,headers.length))return;
+  const statuses=manifest.statuses||{};
+  const unresolved=(statuses.PENDING||0)+(statuses.WRITING||0);
+  const review='https://docs.google.com/spreadsheets/d/'+EXCHANGE_ID+
+    '/edit#gid='+book.getSheetByName('Bulk Items').getSheetId();
+  writeLiteral(sheet.getRange(sheet.getLastRow()+1,1,1,headers.length),[[
+    new Date().toISOString(),jobId,state,String(statuses.IMPORTED||0),
+    String(statuses.SKIPPED||0),String(statuses.HOLD||0),
+    String(unresolved),String(manifest.count||0),review,
+    'Select IMPORTED Bulk Items row → Historical backfill → Revise selected bulk memory'
+  ]]);
+  bulkAudit(book,jobId,'','FINAL_REPORT',state,'',review);
 }
