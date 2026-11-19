@@ -280,7 +280,7 @@ function bulkFinalReport(book,jobId,state,manifest) {
   const headers=['completed_at_utc','job_id','state','imported','skipped',
     'held','unresolved','total','review_url','correction_action'];
   const sheet=bulkGetSheet(book,'Bulk Reports',headers);
-  if(bulkFind(sheet,jobId,headers.length))return;
+  if(bulkRows(sheet,headers.length).some(r=>r[1]===jobId))return;
   const statuses=manifest.statuses||{};
   const unresolved=(statuses.PENDING||0)+(statuses.WRITING||0);
   const review='https://docs.google.com/spreadsheets/d/'+EXCHANGE_ID+
