@@ -5,7 +5,7 @@
  */
 const BULK_WRITER_MODEL = 'gpt-4.1';
 const BULK_WRITER_BATCH = 2;
-const BULK_WRITER_MAX_ATTEMPTS = 4;
+const BULK_WRITER_MAX_ATTEMPTS = 2;
 
 function bulkWriterProps() { return PropertiesService.getScriptProperties(); }
 function bulkWriterEnabled() {
