@@ -297,13 +297,13 @@ function bulkFinalReport(book,jobId,state,manifest) {
   if(email) {
     try {
       MailApp.sendEmail(email,'NCCE historical backfill: '+state,
-        'Job: '+jobId+'\\nState: '+state+
-        '\\nImported: '+(statuses.IMPORTED||0)+
-        '\\nSkipped: '+(statuses.SKIPPED||0)+
-        '\\nHeld: '+(statuses.HOLD||0)+
-        '\\nUnresolved: '+unresolved+
-        '\\nReview: '+review+
-        '\\nFor imported corrections, select the Bulk Items row and use Revise selected bulk memory.');
+        'Job: '+jobId+'\nState: '+state+
+        '\nImported: '+(statuses.IMPORTED||0)+
+        '\nSkipped: '+(statuses.SKIPPED||0)+
+        '\nHeld: '+(statuses.HOLD||0)+
+        '\nUnresolved: '+unresolved+
+        '\nReview: '+review+
+        '\nFor imported corrections, select the Bulk Items row and use Revise selected bulk memory.');
     } catch(e) {
       bulkAudit(book,jobId,'','REPORT_EMAIL_FAILED',state,'',String(e.message));
     }
