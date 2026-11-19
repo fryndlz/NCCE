@@ -330,6 +330,12 @@ function syncNCCE() {
         bulk.getRange(2,10).setValue(String(error.message).slice(0,300));
       }
     }
+    // Explicitly opt-in autonomous writer. It never touches normal Queue,
+    // and a model/API failure cannot interrupt normal or bulk transport.
+    try { runAutonomousBulkWriter(book); }
+    catch (error) {
+      console.error('Autonomous bulk writer failed: '+error.message);
+    }
   } finally { lock.releaseLock(); }
 }
 
