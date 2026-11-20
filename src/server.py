@@ -9,7 +9,7 @@ from sync import sync_live_sheet
 from access import configured_bool, effective_session_key, make_session_token, valid_session_token
 
 ROOT=Path(__file__).resolve().parents[1]; WEB=ROOT/'web'
-APP_VERSION='0.28.19'
+APP_VERSION='0.28.20'
 DB=Path(os.environ.get('NCCE_DB_PATH',str(ROOT/'data'/'chronicle.db'))).expanduser()
 AUTH_REQUIRED=configured_bool(os.environ.get('NCCE_REQUIRE_AUTH'))
 ACCESS_PASSWORD=os.environ.get('NCCE_ACCESS_PASSWORD','')
@@ -247,10 +247,19 @@ class H(BaseHTTPRequestHandler):
       if action=='create':
        return self.js(historical_backfill.create(
         store,payload.get('gang_ids'),gang_names=payload.get('gang_names'),
-        house_types=payload.get('house_types'),owner_authorized=payload.get('owner_authorized')))
+        house_types=payload.get('house_types'),owner_authorized=payload.get('owner_authorized'),
+        start_date=payload.get('start_date'),end_date=payload.get('end_date'),
+        max_items=payload.get('max_items'),
+        autonomous_writer_authorized=payload.get('autonomous_writer_authorized')))
+      if action=='jobs':
+       return self.js({'jobs':historical_backfill.list_jobs(store)})
+      if action=='checkpoint':
+       import bulk_qa
+       return self.js(bulk_qa.save(store,payload))
       if action=='poll':
        return self.js(historical_backfill.poll(
-        store,payload.get('job_id'),payload.get('limit',25)))
+        store,payload.get('job_id'),payload.get('limit',25),
+        resolve_blocked=payload.get('resolve_blocked') is True))
       if action=='deliver':
        return self.js(historical_backfill.deliver(
         store,payload.get('job_id'),payload))

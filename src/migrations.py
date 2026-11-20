@@ -10,7 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 21
+SCHEMA_VERSION = 22
 PROVENANCE_CLASSES = (
     "mechanical_fact",
     "player_authored",
@@ -987,6 +987,25 @@ def migrate(db: sqlite3.Connection) -> int:
             db.execute('PRAGMA user_version=21');db.commit()
         except Exception:
             db.rollback();raise
+    if current < 22:
+        try:
+            db.executescript('''
+                BEGIN;
+                CREATE TABLE historical_backfill_qa(
+                    request_id TEXT NOT NULL REFERENCES historical_backfill_items(request_id),
+                    version INTEGER NOT NULL,
+                    checkpoint_json TEXT NOT NULL,
+                    recorded_at TEXT NOT NULL,
+                    PRIMARY KEY(request_id,version)
+                );
+            ''')
+            db.execute('INSERT INTO schema_migrations(version,name,applied_at) VALUES(22,?,?)',
+                       ('durable historical backfill writing and validation checkpoints',_now()))
+            db.execute('PRAGMA user_version=22')
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
     return SCHEMA_VERSION
 
 

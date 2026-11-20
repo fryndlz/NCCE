@@ -1,167 +1,35 @@
-# NCCE Historical Backfill (one-off, owner-authorized)
+# Historical Bulk Backfill
 
-**Status:** implementation in draft PR; not an active live feature until merged, deployed, and the optional Google Apps Script file is installed. Normal Writing Exchange remains the default.
+Historical Backfill processes a finite snapshot of existing fighter memories and reflections in the private NCCE Writing Exchange. The five-minute Apps Script trigger runs the relay and the Writer. The ordinary Queue continues to use the existing owner approval process.
 
-## Why this exists
+## Create or resume a job
 
-An existing gang may be connected to NCCE after many mechanical events have already been recorded. This creates a finite *historical prose backlog*, not a second way to write newly occurring campaign events.
+- **Historical backfill → Create one-off backfill** accepts exact gang or House selectors, two inclusive ISO dates and a maximum item count. Dates refer to the UTC event date. Items without dates are excluded. If the snapshot exceeds the authorized count, creation fails before reserving any items.
+- Confirm the scope and OpenAI use in the menu. The confirmation authorizes up to three draft calls and nine review calls per item, including retry attempts. The relay recovers the manifest from NCCE if the creation response or Sheet update is interrupted.
+- To resume a legacy job, select its existing **ACTIVE** row in **Bulk Jobs** and choose **Resume selected autonomous job**. This authorizes writing for the selected ID and clears a configuration pause after the operator fixes its cause. Its original snapshot, item IDs and receipts remain the basis of the job. For Kły Sprawiedliwości the existing job is `5530b49f-0ad8-4e14-a3fd-669644c8f411`.
+- **Bulk Reports** lists the final state, IMPORTED, SKIPPED, HOLD and unresolved counts plus a review link. Select an IMPORTED row and choose **Revise selected bulk entry** to open a new revision request in the ordinary Queue. Only the owner's approval of that exact draft may advance the revision to import.
 
-Only an explicitly authorised historical backfill job may skip individual approval. Ordinary Queue requests still require individual owner approval.
+## Processing and recovery
 
-## Isolation architecture
+NCCE freezes the request ID, target, event and base context at authorization. It releases only items whose prerequisites are satisfied. Writer and independent reviewer receive the complete server packet, including facts, chronology, character and provenance, literary policy and accepted continuity, plus the full Writer instructions, Writer skill and Voice identity tabs.
 
-- Existing **Queue** and **Context**: unchanged headers, existing five-in-flight limit, normal `PENDING → WRITING → READY → IMPORTED` flow and normal manual approval.
-- **Bulk Jobs**: one row per finite job, scope, counts, status, errors and closure.
-- **Bulk Items**: an entire frozen manifest, one immutable request UUID per target. Initially `WAITING` in the Sheet, then `PENDING/WRITING/READY/IMPORTED/HOLD` as released. The bulk writer edits *only these rows*.
-- **Bulk Context**: source packet, existing fighter biography, identity/voice layers, source evidence and permissible continuity. Context is written **before** a bulk item becomes `PENDING`.
-- **Bulk Audit**: append-only transport attempt/correction log; SQLite is the authoritative ledger.
+The Writer saves its candidate and counters in the SQLite QA ledger. A separate model call records a verdict and justification for each of mechanics, chronology, lore, character, style, format and length. Deterministic checks enforce the heading, the name- and alias-free memory title, the 350 Unicode-character cap for a memory including Markdown, and the 60–130-word reflection body. A failed check feeds its reason back into the next rewrite. Model-based editorial judgement can still miss a defect.
 
-The new SQLite tables `historical_backfill_jobs` and `historical_backfill_items` are separate from the ordinary `writing_exchange_requests` table.
+The relay publishes READY after saving and verifying the reviewed text. The importer checks the stored approval against the exact draft and sealed context, then invokes the canonical import path. Same-ID replay preserves the original receipt. Legacy READY drafts awaiting import need the same review. Previously imported entries and receipts are retained.
 
-**Normal importer convergence:** At delivery, the bulk writer's exact accepted text is bridged to a hidden canonical `writing_exchange_requests` row and handed to the existing `exchange_automation.deliver()` validator. That validator retains source checks, immutable target binding, idempotent receipt, original-projection evidence, and source-safe prose-only updates.
+The server stores call counters before contacting OpenAI. Provider interruptions use bounded backoff and resume from the last committed checkpoint. Missing quota, credentials, or model access pause the affected job and appear under **Bulk Jobs**. Exhausted attempts and source or prerequisite conflicts appear as HOLD with reasons. Inspect these before closing jobs manually. A normal Queue error is investigated separately from a bulk job error.
 
-The normal queue's `prepare()` and `outbox()` exclude active reserved targets and hidden bulk bridge requests. The bridge cannot create a visible duplicate Queue item. A successful bulk import, however, *is* a normal accepted import from NCCE's point of view, so all existing projection retention continues to work.
+## Deploy and verify
 
-## Job creation and snapshot
+1. Run the unit and integration tests and the one-item end-to-end fixture. It uses the real HTTP handler and SQLite with disposable state and simulated Google Sheets and OpenAI calls.
+2. Deploy the tested backend to Render and verify the schema 22 backup and healthy startup. The migration appends QA checkpoints without replacing historical job or import ledgers.
+3. Save `AutonomousBulkWriter.gs`, `Bulk.gs` and `Code.gs` in the existing bound Apps Script project. The checked-in files are the source of truth. Keep Sheets v4, V8 and the existing OAuth scopes. The existing trigger runs the saved project head. No separate Apps Script web-app deployment is needed.
+4. Run **Check bulk writer and trigger**. It verifies the relay bearer, lists key presence without exposing the key and checks the current account's `syncNCCE` trigger. Verify a new successful timer execution in Apps Script and the job counts in the exchange.
+5. Configure `NCCE_BULK_WRITER_API_KEY` securely in Script Properties for OpenAI and set `NCCE_BULK_WRITER_ENABLED=true` when ready. Defaults are GPT-4.1 mini (Writer) and GPT-4.1 (reviewer), overridable via `NCCE_BULK_WRITER_MODEL` and `NCCE_BULK_REVIEWER_MODEL`. Check both model permissions and quota with a small authorized scope before enabling a production job. The global switch alone does not authorize pre-existing jobs.
+6. To pause paid generation, clear the global enabled switch or the authorized legacy job ID from `NCCE_BULK_WRITER_JOB_IDS`. Keep the database and checkpoints. Do not roll the backend back to a release that cannot open schema 22.
 
-An owner explicitly creates a job using exact gang names or faction/House selectors. Examples:
+## Relay contract
 
-- `gang:C-NINE` if that is the exact NCCE roster gang name
-- `gang:Kły Sprawiedliwości`
-- `house:House Orlock` if that is the stored `gang_type`
+The existing dedicated relay bearer protects the `bulk/*` routes. `create` accepts `start_date`, `end_date`, gang selectors, `owner_authorized`, `autonomous_writer_authorized` and `max_items`. `jobs` discovers active and recently finished jobs. `poll` returns prerequisite-safe packets with context hashes and versioned checkpoints. `checkpoint` compares the expected version and preserves the attempt history. `deliver` accepts only the durable approval matching the exact draft, except a replay of a previously committed import. `status`, `close`, `cancel` and `revise` use the existing job and request IDs. The signed-in application also exposes `GET /api/historical-backfill?job_id=…`.
 
-The server resolves those selectors to precise **gang IDs** and freezes that finite set. Only already-existing unapproved `fighter_memory` and `fighter_reflection` slots belonging to those gangs are considered. No new events, memories, mechanic observations or roster rows are created. Approved/player-authored entries are excluded.
-
-For each selected slot, the job stores:
-- immutable `request_id`, `target_key`, gang/fighter binding and ordering
-- original projection and semantic source seal
-- frozen base source/identity/voice packet and context fingerprint
-- a durable status and later source revision, exact delivered Markdown, error, receipt and import time
-
-Existing normal-Queue claims are recorded as `SKIPPED`, not overwritten. A gang may belong to only one active job. Different gangs may have independent jobs.
-
-The full manifest is visible immediately in **Bulk Items**, even when an entry is `WAITING` for its chronological prerequisites. Releasing packets computes dependency continuity from already accepted predecessors; these accepted texts supplement—but never replace—the frozen source evidence.
-
-## Authoring & automatic approval
-
-An owner may authorize autonomous acceptance **for one finite job**. This is not a property of the writer's style skill, nor a standing authorisation for future Queue items.
-
-Writers must use accepted prose and individual voice guidelines; House Orlock's many approved fighter voices should be consulted, not only *Damaged Freight*. Only `fighter_memory` has the hard 350-character limit **including Markdown**. `fighter_reflection` is a separate synthesis form (normally 60–130 words when the supplied literary policy specifies this target) and must not be truncated to the memory cap.
-
-A bulk writer saves the complete Markdown in `Bulk Items.writer_text_md` (column L), optionally a note (M), and marks the saved item `READY` (column B). It must re-check exact request ID, source revision, event evidence, status, title and character limit before marking READY. The relay delivers saved text without rewriting it.
-
-A normal five-minute NCCE relay tick performs its normal Queue work **first**, then invokes the optional bulk sync in a protected try/catch. A bulk transport error cannot abort the already-finished normal exchange. No bulk tab exists until the owner explicitly sets it up; jobs do not run merely because the app starts.
-
-NCCE itself never calls a language model. A connected writer/Work execution must process the Bulk Items in batches; the relay handles only delivery, imports and receipts.
-
-## Continuous autonomous writer (opt-in deployment)
-
-The five-minute relay **does not itself write**. To make a finite job run to
-completion without repeated human clicks, deploy `AutonomousBulkWriter.gs`
-alongside `Code.gs` and `Bulk.gs` in the **same bound Apps Script project**.
-The installed `syncNCCE` trigger now runs transport and then the autonomous
-writer. Each tick imports earlier READY items, publishes dependency-safe packets,
-and writes the next eligible batch. No additional owner sync clicks are needed.
-
-**Requires explicit owner consent to model/API use and its cost.** Set Script
-Properties `NCCE_BULK_WRITER_API_KEY` (an OpenAI API key) and
-`NCCE_BULK_WRITER_ENABLED=true`. Optional `NCCE_BULK_WRITER_MODEL` overrides
-the default. Without both required properties, this writer remains disabled;
-normal Queue and existing bulk relay continue unchanged. The model receives
-the sealed context and writing instructions, which can contain sensitive
-campaign lore. Do not enable without agreeing to that transfer.
-
-For each eligible item the writer:
-1. Checks immutable request ID, source revision, context completeness and job.
-2. Claims only a blank `PENDING` bulk row, never an imported/corrected entry.
-3. Generates a draft against the full sealed packet and writing instructions.
-4. Applies deterministic checks: form, heading, name/alias-free memory title,
-   350-character memory cap or 60–130-word reflection target.
-5. Performs a separate model-based literary/factual review against the same
-   sealed source. If either review fails, it feeds the issues back into the
-   next attempt. A bounded number of attempts per tick avoids Apps Script
-   execution timeouts; unsuccessful entries return to PENDING and retry on
-   subsequent ticks, never READY.
-6. Saves the exact accepted Markdown, reads it back, revalidates and **only
-   then** marks READY. The next relay tick uses the existing canonical importer.
-
-This is a *different execution backend* from an interactive ChatGPT session;
-it cannot secretly cause a chat conversation to continue running. It is
-automated only after deploying and enabling the API-backed writer.
-
-At closure, `Bulk Reports` records the terminal counts and a link to Bulk
-Items. Set optional Script Property `NCCE_BULK_REPORT_EMAIL` to receive a
-completion email with the report link; no recipient is inferred automatically. **IMPORTED corrections remain human-in-the-loop:** select the imported
-row and use `Revise selected bulk memory`; the original receipt is immutable
-and the correction follows ordinary Queue approval.
-
-**Known limits:** Model-based editorial review is fallible, and the
-deterministic checks cannot establish every factual/literary requirement.
-A failed writer API call leaves the item retryable, not READY. The system
-requires monitoring for repeated failure, source HOLD and quota errors.
-Test on a small disposable job before enabling it on production.
-
-## Non-negotiable memory-title QA (owner ruling, 16 November 2026)
-
-**All fighter_memory headings must be free of their subject fighter's name and aliases.** Do not prefix or append a personal name, codename, callsign, surname, or nickname to any memory title, including `NAME // TITLE`, `NAME: TITLE`, or `TITLE — NAME`. This is a global rule for every gang, every normal Queue entry, every bulk entry, and every versioned correction. Use the fighter's UI/roster label and metadata for identity; the in-world title must describe only the experience.
-
-Apply this at four mandatory checkpoints: (1) title selection before prose drafting; (2) before saving Markdown; (3) final pre-READY approval/auto-approval; and (4) final job editorial QA. Use actual fighter identity and aliases from the sealed context, not a guess from the prose. A title violation is a **blocking defect**, never optional polish. A writer must correct the title in its unimported draft and recount the entire Markdown against the 350-character memory cap. The canonical NCCE importer also rejects a named fighter-memory title, including the hidden bulk bridge, so Google Sheets READY alone does not override the rule.
-
-Run the **read-only** technical audit against the production database snapshot at end of a bulk job (or all existing memories):
-
-```bash
-python scripts/audit_fighter_memory_titles.py --db /path/to/ncce.db --job-id YOUR_JOB_UUID
-python scripts/audit_fighter_memory_titles.py --db /path/to/ncce.db
-```
-
-An audit reports exact offending slot IDs and exits nonzero for any violations. **Never update imported Markdown or receipts in place**; use NCCE's guarded revision flow, preserving original history and requiring the normal exact-draft review for post-import corrections. Old previously accepted examples containing a name in the memory title are explicitly noncompliant and must not be copied.
-
-## Error handling and correction
-
-| Failure | Behavior |
-|---|---|
-| Snapshot source or approved source context changes | `HOLD`; original snapshot and exact draft retained |
-| Invalid or overlength draft | Rejected before bridge; writer corrects the existing Bulk Items row |
-| Conflicting normal request or earlier import | `HOLD`; no target overwritten |
-| Failed/ambiguous import | `HOLD`, reason and saved Markdown retained |
-| Relay crashes after backend import but before Sheet receipt | Same ID/text may be resent; original receipt returned, no duplicate |
-| Historical text imports but user wants editorial revision | Select `IMPORTED` Bulk Items row and use **Revise selected bulk memory**; original remains unchanged and NCCE creates a **new ordinary Queue correction request** under the existing `revision_of`/receipt/text-hash checks. The correction requires manual owner approval |
-
-**Identity invariant:** an imported memory keeps its logical target and existing original import ID; a subsequent correction gets a new request ID. Revision requests never change campaign mechanics and never silently inherit the one-off bulk job's auto-approval.
-
-The job normally closes only when all entries are imported, held or skipped. An explicit **Finalize selected job with errors** owner action may first mark unresolved, unclaimed WAITING items HOLD with preserved reasons; active WRITING claims block forced closure. It closes `COMPLETED` or `COMPLETED_WITH_ERRORS`, which expires its authorisation. Blocked prerequisite items require intervention, not silent acceptance.
-
-## Deployment / rollback
-
-1. Review the GitHub PR and pass both old and new regressions.
-2. Back up the NCCE database. Schema 21 is forward-only and does not mutate existing Queue content.
-3. Deploy to disposable staging first and create a three-memory job.
-4. Test source mismatch, a duplicate delivery, a correct import, normal Queue intake during the job, and a manual revision of an imported bulk item.
-5. Only then merge/deploy to production, and add `scripts/writing_exchange/Bulk.gs` to the bound Google Apps Script project alongside the updated `Code.gs`.
-6. The new menu creates Bulk tabs and requests an explicit finite job. Leave the hourly ChatGPT fast-track paused.
-
-**Rollback without data loss:** Stop issuing bulk requests; use `cancel` on an active job (this releases its target reservations but never unimports successful entries). Do not delete ledger rows or undo imported prose without an explicit versioned correction. Old Queue relay and its existing source data remain in place.
-
-## Private relay API
-
-Existing `NCCE_EXCHANGE_TOKEN` bearer authentication is required; these endpoints do not respond to ordinary unauthenticated application requests.
-
-| Endpoint | Input | Result |
-|---|---|---|
-| `bulk/create` | `{owner_authorized:true, gang_ids?:[], gang_names?:[], house_types?:[]}` | Finite gang-ID snapshot and job UUID |
-| `bulk/status` | `{job_id}` | Full immutable target manifest and item statuses |
-| `bulk/poll` | `{job_id,limit:1..50}` | Prerequisite-safe sealed source packets |
-| `bulk/deliver` | `{job_id,request_id,source_revision,status:"READY",writer_text_md,...}` | Canonical import receipt or HOLD |
-| `bulk/revise` | `{job_id,request_id,expected_receipt}` | New ordinary Queue revision request |
-| `bulk/close` | `{job_id}` | Finite completion, if no pending work |
-| `bulk/cancel` | `{job_id}` | Cancel uncompleted reservation without undoing prior imports |
-
-The signed-in application also provides read-only `GET /api/historical-backfill?job_id=...`.
-
-## Limitations to verify before activation
-
-- A historical source correction during a job deliberately requires reconciliation; the writer must not quietly replace the original snapshot.
-- The first implementation supports **fighter memories/reflections only**, not gang reports, battle reports, place events or biographies.
-- New campaign events after the job's authorization are **not** included in its snapshot. They use the normal Exchange or a new explicitly authorized backfill.
-- The job's automatic import depends on the normal NCCE five-minute relay and an external bulk writer. It cannot make ChatGPT write 700 memories unattended by itself.
-- A `HOLD` caused by conflicting source data must be resolved before a new job or normal retry can safely import that target. Never delete or recycle IDs to force a retry.
+For the existing memory-title audit, use `python scripts/audit_fighter_memory_titles.py --db /path/to/ncce.db --job-id YOUR_JOB_UUID`. The audit reads stored Markdown. Use the approved revision flow for corrections.

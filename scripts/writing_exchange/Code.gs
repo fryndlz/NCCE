@@ -13,8 +13,10 @@ function onOpen() {
     .addItem('Set up bulk tabs', 'setupHistoricalBackfill')
     .addItem('Create one-off backfill', 'createHistoricalBackfill')
     .addItem('Sync bulk jobs now', 'syncHistoricalBackfillNow')
+    .addItem('Resume selected autonomous job', 'resumeSelectedBulkJob')
+    .addItem('Check bulk writer and trigger', 'showBulkOperationalStatus')
     .addItem('Create corrections for all failed QA entries', 'createCorrectionsForFailedQA')
-    .addItem('Revise selected bulk memory', 'reviseSelectedBulkMemory')
+    .addItem('Revise selected bulk entry', 'reviseSelectedBulkMemory')
     .addItem('Finalize selected job with errors', 'finalizeSelectedBulkJob')
     .addToUi();
 }
@@ -70,7 +72,15 @@ function callNCCE(path, payload) {
   });
   if (response.getResponseCode() !== 200) {
     // Never log credentials or complete response bodies containing prose/context.
-    throw new Error('NCCE relay HTTP ' + response.getResponseCode() + '; saved rows remain unchanged.');
+    const error = new Error('NCCE relay HTTP ' + response.getResponseCode() + '; saved rows remain unchanged.');
+    error.httpStatus = response.getResponseCode();
+    if (path.startsWith('bulk/') && error.httpStatus === 400) {
+      try {
+        const detail = JSON.parse(response.getContentText()).error;
+        if (typeof detail === 'string') error.message = detail.slice(0, 350);
+      } catch (_) {}
+    }
+    throw error;
   }
   return JSON.parse(response.getContentText());
 }
@@ -223,6 +233,7 @@ function writeQueueStatus(book, waterfall, queue) {
 }
 
 function syncNCCE() {
+  const deadline = Date.now() + 3 * 60 * 1000;
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(1000)) return;
   try {
@@ -321,20 +332,13 @@ function syncNCCE() {
     PropertiesService.getScriptProperties().setProperty('NCCE_LAST_SUCCESS_UTC', new Date().toISOString());
     // Optional historical backfill may fail without interrupting the canonical
     // Queue relay, its receipts or its five-item writer buffer.
-    try { syncHistoricalBackfill(book); }
-    catch (error) {
-      console.error('Bulk backfill sync failed (normal NCCE relay completed): '+error.message);
-      const bulk=book.getSheetByName('Bulk Jobs');
-      if(bulk&&bulk.getLastRow()>1) {
-        // Diagnostic only; do not alter source or writing statuses.
-        bulk.getRange(2,10).setValue(String(error.message).slice(0,300));
+    if (typeof syncHistoricalBackfill === 'function') {
+      try {
+        const batches = syncHistoricalBackfill(book, deadline);
+        if (typeof runAutonomousBulkWriter === 'function') runAutonomousBulkWriter(book, batches, deadline);
+      } catch (error) {
+        console.error('Historical backfill: ' + error.message);
       }
-    }
-    // Explicitly opt-in autonomous writer. It never touches normal Queue,
-    // and a model/API failure cannot interrupt normal or bulk transport.
-    try { runAutonomousBulkWriter(book); }
-    catch (error) {
-      console.error('Autonomous bulk writer failed: '+error.message);
     }
   } finally { lock.releaseLock(); }
 }
@@ -344,6 +348,6 @@ function syncNCCE() {
 function syncHistoricalBackfillNow() {
   const lock=LockService.getScriptLock();
   if(!lock.tryLock(1000))return;
-  try { syncHistoricalBackfill(SpreadsheetApp.openById(EXCHANGE_ID)); }
+  try { syncHistoricalBackfill(SpreadsheetApp.openById(EXCHANGE_ID), Date.now() + 3 * 60 * 1000); }
   finally { lock.releaseLock(); }
 }

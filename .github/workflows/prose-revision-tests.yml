@@ -8,6 +8,11 @@ on:
       - 'scripts/writing_exchange/Code.gs'
       - 'tests/test_exchange_automation.py'
       - 'src/historical_backfill.py'
+      - 'src/bulk_qa.py'
+      - 'scripts/writing_exchange/AutonomousBulkWriter*.gs'
+      - 'tests/test_autonomous_bulk_e2e.cjs'
+      - 'tests/test_historical_backfill_e2e.py'
+      - 'tests/test_exchange_relay.cjs'
       - 'src/editorial_revision_seed.py'
       - 'tests/test_editorial_revision_seed.py'
       - 'scripts/writing_exchange/Bulk.gs'
@@ -22,6 +27,11 @@ on:
       - 'scripts/writing_exchange/Code.gs'
       - 'tests/test_exchange_automation.py'
       - 'src/historical_backfill.py'
+      - 'src/bulk_qa.py'
+      - 'scripts/writing_exchange/AutonomousBulkWriter*.gs'
+      - 'tests/test_autonomous_bulk_e2e.cjs'
+      - 'tests/test_historical_backfill_e2e.py'
+      - 'tests/test_exchange_relay.cjs'
       - 'src/editorial_revision_seed.py'
       - 'tests/test_editorial_revision_seed.py'
       - 'scripts/writing_exchange/Bulk.gs'
@@ -43,6 +53,13 @@ jobs:
         run: python tests/test_exchange_automation.py
       - name: Run isolated historical backfill tests
         run: python tests/test_historical_backfill.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run timer, HTTP relay and restart regression
+        run: |
+          node tests/test_exchange_relay.cjs
+          python tests/test_historical_backfill_e2e.py
       - name: Run one-shot editorial revision seed checks
         run: python tests/test_editorial_revision_seed.py
       - name: Parse Google Apps Script relay JavaScript

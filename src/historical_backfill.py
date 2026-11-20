@@ -7,10 +7,14 @@ commits prose; bulk items do not occupy the normal Queue.
 from __future__ import annotations
 
 from collections import Counter
+from datetime import date, timezone
 import json
+import re
 from uuid import uuid4
 
+import bulk_qa as qa
 import exchange_automation as exchange
+from narrative_context import instant
 from writing_exchange import digest, packed
 from writing_waterfall import context as continuity, dependencies, order, plan, VERSION
 
@@ -89,7 +93,20 @@ def is_bulk_request(store, request_id):
     ).fetchone())
 
 
-def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_authorized=False):
+def _scope_date(value):
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise ValueError("Both start_date and end_date must be ISO dates (YYYY-MM-DD)")
+    return date.fromisoformat(value)
+
+
+def _within(candidate, start, end):
+    timestamp = instant(candidate.get("event_at_utc"))
+    return timestamp is not None and start <= timestamp.astimezone(timezone.utc).date() <= end
+
+
+def create(store, gang_ids=None, *, gang_names=None, house_types=None,
+           start_date=None, end_date=None, owner_authorized=False,
+           autonomous_writer_authorized=False, max_items=None):
     """Snapshot only explicit gang IDs and currently incomplete fighter memories.
 
     No prose is imported, no existing Queue cell is changed, and overlapping
@@ -97,6 +114,13 @@ def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_aut
     """
     if owner_authorized is not True:
         raise ValueError("Explicit owner authorization is required for this job")
+    start, end = _scope_date(start_date), _scope_date(end_date)
+    if start > end:
+        raise ValueError("start_date must be on or before end_date")
+    if max_items is not None and (type(max_items) is not int or not 1 <= max_items <= 2000):
+        raise ValueError("max_items must be an integer from 1 to 2000")
+    if autonomous_writer_authorized is True and max_items is None:
+        raise ValueError("An explicit max_items is required for autonomous writing")
     gang_ids=gang_ids or []
     gang_names=gang_names or []
     house_types=house_types or []
@@ -141,7 +165,11 @@ def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_aut
             if set(json.loads(row[0])) & set(names):
                 raise ValueError("A selected gang already has an active backfill")
         candidates = exchange.candidates(store)
-        selected = sorted((c for c in candidates if _eligible(store, c, set(names))), key=order)
+        selected = sorted((c for c in candidates
+                           if _within(c, start, end) and _eligible(store, c, requested)), key=order)
+        if max_items is not None and len(selected) > max_items:
+            raise ValueError(f"Selected {len(selected)} slots, above the authorized limit of {max_items}")
+        reserved = reserved_targets(store)
         job_id = str(uuid4())
         created = now()
         prepared = []
@@ -151,7 +179,7 @@ def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_aut
             if _normal_conflict(store, key):
                 skipped.append({"target_key": key, "reason": "Existing normal Exchange request"})
                 continue
-            if key in reserved_targets(store):
+            if key in reserved:
                 skipped.append({"target_key": key, "reason": "Already reserved by another job"})
                 continue
             prepared.append((c, key))
@@ -163,7 +191,11 @@ def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_aut
                 (job_id, packed(list(names)), created, created,
                  packed({"gangs": {g: found[g] for g in names},
                          "form_scope": sorted(FORMS), "source_count": len(selected),
-                         "skipped": skipped, "policy": "one_off_auto_approve"})),
+                         "skipped": skipped, "policy": "one_off_auto_approve",
+                         "start_date": start.isoformat(), "end_date": end.isoformat(),
+                         "date_basis": "UTC event date, inclusive",
+                         "autonomous_writer_authorized": autonomous_writer_authorized is True,
+                         "max_items": max_items})),
             )
             for index, (c, key) in enumerate(prepared):
                 rid=str(uuid4())
@@ -200,6 +232,18 @@ def create(store, gang_ids=None, *, gang_names=None, house_types=None, owner_aut
                 "discovered":len(selected),"queued":len(prepared),"skipped":skipped}
 
 
+def list_jobs(store):
+    return [dict(row) for row in store.db.execute(
+        '''SELECT job_id,state,created_at,
+                  json_extract(manifest_json,'$.autonomous_writer_authorized') AS writer_authorized
+           FROM historical_backfill_jobs
+           WHERE state IN ('ACTIVE','PREPARED') OR job_id IN (
+               SELECT job_id FROM historical_backfill_jobs ORDER BY created_at DESC LIMIT 100
+           )
+           ORDER BY created_at,job_id'''
+    )]
+
+
 def summary(store, job_id, include_items=False):
     job = _job(store, job_id)
     items = _items(store,job_id)
@@ -215,12 +259,15 @@ def summary(store, job_id, include_items=False):
             "title":json.loads(x["snapshot_json"])["target"]["title"],
             "status":x["state"],"error":x["error"],
             "receipt":x["receipt"],"source_revision":x["source_revision"],
+            "imported_at_utc":x["imported_at"],
+            "text_sha256":qa.draft_hash(x["writer_text_md"]) if x["state"]=="IMPORTED" and x["writer_text_md"] else None,
+            "event_at_utc":json.loads(x["snapshot_json"])["target"].get("event_at_utc"),
             "text_length":len(x["writer_text_md"] or ""),
         } for x in items]
     return result
 
 
-def poll(store, job_id, limit=25):
+def poll(store, job_id, limit=25, *, resolve_blocked=False):
     """Release prerequisite-safe packets without exposing them in normal Queue."""
     limit = int(limit)
     if not 1 <= limit <= 50:
@@ -231,7 +278,7 @@ def poll(store, job_id, limit=25):
             return {"packets":[],"job":summary(store,job_id)}
         items = _items(store,job_id)
         in_flight = [x for x in items if x["state"]=="WRITING"]
-        packets = [json.loads(x["packet_json"]) for x in in_flight[:limit]]
+        packets = [qa.dispatch(store, json.loads(x["packet_json"])) for x in in_flight[:limit]]
         if len(packets) >= limit:
             return {"packets":packets,"job":summary(store,job_id)}
         candidates = exchange.candidates(store)
@@ -268,7 +315,7 @@ def poll(store, job_id, limit=25):
                 "section":"brief","provenance":"instruction",
                 "source_ref":"Owner-authorized finite historical backfill "+job_id,
                 "event_at_utc":"","source_event_ids":"",
-                "text":("This specific historical backfill is owner-authorized for automatic approval. "
+                "text":("This finite historical backfill requires independent checklist approval. "
                         "Write accurate, polished prose consistent with prior accepted voices; "
                         "keep a fighter memory within 350 characters including Markdown. "
                         "This does not modify normal Exchange approval. "
@@ -281,10 +328,17 @@ def poll(store, job_id, limit=25):
                        WHERE request_id=? AND state='PENDING'""",
                     (packed(packet),packet["request"]["source_revision"],now(),item["request_id"]),
                 )
-            packets.append(packet)
-        return {"packets":packets,"job":summary(store,job_id),
-                "blocked":len([x for x in items if x["state"]=="PENDING"
-                               and x["target_key"] in blocked])}
+            packets.append(qa.dispatch(store, packet))
+        pending = [x for x in _items(store, job_id) if x["state"] == "PENDING"]
+        blockers = {x["request_id"]: " | ".join(blocked[x["target_key"]])
+                    for x in pending if x["target_key"] in blocked}
+        if resolve_blocked and not packets and not in_flight and len(blockers) == len(pending):
+            with store.db:
+                store.db.executemany(
+                    "UPDATE historical_backfill_items SET state='HOLD',error=? WHERE request_id=?",
+                    [("Unmet prerequisite: " + reason, rid) for rid, reason in blockers.items()],
+                )
+        return {"packets":packets,"job":summary(store,job_id),"blocked":len(blockers)}
 
 
 def _validate_bulk_text(form, text):
@@ -320,7 +374,8 @@ def deliver(store, job_id, payload):
         if not item:
             raise ValueError("Unknown request for this historical backfill")
         item = dict(item)
-        _validate_bulk_text(item["form"], text)
+        if not isinstance(text, str):
+            raise ValueError("Bulk delivery text must be a string")
         if payload.get("source_revision")!=item["source_revision"]:
             raise ValueError("Frozen dispatched revision does not match")
         if item["state"]=="IMPORTED":
@@ -349,6 +404,12 @@ def deliver(store, job_id, payload):
         if job["state"]!="ACTIVE" or item["state"]!="WRITING":
             raise ValueError("Bulk request is not awaiting a draft")
         packet=json.loads(item["packet_json"])
+        if not qa.approved(store, packet, text):
+            if payload.get("qa_protocol") != qa.PROTOCOL:
+                raise ValueError("Bulk delivery requires the current independent QA protocol")
+            return {"status":"needs_review","request_id":request_id,
+                    "error":"Exact draft has no passing independent checklist"}
+        _validate_bulk_text(item["form"], text)
         request=packet["request"]
         if request["request_id"]!=request_id or request["source_revision"]!=item["source_revision"]:
             raise ValueError("Bulk packet ID or source revision mismatch")

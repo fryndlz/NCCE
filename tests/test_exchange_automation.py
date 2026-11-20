@@ -13,7 +13,7 @@ from test_writing_exchange import setup
 import exchange_automation as exchange
 from story_engine import regenerate
 
-TEXT='+++ RECORD +++\n\n**The lamp cells**\n\nThey were still good.\n\n+++ END RECORD +++'
+TEXT='**The lamp cells**\n\nThey were still good.'
 
 
 def queue_one(store,c):
@@ -139,7 +139,7 @@ def test_versioned_revision_reuses_original_slot_and_preserves_audit_across_rebu
             packet=next(p for p in exchange.outbox(s) if p['request']['request_id']==revision['request_id'])
             assert packet['request']['source_revision']!=first['source_revision']
             assert any(x['section']=='revision_baseline' and x['text']==TEXT for x in packet['context'])
-            replacement='**Revised memory**\\n\\nSame event, clearer wording.'
+            replacement='**Revised memory**\n\nSame event, clearer wording.'
             deliver=dict(request_id=revision['request_id'],
                          source_revision=packet['request']['source_revision'],
                          status='READY',writer_text_md=replacement)
@@ -182,7 +182,7 @@ def test_revision_of_imported_biography_keeps_one_document_and_survives_rebuild(
             assert first['status']=='imported'
             child=exchange.request_revision(s,original['request_id'],first['receipt'])
             packet=next(x for x in exchange.outbox(s) if x['request']['request_id']==child['request_id'])
-            replacement='**Edited fighter dossier**\\n\\nPreserved facts; amended interpretation.'
+            replacement='**Edited fighter dossier**\n\nPreserved facts; amended interpretation.'
             result=exchange.deliver(s,dict(request_id=child['request_id'],status='READY',
                 source_revision=packet['request']['source_revision'],writer_text_md=replacement))
             assert result['status']=='imported',result
@@ -209,7 +209,7 @@ def test_multiple_successive_revisions_use_only_latest_accepted_baseline():
             original=queue_one(s,c);first=exchange.deliver(s,original)
             one=exchange.request_revision(s,original['request_id'],first['receipt'])
             packet=next(x for x in exchange.outbox(s) if x['request']['request_id']==one['request_id'])
-            t1='First corrected reading of the event.'
+            t1='**The first reading**\n\nFirst corrected reading of the event.'
             a=exchange.deliver(s,dict(request_id=one['request_id'],status='READY',
                 source_revision=packet['request']['source_revision'],writer_text_md=t1))
             assert a['status']=='imported',a
@@ -219,7 +219,7 @@ def test_multiple_successive_revisions_use_only_latest_accepted_baseline():
             assert bases==[t1],bases
             assert len([v for v in packet2['context']
                         if v.get('source_ref')=='Explicit imported-prose correction'])==1
-            t2='Second corrected reading of the same event.'
+            t2='**The second reading**\n\nSecond corrected reading of the same event.'
             b=exchange.deliver(s,dict(request_id=two['request_id'],status='READY',
                 source_revision=packet2['request']['source_revision'],writer_text_md=t2))
             assert b['status']=='imported',b

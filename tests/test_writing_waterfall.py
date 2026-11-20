@@ -18,6 +18,7 @@ def deliver_outbox(s):
     results=[]
     for p in e.outbox(s):
         q=p['request'];text='Accepted '+q['form']+' for '+q['title']+'.'
+        if q['form']=='fighter_memory':text='**Record of the shift**\n\n'+text
         result=e.deliver(s,dict(request_id=q['request_id'],status='READY',source_revision=q['source_revision'],writer_text_md=text))
         assert result['status']=='imported',result
         results.append(q['request_id'])

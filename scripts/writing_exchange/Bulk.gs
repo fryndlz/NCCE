@@ -50,10 +50,16 @@ function bulkFind(sheet, id, n) {
   return hits[0]||null;
 }
 
+function bulkAppend(sheet, rows) {
+  if (!rows.length) return;
+  const start = sheet.getLastRow() + 1;
+  ensureRoom(sheet, start + rows.length - 1);
+  writeLiteral(sheet.getRange(start, 1, rows.length, rows[0].length), rows);
+}
+
 function bulkAudit(book, jobId, requestId, action, status, receipt, message) {
   const sheet=bulkGetSheet(book,'Bulk Audit',BULK_AUDIT_HEADERS);
-  const next=sheet.getLastRow()+1;
-  writeLiteral(sheet.getRange(next,1,1,7), [[new Date().toISOString(),
+  bulkAppend(sheet, [[new Date().toISOString(),
     jobId,requestId,action,status,receipt||'',String(message||'').slice(0,1000)]]);
 }
 
@@ -72,7 +78,7 @@ function bulkContextWrite(sheet,packet) {
     }
   });
   if(!rows.length) throw new Error('Bulk packet has no source context');
-  writeLiteral(sheet.getRange(sheet.getLastRow()+1,1,rows.length,7),rows);
+  bulkAppend(sheet, rows);
 }
 
 function createHistoricalBackfill() {
@@ -88,126 +94,242 @@ function createHistoricalBackfill() {
     else throw new Error('Use gang: or house: before every name');
   });
   if(!names.length&&!houses.length)throw new Error('No backfill scope was selected');
-  const decision=ui.alert('Authorize this finite job?',
-    'Gang names: '+(names.join(', ')||'(none)')+
-    '\nHouse types: '+(houses.join(', ')||'(none)')+
-    '\nOnly existing unfinished fighter memories will be selected. Every item is tracked; corrections later require your explicit approval.',
+  const window = ui.prompt('Inclusive event dates (UTC)', 'Enter YYYY-MM-DD .. YYYY-MM-DD.', ui.ButtonSet.OK_CANCEL);
+  if (window.getSelectedButton() !== ui.Button.OK) return;
+  const dates = window.getResponseText().trim().match(/^(\d{4}-\d{2}-\d{2})\s*\.\.\s*(\d{4}-\d{2}-\d{2})$/);
+  if (!dates || dates[1] > dates[2]) throw new Error('Enter two ordered ISO dates.');
+  const cap = ui.prompt('Maximum number of items', 'The whole job is refused if its scope exceeds this limit (1–2000).', ui.ButtonSet.OK_CANCEL);
+  if (cap.getSelectedButton() !== ui.Button.OK) return;
+  const maxItems = Number(cap.getResponseText().trim());
+  if (!Number.isInteger(maxItems) || maxItems < 1 || maxItems > 2000) throw new Error('Enter a limit between 1 and 2000.');
+  const decision = ui.alert('Authorize this finite job?',
+    'Scope: ' + [...names, ...houses].join(', ') + '\nUTC events: ' + dates[1] + ' to ' + dates[2] +
+    '\nLimit: ' + maxItems + ' items. OpenAI receives their NCCE evidence and guidance for writing and independent review.' +
+    '\nThis authorizes at most 3 writer calls and 9 reviewer calls per item. Later corrections require your approval.',
     ui.ButtonSet.YES_NO);
-  if(decision!==ui.Button.YES)return;
+  if (decision !== ui.Button.YES) return;
   setupHistoricalBackfill();
-  const job=callNCCE('bulk/create',{
-    gang_names:names,house_types:houses,owner_authorized:true
+  const job = callNCCE('bulk/create', {
+    gang_names:names, house_types:houses, start_date:dates[1], end_date:dates[2], max_items:maxItems,
+    owner_authorized:true, autonomous_writer_authorized:true
   });
-  const book=SpreadsheetApp.openById(EXCHANGE_ID);
-  const sheet=book.getSheetByName('Bulk Jobs');
-  if(bulkFind(sheet,job.job_id,10))throw new Error('Bulk job exists already');
-  writeLiteral(sheet.getRange(sheet.getLastRow()+1,1,1,10), [[
-    job.job_id,job.state,JSON.stringify(job.scope),String(job.discovered),
-    String(job.queued),'0',String(job.skipped.length),new Date().toISOString(),'',''
-  ]]);
-  // Materialize the COMPLETE finite manifest up front. WRITING is released
-  // in dependency order; WAITING items are visible and counted meanwhile.
-  const manifest=callNCCE('bulk/status',{job_id:job.job_id});
-  const itemSheet=book.getSheetByName('Bulk Items');
-  const entries=(manifest.items||[]).map(entry=>[
-    entry.request_id,entry.status==='PENDING'?'WAITING':entry.status,
-    entry.form,'fighter',entry.entity_key,entry.target_key,
-    entry.title||'', '',entry.source_revision||'','', '', '', '', '', '', '',
-    job.job_id,entry.error||''
-  ]);
-  if(entries.length)writeLiteral(
-    itemSheet.getRange(itemSheet.getLastRow()+1,1,entries.length,18),entries);
-  bulkAudit(book,job.job_id,'','CREATE',job.state,'',
-    'Manifest discovered '+job.discovered+', queued '+job.queued+', skipped '+job.skipped.length);
-  ui.alert('Backfill '+job.job_id+' created: '+job.queued+
-    ' queued, '+job.skipped.length+' skipped. Open Bulk Jobs / Bulk Items to inspect.');
+  ui.alert('Backfill ' + job.job_id + ' created: ' + job.queued +
+    ' queued, ' + job.skipped.length + ' skipped. The relay will publish the manifest on its next tick.');
 }
 
-/** Optional part of the existing timer. Errors here must never stop normal relay. */
-function syncHistoricalBackfill(book) {
-  if(!book.getSheetByName('Bulk Jobs'))return; // feature not initialized
-  const jobs=bulkGetSheet(book,'Bulk Jobs',BULK_JOB_HEADERS);
-  const items=bulkGetSheet(book,'Bulk Items',BULK_ITEM_HEADERS);
-  const context=bulkGetSheet(book,'Bulk Context',CONTEXT_HEADERS);
-  const active=bulkRows(jobs,10).filter(r=>r[0]&&r[1]==='ACTIVE');
-  for(const job of active) {
-    const jobId=job[0];
-    // Deliver already-approved bulk texts FIRST. Preserve exactly as written.
-    let delivered=0;
-    for(const row of bulkRows(items,18).filter(r=>r[16]===jobId&&r[1]==='READY'&&r[11]).slice(0,10)) {
-      const cellRow=bulkFind(items,row[0],18);
-      const result=callNCCE('bulk/deliver',{
-        job_id:jobId,request_id:row[0],status:'READY',
-        source_revision:row[8],writer_text_md:row[11],
-        writer_note:row[12],completed_at_utc:row[13]
-      });
-      const current=items.getRange(cellRow,1,1,18).getDisplayValues()[0];
-      if(current[0]!==row[0]||current[1]!=='READY'||
-         current[8]!==row[8]||current[11]!==row[11]) {
-        throw new Error('Bulk draft changed during delivery; NCCE receipt retained. Reconcile by ID.');
-      }
-      if(result.status==='imported') {
-        writeLiteral(items.getRange(cellRow,15,1,2),
-          [[result.imported_at_utc||new Date().toISOString(),result.receipt]]);
-        writeLiteral(items.getRange(cellRow,2),[['IMPORTED']]);
-      } else {
-        writeLiteral(items.getRange(cellRow,18),[[result.error||'Held by NCCE']]);
-        writeLiteral(items.getRange(cellRow,2),[['HOLD']]);
-      }
-      bulkAudit(book,jobId,row[0],'DELIVER',result.status,result.receipt,result.error);
-      delivered++;
+function bulkIndex(sheet, width) {
+  const result = new Map();
+  bulkRows(sheet, width).forEach((values, i) => {
+    if (!values[0]) return;
+    if (result.has(values[0])) throw new Error('Duplicate bulk ID in ' + sheet.getName() + ': ' + values[0]);
+    result.set(values[0], {values, number:i + 2});
+  });
+  return result;
+}
+
+function bulkReconcile(items, itemsById, jobId, fresh) {
+  const missing = [];
+  for (const entry of fresh.items || []) {
+    const saved = itemsById.get(entry.request_id);
+    const remote = entry.status;
+    const receipt = entry.receipt || '';
+    const error = entry.error || '';
+    if (!saved) {
+      missing.push([
+        entry.request_id, ['PENDING','WRITING'].includes(remote) ? 'WAITING' : remote,
+        entry.form,'fighter',entry.entity_key,entry.target_key,entry.title || '', '', '',
+        entry.event_at_utc || '', '', '', '', '', entry.imported_at_utc || '', receipt,jobId,error
+      ]);
+      continue;
     }
-    const update=callNCCE('bulk/poll',{job_id:jobId,limit:25});
-    for(const packet of update.packets||[]) {
-      const r=packet.request;
-      const found=bulkFind(items,r.request_id,18);
-      if(found) {
-        const prior=items.getRange(found,1,1,18).getDisplayValues()[0];
-        // DRAFT is a relay staging row left by an interrupted publication.
-        if(!['WAITING','DRAFT'].includes(prior[1])||prior[11])continue;
+    const {values, number} = saved;
+    if (values[16] !== jobId) throw new Error('Bulk item assigned to a different job: ' + entry.request_id);
+    if (remote === 'IMPORTED') {
+      if (values[1] === 'IMPORTED' && values[15] === receipt) continue;
+      if (values[15] && values[15] !== receipt) {
+        writeLiteral(items.getRange(number,18), [['Receipt mismatch. Review NCCE audit before editing.']]);
+        continue;
       }
-      bulkContextWrite(context,packet);
-      SpreadsheetApp.flush();
-      const line=BULK_ITEM_HEADERS.map(h=>h==='job_id'?jobId:
-        h==='status'?'DRAFT':String(r[h]||''));
-      const target=found||items.getLastRow()+1;
-      writeLiteral(items.getRange(target,1,1,18),[line]);
-      SpreadsheetApp.flush();
-      writeLiteral(items.getRange(target,2),[['PENDING']]);
-      bulkAudit(book,jobId,r.request_id,'EXPOSE','PENDING','',r.title);
-    }
-    const fresh=callNCCE('bulk/status',{job_id:jobId});
-    // Reconcile NCCE-side holds (including source-drift BEFORE a packet was
-    // released). Keep any editor-owned WRITING/READY text strictly untouched.
-    for(const entry of fresh.items||[]) {
-      if(!['HOLD','SKIPPED'].includes(entry.status))continue;
-      const itemRow=bulkFind(items,entry.request_id,18);
-      if(!itemRow)continue;
-      const saved=items.getRange(itemRow,1,1,18).getDisplayValues()[0];
-      if(!['WAITING','PENDING','SKIPPED','HOLD'].includes(saved[1])||saved[11])continue;
-      if(saved[1]!==entry.status) {
-        writeLiteral(items.getRange(itemRow,2),[[entry.status]]);
-        bulkAudit(book,jobId,entry.request_id,'HOLD',entry.status,'',entry.error);
+      if (values[11] && entry.text_sha256 && entry.text_sha256 !== bulkWriterHash(values[11])) {
+        writeLiteral(items.getRange(number,18), [['NCCE imported a different draft. Review the original receipt.']]);
+        continue;
       }
-      if(saved[17]!==String(entry.error||'')) {
-        writeLiteral(items.getRange(itemRow,18),[[entry.error||'']]);
-      }
-    }
-    const jobRow=bulkFind(jobs,jobId,10);
-    writeLiteral(jobs.getRange(jobRow,2,1,6),[[
-      fresh.state,JSON.stringify(fresh.scope),String(fresh.manifest.source_count),
-      String(fresh.count),String(fresh.statuses.IMPORTED||0),
-      String((fresh.statuses.HOLD||0)+(fresh.statuses.SKIPPED||0))
-    ]]);
-    const waiting=(fresh.statuses.PENDING||0)+(fresh.statuses.WRITING||0);
-    if(!waiting) {
-      const closed=callNCCE('bulk/close',{job_id:jobId});
-      writeLiteral(jobs.getRange(jobRow,2),[[closed.state]]);
-      writeLiteral(jobs.getRange(jobRow,9),[[new Date().toISOString()]]);
-      bulkAudit(book,jobId,'','CLOSE',closed.state,'','Finite manifest exhausted');
-      bulkFinalReport(book,jobId,closed.state,fresh);
+      writeLiteral(items.getRange(number,15,1,2), [[entry.imported_at_utc || '',receipt]]);
+      writeLiteral(items.getRange(number,2), [['IMPORTED']]);
+    } else if (['HOLD','SKIPPED'].includes(remote) && values[1] !== 'IMPORTED') {
+      if (values[17] !== error) writeLiteral(items.getRange(number,18), [[error]]);
+      if (values[1] !== remote) writeLiteral(items.getRange(number,2), [[remote]]);
     }
   }
+  bulkAppend(items, missing);
+}
+
+function bulkUpdateJob(jobs, jobRow, fresh, diagnostic) {
+  const scope = fresh.manifest.start_date ? {
+    gang_ids:fresh.scope, start_date:fresh.manifest.start_date, end_date:fresh.manifest.end_date
+  } : fresh.scope;
+  const skipped = fresh.statuses.SKIPPED || 0;
+  const data = [fresh.job_id,fresh.state,JSON.stringify(scope),String(fresh.manifest.source_count ?? fresh.count),
+    String(fresh.count - skipped),String(fresh.statuses.IMPORTED || 0),String(fresh.statuses.HOLD || 0),
+    fresh.created_at || '',fresh.closed_at || '',diagnostic || ''];
+  if (jobRow) {
+    if (JSON.stringify(jobRow.values) !== JSON.stringify(data)) {
+      writeLiteral(jobs.getRange(jobRow.number,1,1,data.length), [data]);
+    }
+  } else bulkAppend(jobs,[data]);
+}
+
+function bulkDeliverReady(book, items, jobId, itemsById) {
+  const ready = [...itemsById.values()].filter(s => s.values[16] === jobId && s.values[1] === 'READY');
+  for (const {number,values} of ready.slice(0,10)) {
+    const payload = {
+      qa_protocol:BULK_QA_PROTOCOL, job_id:jobId, request_id:values[0],status:'READY',
+      source_revision:values[8],writer_text_md:values[11],
+      writer_note:values[12],completed_at_utc:values[13]
+    };
+    let result;
+    try { result = callNCCE('bulk/deliver',payload); }
+    catch (error) {
+      if (error.httpStatus !== 400) throw error;
+      if (values[17] !== error.message) writeLiteral(items.getRange(number,18), [[error.message]]);
+      continue;
+    }
+    const current = items.getRange(number,1,1,18).getDisplayValues()[0];
+    if ([0,1,7,8,11,16].some(i => current[i] !== values[i])) {
+      throw new Error('Bulk row changed during delivery. NCCE receipt will be reconciled by ID.');
+    }
+    if (result.status === 'imported') {
+      if (!result.receipt || !result.imported_at_utc) throw new Error('NCCE returned an incomplete receipt');
+      writeLiteral(items.getRange(number,15,1,2), [[result.imported_at_utc,result.receipt]]);
+      writeLiteral(items.getRange(number,2), [['IMPORTED']]);
+      if (current[17]) writeLiteral(items.getRange(number,18), [['']]);
+    } else if (result.status === 'needs_review' || result.status === 'held') {
+      writeLiteral(items.getRange(number,18), [[result.error]]);
+      writeLiteral(items.getRange(number,2), [[result.status === 'held' ? 'HOLD' : 'WRITING']]);
+    } else throw new Error('Unexpected bulk delivery result');
+    bulkAudit(book,jobId,values[0],'DELIVER',result.status,result.receipt,result.error);
+  }
+}
+
+function bulkExpose(book, items, context, itemsById, jobId, packets, deadline) {
+  for (const packet of packets) {
+    if (Date.now() > deadline) break;
+    const r = packet.request;
+    const previous = itemsById.get(r.request_id);
+    if (previous && previous.values[16] !== jobId) throw new Error('Bulk packet job mismatch: ' + r.request_id);
+    if (previous && (!['WAITING','DRAFT'].includes(previous.values[1]) || previous.values[11])) continue;
+    if (previous) {
+      const current = items.getRange(previous.number,1,1,18).getDisplayValues()[0];
+      if ([0,1,11,16].some(i => current[i] !== previous.values[i])) continue;
+    }
+    bulkContextWrite(context,packet);
+    SpreadsheetApp.flush();
+    const line = BULK_ITEM_HEADERS.map(h => h === 'job_id' ? jobId :
+      h === 'status' ? 'DRAFT' : String(r[h] || ''));
+    const number = previous?.number || items.getLastRow()+1;
+    ensureRoom(items,number);
+    writeLiteral(items.getRange(number,1,1,18),[line]);
+    SpreadsheetApp.flush();
+    writeLiteral(items.getRange(number,2),[['PENDING']]);
+    bulkAudit(book,jobId,r.request_id,'EXPOSE','PENDING','',r.title);
+  }
+}
+
+/** Existing five-minute trigger runs transport before making at most one model call. */
+function syncHistoricalBackfill(book, deadline) {
+  if (!book.getSheetByName('Bulk Jobs')) return [];
+  const jobs = bulkGetSheet(book,'Bulk Jobs',BULK_JOB_HEADERS);
+  const items = bulkGetSheet(book,'Bulk Items',BULK_ITEM_HEADERS);
+  const context = bulkGetSheet(book,'Bulk Context',CONTEXT_HEADERS);
+  const jobRows = bulkIndex(jobs,10);
+  const reports = book.getSheetByName('Bulk Reports');
+  const reported = new Set(reports ? bulkRows(reports,10).map(row => row[1]) : []);
+  const batches = [];
+  for (const job of callNCCE('bulk/jobs',{}).jobs) {
+    if (Date.now() > deadline) break;
+    const jobId = job.job_id, jobRow = jobRows.get(jobId);
+    const isClosed = ['COMPLETED','COMPLETED_WITH_ERRORS'].includes(job.state);
+    if (jobRow && jobRow.values[1] === job.state && job.state !== 'ACTIVE' &&
+        (!isClosed || reported.has(jobId))) continue;
+    try {
+      let itemsById = bulkIndex(items,18);
+      const enabled = typeof bulkWriterJobEnabled === 'function' && bulkWriterJobEnabled(jobId,job.writer_authorized);
+      if (job.state === 'ACTIVE') {
+        bulkDeliverReady(book,items,jobId,itemsById);
+        const update = callNCCE('bulk/poll',{job_id:jobId,limit:10,resolve_blocked:!!enabled});
+        const packets = update.packets || [];
+        bulkExpose(book,items,context,itemsById,jobId,packets,deadline);
+        batches.push({jobId,packets,authorized:job.writer_authorized});
+        itemsById = bulkIndex(items,18);
+      }
+      let fresh = callNCCE('bulk/status',{job_id:jobId});
+      bulkReconcile(items,itemsById,jobId,fresh);
+      if (fresh.state === 'ACTIVE' && !(fresh.statuses.PENDING || fresh.statuses.WRITING)) {
+        fresh = callNCCE('bulk/close',{job_id:jobId});
+      }
+      const pause = PropertiesService.getScriptProperties().getProperty('NCCE_BULK_PAUSE_' + jobId);
+      bulkUpdateJob(jobs,jobRow,fresh,fresh.state === 'ACTIVE' ?
+        pause || (enabled ? '' : 'Autonomous writer is disabled or awaits job authorization.') : '');
+      if (['COMPLETED','COMPLETED_WITH_ERRORS'].includes(fresh.state) && !reported.has(jobId)) {
+        bulkFinalReport(book,jobId,fresh.state,fresh);
+      }
+    } catch (error) {
+      console.error('Bulk job ' + jobId + ': ' + error.message);
+      if (jobRow) writeLiteral(jobs.getRange(jobRow.number,10), [[String(error.message).slice(0,350)]]);
+    }
+  }
+  return batches;
+}
+
+function resumeSelectedBulkJob() {
+  const book = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+  const selected = book?.getActiveRange();
+  if (book?.getId() !== EXCHANGE_ID || selected?.getSheet().getName() !== 'Bulk Jobs' || selected.getRow() < 2) {
+    ui.alert('Select the existing ACTIVE job in Bulk Jobs.'); return;
+  }
+  const [jobId,status] = selected.getSheet().getRange(selected.getRow(),1,1,2).getDisplayValues()[0];
+  if (status !== 'ACTIVE' || !/^[a-f0-9-]{36}$/.test(jobId)) throw new Error('Select an ACTIVE job.');
+  const p = PropertiesService.getScriptProperties();
+  if (!p.getProperty('NCCE_BULK_WRITER_API_KEY') || p.getProperty('NCCE_BULK_WRITER_ENABLED') !== 'true') {
+    ui.alert('The autonomous writer needs an API credential and must be enabled in Apps Script.'); return;
+  }
+  const fresh = callNCCE('bulk/status',{job_id:jobId});
+  if (fresh.state !== 'ACTIVE') throw new Error('The existing job is not active in NCCE.');
+  const remaining = (fresh.statuses.PENDING || 0) + (fresh.statuses.WRITING || 0);
+  if (ui.alert('Resume this exact job?', jobId + '\n' + remaining +
+    ' items remain. Approve sending their sealed evidence and guidance to OpenAI, within the existing per-item attempt limits.',
+    ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(2000)) throw new Error('Relay is running. Try again after this tick.');
+  try {
+    const key = 'NCCE_BULK_WRITER_JOB_IDS';
+    const jobIds = new Set((p.getProperty(key) || '').split(',').map(x => x.trim()).filter(Boolean));
+    jobIds.add(jobId);
+    p.setProperty(key,[...jobIds].join(','));
+    p.deleteProperty('NCCE_BULK_PAUSE_' + jobId);
+  } finally { lock.releaseLock(); }
+  ui.alert('Authorized the same job. The existing timer will continue from its saved checkpoints.');
+}
+
+function showBulkOperationalStatus() {
+  SpreadsheetApp.getUi().alert(bulkOperationalStatus());
+}
+
+function bulkOperationalStatus() {
+  const p = PropertiesService.getScriptProperties();
+  const jobs = callNCCE('bulk/jobs',{}).jobs;
+  const enabled = jobs.filter(job => job.state === 'ACTIVE' && bulkWriterJobEnabled(job.job_id,job.writer_authorized));
+  const result = [
+    'NCCE relay credentials: verified',
+    'OpenAI key present: ' + Boolean(p.getProperty('NCCE_BULK_WRITER_API_KEY')),
+    'Writer enabled: ' + (p.getProperty('NCCE_BULK_WRITER_ENABLED') === 'true'),
+    'Authorized active jobs: ' + enabled.length,
+    'syncNCCE triggers for this account: ' + ScriptApp.getProjectTriggers().filter(x => x.getHandlerFunction() === 'syncNCCE').length,
+    'Last successful normal relay: ' + (p.getProperty('NCCE_LAST_SUCCESS_UTC') || 'unknown')
+  ].join('\n');
+  console.log(result);
+  return result;
 }
 
 function reviseSelectedBulkMemory() {
@@ -256,18 +378,11 @@ function finalizeSelectedBulkJob() {
     ui.ButtonSet.YES_NO);
   if(yes!==ui.Button.YES)return;
   const completed=callNCCE('bulk/close',{job_id:row[0],finalize_unresolved:true});
-  writeLiteral(jobs.getRange(selected.getRow(),2),[[completed.state]]);
-  writeLiteral(jobs.getRange(selected.getRow(),9),[[new Date().toISOString()]]);
   const items=book.getSheetByName('Bulk Items');
   const finalManifest=callNCCE('bulk/status',{job_id:row[0]});
-  for(const item of finalManifest.items||[]) {
-    if(item.status!=='HOLD')continue;
-    const i=bulkFind(items,item.request_id,18);
-    if(!i)continue;
-    const state=items.getRange(i,2).getDisplayValue();
-    if(state==='WAITING')writeLiteral(items.getRange(i,2),[['HOLD']]);
-    writeLiteral(items.getRange(i,18),[[item.error||'Unresolved historical backfill']]);
-  }
+  bulkReconcile(items,bulkIndex(items,18),row[0],finalManifest);
+  bulkUpdateJob(jobs, {number:selected.getRow(),values:row}, finalManifest);
+  bulkFinalReport(book,row[0],completed.state,finalManifest);
   bulkAudit(book,row[0],'','FINALIZE',completed.state,'',
     'Explicit owner finalization; unresolved items retained for reconciliation');
   ui.alert('Job '+row[0]+' closed: '+completed.state);
@@ -283,29 +398,15 @@ function bulkFinalReport(book,jobId,state,manifest) {
   if(bulkRows(sheet,headers.length).some(r=>r[1]===jobId))return;
   const statuses=manifest.statuses||{};
   const unresolved=(statuses.PENDING||0)+(statuses.WRITING||0);
-  const review='https://docs.google.com/spreadsheets/d/'+EXCHANGE_ID+
-    '/edit#gid='+book.getSheetByName('Bulk Items').getSheetId();
-  writeLiteral(sheet.getRange(sheet.getLastRow()+1,1,1,headers.length),[[
-    new Date().toISOString(),jobId,state,String(statuses.IMPORTED||0),
+  const items = book.getSheetByName('Bulk Items');
+  const first = bulkRows(items,18).findIndex(row => row[16] === jobId);
+  const review = 'https://docs.google.com/spreadsheets/d/' + EXCHANGE_ID +
+    '/edit#gid=' + items.getSheetId() + (first < 0 ? '' : '&range=Q' + (first + 2));
+  bulkAppend(sheet,[[
+    manifest.closed_at || new Date().toISOString(),jobId,state,String(statuses.IMPORTED||0),
     String(statuses.SKIPPED||0),String(statuses.HOLD||0),
     String(unresolved),String(manifest.count||0),review,
-    'Select IMPORTED Bulk Items row → Historical backfill → Revise selected bulk memory'
+    'Select IMPORTED Bulk Items row → Historical backfill → Revise selected bulk entry'
   ]]);
   bulkAudit(book,jobId,'','FINAL_REPORT',state,'',review);
-  // Optional completion notification; explicit destination, never guessed.
-  const email=PropertiesService.getScriptProperties().getProperty('NCCE_BULK_REPORT_EMAIL');
-  if(email) {
-    try {
-      MailApp.sendEmail(email,'NCCE historical backfill: '+state,
-        'Job: '+jobId+'\nState: '+state+
-        '\nImported: '+(statuses.IMPORTED||0)+
-        '\nSkipped: '+(statuses.SKIPPED||0)+
-        '\nHeld: '+(statuses.HOLD||0)+
-        '\nUnresolved: '+unresolved+
-        '\nReview: '+review+
-        '\nFor imported corrections, select the Bulk Items row and use Revise selected bulk memory.');
-    } catch(e) {
-      bulkAudit(book,jobId,'','REPORT_EMAIL_FAILED',state,'',String(e.message));
-    }
-  }
 }
